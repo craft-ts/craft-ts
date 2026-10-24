@@ -75,7 +75,7 @@ describe('services migration', () => {
     expect(second.changedFiles).toEqual([]);
   });
 
-  it('keeps unsafe inheritance and generates a searchable companion', async () => {
+  it('keeps unsafe inheritance intact for manual migration', async () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'legacy.ts': `
@@ -90,10 +90,8 @@ describe('services migration', () => {
       eslint: false,
       log: () => undefined,
     });
-    const companion = await readFile(join(root, 'legacy.craft.ts'), 'utf8');
-
     expect(result.diagnostics[0]?.code).toBe('NON_CONVERTIBLE_CLASS');
-    expect(companion).toContain('CRAFT_IMPLEMENTATION_REQUIRED');
+    expect(result.remainingLegacyServices).toBe(1);
     expect(await readFile(join(root, 'legacy.ts'), 'utf8')).toContain(
       'class LegacyService extends Base',
     );
@@ -483,7 +481,7 @@ describe('services migration', () => {
     expect(page).not.toContain('ApiService');
   });
 
-  it('imports unsafe service helpers from the generated companion', async () => {
+  it('leaves consumers of unsafe services unchanged', async () => {
     const root = await fixture({
       'tsconfig.json': JSON.stringify({
         compilerOptions: { experimentalDecorators: true },
@@ -501,19 +499,17 @@ describe('services migration', () => {
       `,
     });
 
-    await runServicesMigration({
+    const result = await runServicesMigration({
       rootDir: root,
       write: true,
       eslint: false,
       log: () => undefined,
     });
 
-    const companion = await readFile(join(root, 'legacy.craft.ts'), 'utf8');
     const page = await readFile(join(root, 'page.ts'), 'utf8');
-    expect(companion).toContain("providedIn: 'toProvide'");
-    expect(companion).toContain('provideLegacy');
-    expect(page).toContain("from './legacy.craft'");
-    expect(page).toContain('provideLegacy()');
+    expect(result.diagnostics[0]?.code).toBe('NON_CONVERTIBLE_CLASS');
+    expect(page).toContain('inject(LegacyService)');
+    expect(page).toContain('providers: [LegacyService]');
   });
 
   it('converts simple httpResource calls to query and CraftHttpClient', async () => {

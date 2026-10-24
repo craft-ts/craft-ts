@@ -102,7 +102,7 @@ describe('route handleExceptions (third argument)', () => {
       },
       {
         NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
-          // @ts-expect-error redirectUrl() takes a string | UrlTree, not a number
+          // @ts-expect-error redirectUrl() takes a string | CraftRedirectTree, not a number
           return redirectUrl(123);
         }),
       },

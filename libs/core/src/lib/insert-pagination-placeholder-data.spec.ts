@@ -2,7 +2,7 @@ import {
   computed,
   signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { craftUse } from './craft-use';
@@ -15,7 +15,7 @@ import type { YieldableReactiveValue } from './reactive-read';
 
 describe('insertPaginationPlaceholderData', () => {
   it('should return the data of the currentPage', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const finalResult = craftUse(
         query(
           'finalResult',
@@ -59,7 +59,7 @@ describe('insertPaginationPlaceholderData', () => {
 
   it('should return a placeholder data during loading', async () => {
     vi.useFakeTimers();
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const pagination = signal(1);
       const userQuery = craftUse(
         query(
@@ -113,7 +113,7 @@ describe('insertPaginationPlaceholderData', () => {
 
   it('should expose custom outputs via build and only mutate the current page', async () => {
     vi.useFakeTimers();
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       type Item = { id: string; name: string; completed: boolean };
       const pagination = signal(1);
       const userQuery = craftUse(

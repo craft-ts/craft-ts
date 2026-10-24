@@ -6,8 +6,6 @@ import {
 import {
   createCraftInjector,
   getCurrentCraftInjector,
-  isCraftInjector,
-  ɵcreateCraftInjectorFromHost,
   type CraftInjector,
   type CraftInjectToken,
   type CraftProvider,
@@ -31,11 +29,9 @@ export type AbstractType<T> = abstract new (...args: any[]) => T;
 export type ValueEqualityFn<T> = (a: T, b: T) => boolean;
 
 /** Narrow injector shape for option bags that leak into the public type graph. */
-export type InjectorHandle = {
-  get(token: unknown, notFoundValue?: unknown, flags?: unknown): unknown;
-};
+export type InjectorHandle = CraftInjector;
 
-export interface Injector {
+export interface Injector extends CraftInjector {
   get<T>(token: ProviderToken<T>): T;
   get<T>(token: ProviderToken<T>, notFoundValue: null): T | null;
   get<T>(token: ProviderToken<T>, notFoundValue: T): T;
@@ -78,7 +74,7 @@ export type ExistingProvider = {
   multi?: boolean;
 };
 export type TypeProvider = Type<unknown>;
-export type AngularStyleProvider =
+export type CraftProviderValue =
   | TypeProvider
   | ValueProvider
   | FactoryProvider
@@ -86,7 +82,7 @@ export type AngularStyleProvider =
   | ExistingProvider
   | EnvironmentProviders
   | any[];
-export type Provider = AngularStyleProvider;
+export type Provider = CraftProviderValue;
 export type ApplicationConfig = {
   providers: Array<Provider | EnvironmentProviders>;
 };
@@ -145,7 +141,7 @@ export type CreateComputedOptions<T> = {
   debugName?: string;
 };
 export type CreateEffectOptions = {
-  injector?: InjectorHandle | object;
+  injector?: CraftInjector;
   manualCleanup?: boolean;
   debugName?: string;
 };
@@ -244,7 +240,7 @@ export const Injector = Object.assign(INJECTOR_TOKEN, {
   NULL: createCraftInjector([]),
   create(options: {
     providers: readonly unknown[];
-    parent?: Injector | CraftInjector | object | null;
+    parent?: CraftInjector | null;
     name?: string;
   }): CraftInjector {
     const parent = options.parent ?? createCraftInjector([]);
@@ -272,8 +268,6 @@ export const APP_INITIALIZER = new InjectionToken<Array<() => unknown>>(
 );
 
 /**
- * Pure-Craft equivalent of Angular's initialization status.
- *
  * Initializers are invoked synchronously when the status is first resolved;
  * the promise only represents completion of any asynchronous results they
  * return. That keeps startup side effects observable immediately while still
@@ -325,10 +319,6 @@ export function ɵsetCraftDevMode(isDev: boolean | undefined): void {
 export function isDevMode(): boolean {
   if (craftDevMode !== undefined) {
     return craftDevMode;
-  }
-  const ngDevMode = (globalThis as { ngDevMode?: boolean }).ngDevMode;
-  if (typeof ngDevMode === 'boolean') {
-    return ngDevMode;
   }
   const nodeProcess = (
     globalThis as { process?: { env?: { NODE_ENV?: string } } }
@@ -396,19 +386,6 @@ function isDestroyRefToken(token: unknown): boolean {
   return token === DestroyRef;
 }
 
-type CraftInjectFallback = (
-  token: object,
-  options?: { optional?: boolean; skipSelf?: boolean },
-) => unknown;
-
-let injectFallback: CraftInjectFallback | undefined;
-
-export function ɵsetCraftInjectFallback(
-  fallback: CraftInjectFallback | undefined,
-): void {
-  injectFallback = fallback;
-}
-
 export function inject<T>(token: InjectionToken<T>): T;
 export function inject<T>(token: Type<T>): T;
 export function inject<T>(token: AbstractType<T>): T;
@@ -429,9 +406,6 @@ export function inject<T>(
   try {
     injector = getCurrentCraftInjector();
   } catch (error) {
-    if (injectFallback) {
-      return injectFallback(token as object, options) as T;
-    }
     throw error;
   }
   if (options?.skipSelf) {
@@ -475,35 +449,10 @@ export function assertInInjectionContext(
 }
 
 export function runInInjectionContext<T>(
-  injector: Injector | CraftInjector | object,
+  injector: CraftInjector,
   fn: () => T,
 ): T {
-  return asCraftInjector(injector).run(fn);
-}
-
-type CraftHostInjectorRunner = <T>(host: object, fn: () => T) => T;
-
-let hostInjectorRunner: CraftHostInjectorRunner | undefined;
-
-export function ɵsetCraftHostInjectorRunner(
-  runner: CraftHostInjectorRunner | undefined,
-): void {
-  hostInjectorRunner = runner;
-}
-
-export function asCraftInjector(
-  injector: Injector | CraftInjector | object,
-): CraftInjector {
-  if (isCraftInjector(injector)) {
-    return injector;
-  }
-  return ɵcreateCraftInjectorFromHost(injector as object, (fn) =>
-    hostInjectorRunner ? hostInjectorRunner(injector as object, fn) : fn(),
-  );
-}
-
-export function ɵcraftInjectorFromHost(hostInjector: object): CraftInjector {
-  return asCraftInjector(hostInjector);
+  return injector.run(fn);
 }
 
 function flattenProviders(providers: readonly unknown[]): Array<{
@@ -609,12 +558,11 @@ export function toCraftProviders(
 
 export function createEnvironmentInjector(
   providers: readonly unknown[],
-  parent: Injector | CraftInjector,
+  parent: CraftInjector,
   _debugName?: string,
 ): EnvironmentInjector & CraftInjector {
   const destroyRef = new DestroyRef();
-  const parentCraft = asCraftInjector(parent);
-  const child = parentCraft.createChild([
+  const child = parent.createChild([
     { token: DestroyRef, useValue: destroyRef },
     { token: INJECTOR_TOKEN, useFactory: (injector) => injector },
     { token: ENVIRONMENT_INJECTOR_TOKEN, useFactory: (injector) => injector },
@@ -682,7 +630,7 @@ export function linkedSignal<Source, T>(options: {
   computation: (source: Source, previous?: LinkedPrevious<Source, T>) => T;
   equal?: ValueEqualityFn<T>;
   debugName?: string;
-  injector?: InjectorHandle;
+  injector?: CraftInjector;
 }): CraftWritableSignal<T>;
 export function linkedSignal<T>(
   sourceOrOptions:
@@ -695,7 +643,7 @@ export function linkedSignal<T>(
         ) => T;
         equal?: ValueEqualityFn<T>;
         debugName?: string;
-        injector?: InjectorHandle;
+        injector?: CraftInjector;
       },
   options?: { equal?: ValueEqualityFn<T>; debugName?: string },
 ): CraftWritableSignal<T> {
@@ -756,8 +704,8 @@ export function effect(
     bindWatchToDestroyRef(watch, options);
     return watch;
   };
-  const injector = options?.injector;
-  return injector ? asCraftInjector(injector).run(run) : run();
+  const injector = options?.injector as CraftInjector | undefined;
+  return injector ? injector.run(run) : run();
 }
 
 export function untracked<T>(fn: () => T): T {
@@ -768,19 +716,8 @@ export function batch<T>(fn: () => T): T {
   return craftBatch(fn);
 }
 
-function isAngularSignalLike(value: unknown): boolean {
-  if (typeof value !== 'function') {
-    return false;
-  }
-  const symbols = Object.getOwnPropertySymbols(value);
-  if (symbols.some((symbol) => symbol.description === 'SIGNAL')) {
-    return true;
-  }
-  return 'set' in value || 'update' in value;
-}
-
 export function isSignal(value: unknown): value is Signal<unknown> {
-  return isCraftSignal(value) || isAngularSignalLike(value);
+  return isCraftSignal(value);
 }
 
 export function isWritableSignal(

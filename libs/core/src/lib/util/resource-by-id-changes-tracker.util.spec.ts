@@ -1,7 +1,7 @@
 import {
   signal,
 } from '../host/craft-compat';
-import { TestBed } from '../host/craft-test-bed';
+import { CraftTestBed } from '../host/craft-test-bed';
 import { resourceById } from '../resource-by-id';
 import {
   resourceByIdChangesTracker,
@@ -11,7 +11,7 @@ import {
 describe('resourceByIdChangesTracker', () => {
   it('should return hasChange false and empty arrays for the first read', async () => {
     vi.useFakeTimers();
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const params = signal({ id: '1' });
       const resourceByIdRef = resourceById({
         params,
@@ -38,7 +38,7 @@ describe('resourceByIdChangesTracker', () => {
 
   it('should track resolved resources', async () => {
     vi.useFakeTimers();
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const params = signal({ id: '1' });
       const resourceByIdRef = resourceById({
         params,
@@ -68,7 +68,7 @@ describe('resourceByIdChangesTracker', () => {
 
   it('should track multiple resolved resources in same cycle', async () => {
     vi.useFakeTimers();
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const params = signal({ id: '1' });
       const resourceByIdRef = resourceById({
         params,
@@ -101,7 +101,7 @@ describe('resourceByIdChangesTracker', () => {
 
   it('should track loading resources', async () => {
     vi.useFakeTimers();
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const params = signal({ id: '1' });
       const resourceByIdRef = resourceById({
         params,
@@ -129,7 +129,7 @@ describe('resourceByIdChangesTracker', () => {
 
   it('should track error resources', async () => {
     vi.useFakeTimers();
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const params = signal({ id: '1' });
       const resourceByIdRef = resourceById({
         params,

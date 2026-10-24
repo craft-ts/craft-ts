@@ -6,13 +6,14 @@ import {
   isCraftException,
   mutation,
   state,
-  type CraftTemporalRuntime as CraftTemporalRuntimeApi,
+  type CraftPointerGesture,
   type SendContextEvent,
   type TemporalTaskHandle,
   craftPrivate,
   craftExpose,
   type CraftServiceInput,
 } from '@craft-ts/core';
+import { drag as craftDrag } from '@craft-ts/core';
 import { craftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
@@ -126,50 +127,6 @@ export interface SendContextTargetRow {
   readonly index: number;
 }
 
-// The UI context carries an rxjs `Observable`, and `SendContextEventKind` is an
-// open `string & {}` union — neither survives the template-context projection.
-// So the factory reads the context and hands the template flat rows.
-type ChatContext = {
-  onClose: () => void;
-  visibleEvents: () => readonly SendContextTimelineRow[];
-  eventCount: () => number;
-  targets: () => readonly SendContextTargetRow[];
-  recording: () => boolean;
-  removeTarget: (index: number) => void;
-  instruction: () => string;
-  writeInstruction: (value: string) => Generator<never, unknown, unknown>;
-  options: () => SendContextPromptOptions;
-  writeOptions: (
-    value: SendContextPromptOptions,
-  ) => Generator<never, unknown, unknown>;
-  status: () => string;
-  error: () => string;
-  busy: () => boolean;
-  panelOffset: () => PanelOffset;
-  startDrag: (event: PointerEvent) => void;
-  resetPanelOffset: () => void;
-  toggleRecord: () => void;
-  clearTimeline: () => void;
-  copyPrompt: () => void;
-  exportJson: () => void;
-  replayJson: () => string;
-  writeReplayJson: (value: string) => Generator<unknown, unknown, unknown>;
-  importReplay: () => void;
-  replayStep: () => void;
-  replayPlay: () => void;
-  replayPause: () => void;
-  replayStop: () => void;
-  replayStatus: () => string;
-  endpoint?: string;
-  sendPayload?: () => void;
-  retrySend?: () => void;
-  copyPayload?: () => void;
-};
-
-type ChatFactoryContext = Omit<ChatContext, 'onClose'> & {
-  onClose: Output<() => void>;
-};
-
 /**
  * Default floating chat for the session timeline: the captured elements, the
  * recorded event timeline, an instruction box, and the per-section switches
@@ -217,13 +174,13 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     };
 
     const instruction = (yield* craftPrivate(
-      state('instruction', '', ({ set }) => ({
+      state('sendContextInstruction', '', ({ set }) => ({
         setInstruction: (value: string) => set(value),
       })),
     )) as unknown as InstructionState;
     const promptOptions = (yield* craftPrivate(
       state(
-        'promptOptions',
+        'sendContextPromptOptions',
         DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
         ({ set }) => ({
           setOptions: (value: SendContextPromptOptions) => set(value),
@@ -404,9 +361,6 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     });
 
     let drag: {
-      readonly pointerId: number;
-      readonly startX: number;
-      readonly startY: number;
       readonly originX: number;
       readonly originY: number;
       readonly baseLeft: number;
@@ -428,21 +382,16 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
       return Math.min(Math.max(wanted, lower - base), upper - base);
     }
 
-    const startDrag = (event: PointerEvent): void => {
-      if (event.button !== 0) return;
-      const handle = event.currentTarget as HTMLElement;
-      // The close button shares the header; a click on it is not a drag.
-      if (event.target instanceof Element && event.target.closest('button')) {
-        return;
-      }
+    const startDrag = (
+      _gesture: CraftPointerGesture,
+      handle: Element,
+    ): void => {
       const panel = handle.closest<HTMLElement>('[data-ai-chat]');
       if (!panel) return;
       const rect = panel.getBoundingClientRect();
       const current = craftUse(panelOffset());
       drag = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
+        // The panel offset is applied relative to its unshifted position.
         originX: current.x,
         originY: current.y,
         // Where the panel would sit with no offset applied.
@@ -451,45 +400,34 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
         width: rect.width,
         height: rect.height,
       };
-      handle.setPointerCapture(event.pointerId);
-      // Declarative `pointermove` props go through craft's DOM event hook,
-      // which records one timeline entry per frame of the drag. These stay
-      // imperative so a drag costs a single `pointerdown` entry.
-      handle.addEventListener('pointermove', moveDrag);
-      handle.addEventListener('pointerup', endDrag);
-      handle.addEventListener('pointercancel', endDrag);
-      event.preventDefault();
     };
 
-    const moveDrag = (event: PointerEvent): void => {
-      if (!drag || drag.pointerId !== event.pointerId) return;
+    const moveDrag = (gesture: CraftPointerGesture): void => {
+      if (!drag) return;
       setPanelOffset({
         x: clampOffset(
           drag.baseLeft,
           drag.width,
           window.innerWidth,
-          drag.originX + (event.clientX - drag.startX),
+          drag.originX + gesture.deltaX,
         ),
         y: clampOffset(
           drag.baseTop,
           drag.height,
           window.innerHeight,
-          drag.originY + (event.clientY - drag.startY),
+          drag.originY + gesture.deltaY,
         ),
       });
     };
 
-    const endDrag = (event: PointerEvent): void => {
-      if (!drag || drag.pointerId !== event.pointerId) return;
+    const endDrag = (): void => {
+      if (!drag) return;
       drag = null;
-      const handle = event.currentTarget as HTMLElement;
-      handle.removeEventListener('pointermove', moveDrag);
-      handle.removeEventListener('pointerup', endDrag);
-      handle.removeEventListener('pointercancel', endDrag);
-      if (handle.hasPointerCapture(event.pointerId)) {
-        handle.releasePointerCapture(event.pointerId);
-      }
     };
+
+    yield* craftExpose('dragStart', startDrag);
+    yield* craftExpose('dragPreview', moveDrag);
+    yield* craftExpose('dragEnd', endDrag);
 
     const resetPanelOffset = (): void => setPanelOffset({ x: 0, y: 0 });
 
@@ -729,7 +667,6 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     yield* craftExpose('error', () => craftUse(error()));
     yield* craftExpose('busy', () => craftUse(busy()));
     yield* craftExpose('panelOffset', () => craftUse(panelOffset()));
-    yield* craftExpose('startDrag', startDrag);
     yield* craftExpose('resetPanelOffset', resetPanelOffset);
     yield* craftExpose('toggleRecord', toggleRecord);
     yield* craftExpose('clearTimeline', clearTimeline);
@@ -772,7 +709,9 @@ export const AiSendContextChat = craftComponent(
       error,
       busy,
       panelOffset,
-      startDrag,
+      dragStart,
+      dragPreview,
+      dragEnd,
       resetPanelOffset,
       toggleRecord,
       clearTimeline,
@@ -816,7 +755,6 @@ export const AiSendContextChat = craftComponent(
               class: aiChat.header,
               // Drag the panel out of the way to reach what it covers.
               title: 'Drag to move · double-click to reset',
-              pointerdown: startDrag,
               dblclick: resetPanelOffset,
             },
             [
@@ -832,6 +770,13 @@ export const AiSendContextChat = craftComponent(
                 '×',
               ),
             ],
+          ).pipe(
+            craftDrag({
+              onDragStart: dragStart,
+              onDragPreview: dragPreview,
+              onDrop: dragEnd,
+              onDragCancel: dragEnd,
+            }),
           ),
 
           section({ class: aiChat.section }, [

@@ -17,6 +17,7 @@ import {
 import type { AnyCraftException, CraftException } from './craft-exception';
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import type { ComponentExceptionsOf } from './branded-component/branded-component';
+import type { PathParamsDecodeExceptions } from './path-params';
 import type {
   CraftRouteTarget,
   CraftRouteTargetInput,
@@ -91,7 +92,7 @@ type CraftExceptionOutcomeOf<Kind extends CraftExceptionOutcome['kind']> =
 
 /**
  * The argument handed to each `handleExceptions` handler: the typed exception
- * being handled, the navigation `phase`, the Angular-native redirect helpers,
+ * being handled, the navigation `phase`, the redirect helpers,
  * and the outcome constructors (`redirectTo`, `redirectUrl`, `renderComponent`, `globalError`,
  * `stay`, `noop`).
  */
@@ -242,6 +243,9 @@ type RouteComponentExceptions<RouteDefinition> = [
  */
 export type RouteExceptionUnion<RouteDefinition> =
   | RouteComponentExceptions<RouteDefinition>
+  | (RouteDefinition extends { pathParams: infer Definitions extends object }
+      ? PathParamsDecodeExceptions<Definitions[keyof Definitions]>
+      : never)
   | (RouteDefinition extends { canActivate: infer Field }
       ? RouteFieldExceptions<Field>
       : never)
@@ -452,15 +456,20 @@ const craftGlobalErrorService = ɵcraftValueService(
   { name: 'CraftGlobalError', providedIn: 'global' },
   () => signal<AnyCraftException | null>(null),
 ) as unknown as {
-  CraftGlobalError: () => Generator<never, Signal<AnyCraftException | null>, unknown>;
+  CraftGlobalError: () => Generator<
+    never,
+    Signal<AnyCraftException | null>,
+    unknown
+  >;
   CRAFT_GLOBAL_ERROR_META_DATA: {
     inject(): WritableSignal<AnyCraftException | null>;
   };
 };
 
 export const CraftGlobalError = craftGlobalErrorService.CraftGlobalError;
-export const ɵinjectCraftGlobalError = (): WritableSignal<AnyCraftException | null> =>
-  craftGlobalErrorService.CRAFT_GLOBAL_ERROR_META_DATA.inject();
+export const ɵinjectCraftGlobalError =
+  (): WritableSignal<AnyCraftException | null> =>
+    craftGlobalErrorService.CRAFT_GLOBAL_ERROR_META_DATA.inject();
 export const ɵinjectCraftGlobalErrorIn = (
   injector: Injector,
 ): WritableSignal<AnyCraftException | null> =>
@@ -483,7 +492,7 @@ export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
 /**
  * Adapts the same {@link CRAFT_GLOBAL_ERROR} token as a craft dependency named
  * `CraftGlobalError`, so the global exception can be read from a generator body
- * the way a `toCraftService` dependency is — see {@link CraftGlobalError}.
+ * the way a service dependency is — see {@link CraftGlobalError}.
  * Typed as the exhaustive {@link CraftGlobalHandledException} view, matching
  * {@link injectCraftGlobalError}.
  */

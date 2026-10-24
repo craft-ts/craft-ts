@@ -20,9 +20,9 @@ import { example } from '../shared/example.style';
 import { buttonUi } from '@craft-ts/ui/style';
 
 const { Counter, provideCounter } = craftService(
-  { name: 'Counter', providedIn: 'toProvide' },
+  { name: 'CounterCraftServiceRegisterFor', providedIn: 'toProvide' },
   function* () {
-    yield* state('counter', 0, ({ update }) => ({
+    yield* state('counterCraftServiceRegisterFor', 0, ({ update }) => ({
       increment: () => update((v) => v + 1),
       decrement: () => update((v) => v - 1),
     }));

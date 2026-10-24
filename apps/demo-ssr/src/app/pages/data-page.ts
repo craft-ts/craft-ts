@@ -40,7 +40,7 @@ export const { SsrDataPageView, provideSsrDataPageView } = craftService(
         } satisfies SsrData;
       },
     }));
-    yield* craftComputed('resolved', function* () {
+    yield* craftComputed('resolvedPagesDataPage', function* () {
       return yield* settled(data);
     });
   },

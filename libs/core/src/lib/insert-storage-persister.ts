@@ -11,6 +11,7 @@ import {
 import { ResourceByIdRef } from './resource-by-id';
 import type { QueriesPersister } from './util/persister.type';
 import { rawReactiveFacade } from './reactive-read';
+import { PersistedStorageSnapshotRegistry } from './persisted-storage-snapshot';
 
 type StoragePersisterServiceYield = ReturnType<
   typeof StoragePersister
@@ -37,7 +38,7 @@ export type StoragePersisterOptions<
 
 /**
  * Persists query, mutation, async-process, or state data through the
- * StoragePersister selected by the current Angular/Craft injector.
+ * StoragePersister selected by the current Craft injector.
  *
  * The identity (`key` + `storeName`) must be wrapped with `craftUnique` so the
  * static graph can guarantee it appears only once in the project.
@@ -85,6 +86,7 @@ export function insertStoragePersister<
       | InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>;
     const rawContext = rawReactiveFacade(context) as typeof context;
     const persister = yield* StoragePersister();
+    (yield* PersistedStorageSnapshotRegistry()).register(persister);
     if (options?.enabled === false) return { persister };
     const hasResourceById = 'resourceById' in context;
     const hasState = 'state' in context && !('resource' in context);

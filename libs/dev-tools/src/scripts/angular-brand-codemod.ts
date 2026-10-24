@@ -60,8 +60,6 @@ export type ServiceMigrationScope =
 
 export type ServiceMigrationStrategy =
   | 'craftService'
-  | 'toCraftService'
-  | 'companion'
   | 'ignore';
 
 export type ServiceMigrationOverride = {
@@ -1742,15 +1740,11 @@ function isServiceFactoryCall(
 ): boolean {
   const expression = callExpression.getExpression();
   if (Node.isIdentifier(expression)) {
-    return (
-      expression.getText() === 'craftService' ||
-      expression.getText() === 'toCraftService'
-    );
+    return expression.getText() === 'craftService';
   }
 
   if (Node.isPropertyAccessExpression(expression)) {
-    const methodName = expression.getName();
-    return methodName === 'craftService' || methodName === 'toCraftService';
+    return expression.getName() === 'craftService';
   }
 
   return false;

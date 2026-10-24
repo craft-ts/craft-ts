@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { beforeEach, describe, expect, it } from 'vitest';
 import LoginFormComponent from './login-form';
 
 describe('LoginFormComponent', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
@@ -16,9 +16,9 @@ describe('LoginFormComponent', () => {
     const mounted = mountCraftComponent(
       LoginFormComponent,
       element,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     const email = element.querySelector<HTMLInputElement>('#email');
     const password = element.querySelector<HTMLInputElement>('#password');
@@ -30,7 +30,7 @@ describe('LoginFormComponent', () => {
     expect(password?.classList.contains('craft-invalid')).toBe(true);
 
     email?.dispatchEvent(new Event('blur', { bubbles: true }));
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(element.textContent).toContain('Email is required.');
     expect(element.textContent).not.toContain('Password is required.');
@@ -40,7 +40,7 @@ describe('LoginFormComponent', () => {
       ?.dispatchEvent(
         new SubmitEvent('submit', { bubbles: true, cancelable: true }),
       );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(element.textContent).toContain('Email is required.');
     expect(element.textContent).toContain('Password is required.');

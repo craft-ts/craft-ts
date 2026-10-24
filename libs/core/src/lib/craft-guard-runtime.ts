@@ -4,7 +4,7 @@ import type { CraftRouter, CraftUrlTree } from './craft-router';
 /**
  * The router surface the route chain actually uses — the three navigation
  * methods it binds onto the exception handler context. Exported so callers and
- * tests can supply a router without reaching for an authored Angular token.
+ * tests can supply a router without introducing an application token.
  */
 export type CraftRouteRouterLike = {
   readonly url?: string;
@@ -91,7 +91,7 @@ export function evaluateCraftGuardSync(
 // Drives a route's `canActivate` → `resolve` chain *after* the URL has committed
 // (the `CraftRouterOutlet` calls this), routing any `craftException` through the
 // route's exhaustive `handleExceptions` map to a {@link RouteChainOutcome}.
-// It never returns a `GuardResult`/`Observable` — the outlet owns rendering, and
+// It never returns a `CraftGuardResult`/`Observable` — the outlet owns rendering, and
 // mounts the target only on `'data'`/`'noop'`.
 // ---------------------------------------------------------------------------
 

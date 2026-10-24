@@ -9,6 +9,7 @@ import {
 } from './host/craft-compat';
 import {
   createCorrelationIdService,
+  ɵcorrelationIdForDomEvent,
   getCurrentStartCorrelationId,
   setCurrentStartCorrelationId,
 } from './correlation-id';
@@ -28,7 +29,11 @@ import { ɵinjectCraftTemporalRuntime } from './temporal-runtime';
 
 const correlationIdDomEventHook: CraftDomEventHook = (interaction, next) => {
   const service = ɵinjectCorrelationIdService();
-  service?.generateAndSet(interaction.interactionName);
+  ɵcorrelationIdForDomEvent(
+    interaction.event,
+    service,
+    interaction.interactionName,
+  );
   return next();
 };
 

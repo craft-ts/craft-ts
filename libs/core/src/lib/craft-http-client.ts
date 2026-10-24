@@ -37,6 +37,8 @@ export type CraftHttpClientParams =
 export type CraftHttpClientJsonOptions = {
   headers?: Readonly<Record<string, string>>;
   params?: CraftHttpClientParams;
+  /** Stable, non-secret identity for identical concurrent requests in replay. */
+  replayKey?: string;
   signal?: AbortSignal;
   timeout?: number;
 };
@@ -721,62 +723,77 @@ function createCraftHttpRequest<
     ExtractCraftHttpClientSuccess<Config>,
     ExtractCraftHttpClientExceptions<Config>,
     ExtractCraftHttpClientResponseDecodeError<Config>
-  > =>
-    executeCraftHttpTrace(
-      injector,
-      {
-        method: normalizedMethod,
-        url: config.url,
-        params: config.params,
-        payload: getConfigPayload(config),
-      },
-      async () => {
-        try {
-          const response = await craftFetchTransport(
-            toCraftFetchRequest(normalizedMethod, config, bodyMode),
-          );
-          const responseBody = response.body;
+  > => {
+    try {
+      return await executeCraftHttpTrace(
+        injector,
+        {
+          method: normalizedMethod,
+          url: config.url,
+          params: config.params,
+          payload: getConfigPayload(config),
+          ...(config.replayKey === undefined
+            ? {}
+            : { replayKey: config.replayKey }),
+        },
+        async () => {
+          try {
+            const response = await craftFetchTransport(
+              toCraftFetchRequest(normalizedMethod, config, bodyMode),
+            );
+            const responseBody = response.body;
 
-          if (response.status < 200 || response.status >= 300) {
+            if (response.status < 200 || response.status >= 300) {
+              return resolveCraftHttpClientError(
+                normalizedMethod,
+                config,
+                toCraftHttpClientErrorResponse(config.url, response),
+              );
+            }
+
+            const decoder = (
+              config.success as
+                | (CraftHttpClientSuccessToken<unknown> & {
+                    readonly decoder?: CraftDecoder<unknown>;
+                  })
+                | undefined
+            )?.decoder;
+            if (!decoder) {
+              return responseBody as ExtractCraftHttpClientSuccess<Config>;
+            }
+
+            try {
+              return (await decoder.decode(
+                responseBody,
+              )) as ExtractCraftHttpClientSuccess<Config>;
+            } catch (error) {
+              return toHttpResponseDecodeError(
+                normalizedMethod,
+                config.url,
+                responseBody,
+                error,
+              ) as ExtractCraftHttpClientResponseDecodeError<Config>;
+            }
+          } catch (error) {
             return resolveCraftHttpClientError(
               normalizedMethod,
               config,
-              toCraftHttpClientErrorResponse(config.url, response),
+              normalizeHttpClientError(config.url, error),
             );
           }
-
-          const decoder = (
-            config.success as
-              | (CraftHttpClientSuccessToken<unknown> & {
-                  readonly decoder?: CraftDecoder<unknown>;
-                })
-              | undefined
-          )?.decoder;
-          if (!decoder) {
-            return responseBody as ExtractCraftHttpClientSuccess<Config>;
-          }
-
-          try {
-            return (await decoder.decode(
-              responseBody,
-            )) as ExtractCraftHttpClientSuccess<Config>;
-          } catch (error) {
-            return toHttpResponseDecodeError(
-              normalizedMethod,
-              config.url,
-              responseBody,
-              error,
-            ) as ExtractCraftHttpClientResponseDecodeError<Config>;
-          }
-        } catch (error) {
-          return resolveCraftHttpClientError(
-            normalizedMethod,
-            config,
-            normalizeHttpClientError(config.url, error),
-          );
-        }
-      },
-    );
+        },
+      );
+    } catch (error) {
+      // Replay trace adapters can supply a recorded transport failure before
+      // the live transport callback runs. Normalize it through the same Craft
+      // HTTP error path as a real fetch rejection.
+      return resolveCraftHttpClientError(
+        normalizedMethod,
+        config,
+        normalizeHttpClientError(config.url, error),
+      );
+    }
+  };
 
   return Object.defineProperties(request, {
     method: {

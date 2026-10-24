@@ -1,10 +1,10 @@
 import { loadCraftComponent } from '@craft-ts/component';
 import {
+  CRAFT_SERVICE_PROVIDER_BRAND,
   assertExhaustiveRouteExceptions,
   craftExceptionHandler,
   craftRoute,
   craftRoutes,
-  queryParams,
   type CanRun,
   type ComponentDepsOf,
   type CraftRouteExceptionType,
@@ -12,12 +12,19 @@ import {
   type ViewTransitionPayloadDef,
 } from '@craft-ts/core';
 import { authGuard } from './guard/auth.guard';
-import { paginationQueryParams } from './query-params.utils';
+import {
+  provideRoutePaginationQueryParams,
+  routePaginationQueryParams,
+} from './examples/routes/list-with-pagination/qp-list-with-pagination.route';
 import type { AppProvidedNames, AppProvidedValues } from './app.config';
+import {
+  provideUserIdPathParams,
+  userIdPathParam,
+} from './examples/shared/user-id-path-params';
 
 // SOURCE OF TRUTH FOR THE DEMO ROUTES.
 // All demo routes are served and checked by default.
-export const { demoRoutes } = craftRoutes('demo', [
+export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
   /* demo-route: query */
   {
     path: 'query/:userId',
@@ -26,9 +33,36 @@ export const { demoRoutes } = craftRoutes('demo', [
         ({ default: component }) => component,
       ),
     ),
+    pathParams: { userId: userIdPathParam },
+    providersFn: ({ UserIdPathParams }) => [
+      provideUserIdPathParams(function* () {
+        return yield* UserIdPathParams();
+      }),
+    ],
   },
 
-  /* demo-route-end */ /* demo-route: debounced-web-search */
+  /* demo-route-end */ /* demo-route: mutation */
+  {
+    path: 'mutation/:userId',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/primitives/mutation/mutation')).then(
+        ({ default: component }) => component,
+      ),
+    ),
+    pathParams: { userId: userIdPathParam },
+    handleExceptions: {
+      UNEXPECTED_ERROR: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+    providersFn: ({ UserIdPathParams }) => [
+      provideUserIdPathParams(function* () {
+        return yield* UserIdPathParams();
+      }),
+    ],
+  },
+
+  /* demo-route: debounced-web-search */
   {
     path: 'debounced-web-search',
     ...loadCraftComponent(({ withRetry }) =>
@@ -205,23 +239,6 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
 
-  /* demo-route-end */ /* demo-route: mutation */
-  craftRoute(
-    'mutation/:userId',
-    {
-      ...loadCraftComponent(({ withRetry }) =>
-        withRetry(import('./examples/primitives/mutation/mutation')).then(
-          ({ default: component }) => component,
-        ),
-      ),
-    },
-    {
-      UNEXPECTED_ERROR: craftExceptionHandler(function* ({ globalError }) {
-        return globalError();
-      }),
-    },
-  ),
-
   /* demo-route-end */ /* demo-route: list-with-pagination */
   {
     path: 'list-with-pagination',
@@ -302,6 +319,12 @@ export const { demoRoutes } = craftRoutes('demo', [
         ({ default: component }) => component,
       ),
     ),
+    pathParams: { userId: userIdPathParam },
+    providersFn: ({ UserIdPathParams }) => [
+      provideUserIdPathParams(function* () {
+        return yield* UserIdPathParams();
+      }),
+    ],
   },
 
   /* demo-route-end */ /* demo-route: craft-mutation */
@@ -312,6 +335,12 @@ export const { demoRoutes } = craftRoutes('demo', [
         ({ default: component }) => component,
       ),
     ),
+    pathParams: { userId: userIdPathParam },
+    providersFn: ({ UserIdPathParams }) => [
+      provideUserIdPathParams(function* () {
+        return yield* UserIdPathParams();
+      }),
+    ],
   },
 
   /* demo-route-end */ /* demo-route: craft-list-with-pagination */
@@ -365,6 +394,16 @@ export const { demoRoutes } = craftRoutes('demo', [
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(
         import('./examples/primitives/state-machine-list/task-board'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: replay-methods */
+  {
+    path: 'replay-methods',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/replay-methods/replay-methods'),
       ).then(({ default: component }) => component),
     ),
   },
@@ -456,9 +495,18 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
 
-  /* demo-route-end */ /* demo-route: query-params */
+  /* demo-route-end */ /* demo-route: interaction-replay */
   {
-    path: 'query-params',
+    path: 'interaction-replay',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/interaction-replay/interaction-replay-demo'),
+      ).then(({ InteractionReplayDemo }) => InteractionReplayDemo),
+    ),
+  },
+
+  /* demo-route-end */ /* demo-route: query-params */
+  craftRoute('query-params', {
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(
         import(
@@ -466,27 +514,12 @@ export const { demoRoutes } = craftRoutes('demo', [
         ),
       ).then(({ default: component }) => component),
     ),
-    queryParams: function* () {
-      const pagination = yield* queryParams(
-        'pagination',
-        paginationQueryParams(),
-        ({ patch, state }) => ({
-          nextPage: function* () {
-            const _state = yield* state();
-            return yield* patch({ page: _state.page + 1 });
-          },
-          previousPage: function* () {
-            const _state = yield* state();
-            return yield* patch({ page: Math.max(1, _state.page - 1) });
-          },
-          updatePageSize: function* (pageSize: number) {
-            return yield* patch({ pageSize, page: 1 });
-          },
-        }),
-      );
-      return pagination;
-    },
-  },
+    queryParams: routePaginationQueryParams,
+  }).withProviders(({ QueryParams }) => [
+    provideRoutePaginationQueryParams(function* () {
+      return yield* QueryParams();
+    }),
+  ]),
 
   /* demo-route-end */ /* demo-route: guard-demo */
   craftRoute(
@@ -558,11 +591,13 @@ type DemoRoutePath =
   | 'state-machine'
   | 'state-machine-text'
   | 'state-machine-list'
+  | 'replay-methods'
   | 'craft-service/counter'
   | 'craft-service/register-for'
   | 'craft-service/user-detail'
   | 'demo-send-context'
   | 'playground'
+  | 'interaction-replay'
   | 'query-params'
   | 'guard-demo';
 type DemoRoutePaths = readonly {
@@ -623,29 +658,61 @@ type DemoRouteCheckedDI<
   Component,
   RouteInputs extends string = never,
   Context extends string = 'demo route component',
+  RouteProviderNames extends string = never,
 > = RouteCheckedDI<
   ComponentDepsOf<Component>,
-  AppProvidedNames | 'CraftRouter' | 'CraftActivatedRoute',
+  AppProvidedNames | 'CraftRouter' | 'CraftActivatedRoute' | RouteProviderNames,
   AppProvidedValues,
   Context,
   RouteInputs
 >;
 
-/* demo-check: query */
-type _CanRunQuery = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/primitives/query/query'))['default'],
-    'userId',
-    'path: "query/:userId"'
-  >
+type RouteProviderNames<RouteDefinition> = RouteDefinition extends {
+  providersFn: infer Factory;
+}
+  ? Factory extends (...args: never[]) => infer Providers
+    ? Providers extends readonly (infer Provider)[]
+      ? Provider extends {
+          readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: {
+            name: infer Name extends string;
+          };
+        }
+        ? Name
+        : never
+      : never
+    : never
+  : never;
+
+type QueryParamsRouteProviderNames = RouteProviderNames<
+  Extract<(typeof demoRoutes)['_routes'][number], { path: 'query-params' }>
 >;
-/* demo-check-end */
+
 /* demo-check: debounced-web-search */
 type _CanRunDebouncedWebSearch = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/primitives/debounced-web-search/debounced-web-search'))['default'],
     never,
     'path: "debounced-web-search"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: query */
+type _CanRunQuery = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/query/query'))['default'],
+    'userId',
+    'path: "query/:userId"',
+    'UserIdPathParams'
+  >
+>;
+/* demo-check-end */
+/* demo-check: mutation */
+type _CanRunMutation = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/mutation/mutation'))['default'],
+    'userId',
+    'path: "mutation/:userId"',
+    'UserIdPathParams'
   >
 >;
 /* demo-check-end */
@@ -775,15 +842,6 @@ type _CanRunCssVarsProperty = CanRun<
   >
 >;
 /* demo-check-end */
-/* demo-check: mutation */
-type _CanRunMutation = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/primitives/mutation/mutation'))['default'],
-    'userId',
-    'path: "mutation/:userId"'
-  >
->;
-/* demo-check-end */
 /* demo-check: list-with-pagination */
 type _CanRunListWithPagination = CanRun<
   DemoRouteCheckedDI<
@@ -852,7 +910,8 @@ type _CanRunCraftQuery = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/craft/query/query'))['default'],
     'userId',
-    'path: "craft/query/:userId"'
+    'path: "craft/query/:userId"',
+    'UserIdPathParams'
   >
 >;
 /* demo-check-end */
@@ -861,7 +920,8 @@ type _CanRunCraftMutation = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/craft/mutation/mutation'))['default'],
     'userId',
-    'path: "craft/mutation/:userId"'
+    'path: "craft/mutation/:userId"',
+    'UserIdPathParams'
   >
 >;
 /* demo-check-end */
@@ -907,6 +967,15 @@ type _CanRunStateMachineList = CanRun<
     (typeof import('./examples/primitives/state-machine-list/task-board'))['default'],
     never,
     'path: "state-machine-list"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: replay-methods */
+type _CanRunReplayMethods = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/replay-methods/replay-methods'))['default'],
+    never,
+    'path: "replay-methods"'
   >
 >;
 /* demo-check-end */
@@ -982,12 +1051,22 @@ type _CanRunPlayground = CanRun<
   >
 >;
 /* demo-check-end */
+/* demo-check: interaction-replay */
+type _CanRunInteractionReplayDemo = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/interaction-replay/interaction-replay-demo'))['InteractionReplayDemo'],
+    never,
+    'path: "interaction-replay"'
+  >
+>;
+/* demo-check-end */
 /* demo-check: query-params */
 type _CanRunQueryParams = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/routes/list-with-pagination/qp-list-with-pagination'))['default'],
     never,
-    'path: "query-params"'
+    'path: "query-params"',
+    QueryParamsRouteProviderNames
   >
 >;
 /* demo-check-end */

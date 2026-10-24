@@ -12,12 +12,6 @@ import type {
   Simplify,
 } from '../craft-service.shared';
 
-export type AngularBrandDeps = {
-  injected?: readonly unknown[];
-  importDeps?: readonly unknown[];
-  providers?: readonly unknown[];
-};
-
 /**
  * Type-only dependency metadata carried by functional Craft components and
  * route fragments. The optional property never needs to exist at runtime.
@@ -346,14 +340,3 @@ export type GetDeps<Input extends object> = Simplify<
     missingProvider: ComputedMissingProviders<Input>;
   }
 >;
-
-export function deps(value: AngularBrandDeps = {}): AngularBrandDeps {
-  return value;
-}
-
-export function brandAngularSymbol<T extends object>(
-  angularSymbol: T,
-  _dependencyGroups?: AngularBrandDeps,
-): T {
-  return angularSymbol;
-}

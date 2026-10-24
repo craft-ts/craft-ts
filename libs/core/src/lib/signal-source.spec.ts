@@ -1,7 +1,7 @@
 import {
   computed,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { SignalSource, signalSource } from './signal-source';
 
 describe('source', () => {
@@ -13,7 +13,7 @@ describe('source', () => {
     vi.resetAllMocks();
   });
   it('should generate a source that enable to emit a value, and the listener to receive it', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = signalSource<string>('mySource');
 
       expectTypeOf(mySource).toEqualTypeOf<SignalSource<string>>();
@@ -35,7 +35,7 @@ describe('source', () => {
   });
 
   it('A listener at n+1 should not get the value when listened and get data for the first time', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = signalSource<string>('mySource');
 
       mySource.set('Hello World');
@@ -49,7 +49,7 @@ describe('source', () => {
   });
 
   it('A listener at n+1 should get the last value when using "preserveLastValue" config and listened and get data for the first time ', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = signalSource<string>('mySource');
 
       mySource.set('Hello World');

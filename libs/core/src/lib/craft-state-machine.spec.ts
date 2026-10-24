@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Equal, Expect, PrettifyEqual } from 'test-type';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import { craftService, type GetServiceDependencies } from './craft-service';
 import { craftComputed } from './craft-computed';
@@ -17,6 +17,7 @@ import {
   type CraftMachineContext,
 } from './craft-state-machine';
 import { craftExpose } from './craft-primitive-gen';
+import { ɵinjectCraftMethodReplayRegistry } from './craft-method-replay-registry';
 
 type ChildrenOf<Deps> = Deps extends { dependencies: infer Children }
   ? Children
@@ -129,8 +130,9 @@ function createMachine() {
         };
       },
 
-      function* ({ currentStep, currentStepWithContext }) {
+      function* ({ context, currentStep, currentStepWithContext }) {
         return {
+          back: () => context.validateEvent.emit({ reason: 'replay' }),
           isReading: yield* craftComputed('isReading', function* () {
             return (yield* currentStep()) === 'reading';
           }),
@@ -148,14 +150,14 @@ function createMachine() {
 
 describe('craftStateMachine', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     authenticated = true;
     editable = true;
     lastGlobalGuardTarget = undefined;
   });
 
   it('takes its initial step from the first accepted initStateMachine transit', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     expect(craftUse(machine.currentStep())).toBe('reading');
     expect(craftUse(machine.isReading())).toBe(true);
@@ -163,7 +165,7 @@ describe('craftStateMachine', () => {
   });
 
   it('transitions when a registered source emits', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     machine.context.touchEvent.emit({ type: 'touch' });
     expect(craftUse(machine.currentStep())).toBe('editing');
@@ -172,8 +174,23 @@ describe('craftStateMachine', () => {
     expect(craftUse(machine.currentStep())).toBe('saving');
   });
 
+  it('registers insertion methods so replay can invoke them by address', () => {
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
+    const registry = CraftTestBed.runInInjectionContext(
+      ɵinjectCraftMethodReplayRegistry,
+    );
+    const address = registry
+      .addresses()
+      .find((candidate) => candidate.endsWith('method:back'));
+
+    expect(address).toBeDefined();
+    registry.invoke(address!, undefined, []);
+
+    expect(craftUse(machine.currentStep())).toBe('saving');
+  });
+
   it('reacts to a recomputation registered with afterRecomputation', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     machine.context.validateEvent.emit({ reason: 'submit' });
     expect(craftUse(machine.currentStep())).toBe('saving');
@@ -184,7 +201,7 @@ describe('craftStateMachine', () => {
   });
 
   it('refuses a transition rejected by a local guard', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     machine.context.touchEvent.emit({ type: 'blur' });
 
@@ -193,13 +210,13 @@ describe('craftStateMachine', () => {
 
   it('refuses every transition rejected by the global guard', () => {
     authenticated = false;
-    expect(() => TestBed.runInInjectionContext(createMachine)).toThrow(
+    expect(() => CraftTestBed.runInInjectionContext(createMachine)).toThrow(
       'did not initialise',
     );
   });
 
   it('exposes the current step with its discriminant', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     expect(craftUse(machine.currentStepWithContext())).toEqual({
       step: 'reading',
@@ -215,7 +232,7 @@ describe('craftStateMachine', () => {
   });
 
   it('treats a transition to the current step as a no-op', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     machine.context.validateEvent.emit({ reason: 'submit' });
     expect(craftUse(machine.currentStep())).toBe('saving');
@@ -309,7 +326,7 @@ describe('craftStateMachine typing', () => {
   });
 
   it('types currentStep and currentStepWithContext from the transitions record', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     type Step = ReturnType<typeof machine.currentStep>;
     type _Step = Expect<Equal<Step, 'reading' | 'editing' | 'saving'>>;
@@ -332,7 +349,7 @@ describe('craftStateMachine typing', () => {
   });
 
   it('exposes source emissions from insertions as yieldable actions', () => {
-    const machine = TestBed.runInInjectionContext(() =>
+    const machine = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         craftStateMachine(
           contextFactory,
@@ -371,7 +388,7 @@ describe('craftStateMachine typing', () => {
       };
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() =>
         craftStateMachine(
           contextFactory,
@@ -427,11 +444,11 @@ describe('craftStateMachine guards', () => {
   }
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('applies a step guard only to the transitions of that step', () => {
-    const machine = TestBed.runInInjectionContext(createStepGuardedMachine);
+    const machine = CraftTestBed.runInInjectionContext(createStepGuardedMachine);
 
     craftUse(machine.context.formValid.deny());
     machine.context.touchEvent.emit({ type: 'touch' });
@@ -443,7 +460,7 @@ describe('craftStateMachine guards', () => {
   });
 
   it('lets the transition through once the step guard accepts', () => {
-    const machine = TestBed.runInInjectionContext(createStepGuardedMachine);
+    const machine = CraftTestBed.runInInjectionContext(createStepGuardedMachine);
 
     machine.context.touchEvent.emit({ type: 'touch' });
 
@@ -453,12 +470,12 @@ describe('craftStateMachine guards', () => {
 
 describe('craftStateMachine naming', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     authenticated = true;
   });
 
   it('accepts a leading name, like every other craft primitive', () => {
-    const machine = TestBed.runInInjectionContext(() =>
+    const machine = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         craftStateMachine(
           'editorMachine',
@@ -517,12 +534,12 @@ describe('craftStateMachine bare transitions', () => {
   }
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     editable = true;
   });
 
   it('accepts the setup generator without transitionsSetup', () => {
-    const machine = TestBed.runInInjectionContext(createBareMachine);
+    const machine = CraftTestBed.runInInjectionContext(createBareMachine);
 
     expect(craftUse(machine.currentStep())).toBe('reading');
 
@@ -531,7 +548,7 @@ describe('craftStateMachine bare transitions', () => {
   });
 
   it('types the setup context without an annotation', () => {
-    const machine = TestBed.runInInjectionContext(createBareMachine);
+    const machine = CraftTestBed.runInInjectionContext(createBareMachine);
 
     type Step = ReturnType<typeof machine.currentStep>;
     // No `| undefined`: `initStateMachine(...)` is required at the type level,
@@ -583,7 +600,7 @@ describe('craftStateMachine bare transitions', () => {
   });
 
   it('still rejects bare transitions that never initialise', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() =>
         craftStateMachine(
           contextFactory,

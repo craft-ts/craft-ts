@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed } from '@craft-ts/core';
+import { CraftTestBed } from '@craft-ts/core';
 import { setupCraftComponentTemplateTest } from '@craft-ts/component';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -46,7 +46,7 @@ const UserCard = craftComponent(
 beforeAll(() => {});
 
 beforeEach(() => {
-  TestBed.resetTestingModule();
+  CraftTestBed.resetTestingModule();
 });
 
 describe('guide/components/index.md #usercard', () => {

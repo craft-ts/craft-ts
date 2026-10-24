@@ -96,6 +96,16 @@ export interface CraftStyleOptions {
    */
   readonly base?: boolean;
   /**
+   * Emit the CSS aliases used to reproduce Craft-managed hover states during
+   * replay. Defaults to enabled outside Vite's `production` mode.
+   */
+  readonly replayHover?: boolean;
+  /**
+   * Emit replay aliases for Craft-managed focus, focus-visible and active
+   * states. Defaults to enabled outside Vite's `production` mode.
+   */
+  readonly replayFocusActive?: boolean;
+  /**
    * Style modules to evaluate from outside the project root: package names
    * (`'@craft-ts/component'`, resolved from the root) or directories.
    *
@@ -289,6 +299,8 @@ export interface EmitResult {
 export interface EmitOptions {
   readonly reset?: boolean;
   readonly base?: boolean;
+  readonly replayHover?: boolean;
+  readonly replayFocusActive?: boolean;
 }
 
 export async function emitStyles(
@@ -314,7 +326,10 @@ export async function emitStyles(
     ? [...registry.vars, ...CRAFT_BASE_VARS]
     : registry.vars;
   return {
-    css: renderCss(registry.atoms, registry.vars, foundation),
+    css: renderCss(registry.atoms, registry.vars, foundation, {
+      replayHover: options.replayHover,
+      replayFocusActive: options.replayFocusActive,
+    }),
     dump: {
       ...styleDump(registry.classes, registry.atoms, vars),
       globalReads: globalVarReads(foundation),
@@ -358,13 +373,20 @@ export async function loadStyleDump(
 export interface CraftStylePlugin {
   readonly name: string;
   readonly enforce?: 'pre' | 'post';
-  configResolved?(config: { readonly root: string }): void;
+  configResolved?(config: {
+    readonly root: string;
+    readonly mode?: string;
+  }): void;
   resolveId?(id: string): string | undefined;
   load?(id: string): Promise<string | undefined>;
   transformIndexHtml?(): Promise<HeadTag[]>;
   handleHotUpdate?(context: {
     readonly file: string;
     readonly server: {
+      readonly moduleGraph?: {
+        getModuleById(id: string): unknown;
+        invalidateModule(module: never): void;
+      };
       readonly ws: {
         send(message: {
           readonly type: 'full-reload';
@@ -382,6 +404,7 @@ export interface CraftStylePlugin {
  */
 export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
   let root = process.cwd();
+  let mode = 'development';
   let cached: EmitResult | undefined;
 
   const emitted = async (): Promise<EmitResult> => {
@@ -390,6 +413,8 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
     cached = await emitStyles(files, options.alias, {
       reset: options.reset,
       base: options.base,
+      replayHover: options.replayHover ?? mode !== 'production',
+      replayFocusActive: options.replayFocusActive ?? mode !== 'production',
     });
     if (options.dumpPath) {
       await writeFile(
@@ -405,6 +430,7 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
     enforce: 'pre',
     configResolved(config) {
       root = config.root;
+      mode = config.mode ?? mode;
     },
     resolveId(id) {
       // The query is kept: `virtual:craft-style.css?direct` is how a server
@@ -433,6 +459,11 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
       // invalidating the cache alone would leave the browser on old CSS.
       if (context.file.endsWith(options.suffix ?? '.style.ts')) {
         cached = undefined;
+        // Vite keeps the transformed sheet in its module graph: without this
+        // the page reloads onto the old CSS and new atoms never reach it.
+        const graph = context.server.moduleGraph;
+        const sheet = graph?.getModuleById(RESOLVED_CSS_ID);
+        if (graph && sheet) graph.invalidateModule(sheet as never);
         context.server.ws.send({ type: 'full-reload', path: '*' });
       }
     },

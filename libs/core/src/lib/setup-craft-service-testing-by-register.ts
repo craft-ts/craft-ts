@@ -42,7 +42,6 @@ import type {
   RootExposureKey,
   Simplify,
 } from './craft-service.shared';
-import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import type { CraftInjector } from './host/craft-injector';
 
 type RegisterRealEntry = 'real';
@@ -1214,7 +1213,7 @@ function createTestingInjector(providers: CraftServiceProvider[]) {
     Injector.NULL as EnvironmentInjector,
     'CraftServiceTestingByRegister',
   );
-  const injector = ɵcraftInjectorFromHost(environmentInjector);
+  const injector = environmentInjector;
 
   return {
     environmentInjector,

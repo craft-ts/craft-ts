@@ -1,4 +1,4 @@
-import { TestBed } from '../host/craft-test-bed';
+import { CraftTestBed } from '../host/craft-test-bed';
 import { craftWatch } from '../host/craft-signal';
 import { craftField } from './craft-field';
 import { describe, expect, it } from 'vitest';
@@ -18,7 +18,7 @@ function witness(read: () => string) {
 
 describe('a field publishing a change', () => {
   it('shows the new value with the dirty state it belongs to, and the parent with it', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
       const { seen, stop } = witness(
         () =>
@@ -33,7 +33,7 @@ describe('a field publishing a change', () => {
   });
 
   it('marks a child touched and its parent in one step', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
       const { seen, stop } = witness(
         () => `${form.email.touched()}|${form.touched()}`,
@@ -47,7 +47,7 @@ describe('a field publishing a change', () => {
   });
 
   it('clears touched on a child and its parent in one step', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
       form.email.ɵmarkTouched();
       const { seen, stop } = witness(
@@ -62,7 +62,7 @@ describe('a field publishing a change', () => {
   });
 
   it('marks a child dirty and its parent in one step', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
       const { seen, stop } = witness(
         () => `${form.email.dirty()}|${form.dirty()}`,
@@ -76,7 +76,7 @@ describe('a field publishing a change', () => {
   });
 
   it('puts a reset form back as one step: value, dirty and touched, children included', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '', name: '' });
       form.email.set('a@b.c');
       form.name.set('n');
@@ -101,7 +101,7 @@ describe('a field publishing a change', () => {
   });
 
   it('resets a child and tells its parent in the same step', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
       form.email.set('a@b.c');
       form.email.ɵmarkTouched();

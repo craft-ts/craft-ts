@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sous pli — maquette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────── Sous pli : un design system de la confidentialité ─────────
+   Idée : le niveau de confidentialité pilote le traitement visuel.
+   Plus le niveau monte, plus le motif de l'enveloppe est dense, plus le cadre est épais,
+   plus la levée du voile demande un geste et dure peu. La couleur n'est jamais seule. */
+:root {
+  --bg: #E8ECEB; --surface: #F5F7F6; --sheet: #FDFDFC; --sunk: #DCE2E1;
+  --ink: #0E1729; --ink-2: #47536B; --ink-3: #66728A;
+  --line: #C3CCD0; --line-strong: #98A4AE;
+  --brand: #2A4BC8; --brand-ink: #FFFFFF;
+  --redact: #0E1729; --redact-ring: transparent;
+  --fold: rgba(14, 23, 41, .07);
+  --lvl-public: #1F7A66; --lvl-interne: #2A4BC8; --lvl-conf: #A6650C; --lvl-secret: #9C1B3A;
+  --shadow: 0 1px 0 rgba(14, 23, 41, .06), 0 14px 30px -14px rgba(14, 23, 41, .32);
+  --f-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --f-body: 'Hanken Grotesk', system-ui, sans-serif;
+  --f-mono: 'Geist Mono', ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0A101D; --surface: #111A2D; --sheet: #17223A; --sunk: #0D1424;
+    --ink: #E7EDF7; --ink-2: #A3AFC6; --ink-3: #8592AB;
+    --line: #243049; --line-strong: #3E4F72;
+    --brand: #8AA2FF; --brand-ink: #0A101D;
+    --redact: #000000; --redact-ring: #3E4F72;
+    --fold: rgba(255, 255, 255, .06);
+    --lvl-public: #5CC9AC; --lvl-interne: #8AA2FF; --lvl-conf: #E9B04E; --lvl-secret: #FF7C97;
+    --shadow: 0 1px 0 rgba(0, 0, 0, .4), 0 14px 30px -14px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0A101D; --surface: #111A2D; --sheet: #17223A; --sunk: #0D1424;
+  --ink: #E7EDF7; --ink-2: #A3AFC6; --ink-3: #8592AB;
+  --line: #243049; --line-strong: #3E4F72;
+  --brand: #8AA2FF; --brand-ink: #0A101D;
+  --redact: #000000; --redact-ring: #3E4F72;
+  --fold: rgba(255, 255, 255, .06);
+  --lvl-public: #5CC9AC; --lvl-interne: #8AA2FF; --lvl-conf: #E9B04E; --lvl-secret: #FF7C97;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .4), 0 14px 30px -14px rgba(0, 0, 0, .7);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 16px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { width: min(1120px, 100%); margin-inline: auto; padding-inline: max(20px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3, p { margin: 0; }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, 5vw, 48px); line-height: 1.05; text-wrap: balance; }
+h3 { font-size: 15px; font-weight: 700; line-height: 1.3; }
+p { text-wrap: pretty; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+.lead { color: var(--ink-2); max-width: 62ch; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* Motifs d'enveloppe : la densité encode le niveau */
+.pat-0 { background-image: none; }
+.pat-1 { background-image: repeating-linear-gradient(0deg, var(--pc) 0 1px, transparent 1px 7px); }
+.pat-2 { background-image: repeating-linear-gradient(45deg, var(--pc) 0 1px, transparent 1px 8px), repeating-linear-gradient(-45deg, var(--pc) 0 1px, transparent 1px 8px); }
+.pat-3 { background-image: repeating-linear-gradient(45deg, var(--pc) 0 1px, transparent 1px 4px), repeating-linear-gradient(-45deg, var(--pc) 0 1px, transparent 1px 4px), radial-gradient(circle, var(--pc) 0 1.2px, transparent 1.4px); background-size: auto, auto, 8px 8px; }
+[data-lvl="public"]   { --lvl: var(--lvl-public); }
+[data-lvl="interne"]  { --lvl: var(--lvl-interne); }
+[data-lvl="conf"]     { --lvl: var(--lvl-conf); }
+[data-lvl="secret"]   { --lvl: var(--lvl-secret); }
+[data-lvl] { --pc: color-mix(in srgb, var(--lvl) 34%, transparent); }
+
+/* ── En-tête ── */
+.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 20px; min-height: 60px; flex-wrap: wrap; padding-block: 8px; }
+.mark { display: flex; align-items: center; gap: 10px; font-family: var(--f-display); font-size: 26px; line-height: 1; text-decoration: none; color: var(--ink); }
+.mark svg { width: 26px; height: 26px; }
+.mark em { font-style: italic; }
+.top nav { display: flex; gap: 4px; flex-wrap: wrap; margin-inline-start: 8px; }
+.top nav a { font-size: 14px; font-weight: 500; color: var(--ink-2); text-decoration: none; padding: 6px 10px; border-radius: 4px; }
+.top nav a:hover { color: var(--ink); background: var(--sunk); }
+.ctl { margin-inline-start: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { appearance: none; font: inherit; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--ink-2); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn svg { width: 16px; height: 16px; }
+
+/* ── Héros ── */
+.hero { padding-block: clamp(40px, 7vw, 88px) clamp(48px, 7vw, 96px); }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+.hero h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(76px, 13vw, 168px); line-height: .86; letter-spacing: -.02em; margin-block: 18px 22px; }
+.hero h1 em { font-style: italic; }
+.band { height: 16px; --lvl: var(--lvl-interne); width: min(420px, 100%); border-block: 1px solid var(--pc); margin-bottom: 26px; }
+.hero .lead { font-size: 19px; }
+.letter { position: relative; background: var(--sheet); border: 1px solid var(--line); border-radius: 3px; box-shadow: var(--shadow); padding: 34px 34px 28px; font-size: 16.5px; line-height: 1.85;
+  background-image: linear-gradient(to bottom, transparent 33%, var(--fold) 33.2%, transparent 33.7%, transparent 66.3%, var(--fold) 66.6%, transparent 67%); }
+.letter .from { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); line-height: 1.5; margin-bottom: 22px; max-width: 28ch; }
+.letter .obj { font-weight: 700; margin-bottom: 8px; }
+.letter .stamp { position: absolute; top: 22px; right: 22px; transform: rotate(-5deg); font-size: 13px; }
+.hint { margin-top: 14px; font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
+
+/* ── Sections ── */
+section { padding-block: clamp(44px, 6vw, 80px); border-top: 1px solid var(--line); }
+.sec-h { display: grid; gap: 12px; margin-bottom: 36px; }
+
+/* Étiquette de niveau (tampon) : l'épaisseur du cadre augmente avec le niveau */
+.stamp { display: inline-block; font-family: var(--f-mono); font-weight: 500; font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase; line-height: 1; padding: 5px 9px; border-radius: 2px; color: var(--lvl); border: 1px solid var(--lvl); background: color-mix(in srgb, var(--lvl) 8%, transparent); white-space: nowrap; }
+.stamp[data-lvl="conf"] { border-width: 2px; }
+.stamp[data-lvl="secret"] { border: 4px double var(--lvl); padding: 3px 8px; }
+
+/* Principes */
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; }
+.principle { border-top: 2px solid var(--ink); padding-top: 16px; display: grid; gap: 8px; align-content: start; }
+.principle p { color: var(--ink-2); font-size: 15px; }
+
+/* Niveaux */
+.levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+.lvl-card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+.lvl-card[data-lvl="conf"] { border-width: 2px; }
+.lvl-card[data-lvl="secret"] { border: 4px double var(--lvl); }
+.lvl-top { height: 104px; padding: 14px; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.lvl-top .stamp { background: var(--surface); }
+.lvl-top .count { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-2); letter-spacing: .1em; text-transform: uppercase; background: var(--surface); padding: 2px 6px; border-radius: 2px; }
+.lvl-body { padding: 16px; display: grid; gap: 14px; align-content: start; }
+.lvl-body > p { font-size: 14.5px; color: var(--ink-2); }
+dl.spec { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13.5px; }
+dl.spec dt { font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); padding-top: 2px; }
+dl.spec dd { margin: 0; }
+
+/* Couleurs */
+.sw-group { margin-bottom: 30px; }
+.sw-group > .eyebrow { margin-bottom: 12px; display: block; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.sw { display: grid; gap: 8px; }
+.sw-chip { height: 64px; border-radius: 4px; border: 1px solid var(--line-strong); background: linear-gradient(90deg, var(--l) 50%, var(--d) 50%); }
+.sw b { font-size: 14px; }
+.sw code { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-3); display: block; line-height: 1.5; }
+
+/* Typo */
+.type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.spec-card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 22px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.spec-card .meta { display: flex; justify-content: space-between; gap: 12px; font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-3); letter-spacing: .08em; text-transform: uppercase; }
+.sp-display { font-family: var(--f-display); font-size: clamp(54px, 8vw, 84px); line-height: .95; }
+.sp-display em { font-style: italic; }
+.sp-h2 { font-family: var(--f-display); font-size: 34px; line-height: 1.05; }
+.sp-body { font-size: 16px; color: var(--ink-2); }
+.sp-mono { font-family: var(--f-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+
+/* Barre de caviardage : le composant central */
+.redact { appearance: none; font: inherit; color: inherit; background: none; border: 0; margin: 0; padding: 0 .1em; cursor: pointer; position: relative; border-radius: 2px; text-align: inherit; }
+.redact .bar { display: inline-block; height: 1em; width: calc(var(--n) * .6em); vertical-align: -.16em; background: var(--redact); border-radius: 1px; box-shadow: 0 0 0 1px var(--redact-ring), inset 0 -3px 0 var(--lvl); transition: filter .15s; }
+.redact:hover .bar { filter: brightness(1.6); }
+.redact.holding .bar { background: linear-gradient(var(--lvl), var(--lvl)) left / 0% 100% no-repeat, var(--redact); animation: fill .7s linear forwards; }
+@keyframes fill { to { background-size: 100% 100%; } }
+.redact .revealed { font-family: var(--f-mono); font-size: .9em; padding: 0 .3em; border-radius: 2px; background: color-mix(in srgb, var(--lvl) 14%, transparent); box-shadow: inset 0 -2px 0 var(--lvl); white-space: nowrap; }
+.redact .ttl { position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; background: var(--lvl); transform-origin: left; animation: drain linear forwards; }
+@keyframes drain { to { transform: scaleX(0); } }
+
+/* Planches de composants */
+.plates { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; }
+.plate { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.plate-h { padding: 16px 20px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.plate-h p { font-size: 14px; color: var(--ink-2); }
+.plate-h .eyebrow { font-size: 11px; }
+.plate-b { padding: 22px 20px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.demo-p { background: var(--sheet); border: 1px solid var(--line); padding: 18px; border-radius: 3px; line-height: 1.9; }
+
+/* Champ voilé */
+.vfield { display: grid; gap: 6px; }
+.vfield label, .vfield .lab { font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.vbox { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line-strong); background: var(--sheet); border-radius: 4px; padding: 6px 6px 6px 12px; min-height: 46px; }
+.vbox .redact { flex: 1; min-width: 0; display: flex; align-items: center; min-height: 32px; font-size: 16px; }
+.vbox .btn { padding: 6px 10px; font-size: 13px; }
+.tiny { font-size: 12.5px; color: var(--ink-3); }
+
+/* Pli : l'enveloppe qui s'ouvre */
+.pli { border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden; background: var(--sheet); }
+.pli-sheet { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.2, .7, .2, 1); }
+.pli[data-open="true"] .pli-sheet { grid-template-rows: 1fr; }
+.pli-sheet > div { overflow: hidden; }
+.pli-sheet .inner { padding: 20px; line-height: 1.9; font-size: 15.5px; }
+.pli-env { position: relative; overflow: hidden; height: 112px; display: grid; place-items: center; background-color: var(--sunk); border-top: 1px solid var(--line-strong); }
+.pli-env::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 74%; background-color: color-mix(in srgb, var(--sunk) 82%, var(--lvl)); background-image: inherit; clip-path: polygon(0 0, 100% 0, 50% 100%); transform-origin: top; transition: transform .45s cubic-bezier(.2, .7, .2, 1); }
+.pli[data-open="true"] .pli-env::before { transform: scaleY(-1); }
+.seal { position: relative; z-index: 1; appearance: none; border: 0; cursor: pointer; width: 62px; height: 62px; border-radius: 50%; background: var(--lvl); color: var(--sheet); font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; box-shadow: 0 0 0 4px color-mix(in srgb, var(--lvl) 30%, transparent), 0 6px 12px -4px rgba(0, 0, 0, .4); transition: transform .2s; }
+.seal:hover { transform: scale(1.06); }
+.pli-env .lbl { position: absolute; left: 14px; bottom: 10px; z-index: 1; }
+
+/* Visibilité */
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--sheet); font-size: 13.5px; font-weight: 500; }
+.chip svg { width: 15px; height: 15px; }
+.chip.off { color: var(--ink-3); border-style: dashed; background: transparent; }
+
+/* Toast */
+.toast { display: flex; align-items: center; gap: 12px; background: var(--ink); color: var(--bg); padding: 12px 16px; border-radius: 4px; font-size: 14px; position: relative; overflow: hidden; }
+.toast .t-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--lvl-conf); transform-origin: left; animation: drain 6s linear infinite; }
+#toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 24px); opacity: 0; pointer-events: none; transition: .25s; z-index: 40; max-width: calc(100% - 32px); }
+#toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* En situation */
+.app { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+.app-main { padding: 22px; min-width: 0; border-right: 1px solid var(--line); }
+.app-h { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 18px; }
+.app-h h3 { font-family: var(--f-display); font-weight: 400; font-size: 30px; line-height: 1.1; }
+.sensitive { transition: filter .2s; }
+html[data-discret] .sensitive { filter: blur(6px); user-select: none; }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 540px; }
+th { text-align: left; font-family: var(--f-mono); font-weight: 500; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-strong); }
+td { padding: 13px 12px 13px 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.dim { color: var(--ink-3); font-size: 13.5px; }
+.app-side { padding: 22px; background: var(--sunk); min-width: 0; }
+.app-side h3 { margin-bottom: 4px; }
+.app-side .tiny { margin-bottom: 14px; }
+#journal { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+#journal li { padding: 11px 0; border-bottom: 1px solid var(--line); display: grid; gap: 4px; font-size: 14px; }
+#journal li.new { animation: slide .35s ease-out; }
+@keyframes slide { from { opacity: 0; transform: translateY(-6px); } }
+#journal .when { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-3); display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+#journal .stamp { font-size: 10px; padding: 3px 6px; }
+#journal .stamp[data-lvl="secret"] { padding: 2px 5px; border-width: 3px; }
+
+/* Règles */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.rule-col { border: 1px solid var(--line); border-radius: 4px; padding: 22px; background: var(--surface); }
+.rule-col h3 { margin-bottom: 12px; font-family: var(--f-mono); font-weight: 500; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.rule-col ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.rule-col li { padding-left: 22px; position: relative; color: var(--ink-2); font-size: 15px; }
+.rule-col li::before { position: absolute; left: 0; top: 0; font-family: var(--f-mono); }
+.rule-col.yes li::before { content: '+'; color: var(--lvl-public); }
+.rule-col.no li::before { content: '\2212'; color: var(--lvl-secret); }
+
+footer { border-top: 1px solid var(--line); padding-block: 36px 56px; color: var(--ink-3); font-size: 14px; }
+footer .wrap { display: grid; gap: 8px; }
+
+@media (max-width: 900px) {
+  .hero .wrap { grid-template-columns: 1fr; }
+  .app { grid-template-columns: 1fr; }
+  .app-main { border-right: 0; border-bottom: 1px solid var(--line); }
+  .top nav { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .toast .t-bar { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.6 6.6A16.6 16.6 0 002 12s3.6 7 10 7a9.7 9.7 0 004.4-1"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="#haut" aria-label="Sous pli, début de page">
+      <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="23" height="16" rx="1.5"/><path d="M3 7l11 8.5L25 7"/></svg>
+      <span>Sous <em>pli</em></span>
+    </a>
+    <nav aria-label="Sections">
+      <a href="#principes">Principes</a><a href="#niveaux">Niveaux</a><a href="#couleurs">Couleurs</a><a href="#typo">Typo</a><a href="#composants">Composants</a><a href="#situation">En situation</a>
+    </nav>
+    <div class="ctl">
+      <button class="btn" id="discret" type="button" aria-pressed="false"><svg><use href="#i-eye-off"/></svg>Mode discret</button>
+      <button class="btn" id="theme" type="button"><svg><use href="#i-moon"/></svg><span id="theme-l">Nuit</span></button>
+    </div>
+  </div>
+</header>
+
+<main id="haut">
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Design system · proposition v0</p>
+      <h1>Sous <em>pli.</em></h1>
+      <div class="band pat-2" data-lvl="interne" aria-hidden="true"></div>
+      <p class="lead">Un système visuel où tout ce qui est sensible reste voilé jusqu'à ce que quelqu'un décide de le lire, et où chaque lecture laisse une trace. Le niveau de confidentialité d'une donnée se voit sans la lire.</p>
+    </div>
+    <div>
+      <article class="letter" aria-label="Exemple de lettre sous pli">
+        <span class="stamp" data-lvl="conf">Confidentiel</span>
+        <p class="from">Direction des ressources humaines<br>Sous pli personnel</p>
+        <p class="obj">Objet : avenant n° 4 à votre contrat</p>
+        <p>Madame <button class="redact" data-lvl="conf" data-value="Dubois" data-what="le nom"></button>, à la suite de l'entretien du <button class="redact" data-lvl="conf" data-value="12 octobre" data-what="la date d'entretien"></button>, votre rémunération annuelle brute est portée à <button class="redact" data-lvl="secret" data-value="58 400 €" data-what="le salaire"></button> à compter du 1<sup>er</sup> novembre.</p>
+      </article>
+      <p class="hint">Cliquez une barre ambre pour la lever 8 s. La barre rouge se lève en la maintenant 0,7 s, pour 4 s.</p>
+    </div>
+  </div>
+</div>
+
+<section id="principes">
+  <div class="wrap">
+    <div class="sec-h"><p class="eyebrow">Principes</p><h2>Quatre règles que le design applique à votre place</h2></div>
+    <div class="grid-4">
+      <div class="principle"><h3>Voilé par défaut</h3><p>Une valeur voilée n'est pas dans le DOM. Un flou CSS ne protège rien, une barre vide oui.</p></div>
+      <div class="principle"><h3>Lever demande un geste</h3><p>Un clic pour Confidentiel, un appui maintenu pour Secret. Le geste est proportionné au risque.</p></div>
+      <div class="principle"><h3>Chaque lecture se voit</h3><p>Qui a levé quoi, et quand, s'écrit dans un journal que la personne concernée peut lire.</p></div>
+      <div class="principle"><h3>Le niveau se voit sans lire</h3><p>Densité du motif, épaisseur du cadre et couleur disent la même chose. Aucun des trois n'est seul.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="niveaux">
+  <div class="wrap">
+    <div class="sec-h"><p class="eyebrow">Niveaux de classification</p><h2>Plus c'est sensible, plus c'est dense</h2><p class="lead">Quatre niveaux. Chacun fixe le motif d'enveloppe, le cadre, le geste de levée, la durée et la trace.</p></div>
+    <div class="levels">
+      <article class="lvl-card" data-lvl="public">
+        <div class="lvl-top pat-0"><span class="stamp" data-lvl="public">Public</span><span class="count">Motif · aucun</span></div>
+        <div class="lvl-body"><p>Lisible par tous, partageable sans condition. Rien n'est voilé.</p>
+          <dl class="spec"><dt>Cadre</dt><dd>Filet 1 px</dd><dt>Voile</dt><dd>Aucun</dd><dt>Geste</dt><dd>Aucun</dd><dt>Durée</dt><dd>Illimitée</dd><dt>Trace</dt><dd>Non</dd></dl></div>
+      </article>
+      <article class="lvl-card" data-lvl="interne">
+        <div class="lvl-top pat-1"><span class="stamp" data-lvl="interne">Interne</span><span class="count">Motif · lignes</span></div>
+        <div class="lvl-body"><p>Réservé à l'organisation. Visible à l'écran, flouté en mode discret.</p>
+          <dl class="spec"><dt>Cadre</dt><dd>Filet 1 px</dd><dt>Voile</dt><dd>Mode discret</dd><dt>Geste</dt><dd>Aucun</dd><dt>Durée</dt><dd>Illimitée</dd><dt>Trace</dt><dd>Non</dd></dl></div>
+      </article>
+      <article class="lvl-card" data-lvl="conf">
+        <div class="lvl-top pat-2"><span class="stamp" data-lvl="conf">Confidentiel</span><span class="count">Motif · losanges</span></div>
+        <div class="lvl-body"><p>Donnée personnelle ou contractuelle. Voilée tant qu'on ne la lève pas.</p>
+          <dl class="spec"><dt>Cadre</dt><dd>Filet 2 px</dd><dt>Voile</dt><dd>Barre pleine</dd><dt>Geste</dt><dd>Un clic</dd><dt>Durée</dt><dd>8 s</dd><dt>Trace</dt><dd>Journal</dd></dl></div>
+      </article>
+      <article class="lvl-card" data-lvl="secret">
+        <div class="lvl-top pat-3"><span class="stamp" data-lvl="secret">Secret</span><span class="count">Motif · trame dense</span></div>
+        <div class="lvl-body"><p>Identifiants, codes, clés. Jamais copiable sans levée, jamais affiché longtemps.</p>
+          <dl class="spec"><dt>Cadre</dt><dd>Double filet</dd><dt>Voile</dt><dd>Barre pleine</dd><dt>Geste</dt><dd>Appui 0,7 s</dd><dt>Durée</dt><dd>4 s</dd><dt>Trace</dt><dd>Journal + alerte</dd></dl></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="couleurs">
+  <div class="wrap">
+    <div class="sec-h"><p class="eyebrow">Couleurs</p><h2>Papier de sécurité le jour, chambre forte la nuit</h2><p class="lead">Chaque pastille montre la valeur claire à gauche et la valeur nuit à droite. Les neutres tirent vers le bleu de l'encre, comme l'intérieur d'une enveloppe.</p></div>
+    <div class="sw-group"><span class="eyebrow">Neutres et encre</span>
+      <div class="swatches">
+        <div class="sw"><div class="sw-chip" style="--l:#E8ECEB;--d:#0A101D"></div><b>Papier</b><code>#E8ECEB / #0A101D</code></div>
+        <div class="sw"><div class="sw-chip" style="--l:#F5F7F6;--d:#111A2D"></div><b>Surface</b><code>#F5F7F6 / #111A2D</code></div>
+        <div class="sw"><div class="sw-chip" style="--l:#FDFDFC;--d:#17223A"></div><b>Feuille</b><code>#FDFDFC / #17223A</code></div>
+        <div class="sw"><div class="sw-chip" style="--l:#C3CCD0;--d:#243049"></div><b>Filet</b><code>#C3CCD0 / #243049</code></div>
+        <div class="sw"><div class="sw-chip" style="--l:#0E1729;--d:#E7EDF7"></div><b>Encre</b><code>#0E1729 / #E7EDF7</code></div>
+        <div class="sw"><div class="sw-chip" style="--l:#0E1729;--d:#000000"></div><b>Barre</b><code>#0E1729 / #000000</code></div>
+      </div>
+    </div>
+    <div class="sw-group"><span class="eyebrow">Niveaux</span>
+      <div class="swatches">
+        <div class="sw"><div class="sw-chip" style="--l:#1F7A66;--d:#5CC9AC"></div><b>Public</b><code>#1F7A66 / #5CC9AC</code></div>
+        <div class="sw"><div class="sw-chip" style="--l:#2A4BC8;--d:#8AA2FF"></div><b>Interne</b><code>#2A4BC8 / #8AA2FF</code></div>
+        <div class="sw"><div class="sw-chip" style="--l:#A6650C;--d:#E9B04E"></div><b>Confidentiel</b><code>#A6650C / #E9B04E</code></div>
+        <div class="sw"><div class="sw-chip" style="--l:#9C1B3A;--d:#FF7C97"></div><b>Secret</b><code>#9C1B3A / #FF7C97</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="typo">
+  <div class="wrap">
+    <div class="sec-h"><p class="eyebrow">Typographie</p><h2>Une plume, un courrier, un tampon</h2></div>
+    <div class="type-grid">
+      <div class="spec-card"><div class="meta"><span>Affichage</span><span>Instrument Serif</span></div><div class="sp-display">Sous <em>pli</em></div><p class="sp-h2">Avenant à votre contrat</p></div>
+      <div class="spec-card"><div class="meta"><span>Texte</span><span>Hanken Grotesk</span></div><p class="sp-body">Les documents restent fermés tant que vous ne les ouvrez pas. Quand vous le faites, la lecture est enregistrée avec l'heure et votre nom, et la personne concernée peut la consulter.</p><p class="sp-body"><b style="color:var(--ink)">Corps 16 / 26.</b> Titres de carte 15 en gras.</p></div>
+      <div class="spec-card"><div class="meta"><span>Tampons et données</span><span>Geist Mono</span></div><p class="sp-mono">Confidentiel · exemplaire 07/12</p><p style="font-family:var(--f-mono);font-size:15px">FR76 1234 5678 9012 3456 7890 123</p><p class="tiny">Majuscules espacées de 0,14 em pour les tampons, chasse fixe pour toute valeur levée.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="composants">
+  <div class="wrap">
+    <div class="sec-h"><p class="eyebrow">Composants</p><h2>Six pièces, toutes vivantes</h2><p class="lead">Chaque levée de voile ci-dessous écrit une ligne dans le journal de la section suivante.</p></div>
+    <div class="plates">
+
+      <article class="plate">
+        <div class="plate-h"><span class="eyebrow">Redacted</span><h3>Barre de caviardage</h3><p>Se glisse dans une phrase. La couleur du bas de barre donne le niveau avant toute lecture.</p></div>
+        <div class="plate-b">
+          <p class="demo-p">Le candidat retenu, <button class="redact" data-lvl="conf" data-value="Samir Benali" data-what="le nom du candidat"></button>, sera joint au <button class="redact" data-lvl="conf" data-value="03 11 55 20 18" data-what="le téléphone"></button> avant la fin de la semaine, pour une offre de <button class="redact" data-lvl="secret" data-value="64 000 €" data-what="l'offre"></button>.</p>
+          <p class="tiny">Une valeur levée se re-voile seule. Le filet qui se vide sous la valeur montre le temps restant.</p>
+        </div>
+      </article>
+
+      <article class="plate">
+        <div class="plate-h"><span class="eyebrow">VeiledField</span><h3>Champ voilé</h3><p>Le bouton Copier reste inactif tant que la valeur est voilée.</p></div>
+        <div class="plate-b">
+          <div class="vfield"><div class="lab"><span>IBAN</span><span class="stamp" data-lvl="conf" style="font-size:10px;padding:3px 6px">Confidentiel</span></div>
+            <div class="vbox"><button class="redact" id="f-iban" data-lvl="conf" data-value="FR76 1234 5678 9012 3456 7890 123" data-what="l'IBAN"></button><button class="btn" type="button" data-copy="f-iban" disabled>Copier</button></div></div>
+          <div class="vfield"><div class="lab"><span>Code du coffre</span><span class="stamp" data-lvl="secret" style="font-size:10px;padding:2px 5px">Secret</span></div>
+            <div class="vbox"><button class="redact" id="f-code" data-lvl="secret" data-value="7391-ALPHA" data-what="le code du coffre"></button><button class="btn" type="button" data-copy="f-code" disabled>Copier</button></div>
+            <p class="tiny">Maintenez la barre 0,7 s. Souris, doigt ou touche Entrée.</p></div>
+        </div>
+      </article>
+
+      <article class="plate">
+        <div class="plate-h"><span class="eyebrow">LevelStamp</span><h3>Étiquette de niveau</h3><p>Le cadre s'épaissit avec le niveau : lisible même en niveaux de gris.</p></div>
+        <div class="plate-b">
+          <div class="row"><span class="stamp" data-lvl="public">Public</span><span class="stamp" data-lvl="interne">Interne</span><span class="stamp" data-lvl="conf">Confidentiel</span><span class="stamp" data-lvl="secret">Secret</span></div>
+          <div class="row" style="filter:grayscale(1)" aria-hidden="true"><span class="stamp" data-lvl="public">Public</span><span class="stamp" data-lvl="interne">Interne</span><span class="stamp" data-lvl="conf">Confidentiel</span><span class="stamp" data-lvl="secret">Secret</span></div>
+          <p class="tiny">Deuxième ligne : le même jeu, sans couleur.</p>
+        </div>
+      </article>
+
+      <article class="plate">
+        <div class="plate-h"><span class="eyebrow">Pli</span><h3>Pli cacheté</h3><p>Une carte fermée par un sceau. Le motif intérieur de l'enveloppe porte le niveau.</p></div>
+        <div class="plate-b" style="padding:0">
+          <div class="pli" id="pli" data-open="false" data-lvl="conf" style="border:0;border-radius:0">
+            <div class="pli-sheet"><div><div class="inner">
+              <p><b>Convocation.</b> Entretien annuel de Mme <button class="redact" data-lvl="conf" data-value="Dubois" data-what="le nom de la salariée"></button> le <button class="redact" data-lvl="conf" data-value="12 octobre à 10 h 30" data-what="l'horaire"></button>, salle <button class="redact" data-lvl="conf" data-value="Delta" data-what="la salle"></button>.</p>
+            </div></div></div>
+            <div class="pli-env pat-2"><span class="stamp lbl" data-lvl="conf">Confidentiel</span><button class="seal" id="seal" type="button" aria-expanded="false" aria-controls="pli">Ouvrir</button></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="plate">
+        <div class="plate-h"><span class="eyebrow">Audience</span><h3>Qui peut voir</h3><p>Le périmètre de lecture reste affiché à côté de la donnée, jamais caché dans un menu.</p></div>
+        <div class="plate-b">
+          <div class="row"><span class="chip"><svg><use href="#i-lock"/></svg>Vous</span><span class="chip"><svg><use href="#i-eye"/></svg>Équipe Paie · 3</span><span class="chip off"><svg><use href="#i-eye-off"/></svg>Externes · aucun</span></div>
+          <p style="font-size:15px;color:var(--ink-2)">Partagé jusqu'au 30 octobre. Chaque levée est enregistrée.</p>
+          <div class="row"><button class="btn" type="button">Modifier l'accès</button><button class="btn" type="button">Retirer à tous</button></div>
+        </div>
+      </article>
+
+      <article class="plate">
+        <div class="plate-h"><span class="eyebrow">Toast</span><h3>Retour au voile</h3><p>Message bref quand une valeur se re-voile. Il n'affiche jamais la valeur.</p></div>
+        <div class="plate-b">
+          <div class="toast" data-lvl="conf" role="presentation"><svg style="width:18px;height:18px;flex:none"><use href="#i-eye-off"/></svg><span>Voilé de nouveau : l'IBAN</span><span class="t-bar"></span></div>
+          <div class="row"><button class="btn" type="button" id="try-toast">Simuler un retour au voile</button></div>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<section id="situation">
+  <div class="wrap">
+    <div class="sec-h"><p class="eyebrow">En situation</p><h2>Un dossier, quatre niveaux, un journal</h2><p class="lead">Les composants assemblés. Essayez le mode discret en haut de page : les noms et adresses se floutent, les valeurs levées se re-voilent.</p></div>
+    <div class="app">
+      <div class="app-main">
+        <div class="app-h">
+          <div><p class="eyebrow">Coffre · dossier</p><h3 class="sensitive">Camille Dubois</h3></div>
+          <div class="row"><span class="chip"><svg><use href="#i-lock"/></svg>Vous</span><span class="chip"><svg><use href="#i-eye"/></svg>Paie · 3</span></div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Document</th><th>Niveau</th><th>Donnée</th><th>Dernier accès</th></tr></thead>
+            <tbody>
+              <tr><td>Avenant n° 4</td><td><span class="stamp" data-lvl="conf">Confidentiel</span></td><td><button class="redact" data-lvl="conf" data-value="58 400 €" data-what="le salaire"></button></td><td class="dim">Léa M., hier</td></tr>
+              <tr><td>RIB</td><td><span class="stamp" data-lvl="conf">Confidentiel</span></td><td><button class="redact" data-lvl="conf" data-value="FR76 1234 5678 9012 3456 7890 123" data-what="l'IBAN du RIB"></button></td><td class="dim">Vous, 09:40</td></tr>
+              <tr><td>Justificatif de domicile</td><td><span class="stamp" data-lvl="interne">Interne</span></td><td class="sensitive">14 rue des Tilleuls, Lyon</td><td class="dim">Karim H., lun.</td></tr>
+              <tr><td>Accès au coffre</td><td><span class="stamp" data-lvl="secret">Secret</span></td><td><button class="redact" data-lvl="secret" data-value="7391-ALPHA" data-what="le code d'accès"></button></td><td class="dim">Jamais</td></tr>
+              <tr><td>Livret d'accueil</td><td><span class="stamp" data-lvl="public">Public</span></td><td>Aucune donnée sensible</td><td class="dim">Équipe RH, mar.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <aside class="app-side" aria-label="Journal d'accès">
+        <h3>Journal d'accès</h3>
+        <p class="tiny">Visible par la personne concernée.</p>
+        <ul id="journal" aria-live="polite">
+          <li><span class="when"><span>hier · 16:12</span><span class="stamp" data-lvl="conf">Confidentiel</span></span><span>Léa Marchand a levé le salaire</span></li>
+          <li><span class="when"><span>hier · 09:40</span><span class="stamp" data-lvl="conf">Confidentiel</span></span><span>Vous avez levé l'IBAN du RIB</span></li>
+          <li><span class="when"><span>lun. · 14:03</span><span class="stamp" data-lvl="interne">Interne</span></span><span>Karim Haddad a ouvert le justificatif</span></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section id="regles">
+  <div class="wrap">
+    <div class="sec-h"><p class="eyebrow">Règles</p><h2>Ce que le système impose, ce qu'il refuse</h2></div>
+    <div class="rules">
+      <div class="rule-col yes"><h3>Impose</h3><ul>
+        <li>Une valeur voilée est absente du DOM.</li>
+        <li>Une durée de levée bornée par le niveau.</li>
+        <li>Une ligne de journal pour chaque levée.</li>
+        <li>Un niveau lisible sans la couleur : cadre et motif le répètent.</li>
+      </ul></div>
+      <div class="rule-col no"><h3>Refuse</h3><ul>
+        <li>Le flou comme seule protection d'une donnée.</li>
+        <li>Copier une valeur tant qu'elle est voilée.</li>
+        <li>Une valeur sensible dans un titre, une URL ou un toast.</li>
+        <li>Un niveau signalé par la couleur seule.</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b style="color:var(--ink)">Sous pli · maquette v0.</b> Toutes les personnes et valeurs affichées sont fictives.</p>
+    <p>Questions ouvertes : quatre niveaux ou trois ? La durée de levée doit-elle se régler par projet ? Le motif d'enveloppe doit-il apparaître dans les tableaux denses ?</p>
+  </div>
+</footer>
+
+<div id="toast" class="toast" role="status"><svg style="width:18px;height:18px;flex:none"><use href="#i-eye-off"/></svg><span id="toast-t"></span></div>
+
+<script>
+(function () {
+  var LABEL = { public: 'Public', interne: 'Interne', conf: 'Confidentiel', secret: 'Secret' };
+  var TTL = { conf: 8, secret: 4 };
+  var HOLD_MS = 700;
+  var root = document.documentElement;
+
+  /* Thème */
+  var themeBtn = document.getElementById('theme'), themeL = document.getElementById('theme-l');
+  function isDark() {
+    var t = root.getAttribute('data-theme');
+    return t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function syncTheme() { themeL.textContent = isDark() ? 'Jour' : 'Nuit'; }
+  themeBtn.addEventListener('click', function () { root.setAttribute('data-theme', isDark() ? 'light' : 'dark'); syncTheme(); });
+  syncTheme();
+
+  /* Toast */
+  var toastEl = document.getElementById('toast'), toastT = document.getElementById('toast-t'), toastTimer;
+  function toast(msg) {
+    toastT.textContent = msg; toastEl.classList.add('on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 2800);
+  }
+  document.getElementById('try-toast').addEventListener('click', function () { toast("Voilé de nouveau : l'IBAN"); });
+
+  /* Journal */
+  var journal = document.getElementById('journal');
+  var fmt = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  function log(b) {
+    var li = document.createElement('li'); li.className = 'new';
+    var when = document.createElement('span'); when.className = 'when';
+    var t = document.createElement('span'); t.textContent = "à l'instant · " + fmt.format(new Date());
+    var s = document.createElement('span'); s.className = 'stamp'; s.setAttribute('data-lvl', b.dataset.lvl); s.textContent = LABEL[b.dataset.lvl];
+    when.append(t, s);
+    var m = document.createElement('span'); m.textContent = 'Vous avez levé ' + b.dataset.what;
+    li.append(when, m);
+    journal.prepend(li);
+    while (journal.children.length > 8) journal.lastElementChild.remove();
+  }
+
+  /* Voile / levée */
+  function barHTML(b) {
+    var n = b.dataset.value.length;
+    return '<span class="bar" style="--n:' + n + '" aria-hidden="true"></span>';
+  }
+  function syncCopy(b, open) {
+    if (!b.id) return;
+    document.querySelectorAll('[data-copy="' + b.id + '"]').forEach(function (c) { c.disabled = !open; });
+  }
+  function mask(b, auto) {
+    clearTimeout(b._t);
+    b.classList.remove('is-open', 'holding');
+    b.setAttribute('aria-pressed', 'false');
+    b.setAttribute('aria-label', 'Lever le voile : ' + b.dataset.what + ', niveau ' + LABEL[b.dataset.lvl]);
+    b.innerHTML = barHTML(b);
+    syncCopy(b, false);
+    if (auto) toast('Voilé de nouveau : ' + b.dataset.what);
+  }
+  function reveal(b) {
+    var ttl = TTL[b.dataset.lvl];
+    clearTimeout(b._t);
+    b.classList.remove('holding'); b.classList.add('is-open');
+    b.setAttribute('aria-pressed', 'true'); b.removeAttribute('aria-label');
+    b.innerHTML = '<span class="revealed"></span><span class="ttl" style="animation-duration:' + ttl + 's"></span>';
+    b.firstChild.textContent = b.dataset.value;
+    syncCopy(b, true);
+    b._t = setTimeout(function () { mask(b, true); }, ttl * 1000);
+    log(b);
+  }
+  function hideAll() { document.querySelectorAll('.redact.is-open').forEach(function (b) { mask(b, false); }); }
+
+  var all = document.querySelectorAll('.redact');
+  all.forEach(function (b) { b.setAttribute('aria-pressed', 'false'); mask(b, false); });
+
+  function startHold(b) {
+    if (b.dataset.lvl !== 'secret' || b.classList.contains('is-open') || b._h) return;
+    b.classList.add('holding');
+    b._h = setTimeout(function () { b._h = null; b._held = true; reveal(b); }, HOLD_MS);
+  }
+  function endHold(b) {
+    if (b._h) { clearTimeout(b._h); b._h = null; b.classList.remove('holding'); }
+    setTimeout(function () { b._held = false; }, 60);
+  }
+  all.forEach(function (b) {
+    b.addEventListener('pointerdown', function () { startHold(b); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { b.addEventListener(ev, function () { endHold(b); }); });
+    b.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && b.dataset.lvl === 'secret' && !b.classList.contains('is-open')) { e.preventDefault(); if (!e.repeat) startHold(b); }
+    });
+    b.addEventListener('keyup', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && b.dataset.lvl === 'secret') { e.preventDefault(); endHold(b); }
+    });
+    b.addEventListener('click', function () {
+      if (b._held) return;
+      if (b.classList.contains('is-open')) { mask(b, false); return; }
+      if (b.dataset.lvl === 'secret') return;
+      reveal(b);
+    });
+  });
+
+  /* Copier : actif seulement quand la valeur est levée */
+  document.querySelectorAll('[data-copy]').forEach(function (c) {
+    c.addEventListener('click', function () {
+      var src = document.getElementById(c.dataset.copy);
+      if (!src.classList.contains('is-open')) return;
+      var done = function () { toast('Copié. Le presse-papiers n’est pas voilé, collez vite.'); };
+      try { navigator.clipboard.writeText(src.dataset.value).then(done, function () { toast('Copie refusée par le navigateur.'); }); }
+      catch (e) { toast('Copie refusée par le navigateur.'); }
+    });
+  });
+
+  /* Mode discret */
+  var dBtn = document.getElementById('discret');
+  dBtn.addEventListener('click', function () {
+    var on = dBtn.getAttribute('aria-pressed') !== 'true';
+    dBtn.setAttribute('aria-pressed', String(on));
+    if (on) { root.setAttribute('data-discret', ''); hideAll(); } else root.removeAttribute('data-discret');
+  });
+
+  /* Pli cacheté */
+  var pli = document.getElementById('pli'), seal = document.getElementById('seal');
+  seal.addEventListener('click', function () {
+    var open = pli.getAttribute('data-open') !== 'true';
+    pli.setAttribute('data-open', String(open));
+    seal.setAttribute('aria-expanded', String(open));
+    seal.textContent = open ? 'Replier' : 'Ouvrir';
+    if (!open) pli.querySelectorAll('.redact.is-open').forEach(function (b) { mask(b, false); });
+  });
+})();
+</script>
+</body>
+</html>

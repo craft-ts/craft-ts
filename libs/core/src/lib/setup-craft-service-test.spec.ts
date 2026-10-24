@@ -1,21 +1,5 @@
-import { provideCraftRouter as provideRouter } from './craft-router';
-
-/**
- * A stand-in DI token. These specs never drove a real router — they only
- * needed some external service to adapt through `toCraftService`.
- */
-class Router {
-  readonly url: string = '/';
-  navigateByUrl(_url: string): Promise<boolean> {
-    return Promise.resolve(true);
-  }
-}
-import {
-  inject,
-  InjectionToken,
-} from './host/craft-compat';
 import { type GetDeps, type GetPublicComponentProperties } from '../index';
-import { craftService, ɵtoCraftService as toCraftService } from './craft-service';
+import { craftService } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
 import { craftUse } from './craft-use';
@@ -432,78 +416,6 @@ describe('setupCraftServiceTest', () => {
     );
 
     expect(craftUse(sut.counter())).toBe(5);
-  });
-
-  it('should require an explicit provider when a raw external dependency only uses provider inputs', () => {
-    const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
-
-        class CatalogDriver {
-      readonly baseUrl = inject(API_BASE_URL);
-
-      fetchProducts() {
-        return `${this.baseUrl}/products`;
-      }
-    }
-
-    const { Catalog: Catalog, provideCatalog } = toCraftService({
-      name: 'Catalog',
-      providedIn: 'toProvide',
-      token: CatalogDriver,
-      provide: (provided: { apiBaseUrl: string }) => [
-        {
-          provide: API_BASE_URL,
-          useValue: provided.apiBaseUrl,
-        },
-        {
-          provide: CatalogDriver,
-          useClass: CatalogDriver,
-        },
-      ],
-    });
-
-    expect(() => setupCraftServiceTest(Catalog, {})).toThrow(
-      'setupCraftServiceTest requires an explicit provider for "Catalog" because it uses $provided.',
-    );
-
-    const { sut } = setupCraftServiceTest(
-      Catalog,
-      {},
-      {
-        providers: [provideCatalog({ apiBaseUrl: '/api' })],
-      },
-    );
-
-    expect(sut.fetchProducts()).toBe('/api/products');
-  });
-
-  it('should allow mocking a global adapted Router', async () => {
-    const { Router: RouterService } = toCraftService({
-      name: 'Router',
-      providedIn: 'global',
-      token: Router,
-    });
-
-    const { Navigation: Navigation } = craftService(
-      { name: 'Navigation', providedIn: 'toProvide' },
-      function* () {
-        const router = yield* RouterService(undefined, ({ navigateByUrl }) => ({
-          navigateByUrl,
-        }));
-
-        yield* craftExpose('goToCheckout', () => router.navigateByUrl('/checkout'));
-      },
-    );
-
-    const navigateByUrl = vi.fn(() => Promise.resolve(true));
-    const { sut, mocks } = setupCraftServiceTest(Navigation, {
-      Router: mock({
-        navigateByUrl,
-      }),
-    });
-
-    await sut.goToCheckout();
-
-    expect(mocks.Router.navigateByUrl).toHaveBeenCalledWith('/checkout');
   });
 
   it('should help with autocompletion the mocking of a global service dependency', async () => {

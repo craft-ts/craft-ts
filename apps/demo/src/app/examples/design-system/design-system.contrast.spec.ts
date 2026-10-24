@@ -45,6 +45,7 @@ import {
 } from '@craft-ts/dev-tools';
 import { tone, ui } from './foundation.style.ts';
 import './components.style.ts';
+import '../../../../../../libs/component/src/lib/craft-defaults.style.ts';
 
 /* ------------------------------------------------------------------------ *
  * The graph, written by hand
@@ -310,6 +311,44 @@ describe('what the demo cannot prove', () => {
       { kind: 'indeterminate', reason: 'unsupported-background' },
     ]);
     expect(results.some((result) => result.kind === 'resolved')).toBe(false);
+  });
+});
+
+describe('the application skip link', () => {
+  it('checks the framework link style and keeps its focus state in the dump', () => {
+    const styles = dump();
+    const skipLink = styles.classes.find(
+      (entry) => entry.key === 'craftSkipLink-link',
+    );
+    expect(skipLink).toBeDefined();
+    expect(skipLink?.axes['interaction.focus']).toContain('active');
+
+    const results = resolved(
+      analyzeTextContrast(
+        mergeStyleDump(
+          graphOf([
+            element(
+              'e:skip-link',
+              'a.skip-link',
+              'App',
+              ['craftSkipLink-link'],
+              { text: true },
+            ),
+          ]),
+          styles,
+        ),
+        styles,
+      ),
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      element: 'a.skip-link',
+      verdict: 'pass',
+      required: 4.5,
+      foreground: { value: '#ffffff' },
+      background: { value: '#1b5fa1' },
+    });
+    expect(results[0]?.ratio).toBeGreaterThanOrEqual(4.5);
   });
 });
 

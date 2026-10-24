@@ -1,7 +1,7 @@
+import { ɵisCraftDevMode } from '@craft-ts/core';
+
 const definitionsByScope = new WeakMap<object, string>();
 const definitionsByName = new Map<string, object>();
-
-declare const ngDevMode: boolean | undefined;
 
 /**
  * Returns the stable scope token associated with a Craft definition.
@@ -16,8 +16,7 @@ export function scopeIdFor(definition: object, name: string): string {
 
   const owner = definitionsByName.get(name);
   if (owner && owner !== definition) {
-    const dev = typeof ngDevMode === 'undefined' || ngDevMode;
-    if (dev) {
+    if (ɵisCraftDevMode()) {
       const previousName = definitionsByScope.get(owner) ?? name;
       throw new Error(
         `Craft style scope name "${name}" is already used by "${previousName}". ` +

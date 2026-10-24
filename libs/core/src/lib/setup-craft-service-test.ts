@@ -16,7 +16,6 @@ import {
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
 import type { MockMember } from './craft-service.shared';
-import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import {
   createCraftInjector,
   type CraftInjector,
@@ -263,7 +262,7 @@ type ExtractMockOverride<Override> = Extract<
   AnyMockServiceOverride
 >;
 
-type CreateAngularTestMocks<
+type CreateCraftTestMocks<
   Target extends ServiceReference,
   Overrides,
 > = Simplify<{
@@ -306,7 +305,7 @@ function assertOverrideReferenceName(name: string, reference: unknown) {
 
   if (metaData.name !== name) {
     throw new Error(
-      `Test override "${name}" does not match craftService/toCraftService reference "${metaData.name}".`,
+      `Test override "${name}" does not match craftService reference "${metaData.name}".`,
     );
   }
 }
@@ -367,8 +366,8 @@ export function mock(
 }
 
 /**
- * Sets up a `craftService` or `toCraftService` in an isolated injector with
- * typed dependency coverage.
+ * Sets up a `craftService` in an isolated injector with typed dependency
+ * coverage.
  *
  * `setupCraftServiceTest` reads the runtime metadata attached to an inject helper
  * or a metadata object and instantiates the target inside an isolated injection
@@ -380,8 +379,7 @@ export function mock(
  * - or pruned by mocking one of their ancestors
  *
  * Global dependencies remain optional to override, but can still be mocked. For
- * real Angular providers such as `provideRouter(...)`, use the `options.providers`
- * array.
+ * Use the `options.providers` array to provide test-specific dependencies.
  *
  * The returned `sut` is the fully injected service output. The returned `mocks`
  * object contains the public mock values actually injected into the test tree.
@@ -401,7 +399,7 @@ export function mock(
  * ```
  *
  * @example
- * Use the real router while keeping explicit Angular providers in the test setup
+ * Provide a real router while keeping explicit providers in the test setup
  * ```ts
  * const { sut } = setupCraftServiceTest(Navigation, {}, {
  *   providers: [provideRouter([])],
@@ -416,7 +414,7 @@ export function mock(
  * });
  * ```
  */
-function createAngularHostCraftInjector(
+function createCraftTestInjector(
   extraProviders: readonly CraftServiceProvider[] = [],
 ): { injector: CraftInjector; environmentInjector: EnvironmentInjector } {
   const environmentInjector = createEnvironmentInjector(
@@ -431,11 +429,11 @@ function createAngularHostCraftInjector(
   );
   return {
     environmentInjector,
-    injector: ɵcraftInjectorFromHost(environmentInjector),
+    injector: environmentInjector,
   };
 }
 
-/** Flush queued microtasks and the host effect scheduler without TestBed.tick(). */
+/** Flush queued microtasks and the host effect scheduler without CraftTestBed.tick(). */
 export async function flushCraftTest(injector: CraftInjector): Promise<void> {
   const flushScheduler = () => {
     injector.run(() => {
@@ -468,7 +466,7 @@ export function setupCraftServiceTest<
   },
 ): {
   sut: ResolvedServiceOutput<Target, Bindings>;
-  mocks: CreateAngularTestMocks<Target, Overrides>;
+  mocks: CreateCraftTestMocks<Target, Overrides>;
   injector: CraftInjector;
 };
 export function setupCraftServiceTest(
@@ -489,7 +487,7 @@ export function setupCraftServiceTest(
     } {
   if (arguments.length === 0) {
     return {
-      injector: createAngularHostCraftInjector().injector,
+      injector: createCraftTestInjector().injector,
     };
   }
 
@@ -524,7 +522,7 @@ export function setupCraftServiceTest(
       typeof internalMetaData.provide !== 'function'
     ) {
       throw new Error(
-        `Missing provide helper for craftService/toCraftService "${internalMetaData.name}" in setupCraftServiceTest.`,
+        `Missing provide helper for craftService "${internalMetaData.name}" in setupCraftServiceTest.`,
       );
     }
 
@@ -571,7 +569,7 @@ export function setupCraftServiceTest(
   });
 
   const { environmentInjector, injector } =
-    createAngularHostCraftInjector(providers);
+    createCraftTestInjector(providers);
 
   return injector.run(() =>
     runInInjectionContext(environmentInjector, () => ({

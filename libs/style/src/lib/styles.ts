@@ -264,6 +264,18 @@ export interface RegisteredClass {
 const classes = new Map<string, RegisteredClass>();
 const atoms = new Map<string, AtomicRule>();
 const byClassName = new Map<string, string>();
+const selfStateClassNames = new Map<string, ReadonlySet<string>>();
+
+/** Attributes used by replay to activate transient interaction styles visually. */
+export const CRAFT_REPLAY_STATE_ATTRIBUTES = {
+  hover: 'data-craft-replay-hover',
+  focus: 'data-craft-replay-focus',
+  focusVisible: 'data-craft-replay-focus-visible',
+  active: 'data-craft-replay-active',
+} as const;
+
+/** @deprecated Use `CRAFT_REPLAY_STATE_ATTRIBUTES.hover`. */
+export const CRAFT_REPLAY_HOVER_ATTRIBUTE = CRAFT_REPLAY_STATE_ATTRIBUTES.hover;
 
 export const registeredClasses = (): readonly RegisteredClass[] => [
   ...classes.values(),
@@ -271,6 +283,30 @@ export const registeredClasses = (): readonly RegisteredClass[] => [
 
 /** Every distinct atomic rule in the build — the unit of deduplication. */
 export const registeredAtoms = (): readonly AtomicRule[] => [...atoms.values()];
+
+/**
+ * Atomic classes whose CSS is conditioned on a state of the element itself.
+ * The style registry is filled as style modules load, so the cached result is
+ * invalidated whenever a new atom is registered.
+ */
+export function ɵcraftStyleClassesForSelfState(
+  state: 'hover' | 'focus' | 'active',
+): ReadonlySet<string> {
+  const cached = selfStateClassNames.get(state);
+  if (cached) return cached;
+  const names = new Set<string>();
+  for (const atom of atoms.values()) {
+    if (
+      atom.conditions.some(
+        (point) =>
+          point.driver.kind === 'selfState' && point.driver.state === state,
+      )
+    )
+      names.add(atom.className);
+  }
+  selfStateClassNames.set(state, names);
+  return names;
+}
 
 /** From the rendered class string back to the sheet key, for the matrix. */
 export const classKeyOf = (className: string): string | undefined =>
@@ -281,6 +317,7 @@ export const resetStyleRegistry = (): void => {
   classes.clear();
   atoms.clear();
   byClassName.clear();
+  selfStateClassNames.clear();
 };
 
 // ─── atomic class names ─────────────────────────────────────────────────────
@@ -404,7 +441,10 @@ function addRule(
   };
   // Deduplication happens here, not in the emitter: two sheets writing
   // `padding: 1rem` under the same condition converge on the same atom.
-  if (!atoms.has(className)) atoms.set(className, rule);
+  if (!atoms.has(className)) {
+    atoms.set(className, rule);
+    selfStateClassNames.clear();
+  }
   walked.rules.push(rule);
   if (declaration.unproven) walked.unproven.push(declaration.unproven);
 }

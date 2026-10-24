@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#101827" />
-    <title>CraftTS · Session lab</title>
+    <title>craft-ts · Replay</title>
+    <!-- Writes data-mode and data-season before the first paint: the output of
+         bootScript() in libs/ui/src/foundation/season.ts. -->
+    <script>(function(){var d=document.documentElement;var g=function(k){try{return localStorage.getItem(k)}catch(e){return null}};var m=g("craft-mode");if(m==='light'||m==='dark')d.setAttribute('data-mode',m);var s=g("craft-season");if(["spring","summer","autumn","winter"].indexOf(s)<0){var n=new Date().getMonth();s=n>=2&&n<=4?'spring':n>=5&&n<=7?'summer':n>=8&&n<=10?'autumn':'winter'}d.setAttribute('data-season',s);var p=location.pathname,l=[];for(var i=0;i<l.length;i++)if(p.indexOf(l[i])===0)d.setAttribute('data-mode','dark')})()</script>
   </head>
   <body>
     <craft-root-component-host></craft-root-component-host>

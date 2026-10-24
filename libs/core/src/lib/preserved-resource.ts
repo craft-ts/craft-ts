@@ -1,9 +1,4 @@
-import {
-  signal as ngSignal,
-  untracked as ngUntracked,
-  type ResourceOptions,
-  type Signal,
-} from './host/craft-compat';
+import { type ResourceOptions, type Signal } from './host/craft-compat';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { craftResource } from './craft-resource';
 import {
@@ -24,10 +19,8 @@ export function preservedResource<T, R>(
     __craftRawStatus: Signal<string>;
   };
   const preserved = craftSignal<T | undefined>(config.defaultValue);
-  const angularMirror = ngSignal<T | undefined>(config.defaultValue);
   const publish = (value: T | undefined): void => {
     preserved.set(value);
-    ngUntracked(() => angularMirror.set(value));
   };
   const preserveWatch = craftWatch(() => {
     const status = raw.__craftRawStatus();
@@ -36,7 +29,6 @@ export function preservedResource<T, R>(
     }
   });
   const value = (() => {
-    angularMirror();
     return preserved();
   }) as CraftWritableSignal<T | undefined>;
   value.set = publish;
@@ -80,6 +72,9 @@ export function preservedResource<T, R>(
     restore: (
       original as unknown as { restore: (value: T | undefined) => void }
     ).restore.bind(original),
+    restoreError: (
+      original as unknown as { restoreError: (error: unknown) => void }
+    ).restoreError.bind(original),
     asReadonly: () => resourceRef,
     paramSrc: config.params as Signal<R | undefined>,
     state,

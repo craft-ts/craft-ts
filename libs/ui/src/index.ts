@@ -25,6 +25,7 @@ export * from './switch/switch.ts';
 export * from './toast/toast.ts';
 export * from './dialog/dialog.ts';
 export * from './menu/menu.ts';
+export * from './menu/keyboard.ts';
 export * from './menu/tooltip.ts';
 export * from './menu/navigated.ts';
 export { menuUi } from './menu/menu.style.ts';

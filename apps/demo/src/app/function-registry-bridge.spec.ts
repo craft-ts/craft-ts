@@ -16,7 +16,7 @@ import type {
   StateMethodRuntimeContext,
 } from '@craft-ts/core';
 import {
-  TestBed,
+  CraftTestBed,
   ɵInjector as Injector,
   ɵrunInInjectionContext as runInInjectionContext,
 } from '@craft-ts/core';
@@ -275,12 +275,12 @@ describe('function registry WebSocket bridge', () => {
   });
 
   it('does not recreate the MCP page badge after stop', () => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     const socket = fakeRegistryBridgeSocket();
-    const stop = runInInjectionContext(TestBed.inject(Injector), () =>
+    const stop = runInInjectionContext(CraftTestBed.inject(Injector), () =>
       startFunctionRegistryBridge({
-        injector: TestBed.inject(Injector),
+        injector: CraftTestBed.inject(Injector),
         url: 'ws://127.0.0.1:3333',
         clientId: 'client-aaaaaaaa',
         createSocket: () => socket,
@@ -302,12 +302,12 @@ describe('function registry WebSocket bridge', () => {
   });
 
   it('starts the bridge without a navigate callback', () => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     const socket = fakeRegistryBridgeSocket();
-    const stop = runInInjectionContext(TestBed.inject(Injector), () =>
+    const stop = runInInjectionContext(CraftTestBed.inject(Injector), () =>
       startFunctionRegistryBridge({
-        injector: TestBed.inject(Injector),
+        injector: CraftTestBed.inject(Injector),
         url: 'ws://127.0.0.1:3333',
         clientId: 'client-aaaaaaaa',
         createSocket: () => socket,

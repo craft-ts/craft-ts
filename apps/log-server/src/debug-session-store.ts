@@ -3,12 +3,19 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+
+/** Portable recording schema accepted by this standalone archive server. */
+export const PORTABLE_DEBUG_SESSION_VERSION = 6;
+/** Format version written by archive indexes before recordingVersion was stored. */
+const LEGACY_RECORDING_VERSION = 6;
 
 export type StoredDebugSessionStatus =
   | 'recording'
@@ -36,6 +43,8 @@ export type StoredDebugSessionSummary = Readonly<{
   updatedAt: string;
   status: StoredDebugSessionStatus;
   version: 2;
+  recordingVersion: number;
+  replayVersion: number;
   eventCount: number;
   truncated: boolean;
   participantCount: number;
@@ -65,7 +74,8 @@ type StoredSession = Omit<StoredDebugSessionSummary, 'participantCount'> & {
 
 export type PortableDebugSession = Readonly<{
   format: 'craft-debug-session';
-  version: 2;
+  version: typeof PORTABLE_DEBUG_SESSION_VERSION;
+  replayVersion?: number;
   startUrl: string;
   viewport?: Readonly<{ width: number; height: number }>;
   exportedAt: number;
@@ -104,6 +114,30 @@ export class DebugSessionStore {
   private readonly maxAgeMs: number;
   private readonly reconnectGraceMs: number;
 
+  /** The archive's age limit, exposed to the dashboard for its cleanup action. */
+  get retentionDays(): number {
+    return this.maxAgeMs / (24 * 60 * 60 * 1000);
+  }
+
+  /** Bytes used by the session index and archived event files. */
+  get storageBytes(): number {
+    let bytes = 0;
+    for (const name of readdirSync(this.directory)) {
+      if (
+        name !== 'index.json' &&
+        !/^[0-9a-f-]{36}\.events\.jsonl$/i.test(name)
+      )
+        continue;
+      try {
+        const file = statSync(join(this.directory, name));
+        if (file.isFile()) bytes += file.size;
+      } catch {
+        // A file may disappear while the archive is being updated.
+      }
+    }
+    return bytes;
+  }
+
   constructor(directory: string, options: DebugSessionStoreOptions = {}) {
     this.directory = directory;
     this.indexPath = join(directory, 'index.json');
@@ -132,6 +166,8 @@ export class DebugSessionStore {
           updatedAt,
           status,
           version,
+          recordingVersion,
+          replayVersion,
           eventCount,
           truncated,
           participants,
@@ -142,6 +178,8 @@ export class DebugSessionStore {
           updatedAt,
           status,
           version,
+          recordingVersion,
+          replayVersion,
           eventCount,
           truncated,
           participantCount: participants.length,
@@ -179,23 +217,29 @@ export class DebugSessionStore {
       : [];
     const known =
       this.eventKeys.get(effectiveId) ??
-      new Set(
-        previousEvents.map(
-          (event) =>
-            `${event['participantId'] ?? 'default'}:${event['participantSequence'] ?? event['sequence']}`,
-        ),
-      );
+      new Set(previousEvents.map((event) => storedEventKey(event)));
     let nextSequence =
       this.nextEventSequence.get(effectiveId) ??
       previousEvents.reduce(
         (highest, event) => Math.max(highest, Number(event['sequence']) || 0),
         0,
       );
+    let participantSequenceHighWater = highestParticipantSequence(
+      previousEvents,
+      participantId,
+    );
     const additions = incomingEvents.flatMap((event) => {
-      const participantSequence = Number(event['sequence']);
-      const key = `${participantId}:${participantSequence}`;
+      const key = storedEventKey(event, participantId);
       if (known.has(key)) return [];
       known.add(key);
+      const sourceSequence = Number(event['sequence']);
+      const participantSequence = Math.max(
+        participantSequenceHighWater + 1,
+        Number.isSafeInteger(sourceSequence) && sourceSequence > 0
+          ? sourceSequence
+          : 1,
+      );
+      participantSequenceHighWater = participantSequence;
       nextSequence += 1;
       return [
         {
@@ -249,6 +293,8 @@ export class DebugSessionStore {
       updatedAt: now,
       status: 'recording',
       version: 2,
+      recordingVersion: current?.recordingVersion ?? session.version,
+      replayVersion: current?.replayVersion ?? session.replayVersion ?? 1,
       eventCount: events.length,
       truncated: Boolean(current?.truncated) || session.truncated,
       clips,
@@ -296,12 +342,7 @@ export class DebugSessionStore {
     const previousEvents = this.liveEvents.get(id) ?? this.readEvents(id);
     const eventKeys =
       this.eventKeys.get(id) ??
-      new Set(
-        previousEvents.map(
-          (item) =>
-            `${item['participantId'] ?? 'default'}:${item['participantSequence'] ?? item['sequence']}`,
-        ),
-      );
+      new Set(previousEvents.map((item) => storedEventKey(item)));
     let nextSequence =
       this.nextEventSequence.get(id) ??
       previousEvents.reduce(
@@ -309,16 +350,27 @@ export class DebugSessionStore {
         0,
       );
     let initialSnapshot = current.initialSnapshot;
+    let participantSequenceHighWater = highestParticipantSequence(
+      previousEvents,
+      participantId,
+    );
     const additions = incoming.flatMap((event) => {
       if (!isSessionEvent(event)) return [];
       if (isInitialSnapshot(event)) {
         if (isRecord(event['state'])) initialSnapshot = event['state'];
         return [];
       }
-      const participantSequence = Number(event['sequence']);
-      const eventKey = `${participantId}:${participantSequence}`;
+      const eventKey = storedEventKey(event, participantId);
       if (eventKeys.has(eventKey)) return [];
       eventKeys.add(eventKey);
+      const sourceSequence = Number(event['sequence']);
+      const participantSequence = Math.max(
+        participantSequenceHighWater + 1,
+        Number.isSafeInteger(sourceSequence) && sourceSequence > 0
+          ? sourceSequence
+          : 1,
+      );
+      participantSequenceHighWater = participantSequence;
       nextSequence += 1;
       return [
         {
@@ -473,14 +525,48 @@ export class DebugSessionStore {
 
   delete(id: string): boolean {
     assertSessionId(id);
+    if (!this.removeSession(id)) return false;
+    this.persistIndex();
+    return true;
+  }
+
+  deleteMany(ids: readonly string[]): number {
+    let deleted = 0;
+    for (const id of ids) {
+      assertSessionId(id);
+      if (this.removeSession(id)) deleted += 1;
+    }
+    if (deleted > 0) this.persistIndex();
+    return deleted;
+  }
+
+  private removeSession(id: string): boolean {
     if (!this.sessions.has(id)) return false;
     this.sessions.delete(id);
     this.liveEvents.delete(id);
     this.eventKeys.delete(id);
     this.nextEventSequence.delete(id);
     rmSync(this.eventsPath(id), { force: true });
-    this.persistIndex();
     return true;
+  }
+
+  /** Deletes only finished sessions older than the configured retention age. */
+  pruneExpired(): number {
+    const cutoff = Date.now() - this.maxAgeMs;
+    let deleted = 0;
+    for (const stored of this.sessions.values()) {
+      const createdAt = Date.parse(stored.createdAt);
+      if (
+        stored.status === 'recording' ||
+        !Number.isFinite(createdAt) ||
+        createdAt >= cutoff
+      )
+        continue;
+      this.removeSession(stored.id);
+      deleted += 1;
+    }
+    if (deleted > 0) this.persistIndex();
+    return deleted;
   }
 
   private indexFlushTimer: ReturnType<typeof setTimeout> | undefined;
@@ -513,7 +599,8 @@ export class DebugSessionStore {
     });
     return {
       format: 'craft-debug-session',
-      version: 2,
+      version: PORTABLE_DEBUG_SESSION_VERSION,
+      replayVersion: stored.replayVersion ?? 1,
       startUrl: stored.startUrl,
       ...(stored.viewport ? { viewport: stored.viewport } : {}),
       exportedAt: Date.parse(stored.updatedAt),
@@ -552,6 +639,14 @@ export class DebugSessionStore {
             : entry;
         const normalizedSession = {
           ...session,
+          recordingVersion:
+            typeof session.recordingVersion === 'number'
+              ? session.recordingVersion
+              : LEGACY_RECORDING_VERSION,
+          replayVersion:
+            typeof session.replayVersion === 'number'
+              ? session.replayVersion
+              : 1,
           participants: Array.isArray(session.participants)
             ? session.participants
             : [],
@@ -560,12 +655,7 @@ export class DebugSessionStore {
         const events = this.readEvents(session.id);
         this.eventKeys.set(
           session.id,
-          new Set(
-            events.map(
-              (event) =>
-                `${event['participantId'] ?? 'default'}:${event['participantSequence'] ?? event['sequence']}`,
-            ),
-          ),
+          new Set(events.map((event) => storedEventKey(event))),
         );
         this.nextEventSequence.set(
           session.id,
@@ -709,7 +799,10 @@ function assertPortableSession(
   if (
     !isRecord(value) ||
     value['format'] !== 'craft-debug-session' ||
-    value['version'] !== 2 ||
+    value['version'] !== PORTABLE_DEBUG_SESSION_VERSION ||
+    (value['replayVersion'] !== undefined &&
+      (!Number.isSafeInteger(value['replayVersion']) ||
+        (value['replayVersion'] as number) < 1)) ||
     typeof value['startUrl'] !== 'string' ||
     (value['viewport'] !== undefined && !isValidViewport(value['viewport'])) ||
     !Array.isArray(value['events']) ||
@@ -753,11 +846,39 @@ function mergeParticipant(
       ? {
           ...existing,
           ...incoming,
+          title: existing.title,
+          startUrl: existing.startUrl,
+          viewport: existing.viewport ?? incoming.viewport,
+          environment: existing.environment ?? incoming.environment,
           createdAt: existing.createdAt,
-          initialSnapshot: incoming.initialSnapshot ?? existing.initialSnapshot,
+          initialSnapshot: existing.initialSnapshot ?? incoming.initialSnapshot,
         }
       : participant,
   );
+}
+
+function storedEventKey(
+  event: Record<string, unknown>,
+  participantId = typeof event['participantId'] === 'string'
+    ? event['participantId']
+    : 'default',
+): string {
+  return typeof event['id'] === 'string'
+    ? `${participantId}:id:${event['id']}`
+    : `${participantId}:sequence:${event['participantSequence'] ?? event['sequence']}`;
+}
+
+function highestParticipantSequence(
+  events: readonly Record<string, unknown>[],
+  participantId: string,
+): number {
+  return events.reduce((highest, event) => {
+    if (event['participantId'] !== participantId) return highest;
+    const sequence = Number(event['participantSequence'] ?? event['sequence']);
+    return Number.isSafeInteger(sequence)
+      ? Math.max(highest, sequence)
+      : highest;
+  }, 0);
 }
 
 function isEnvironmentProfile(

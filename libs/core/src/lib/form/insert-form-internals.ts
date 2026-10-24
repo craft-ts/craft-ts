@@ -10,6 +10,7 @@ import {
 import { isGenerator, runCraftGenerator } from '../craft-generator-runtime';
 import { injectFnWrapper } from '../fn-wrapper';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
+import { ɵregisterCraftReplayMethod } from '../craft-method-replay-registry';
 import type { InsertionStateFactoryContext } from '../query.core';
 import { Source$ as SourceDollarType } from '../source$';
 import { MergeObject } from '../util/types/util.type';
@@ -239,7 +240,7 @@ function createExposedInsertions(
         const wrappedFn = runInInjectionContext(injector, () =>
           injectFnWrapper()(value as (...args: unknown[]) => unknown),
         );
-        acc[key] = createYieldableInsertionMethod(wrappedFn, {
+        const exposedMethod = createYieldableInsertionMethod(wrappedFn, {
           injector: methodInjector,
           invalidYieldErrorMessage:
             FORM_INSERTION_METHOD_INVALID_YIELD_ERROR_MESSAGE,
@@ -248,6 +249,25 @@ function createExposedInsertions(
           onAppStartNotSupportedErrorMessage:
             FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
         });
+        ɵregisterCraftReplayMethod(methodInjector, (_receiver, args) => {
+          const result = runInInjectionContext(methodInjector, () =>
+            exposedMethod(...args),
+          );
+          return isGenerator(result)
+            ? runCraftGenerator({
+                iterator: result,
+                injector: methodInjector,
+                hostScope: 'function',
+                invalidYieldErrorMessage:
+                  FORM_INSERTION_METHOD_INVALID_YIELD_ERROR_MESSAGE,
+                multipleAppStartErrorMessage:
+                  FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
+                onAppStartNotSupportedErrorMessage:
+                  FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
+              }).value
+            : result;
+        });
+        acc[key] = exposedMethod;
         return acc;
       }
       acc[key] = value;

@@ -6,6 +6,7 @@ import {
   type ComponentExceptionsCarrier,
   type CraftRouteAdditionalProvidersCarrier,
   type CraftRouteLazyLoadHelpers,
+  type CraftInjector,
   type Provider,
 } from '@craft-ts/core';
 import {
@@ -45,7 +46,7 @@ type RequireHandledMountFieldExceptions<Component> =
 export function mountCraftComponent<Component extends CraftComponent<any>>(
   component: Component & RequireHandledMountFieldExceptions<Component>,
   hostElement: Element,
-  injector: object,
+  injector: CraftInjector,
   props: PropsOf<Component> = {} as PropsOf<Component>,
 ): CraftMountRef<PropsOf<Component>> {
   return mountInterpretedComponent(component, hostElement, injector, props);
@@ -94,8 +95,7 @@ export function loadCraftComponent<
   const fragment = {
     loadComponent: async (helpers: CraftRouteLazyLoadHelpers) => {
       loadedComponent = (await loader(helpers)) as Component;
-      // The Angular host used to stand in here and read the component back out
-      // of the route-target service. The outlet mounts Craft components directly.
+      // The outlet mounts Craft components directly from the route target.
       return loadedComponent as unknown as Type<unknown>;
     },
     providers: [

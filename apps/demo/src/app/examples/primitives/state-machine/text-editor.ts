@@ -30,7 +30,7 @@ export const { TextEditorStateMachineView, provideTextEditorStateMachineView } =
     { name: 'textEditorStateMachineView', providedIn: 'toProvide' },
     function* () {
       yield* craftStateMachine(
-        'machine',
+        'machineStateMachineTextEditor',
 
         // The context reacts declaratively to sources. There are no state
         // mutations in the transition declarations below.

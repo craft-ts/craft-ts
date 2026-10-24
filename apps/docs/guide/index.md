@@ -33,6 +33,7 @@ non-interactive starters, configuration options, and first checks
 [query](/guide/state/server-state) ·
 [Mutations](/guide/state/mutations) ·
 [queryParams](/guide/state/url-state) ·
+[pathParams](/guide/state/url-state#path-parameters) ·
 [asyncProcess](/guide/state/async-process) ·
 [Collections](/guide/state/collections) ·
 [Persistence](/guide/state/persistence) ·

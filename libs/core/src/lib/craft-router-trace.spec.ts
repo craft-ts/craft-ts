@@ -7,7 +7,7 @@ import {
   runInInjectionContext,
   type EnvironmentInjector,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CraftRouter, provideCraftRouter } from './craft-router';
 import { ɵinjectCraftRouterRuntime, provideCraftRouterRuntimeValue } from './craft-router-tokens';
@@ -79,7 +79,7 @@ describe('craft router trace', () => {
     expect(() => runAppInitializers(injector)).not.toThrow();
 
     const router = runInInjectionContext(injector, () => craftUse(CraftRouter()));
-    await router.navigateByUrl('/home');
+    await router.navigateByUrl('/home', { replaceUrl: true });
 
     const events = traces.filter((trace) => trace.kind === 'routerEvent');
     expect(events.map((event) => event.eventName)).toEqual([
@@ -87,6 +87,14 @@ describe('craft router trace', () => {
       'NavigationEnd',
     ]);
     expect(events.map((event) => event.url)).toEqual(['/home', '/home']);
+    expect(events[0]?.event?.navigationId).toEqual(
+      events[1]?.event?.navigationId,
+    );
+    expect(events[0]?.event?.navigationId).toEqual(expect.any(Number));
+    expect(events.map((event) => event.navigationOptions)).toEqual([
+      { replaceUrl: true },
+      { replaceUrl: true },
+    ]);
   });
 
   it('does not throw when Craft router is absent', () => {

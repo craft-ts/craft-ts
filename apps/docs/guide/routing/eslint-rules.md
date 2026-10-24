@@ -16,6 +16,89 @@ can miss a real DI error. Run `eslint --fix` in CI.
 
 The plugin is exposed from `@craft-ts/dev-tools/eslint-rules`.
 
+## Route app-local links through Craft
+
+`craft-ts/prefer-craft-router-link` is enabled at `error` in the recommended
+and Effect presets, including generated apps. The demo application's client
+source enables the same rule explicitly. It rejects app-relative `href` values
+on Craft anchors so the router can capture and replay route changes.
+
+Before — this native anchor reloads the document instead of using the app
+router:
+
+```ts
+// ❌ app-local destination
+a('hero-shop', { href: '/catalogue' }, 'Découvrir la boutique');
+```
+
+After — name the Craft route and let `CraftRouterLink` handle the navigation:
+
+```ts
+a('hero-shop', {}, 'Découvrir la boutique').pipe(
+  CraftRouterLink({ to: 'catalogue' }),
+);
+```
+
+External destinations remain native links:
+
+```ts
+a(
+  'documentation',
+  { href: 'https://example.com/guide', target: '_blank' },
+  'Documentation',
+);
+```
+
+Static app-relative paths such as `'/catalogue'`, `'catalogue'`, `'./catalogue'`
+and `'../catalogue'` are rejected. Absolute URLs, protocol-relative URLs,
+fragment links, downloads, and `_blank` links are allowed. A dynamic `href` is
+reported because ESLint cannot tell whether it points inside or outside the
+app; mark a deliberately native URL with `data-navigation: 'external'`.
+
+There is no autofix: the author must map the destination to a declared Craft
+route (including any route parameters). Use `CraftRouterLink` for anchor
+navigation and `CraftRouter.navigate(...)` for navigation initiated by a
+button or another action.
+
+## Use Craft state and computed values
+
+`craft-ts/no-direct-craft-reactivity` is enabled at `error` in the recommended
+and Effect presets, including generated apps. It rejects imports of the
+low-level `craftSignal` and `ɵcomputed` factories from `@craft-ts/core`. They
+produce signal-shaped values without the lifecycle, naming, composition, and
+runtime tracking provided by Craft primitives.
+
+Before — aliasing the factories makes them look like general purpose signals:
+
+```ts
+import { ɵcomputed as computed, craftSignal as signal } from '@craft-ts/core';
+
+const count = signal(0);
+const doubled = computed(() => count() * 2);
+```
+
+After — declare writable values with `state` and derived values with
+`craftComputed` inside a Craft service:
+
+```ts
+import { craftComputed, craftService, state } from '@craft-ts/core';
+
+const { Counter } = craftService(
+  { name: 'Counter', providedIn: 'global' },
+  function* () {
+    const count = yield* state('count', 0, ({ update }) => ({
+      increment: () => update((value) => value + 1),
+    }));
+    yield* craftComputed('doubled', function* () {
+      return (yield* count()) * 2;
+    });
+  },
+);
+```
+
+There is no autofix: the author must choose the owning service and its scope,
+then expose the state methods and computed values that consumers need.
+
 ## Scope-matched craft service inputs
 
 `craft-ts/require-craft-service-input-scope` is enabled at `error` in the
@@ -217,10 +300,77 @@ What each rule does:
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values and message-catalog interpolation helpers remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files. Declare primitive dependencies with `yield*` in a service, method, or effect body; component templates are synchronous and consume the resulting view API directly.
 - `craft-ts/no-craft-service-return`: forbids returning a value from a `craftService` factory. Its API is assembled from the named values yielded by its generator; use `yield* craftPrivate(...)` for primitives that should stay internal, and `craftExpose(name, value)` for standalone values that belong in the API. The rule autofixes simple returned objects whose properties already match yielded primitive names.
+- `craft-ts/no-duplicate-craft-service-exposure`: requires each public key in a `craftService` to occur once, including keys created by named utilities such as `state(...)` and keys created by `craftExpose(...)`. Remove a duplicate exposure or choose a distinct key for a standalone value; the rule does not autofix because removing an API key can affect consumers.
+- `craft-ts/no-reexposed-craft-service-utility`: forbids passing a locally declared, publicly yielded utility result back to `craftExpose(...)` under a different key. The utility is already available by its declared key; remove the redundant call and keep the existing key. The rule does not autofix.
 - `craft-ts/require-craft-service-input-scope`: keeps global services input-free, limits provider-scoped services to `$provided`, and checks function-scoped inputs. TypeScript also rejects invalid service-helper bindings at call sites.
 - `craft-ts/prefer-direct-craft-service-exposure`: reports `craftExpose(...)` wrappers that repeat a yielded service's name, a named primitive result, or a member already returned by a primitive such as `state`, including when the member is renamed; keep the existing nested path (for example, `View.searchInput.setSearchInput`). It also reports service property shortcuts that can be yielded directly and forbids `craftExpose` inside supported primitive declarations or callbacks. Keep `craftExpose` for standalone or computed values.
 - `craft-ts/prefer-craft-computed-for-reactive-generator`: reports a zero-argument generator exposed as a service value when its only statement returns a value derived from a `yield*` read. Declare that value with `yield* craftComputed(name, function* () { ... })`; parameterized generators and multi-step workflows are unaffected.
 - `craft-ts/require-craft-component-for-exported-node-factory`: requires an exported function that directly returns a Craft node, such as `button(...)`, to be declared with `craftComponent(...)` so Craft directives and composition remain available
+
+### Keep `craftService` exposure keys unique
+
+Named utilities yielded directly from a `craftService` are already exposed
+under their declared name. `craftExpose` also adds a public key, so the same
+key must not be used by another utility or another `craftExpose` call.
+
+This rule catches **key collisions**, even when the values are different. The
+next rule catches the other case: exposing the **same yielded utility** again
+under a different key. Both checks protect the service API, but they diagnose
+different mistakes.
+
+Before — `expanded` is exposed by `state(...)` and then exposed again:
+
+```ts
+const expanded = yield* state('expanded', false);
+
+// ❌ `expanded` is already a public service key
+yield* craftExpose('expanded', expanded);
+```
+
+After — yield the primitive once; the service exposes it under `expanded`:
+
+```ts
+yield* state('expanded', false);
+```
+
+The rule also catches duplicate standalone keys:
+
+```ts
+// ❌ both values claim the same public key
+yield* craftExpose('format', formatDate);
+yield* craftExpose('format', formatCurrency);
+
+// ✅ each value has its own key
+yield* craftExpose('formatDate', formatDate);
+yield* craftExpose('formatCurrency', formatCurrency);
+```
+
+### Do not re-expose a declared service utility
+
+`no-duplicate-craft-service-exposure` catches repeated keys. This rule catches
+re-exporting the same utility under a different key: a public utility yielded
+from `state`, `query`, `mutation`, or another named primitive already has an
+API path, so adding an alias with `craftExpose` creates a redundant second
+path.
+
+Before — the local variable is the already-public `state('language')` utility:
+
+```ts
+const language = yield* state('language', 'en');
+
+// ❌ creates a second path to the same utility
+yield* craftExpose('locale', language);
+```
+
+After — keep the primitive's public `language` key:
+
+```ts
+yield* state('language', 'en');
+```
+
+Neither rule offers `eslint --fix`: removing or renaming a key can change the
+service API, so the author must choose the intended public name and update its
+consumers.
 
 ### Avoid flattening primitive members with `craftExpose`
 
@@ -472,6 +622,9 @@ checks exported arrow functions.
 - `craft-ts/prefer-craft-input-output`: keeps component inputs and outputs in the `Input`/`Output` model used by `craftComponent(...)`
 - `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
 - `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file, including unchanged aliases; naming an alias is not a call site, binding it is. Create a context-specific insertion method for each distinct use
+- `craft-ts/prefer-craft-long-press`: reports a local pointer/touch hold implementation that combines a start event, release/cancel events, and a timer. Use [`longPress`](/guide/components/directives#long-press) from `@craft-ts/core`; for a genuinely custom gesture, declare its semantic replay boundary with `runCraftReplayTrigger(...)`. No autofix is offered because replacing a gesture requires choosing its handler and options.
+- `craft-ts/prefer-craft-pointer-gestures`: reports native pointer listeners with coordinate tracking and drag/swipe phases. Use [`drag` or `swipe`](/guide/components/directives#drag-and-swipe) from `@craft-ts/core`; keep high-frequency preview work presentation-only and put semantic work in the terminal callback. No autofix is offered because gesture intent and thresholds need a human choice.
+- `craft-ts/require-craft-replay-trigger`: reports a direct native gesture listener whose callback contains a Craft generator or `executeYieldable(...)` without `runCraftReplayTrigger(...)`. Visual-only listeners and Craft template event bindings remain valid; the rule only claims the callback shapes it can recognize in the current file.
 - `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of` because native Promise suspension hides Craft dependencies and can lose cancellation or exception tracking; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
 - `craft-ts/require-loop-sleep-or-stop`: requires a `while` / `do` / `for` driven by `yield*` or `true` to suspend on `craftSleep` (cancelled with its owner) or to have a `break`, `return` or `throw`; without either it re-runs as fast as the runtime allows. See [page stability](/guide/testing/page-stability#craft-ts-require-loop-sleep-or-stop)
 - `craft-ts/require-generator-resource-loader`: requires `query`, `mutation`, and `asyncProcess` loaders to be generator functions because a plain or async return hides remote dependencies from the resource lifecycle; use `yield*` to keep each suspension tracked
@@ -514,7 +667,7 @@ checks exported arrow functions.
 - `craft-ts/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
 - `craft-ts/require-lazy-load-with-retry`: wraps route `loadComponent` and `loadChildren` imports with the generated `withRetry(...)` loader helper while preserving a statically analyzable import specifier
 - `craft-ts/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
-- `craft-ts/prefer-craft-router-link`: requires `CraftRouterLink` for internal `a(..., { href: ... })` navigation; external URLs, fragment links, downloads, `_blank`, and links marked with `data-navigation: 'external'` remain native
+- `craft-ts/prefer-craft-router-link`: requires `CraftRouterLink` for app-relative Craft anchor `href`s, and reports ambiguous dynamic hrefs; external URLs, fragment links, downloads, `_blank`, and links marked with `data-navigation: 'external'` remain native. No autofix is offered because the author must choose the declared route and its parameters.
 - `craft-ts/no-raw-craft-router-url`: rejects reading `CraftRouter.url`; use the typed route parameter helper generated by `craftRoutes(...)` instead of parsing the URL
 - `craft-ts/no-craft-component-return-type`: rejects explicit annotations on `craftComponent(...)` results so dependency and template inference remains intact
 

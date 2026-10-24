@@ -13,7 +13,6 @@ import {
 import {
   craftService,
   craftMethod,
-  CraftRouter,
   insertStoragePersister,
   craftUnique,
   query,
@@ -24,6 +23,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 import { example } from '../../shared/example.style';
 import { buttonUi } from '@craft-ts/ui/style';
+import { UserIdPathParams } from '../../shared/user-id-path-params';
 
 export const { GlobalQueryView, provideGlobalQueryView } = craftService(
   { name: 'globalQueryView', providedIn: 'toProvide' },
@@ -33,7 +33,7 @@ export const { GlobalQueryView, provideGlobalQueryView } = craftService(
     const { userId } = inputs.$provided;
 
     const userQuery = yield* query(
-      'userQuery',
+      'userQueryQueryQuery2',
       {
         params: userId,
         preservePreviousValue: () => true,
@@ -49,28 +49,16 @@ export const { GlobalQueryView, provideGlobalQueryView } = craftService(
         { enabled: !isCraftDebugReplayLaunch() },
       ),
     );
-    yield* craftComputed('hasUser', () => userQuery.hasValue());
-    yield* craftComputed('userValueJson', function* () {
+    yield* craftComputed('hasUserQueryQuery2', () => userQuery.hasValue());
+    yield* craftComputed('userValueJsonQueryQuery2', function* () {
       return JSON.stringify(yield* userQuery.value(), null, 2);
     });
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
+    const userIdPathParams = yield* UserIdPathParams();
     yield* craftMethod('navigateNext', function* () {
-      const currentUserId = yield* userId();
-      const targetUserId = String(Number(currentUserId ?? '0') + 1);
-      void router.navigate({
-        to: 'query/:userId',
-        params: { userId: targetUserId },
-      });
+      return yield* userIdPathParams.nextUser();
     });
     yield* craftMethod('navigatePrevious', function* () {
-      const currentUserId = yield* userId();
-      const targetUserId = String(Number(currentUserId ?? '0') - 1);
-      void router.navigate({
-        to: 'query/:userId',
-        params: { userId: targetUserId },
-      });
+      return yield* userIdPathParams.previousUser();
     });
   },
 );

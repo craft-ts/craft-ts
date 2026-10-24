@@ -17,6 +17,7 @@ import type {
   PseudoElementName,
   RegisteredClass,
 } from '../lib/styles.ts';
+import { CRAFT_REPLAY_STATE_ATTRIBUTES } from '../lib/styles.ts';
 import type { CssVarDeclaration } from '../lib/css-vars.ts';
 import type { ColorProvenance } from '../lib/tokens/units.ts';
 import type { RegisteredKeyframes } from '../lib/animation.ts';
@@ -154,6 +155,50 @@ function ruleText(atom: AtomicRule): string {
   );
 }
 
+type ReplayStyleState = 'hover' | 'focus' | 'focusVisible' | 'active';
+
+/** A data-attribute twin lets replay paint transient styles without DOM input. */
+function replayStateRuleText(
+  atom: AtomicRule,
+  state: ReplayStyleState,
+): string | undefined {
+  const attribute = CRAFT_REPLAY_STATE_ATTRIBUTES[state];
+  const isStatePoint = (point: AnyAxisPoint): boolean =>
+    (state === 'focusVisible' &&
+      point.driver.kind === 'descendantState' &&
+      point.driver.state === 'focus-visible') ||
+    (point.driver.kind === 'selfState' && point.driver.state === state);
+  if (!atom.conditions.some(isStatePoint)) return undefined;
+  return wrapRule(
+    escapeClass(atom.className),
+    atom.conditions.map((point) => {
+      if (!isStatePoint(point)) return point;
+      return {
+        ...point,
+        open:
+          state === 'focusVisible' && point.driver.kind === 'descendantState'
+            ? point.open.replace(':focus-visible', `[${attribute}]`)
+            : `&[${attribute}]`,
+      };
+    }),
+    atom.pseudoElement,
+    `${atom.property}:${atom.value}`,
+  );
+}
+
+function ruleTexts(
+  atom: AtomicRule,
+  states: readonly ReplayStyleState[],
+): string[] {
+  return [
+    ruleText(atom),
+    ...states.flatMap((state) => {
+      const rule = replayStateRuleText(atom, state);
+      return rule ? [rule] : [];
+    }),
+  ];
+}
+
 const globalRuleText = (rule: GlobalRule): string =>
   wrapRule(
     rule.selector,
@@ -161,6 +206,14 @@ const globalRuleText = (rule: GlobalRule): string =>
     rule.pseudoElement,
     `${rule.property}:${rule.value}${rule.important ? ' !important' : ''}`,
   );
+
+const replayGlobalRuleText = (rule: GlobalRule): string | undefined =>
+  rule.selector === ':focus-visible'
+    ? globalRuleText({
+        ...rule,
+        selector: `[${CRAFT_REPLAY_STATE_ATTRIBUTES.focusVisible}]`,
+      })
+    : undefined;
 
 const keyframesText = (frames: RegisteredKeyframes): string =>
   `@keyframes ${frames.name}{${frames.steps
@@ -348,7 +401,17 @@ export function renderCss(
   atoms: readonly AtomicRule[],
   vars: readonly CssVarDeclaration[],
   foundation: FoundationInput = {},
+  options: Readonly<{
+    replayHover?: boolean;
+    replayFocusActive?: boolean;
+  }> = {},
 ): string {
+  const replayStates: ReplayStyleState[] = [
+    ...(options.replayHover === true ? (['hover'] as const) : []),
+    ...(options.replayFocusActive === true
+      ? (['focus', 'focusVisible', 'active'] as const)
+      : []),
+  ];
   const layered = atoms.filter((atom) => !atom.isolated);
   const base = layered
     .filter((atom) => atom.conditions.length === 0)
@@ -362,7 +425,9 @@ export function renderCss(
   const isolatedRules = [
     ...isolated.filter((atom) => atom.conditions.length === 0).sort(byName),
     ...isolated.filter((atom) => atom.conditions.length > 0).sort(byName),
-  ].map(ruleText);
+  ].flatMap((atom) =>
+    replayStates.length ? ruleTexts(atom, replayStates) : [ruleText(atom)],
+  );
   const properties = [...vars, ...(foundation.base ? CRAFT_BASE_VARS : [])]
     .sort((left, right) => left.name.localeCompare(right.name))
     .map(propertyRule);
@@ -384,14 +449,29 @@ export function renderCss(
     `@layer ${LAYERS.join(', ')};`,
     faces.join(''),
     layer('craft.reset', reset.map(globalRuleText)),
-    layer('craft.base', baseLayer.map(globalRuleText)),
+    layer(
+      'craft.base',
+      baseLayer.flatMap((rule) => [
+        globalRuleText(rule),
+        ...(options.replayFocusActive === true
+          ? [replayGlobalRuleText(rule)].filter(
+              (alias): alias is string => alias !== undefined,
+            )
+          : []),
+      ]),
+    ),
     layer('craft.tokens', properties),
     layer('craft.global', globals.map(globalRuleText)),
     layer('craft.components', [
       ...frames.map(keyframesText),
       ...base.map(ruleText),
     ]),
-    layer('craft.variants', variants.map(ruleText)),
+    layer(
+      'craft.variants',
+      variants.flatMap((atom) =>
+        replayStates.length ? ruleTexts(atom, replayStates) : [ruleText(atom)],
+      ),
+    ),
     isolatedRules.join(''),
   ];
 

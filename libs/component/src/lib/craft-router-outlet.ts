@@ -12,7 +12,7 @@ import type { ComponentNode } from './render/vnode';
  * Functional non-blocking router outlet.
  *
  * The routing state machine lives in `@craft-ts/core`; this component owns its
- * render lifetime and mounts the active Angular route target with the
+ * render lifetime and mounts the active route target with the
  * route-scoped injector supplied by the controller.
  */
 type CraftRouterOutletTemplate = () => unknown;

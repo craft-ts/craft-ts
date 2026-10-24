@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -78,20 +78,20 @@ describe('Effect quickstart snippet', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
   });
 
   afterEach(() => {
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('renders the Effect result through a Craft query', async () => {
     const element = document.createElement('div');
     document.body.append(element);
-    const injector = TestBed.rootInjector.createChild([
+    const injector = CraftTestBed.rootInjector.createChild([
       provideLayer(UserRepositoryLive),
     ]);
     const mounted = mountCraftComponent(
@@ -99,7 +99,7 @@ describe('Effect quickstart snippet', () => {
       element,
       injector as unknown as Injector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(element.textContent).toContain('Ada Lovelace');

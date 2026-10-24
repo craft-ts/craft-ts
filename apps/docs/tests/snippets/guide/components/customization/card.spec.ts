@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
@@ -32,8 +32,8 @@ describe('guide/components/customization.md #card', () => {
   it('merges the caller class with the host default', () => {
     const host = document.createElement('div');
     document.body.append(host);
-    mountCraftComponent(FeaturedCard, host, TestBed.inject(Injector));
-    TestBed.tick();
+    mountCraftComponent(FeaturedCard, host, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
 
     const card = host.querySelector('[data-testid="featured-card"]');
     expect(card?.getAttribute('role')).toBe('article');

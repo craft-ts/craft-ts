@@ -39,7 +39,7 @@ import {
   craftRouteTarget,
 } from '@craft-ts/core';
 import { App } from './app';
-import { demoRoutes } from './app.routes.runtime';
+import { demoRoutes } from './app.routes';
 import { provideMcpExperimentation } from './function-registry-entry';
 import { provideLogForwarding, provideLogServerUrl } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
@@ -52,6 +52,7 @@ const localLogServerUrl =
 const localReplayDashboardOrigin =
   import.meta.env['VITE_CRAFT_REPLAY_DASHBOARD_ORIGIN'] ??
   'http://localhost:4210';
+const localSessionCaptureEnabled = isLoopbackUrl(localLogServerUrl);
 
 const developmentProviders = import.meta.env.DEV
   ? [
@@ -68,6 +69,10 @@ const developmentProviders = import.meta.env.DEV
       })),
       provideCraftDebugSessionCapture({
         webSocketUrl: `${localLogServerUrl.replace(/^http/, 'ws')}/sessions/ws`,
+        captureInputValues: localSessionCaptureEnabled,
+        captureSensitiveInputValues: localSessionCaptureEnabled,
+        captureBrowserStorage: localSessionCaptureEnabled,
+        captureReplayArguments: localSessionCaptureEnabled,
       }),
       provideCraftDebugReplayBridge({
         parentOrigins: [
@@ -147,6 +152,15 @@ export const appConfig = craftAppConfig({
     provideCorrelationIdTracking(),
   ],
 });
+
+function isLoopbackUrl(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.replace(/^\[|\]$/g, '');
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
+}
 
 export type AppProvidedNames = AppProvidedServiceNamesOf<typeof appConfig>;
 export type AppProvidedValues = AppProvidedDependencyValuesOf<typeof appConfig>;

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   afterEach,
   beforeAll,
@@ -89,7 +89,7 @@ describe('craftLazy (generator protocol)', () => {
 // loader, with the injection context providing the retry engine.
 describe('craftLazy (inside an asyncProcess)', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     vi.useFakeTimers();
   });
   afterEach(() => {
@@ -98,7 +98,7 @@ describe('craftLazy (inside an asyncProcess)', () => {
   });
 
   it('resolves to the lazily-loaded module', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const moduleValue = { greet: () => 'hi' };
       const ref = craftUse(
         asyncProcess('ref', {
@@ -122,11 +122,11 @@ describe('craftLazy (inside an asyncProcess)', () => {
   });
 
   it('surfaces an exhausted import as a CRAFT_LAZY_LOAD_ERROR exception', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftLazyLoadRetry({ attempts: 1, delayMs: 0 })],
     });
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const load = vi.fn(({ withRetry }: CraftLazyLoadHelpers) =>
         withRetry(Promise.reject<{ never: true }>(new Error('offline'))),
       );
@@ -157,11 +157,11 @@ describe('craftLazy (inside an asyncProcess)', () => {
   });
 
   it('retries a failing import up to the configured attempts, then resolves', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftLazyLoadRetry({ attempts: 2, delayMs: 0 })],
     });
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       let calls = 0;
       const ref = craftUse(
         asyncProcess('ref', {
@@ -189,11 +189,11 @@ describe('craftLazy (inside an asyncProcess)', () => {
   });
 
   it('recovers from a failed lazy import through .pipe(catchTag(...))', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftLazyLoadRetry({ attempts: 1, delayMs: 0 })],
     });
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const ref = craftUse(
         asyncProcess('ref', {
           method: (v: string) => v,

@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { queryParams } from './query-params';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
@@ -53,7 +53,7 @@ describe('queryParams', () => {
     queryParamsResourceObserver = undefined;
     queryParamsWrapObserver = undefined;
     queryParamsRuntimeContextObserver = undefined;
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([]),
         providePrimitiveResourceRuntimeObserver((context) => {
@@ -75,7 +75,7 @@ describe('queryParams', () => {
   });
 
   it('should create a query params', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams('myQueryParams', {
           state: {
@@ -101,7 +101,7 @@ describe('queryParams', () => {
   });
 
   it('should create a query params and can expose state and basic methods (set, update, patch)', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -164,7 +164,7 @@ describe('queryParams', () => {
       resourceContext = context;
     };
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams('myQueryParams', {
           state: {
@@ -211,7 +211,7 @@ describe('queryParams', () => {
       runtimeContext = context;
     };
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -249,7 +249,7 @@ describe('queryParams', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -289,7 +289,7 @@ describe('queryParams', () => {
   });
 
   it('should create a query params and  basic methods (set, update, patch) should not be exposed implicitly', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams('myQueryParams', {
           state: {
@@ -322,7 +322,7 @@ describe('queryParams', () => {
   });
 
   it('should create a query params and methods', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -364,7 +364,7 @@ describe('queryParams', () => {
   });
 
   it('should expose basic methods in insertions', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -435,7 +435,7 @@ describe('queryParams', () => {
   });
 
   it('should accept options and not loosing insertions inference', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -499,7 +499,7 @@ describe('queryParams', () => {
   });
 
   it('should not expose methods bind to a source', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = signalSource<number>('mySource');
       const myQueryParams = craftUse(
         queryParams(
@@ -544,8 +544,8 @@ describe('queryParams', () => {
   });
 
   it('should remove query params from URL when reset to fallback values', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+    await CraftTestBed.runInInjectionContext(async () => {
+      const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -606,7 +606,7 @@ describe('queryParams codecs', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter([])],
     }).compileComponents();
   });
@@ -616,8 +616,8 @@ describe('queryParams codecs', () => {
   });
 
   it('decodes and encodes values through a synchronous codec', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+    await CraftTestBed.runInInjectionContext(async () => {
+      const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
       const filters = craftUse(
         queryParams(
           'filters',
@@ -648,8 +648,8 @@ describe('queryParams codecs', () => {
   });
 
   it('accepts synchronous Effect Schema decode and encode adapters', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+    await CraftTestBed.runInInjectionContext(async () => {
+      const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
       const filters = craftUse(
         queryParams(
           'filters',
@@ -677,9 +677,9 @@ describe('queryParams codecs', () => {
   });
 
   it('skipLocationChange updates url without changing the address bar', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
-      const history = TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
+    await CraftTestBed.runInInjectionContext(async () => {
+      const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+      const history = CraftTestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
       const filters = craftUse(
         queryParams(
           'filters',
@@ -711,8 +711,8 @@ describe('queryParams codecs', () => {
   it('falls back and exposes native codec decode errors', async () => {
     const nativeError = new Error('invalid page');
 
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+    await CraftTestBed.runInInjectionContext(async () => {
+      const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
       const filters = craftUse(
         queryParams('filters', {
           state: {
@@ -744,9 +744,9 @@ describe('queryParams codecs', () => {
   });
 
   it('throws a QueryParamEncodeError before navigation', () => {
-    TestBed.runInInjectionContext(() => {
-      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
-      const navigate = vi.spyOn(TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!), 'push');
+    CraftTestBed.runInInjectionContext(() => {
+      const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+      const navigate = vi.spyOn(CraftTestBed.runInInjectionContext(() => ɵinjectCraftHistory()!), 'push');
       const filters = craftUse(
         queryParams(
           'filters',

@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { craftService } from './craft-service';
 import { craftComputed } from './craft-computed';
 import { craftMethod } from './craft-method';
@@ -26,7 +26,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const todos = craftUse(Todos());
       expect(Object.keys(todos).sort()).toEqual(['clear', 'count', 'items']);
       expect(craftUse(todos.count())).toBe(1);
@@ -46,7 +46,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const api = craftUse(Draft());
       expect('draft' in api).toBe(false);
       expect(craftUse(api.length())).toBe(5);
@@ -70,7 +70,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const api = craftUse(Pair());
       expect(Object.keys(api)).toEqual(['sum']);
       expect(craftUse(api.sum())).toBe(3);
@@ -90,7 +90,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(Object.keys(craftUse(OpenPair())).sort()).toEqual([
         'left',
         'right',
@@ -115,7 +115,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const api = craftUse(Formatter());
       expect(api.format).toBe(format);
       expect(api.prefix).toBe('#');
@@ -141,7 +141,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(Object.keys(craftUse(Consumer()))).toEqual(['double']);
     });
   });
@@ -155,7 +155,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const api = craftUse(Effects());
       expect(Object.keys(api)).toEqual(['visible']);
       expect(typeof api.visible.destroy).toBe('function');
@@ -171,7 +171,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() => craftUse(Duplicated())).toThrow(
         'craftService("Duplicated") exposes "value" twice.',
       );
@@ -187,7 +187,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(craftUse(craftUse(Shadowed()).value())).toBe(2);
     });
   });
@@ -202,7 +202,7 @@ describe('craftService auto-exposure', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() => craftUse(Returning())).toThrow(
         'craftService("Returning") returned a value, but a craftService cannot return',
       );
@@ -216,7 +216,7 @@ describe('craftService auto-exposure', () => {
       () => ({ value: 1 }),
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() => craftUse(Plain())).toThrow(
         'craftService("Plain") needs a generator factory',
       );

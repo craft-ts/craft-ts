@@ -25,40 +25,6 @@ export type ElementRef<T = HTMLElement> = InstanceType<typeof ɵElementRef> & {
   nativeElement: T;
 };
 
-type HostRuntimeApi = {
-  computed: typeof ɵcomputed;
-  createEnvironmentInjector: typeof ɵcreateEnvironmentInjector;
-  DestroyRef: typeof CraftDestroyRef;
-  ElementRef: typeof ɵElementRef;
-  EnvironmentInjector: typeof ɵEnvironmentInjector;
-  Injector: typeof CraftInjectorToken;
-  inject: typeof ɵinject;
-  reflectComponentType: (
-    component: unknown,
-  ) => { selector?: string | null } | null;
-  runInInjectionContext: typeof ɵrunInInjectionContext;
-  signal: typeof ɵsignal;
-  untracked: typeof ɵuntracked;
-  ɵEffectScheduler: typeof CraftEffectScheduler;
-  ɵINJECTOR_SCOPE: typeof CraftInjectorScope;
-  AngularMount: new (
-    component: unknown,
-    hostElement: Element,
-    injector: unknown,
-    inputs: Readonly<Record<string, unknown>>,
-    outputs: Readonly<Record<string, (value: unknown) => unknown>>,
-    directives: readonly unknown[],
-    context: {
-      injector: unknown;
-      resolveInput: (value: unknown) => unknown;
-      executeOutput: (
-        callback: (value: unknown) => unknown,
-        value: unknown,
-      ) => unknown;
-    },
-  ) => { update(...args: unknown[]): void; destroy(): void };
-};
-
 export const computed = ɵcomputed;
 export const createEnvironmentInjector = ɵcreateEnvironmentInjector;
 export const DestroyRef = CraftDestroyRef;
@@ -67,8 +33,6 @@ export const EnvironmentInjector: typeof ɵEnvironmentInjector =
   ɵEnvironmentInjector;
 export const Injector: typeof CraftInjectorToken = CraftInjectorToken;
 export const inject = ɵinject;
-export const reflectComponentType: HostRuntimeApi['reflectComponentType'] =
-  () => null;
 export const runInInjectionContext = ɵrunInInjectionContext;
 export const signal = ɵsignal;
 export const untracked = ɵuntracked;

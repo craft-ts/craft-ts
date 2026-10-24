@@ -4,7 +4,7 @@ import {
   craftUse,
   flattenClientMiddlewares,
   runClientMiddlewareChain,
-  TestBed,
+  CraftTestBed,
 } from '@craft-ts/core';
 
 const trace: string[] = [];
@@ -24,7 +24,7 @@ const workspace = craftMiddleware('client.workspace')
 
 describe('yieldable client middleware', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     trace.length = 0;
   });
 

@@ -18,12 +18,18 @@ import {
   provideSendContextToAiBuffer,
   provideAppInitializer,
   provideSendContextEventFilter,
+  provideSendContextEventEnricher,
   provideSendContextEventSource,
   provideSendContextSession,
+  getCurrentStartCorrelationId,
+  ɵcaptureCraftReplayTarget,
   ɵinjectAppSnapshotRegistry,
+  ɵinjectCraftPrimitiveRegistry,
   ɵinjectSendContextSession,
   ɵinjectTakeAppSnapshot,
   ɵinjectSendContextToAiBuffer,
+  ɵinjectPersistedStorageSnapshotRegistry,
+  ɵinjectCraftRouterRuntime,
   type SendContextTarget,
   type GetDeps,
   type SendContextPayload,
@@ -39,9 +45,24 @@ import { AiSendDialog } from './ai-send-dialog';
 import { AiSendContextChat } from './ai-send-context-chat';
 import { AiSendContextLauncher } from './ai-send-context-launcher';
 import { connectDebugSessionPersistence } from './debug-session-persistence';
+import {
+  captureBrowserStorageSnapshot,
+  type BrowserStorageSnapshot,
+  connectBrowserStorageCheckpoints,
+  INITIAL_BROWSER_STORAGE_EVENT,
+} from './debug-session-browser-storage';
+import { connectDebugSessionDialogCapture } from './debug-session-dialogs';
+import { connectDebugSessionFetchCapture } from './debug-session-fetch-capture';
+import { connectDebugSessionFormCapture } from './debug-session-form-capture';
+import { connectDebugSessionHoverCapture } from './debug-session-hover';
+import { connectDebugSessionPerformanceCapture } from './debug-session-performance';
 import { connectDebugSessionScrollCapture } from './debug-session-scroll';
 import { connectDebugSessionViewportCapture } from './debug-session-viewport';
-import { isCraftDebugReplayLaunch } from './debug-session-replay-signals';
+import { connectReplaySnapshotCapture } from './debug-session-orchestrator';
+import {
+  CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT,
+  isCraftDebugReplayLaunch,
+} from './debug-session-replay-signals';
 import {
   provideSendContextChatActionsDefault,
   provideSendContextChatSectionsDefault,
@@ -457,6 +478,16 @@ export interface SendContextToAiOptions {
   readonly recording: boolean;
   /** Set false when a separate `provideCraftDebugSessionCapture` is installed. */
   readonly capture?: boolean;
+  /**
+   * Capture Craft-managed hover transitions for replay. Defaults to disabled
+   * in Vite production builds and enabled in other modes.
+   */
+  readonly captureHover?: boolean;
+  /**
+   * Capture focus, focus-visible and active transitions for replay. Defaults
+   * to disabled in Vite production builds and enabled in other modes.
+   */
+  readonly captureFocusActive?: boolean;
 }
 
 /** Opt-in session capture without mounting the AI context menu or launcher. */
@@ -466,12 +497,40 @@ export function provideCraftDebugSessionCapture(
     webSocketUrl?: string;
     /** Capture non-sensitive form values only after explicit opt-in. */
     captureInputValues?: boolean;
+    /** Also allow sensitive form values when input capture is opted in. */
+    captureSensitiveInputValues?: boolean;
+    /**
+     * Capture unfiltered browser storage at startup for local replay.
+     * Requires a loopback WebSocket URL; defaults to false.
+     */
+    captureBrowserStorage?: boolean;
+    /** EXPERIMENTAL: capture Craft and source$ arguments for local invocation replay. */
+    captureReplayArguments?: boolean;
+    /** Capture serialized restart points after the app reaches a stable state. */
+    captureReplaySnapshots?: Readonly<{
+      appVersion: string;
+      debounceMs?: number;
+    }>;
+    /** Capture prompt() answers only after explicit opt-in. */
+    capturePromptValues?: boolean;
+    /**
+     * Capture Craft-managed hover transitions for replay. Defaults to disabled
+     * in Vite production builds and enabled in other modes.
+     */
+    captureHover?: boolean;
+    /**
+     * Capture focus, focus-visible and active transitions for replay. Defaults
+     * to disabled in Vite production builds and enabled in other modes.
+     */
+    captureFocusActive?: boolean;
   }> = {},
 ): Provider[] {
   const recording = options.recording ?? true;
   let session: SendContextSession | undefined;
+  let startupStorageSnapshot: Promise<BrowserStorageSnapshot> | undefined;
   let craftCallSequence = 0;
   let emittingCraftCapture = false;
+  const activeCraftInvocations = new Map<string, string[]>();
   const captureCraftEvent = (
     activeSession: SendContextSession,
     phase: 'started' | 'succeeded' | 'failed',
@@ -513,24 +572,185 @@ export function provideCraftDebugSessionCapture(
   return [
     ...provideSendContextSession({
       captureInputValues: options.captureInputValues,
+      captureSensitiveInputValues: options.captureSensitiveInputValues,
     }),
+    ...(options.captureReplayArguments === true &&
+    isLoopbackWebSocketUrl(options.webSocketUrl)
+      ? [
+          provideSendContextEventEnricher((event) => {
+            if (
+              event.kind !== 'custom' ||
+              event.phase !== 'emitted' ||
+              event.source !== 'source$' ||
+              !event.replayAddress
+            )
+              return event;
+            return {
+              ...event,
+              payload: {
+                value: event.payload,
+                replayInvocation: {
+                  address: event.replayAddress,
+                  args: [ɵserializeReplayArgument(event.payload)],
+                },
+              },
+            };
+          }),
+        ]
+      : []),
     ...(recording
       ? [
-          provideAppInitializer(() => {
+          provideAppInitializer(async () => {
             ɵinjectSendContextSession();
+            if (startupStorageSnapshot) {
+              const snapshot = await startupStorageSnapshot;
+              session?.capture('storage', 'emitted', {
+                name: INITIAL_BROWSER_STORAGE_EVENT,
+                payload: { snapshotJson: JSON.stringify(snapshot) },
+              });
+            }
           }),
         ]
       : []),
     provideSendContextEventSource((createdSession) => {
       session = createdSession;
+      if (
+        recording &&
+        options.captureBrowserStorage === true &&
+        !isCraftDebugReplayLaunch() &&
+        isLoopbackWebSocketUrl(options.webSocketUrl)
+      )
+        startupStorageSnapshot = captureBrowserStorageSnapshot();
+      const disconnectBrowserStorageCheckpoints = startupStorageSnapshot
+        ? connectBrowserStorageCheckpoints(createdSession, {
+            baseline: startupStorageSnapshot,
+          })
+        : undefined;
+      const disconnectDialogCapture = recording
+        ? connectDebugSessionDialogCapture(createdSession, {
+            capturePromptValues: options.capturePromptValues,
+          })
+        : undefined;
       const disconnectScrollCapture = recording
         ? connectDebugSessionScrollCapture(createdSession)
         : undefined;
+      const viteProduction =
+        (
+          import.meta as ImportMeta & {
+            readonly env?: { readonly PROD?: boolean };
+          }
+        ).env?.PROD === true;
+      const disconnectHoverCapture =
+        recording &&
+        ((options.captureHover ?? !viteProduction) ||
+          (options.captureFocusActive ?? !viteProduction))
+          ? connectDebugSessionHoverCapture(createdSession, {
+              hover: options.captureHover ?? !viteProduction,
+              focusActive: options.captureFocusActive ?? !viteProduction,
+            })
+          : undefined;
+      const disconnectFormCapture = recording
+        ? connectDebugSessionFormCapture(createdSession, {
+            captureInputValues: options.captureInputValues,
+            captureSensitiveInputValues: options.captureSensitiveInputValues,
+          })
+        : undefined;
+      const disconnectFetchCapture =
+        recording &&
+        options.captureReplayArguments === true &&
+        isLoopbackWebSocketUrl(options.webSocketUrl)
+          ? connectDebugSessionFetchCapture(createdSession)
+          : undefined;
+      const disconnectPrimitiveCapture =
+        recording &&
+        !isCraftDebugReplayLaunch() &&
+        typeof window !== 'undefined'
+          ? (() => {
+              const registry = ɵinjectCraftPrimitiveRegistry();
+              let paused = false;
+              const replayPauseListener = (event: Event) => {
+                const detail = (event as CustomEvent<unknown>).detail;
+                paused =
+                  typeof detail === 'object' &&
+                  detail !== null &&
+                  'paused' in detail &&
+                  detail.paused === true;
+              };
+              window.addEventListener(
+                CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT,
+                replayPauseListener,
+              );
+              const unsubscribe = registry.onChange((address) => {
+                if (paused || !createdSession.activeClip) return;
+                const entry = registry.get(address);
+                if (!entry || entry.kind === 'queryParams') return;
+                createdSession.capture('primitive', 'emitted', {
+                  name: 'primitive-change',
+                  payload: {
+                    address,
+                    primitiveKind: entry.kind,
+                    ...(entry.status ? { status: entry.status() } : {}),
+                    ...(entry.error ? { error: entry.error() } : {}),
+                  },
+                  state: registry.capture([entry]),
+                });
+              });
+              return () => {
+                unsubscribe();
+                window.removeEventListener(
+                  CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT,
+                  replayPauseListener,
+                );
+              };
+            })()
+          : undefined;
+      // Replaying an app session can open the live context timeline inside the
+      // target iframe. Recording long tasks generated by that timeline would
+      // continuously add rows that trigger more rendering and more long tasks.
+      const disconnectPerformanceCapture =
+        recording && !isCraftDebugReplayLaunch()
+          ? connectDebugSessionPerformanceCapture(createdSession)
+          : undefined;
       const disconnectViewportCapture = recording
         ? connectDebugSessionViewportCapture(createdSession)
         : undefined;
+      let disconnectReplaySnapshots: (() => void) | undefined;
       if (recording) {
         createdSession.startRecord('Application session');
+        if (options.captureReplaySnapshots) {
+          const primitiveRegistry = ɵinjectCraftPrimitiveRegistry();
+          const storageRegistry = ɵinjectPersistedStorageSnapshotRegistry();
+          const craftRouter = ɵinjectCraftRouterRuntime();
+          disconnectReplaySnapshots = connectReplaySnapshotCapture({
+            session: createdSession,
+            appVersion: options.captureReplaySnapshots.appVersion,
+            debounceMs: options.captureReplaySnapshots.debounceMs,
+            route: () => craftRouter?.url,
+            primitives: () => primitiveRegistry.capture(),
+            storage: () => storageRegistry.capture(),
+            isQuiescent: () =>
+              activeCraftInvocations.size === 0 &&
+              primitiveRegistry.list().every((entry) => {
+                const status = entry.status?.().toLowerCase();
+                return (
+                  status === undefined ||
+                  !/(loading|pending|running|debouncing|refreshing)/.test(
+                    status,
+                  )
+                );
+              }),
+            subscribe: (onChange) => {
+              const unsubscribePrimitive = primitiveRegistry.onChange(onChange);
+              const eventSubscription = createdSession.events$.subscribe({
+                next: onChange,
+              });
+              return () => {
+                unsubscribePrimitive();
+                eventSubscription.unsubscribe();
+              };
+            },
+          });
+        }
         // Keep replay capture in memory for comparison without archiving a new
         // session when the dashboard reloads the target URL.
         if (options.webSocketUrl && !isCraftDebugReplayLaunch()) {
@@ -539,15 +759,31 @@ export function provideCraftDebugSessionCapture(
             options.webSocketUrl,
           );
           return () => {
+            disconnectDialogCapture?.();
             disconnectScrollCapture?.();
+            disconnectHoverCapture?.();
+            disconnectFormCapture?.();
+            disconnectFetchCapture?.();
+            disconnectPrimitiveCapture?.();
+            disconnectPerformanceCapture?.();
             disconnectViewportCapture?.();
+            disconnectBrowserStorageCheckpoints?.();
+            disconnectReplaySnapshots?.();
             disconnectPersistence();
           };
         }
       }
       return () => {
+        disconnectDialogCapture?.();
         disconnectScrollCapture?.();
+        disconnectHoverCapture?.();
+        disconnectFormCapture?.();
+        disconnectFetchCapture?.();
+        disconnectPrimitiveCapture?.();
+        disconnectPerformanceCapture?.();
         disconnectViewportCapture?.();
+        disconnectBrowserStorageCheckpoints?.();
+        disconnectReplaySnapshots?.();
       };
     }),
     provideSendContextEventFilter(() => session?.activeClip !== undefined),
@@ -570,15 +806,51 @@ export function provideCraftDebugSessionCapture(
         const name =
           factoryName && factoryName !== 'current' ? factoryName : actionHost;
         const operationId = `craft-call-${++craftCallSequence}`;
+        const correlationId = getCurrentStartCorrelationId() ?? undefined;
+        const invocationStack = correlationId
+          ? activeCraftInvocations.get(correlationId)
+          : undefined;
         const details = {
           name,
           operationId,
-          payload: { comparable: true, host: actionHost },
+          ...(correlationId ? { correlationId } : {}),
+          // Keep only calls with a causal interaction context. Startup and
+          // reactive background work without a correlation id is mostly noise.
+          // These traces explain execution order; replay compares their effects
+          // through primitive state and HTTP results instead.
+          payload: {
+            comparable: false,
+            host: actionHost,
+            hostTags: hostTags.map((tag) => tag.replace(/#\d+$/, '')),
+            ...(options.captureReplayArguments === true &&
+            isLoopbackWebSocketUrl(options.webSocketUrl) &&
+            actionHost.startsWith('method:')
+              ? {
+                  replayInvocation: {
+                    address: hostTags.join(' / '),
+                    args: args.map((value) => ɵserializeReplayArgument(value)),
+                    ...(invocationStack?.length
+                      ? { parentOperationId: invocationStack.at(-1) }
+                      : {}),
+                  },
+                }
+              : {}),
+            ...(typeof location === 'undefined'
+              ? {}
+              : { route: location.pathname }),
+          },
         };
-        captureCraftEvent(activeSession, 'started', details);
+        if (correlationId) captureCraftEvent(activeSession, 'started', details);
+        if (correlationId) {
+          const stack = invocationStack ?? [];
+          if (!invocationStack)
+            activeCraftInvocations.set(correlationId, stack);
+          stack.push(operationId);
+        }
         try {
           const result = yield* factory.apply(thisArg, args);
-          captureCraftEvent(activeSession, 'succeeded', details);
+          if (correlationId)
+            captureCraftEvent(activeSession, 'succeeded', details);
           return result;
         } catch (error) {
           captureCraftEvent(activeSession, 'failed', {
@@ -587,10 +859,141 @@ export function provideCraftDebugSessionCapture(
               error instanceof Error ? { name: error.name } : { failed: true },
           });
           throw error;
+        } finally {
+          if (correlationId) {
+            const stack = activeCraftInvocations.get(correlationId);
+            if (stack) {
+              const index = stack.lastIndexOf(operationId);
+              if (index >= 0) stack.splice(index, 1);
+              if (stack.length === 0)
+                activeCraftInvocations.delete(correlationId);
+            }
+          }
         }
       },
     ),
   ];
+}
+
+function isLoopbackWebSocketUrl(value: string | undefined): boolean {
+  if (!value) return false;
+  try {
+    const hostname = new URL(value).hostname.replace(/^\[|\]$/g, '');
+    return (
+      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function ɵserializeReplayArgument(
+  value: unknown,
+  ancestors = new WeakSet<object>(),
+): unknown {
+  if (value === undefined) return { $craftReplayUndefined: true };
+  if (typeof value === 'bigint')
+    return { $craftReplayBigInt: value.toString() };
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || Object.is(value, -0))
+      return {
+        $craftReplayNumber: Object.is(value, -0) ? '-0' : String(value),
+      };
+    return value;
+  }
+  if (typeof value === 'function' || typeof value === 'symbol')
+    return { $craftReplayUnsupported: typeof value };
+  if (value === null || typeof value === 'string' || typeof value === 'boolean')
+    return value;
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime())
+      ? { $craftReplayUnsupported: 'invalid-date' }
+      : { $craftReplayDate: value.toISOString() };
+  if (typeof Event !== 'undefined' && value instanceof Event) {
+    const eventInit: Record<string, unknown> = {
+      bubbles: value.bubbles,
+      cancelable: value.cancelable,
+      composed: value.composed,
+    };
+    if (value instanceof MouseEvent)
+      Object.assign(eventInit, {
+        clientX: value.clientX,
+        clientY: value.clientY,
+        screenX: value.screenX,
+        screenY: value.screenY,
+        button: value.button,
+        buttons: value.buttons,
+        altKey: value.altKey,
+        ctrlKey: value.ctrlKey,
+        metaKey: value.metaKey,
+        shiftKey: value.shiftKey,
+      });
+    if (value instanceof KeyboardEvent)
+      Object.assign(eventInit, {
+        key: value.key,
+        code: value.code,
+        location: value.location,
+        repeat: value.repeat,
+        altKey: value.altKey,
+        ctrlKey: value.ctrlKey,
+        metaKey: value.metaKey,
+        shiftKey: value.shiftKey,
+      });
+    if (typeof InputEvent !== 'undefined' && value instanceof InputEvent)
+      Object.assign(eventInit, {
+        data: value.data,
+        inputType: value.inputType,
+        isComposing: value.isComposing,
+      });
+    const replayTarget =
+      value.target instanceof Element
+        ? ɵcaptureCraftReplayTarget(
+            value.target,
+            value instanceof MouseEvent
+              ? { clientX: value.clientX, clientY: value.clientY }
+              : undefined,
+          )
+        : undefined;
+    if (value.target instanceof Element && !replayTarget)
+      return { $craftReplayUnsupported: 'event-target-without-craft-identity' };
+    return {
+      $craftReplayEvent: {
+        type: value.type,
+        eventInit,
+        ...(replayTarget ? { replayTarget } : {}),
+      },
+    };
+  }
+  if (typeof value !== 'object')
+    return { $craftReplayUnsupported: typeof value };
+  if (ancestors.has(value))
+    return { $craftReplayUnsupported: 'circular-reference' };
+  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer)
+    return { $craftReplayUnsupported: 'binary-object' };
+  if (Array.isArray(value)) {
+    ancestors.add(value);
+    try {
+      return value.map((entry) => ɵserializeReplayArgument(entry, ancestors));
+    } finally {
+      ancestors.delete(value);
+    }
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null)
+    return { $craftReplayUnsupported: 'non-plain-object' };
+  ancestors.add(value);
+  try {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        ɵserializeReplayArgument(entry, ancestors),
+      ]),
+    );
+  } catch {
+    return { $craftReplayUnsupported: 'object-serialization-failed' };
+  } finally {
+    ancestors.delete(value);
+  }
 }
 
 export function provideSendContextToAi(
@@ -599,7 +1002,11 @@ export function provideSendContextToAi(
   return [
     ...(options.capture === false
       ? []
-      : provideCraftDebugSessionCapture({ recording: options.recording })),
+      : provideCraftDebugSessionCapture({
+          recording: options.recording,
+          captureHover: options.captureHover,
+          captureFocusActive: options.captureFocusActive,
+        })),
     provideSendContextChatComponent(() => AiSendContextChat),
     provideSendContextContextMenuComponent(() => AiContextMenu),
     provideSendContextLauncherComponent(() => AiSendContextLauncher),

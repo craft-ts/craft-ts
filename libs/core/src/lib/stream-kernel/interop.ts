@@ -1,6 +1,5 @@
 import {
   DestroyRef,
-  asCraftInjector,
   inject,
   type InjectorHandle,
   type Signal,
@@ -149,9 +148,7 @@ export function signalChanges<T>(
         };
       };
 
-      const stop = options?.injector
-        ? asCraftInjector(options.injector).run(start)
-        : start();
+      const stop = options?.injector ? options.injector.run(start) : start();
 
       return { unsubscribe: stop };
     },
@@ -167,7 +164,7 @@ export function waitUntilTrue(
   injector: InjectorHandle,
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const craftInjector = asCraftInjector(injector);
+    const craftInjector = injector;
     let watch: { destroy(): void } | undefined;
     let release: (() => void) | undefined;
     let done = false;

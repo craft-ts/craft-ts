@@ -6,7 +6,7 @@ import {
   provideServerFunctionTransport,
   readServerFunctionFailure,
   type ServerFunctionInput,
-  TestBed,
+  CraftTestBed,
 } from '@craft-ts/core';
 import {
   assertServerFunctionArchitecture,
@@ -35,7 +35,7 @@ const effectMiddlewareInputRegression: ServerFunctionInput<
 void effectMiddlewareInputRegression;
 
 describe('demo with server function', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => CraftTestBed.resetTestingModule());
 
   it('calls the public server function with no middleware', async () => {
     const server = await listenDemoServer();
@@ -409,7 +409,7 @@ function configureServerFunctionTransport(
   claimedUserId = 'user-ada',
   sent: unknown[] = [],
 ): void {
-  TestBed.configureTestingModule({
+  CraftTestBed.configureTestingModule({
     providers: [
       provideClaimedUserId(() => claimedUserId),
       provideServerFunctionTransport(async (request) => {
@@ -454,11 +454,11 @@ async function invokeServerFunction<Input, Output>(
   client: (input: Input) => Generator<unknown, Output, unknown>,
   input: Input,
 ): Promise<Output> {
-  const invocation = TestBed.runInInjectionContext(() => client(input));
+  const invocation = CraftTestBed.runInInjectionContext(() => client(input));
   const settled = await executeGeneratorCompatibleFactoryAsync({
     factory: () => invocation,
     thisArg: undefined,
-    getInjector: () => TestBed.rootInjector,
+    getInjector: () => CraftTestBed.rootInjector,
     args: [],
     invalidYieldErrorMessage: 'invalid server-function yield',
   });

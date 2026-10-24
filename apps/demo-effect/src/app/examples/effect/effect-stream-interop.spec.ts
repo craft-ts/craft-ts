@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
 import {
-  TestBed,
+  CraftTestBed,
   VirtualCraftTemporalRuntime,
   activateCraftTemporalRuntime,
 } from '@craft-ts/core';
@@ -22,7 +22,7 @@ describe('demo: Effect streams and craft streams', () => {
   let element: HTMLElement;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
     clock = new VirtualCraftTemporalRuntime();
@@ -34,7 +34,7 @@ describe('demo: Effect streams and craft streams', () => {
   afterEach(() => {
     restoreClock();
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   const buttonLabelled = (label: string) => {
@@ -54,12 +54,12 @@ describe('demo: Effect streams and craft streams', () => {
         // eslint-disable-next-line craft-ts/no-direct-temporal-globals
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
       }
-      TestBed.tick();
+      CraftTestBed.tick();
     }
   };
 
   const mount = () => {
-    const injector = TestBed.rootInjector.createChild([
+    const injector = CraftTestBed.rootInjector.createChild([
       provideLayer(
         Layer.provideMerge(StreamInteropClockLive, craftTemporalClock()),
       ),
@@ -69,7 +69,7 @@ describe('demo: Effect streams and craft streams', () => {
       element,
       injector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
     return () => {
       mounted.destroy();
       injector.destroy();

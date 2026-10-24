@@ -57,6 +57,81 @@ it('keeps checkout away from admin internals', () => {
 
 The rest of this page explains the graph, the setup and the built-in rules.
 
+## Route-owned path parameter updates
+
+`prefer-path-param-navigation` reports a `CraftRouter.navigate(...)` call when
+the call rebuilds the URL of the route that owns its service just to update a
+path parameter from that parameter's current value. This update belongs to the
+route's `pathParams` insertion: it already owns the parameter value and can
+expose the operation to route-provided services.
+
+The rule reports when all of these facts are visible in the source and
+dependency graph:
+
+- the destination is the same route that provides the calling service;
+- `to` names that route with a static path;
+- `params` updates at least one dynamic segment in the path;
+- the new value reads the current value of that same parameter.
+
+For example, incrementing the current `userId` by changing the route URL is a
+path-param update:
+
+**Before — the service rebuilds its own route URL:**
+
+```typescript
+yield* craftMethod('navigate', function* (offset: number) {
+  const currentUserId = yield* userId();
+  void router.navigate({
+    to: 'craft/query/:userId',
+    params: {
+      userId: String(Number(currentUserId ?? '0') + offset),
+    },
+  });
+});
+```
+
+**After — the route owns the parameter update, and the service calls its helper:**
+
+```typescript
+// In the route declaration:
+pathParams: { userId: userIdPathParam },
+
+// userIdPathParam is declared with the update operation:
+const userIdPathParam = pathParams('userId', {}, ({ value, set }) => ({
+  shiftUser: function* (offset: number) {
+    return yield* set(String(Number(value() || '0') + offset));
+  },
+}));
+
+// The route provides its generated `UserIdPathParams` helper to the service.
+const userIdPathParams = yield* UserIdPathParams();
+yield* craftMethod('navigate', function* (offset: number) {
+  return yield* userIdPathParams.shiftUser(offset);
+});
+```
+
+The rule deliberately does not report every navigation. App-level services
+cannot inject a route's helper, so they can keep using `CraftRouter.navigate`.
+It also leaves calls alone when the service is shared across routes, provided
+to components outside the route, or otherwise has ambiguous route ownership.
+In those cases it is not safe to assume which route's `pathParams` insertion
+should own the update; keep the existing navigation API.
+
+The source check covers calls with a literal `to` path and an object-literal
+`params` value. It skips navigation inputs with other options beyond
+`replaceUrl`, `skipLocationChange`, `state`, and `viewTransition`, since those
+may express navigation behavior beyond updating the current route parameter.
+The rule is part of `assertDeclarativeArchitecture` and fails by default. It
+has no automatic fix: move the update to the owning route's `pathParams`
+insertion, then call the helper exposed by that route. See
+[route-provided helpers](/guide/routing/route-providers#pairing-with-an-abstract-service)
+for how routes expose these helpers through DI.
+
+In the demo, the primitive and Craft query/mutation examples now use the shared
+`UserIdPathParams` helper (`nextUser`, `previousUser`, `shiftUser`). The demo
+architecture test asserts that `routePathParamNavigationFindings(graph.graph)`
+is empty, so a future same-route `navigate` regression is caught there.
+
 ## Import
 
 ```typescript
@@ -78,10 +153,13 @@ import {
   assertPathBoundaries,
   assertPrimitiveLoaderRequirements,
   assertQueryMutationHasServerState,
+  assertQueryParamsRouteOwnership,
   assertResourceParamsPreferQueryParams,
   assertPersistedPrimitiveHasUnique,
   assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
+  assertLazyRouteTargetsStayLazy,
+  assertRuntimeEntityNamesUnique,
   buildArchitectureCatalog,
   createArchitectureGraph,
   noExclusiveLink,
@@ -432,6 +510,7 @@ rules that express your application's boundaries.
 | Helper                                                                                             | Fails when                                                                                                                                                                                                                                             |
 | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [`assertCraftUnique`](/guide/testing/architecture/unique-identities)                               | the same `craftUnique` identity appears twice, or the argument is not a static literal                                                                                                                                                                 |
+| [`assertRuntimeEntityNamesUnique`](/guide/testing/architecture/runtime-entity-names)               | a Craft service or primitive shares its runtime name with another service or primitive in the project                                                                                                                                                 |
 | [`assertHttpEndpointUnique`](/guide/testing/architecture/http-endpoint-ownership)                  | the same HTTP verb+URL is called from more than one site                                                                                                                                                                                               |
 | `assertVisualHappyPathArchitecture`                                                                | a routed page, mobile/desktop viewport, or Craft HTTP endpoint has no successful visual happy-path fixture                                                                                                                                             |
 | [`assertCraftComputedPure`](/guide/testing/architecture/computed-purity)                           | a `craftComputed` `calls` a method or `writes` a `source$`                                                                                                                                                                                             |
@@ -443,6 +522,7 @@ rules that express your application's boundaries.
 | [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline)                | any of the baseline checks fail                                                                                                                                                                                                                        |
 | [`assertRouteDiProofs`](/guide/testing/architecture/route-di-proofs)                               | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
 | [`assertRouteComponentsInSeparateFiles`](/guide/testing/architecture/route-component-files)        | a route loads its page component from the routing file, or multiple routed page components share one component file                                                                                                                                    |
+| `assertLazyRouteTargetsStayLazy`                                                                    | a route's dynamic import target is statically reachable from an application entry point or another lazy route target                                                                                                                                  |
 | [`assertPathBoundaries`](/guide/testing/architecture/path-boundaries)                              | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist                                                                                                                                                                             |
 | [`noExclusiveLink(a, b)`](/guide/testing/architecture/exclusive-links)                             | the only path between two branches is a leak, not a shared kernel                                                                                                                                                                                      |
 | [`assertPersistedPrimitiveHasUnique`](/guide/testing/architecture/persisted-identities)            | `insertStoragePersister` is used without wrapping the identity in `craftUnique`                                                                                                                                                                        |
@@ -454,6 +534,7 @@ rules that express your application's boundaries.
 | [`assertQueryMutationHasServerState`](/guide/testing/architecture/server-state-loader)             | a `query` or `mutation` does not reach an allowed server-state boundary                                                                                                                                                                                |
 | [`assertPrimitiveLoaderRequirements`](/guide/testing/architecture/primitive-loader-requirements)   | an Effect-aware primitive does not declare an allowed dependency boundary                                                                                                                                                                              |
 | [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state) | a `query` or `asyncProcess` params graph depends on a `state` instead of URL-backed `queryParams`                                                                                                                                                      |
+| [`assertQueryParamsRouteOwnership`](/guide/testing/architecture/query-params-route-ownership) | a `queryParams` primitive is outside its route, or its service is not provided by that route                                                                                                                                                      |
 
 ### `noExclusiveLink`
 
@@ -754,6 +835,128 @@ it('keeps route definitions separate from page components', () => {
 
 The rule checks the page file boundary only. It does not restrict components
 rendered inside a page, and it does not require one route collection per file.
+
+### `assertLazyRouteTargetsStayLazy`
+
+The route analyzer already sees literal dynamic imports in route definitions.
+This assertion follows ordinary static imports, side-effect imports,
+re-exports and literal `require()` calls from the application's entry points,
+then checks that none of those paths reaches a module loaded dynamically by a
+route. It also checks imports starting at each lazy route target, so one lazy
+feature cannot silently pull a different lazy feature into its own static
+dependency tree.
+
+The check works at **module/file granularity**. If an eager file imports one
+export from a page file, that page file is now statically reachable even when
+the import names only a service declared beside the page component.
+
+Before — `UserPage` is a lazy route target, but `App` imports `UserService`
+from the same file:
+
+```ts
+// user-page.ts
+import { craftComponent, div } from '@craft-ts/component';
+import { craftService, state } from '@craft-ts/core';
+
+export const { UserService } = craftService(
+  { name: 'UserService', providedIn: 'global' },
+  function* () {
+    yield* state('userId', '');
+  },
+);
+
+export const UserPage = craftComponent(
+  'UserPage',
+  {},
+  function* () {
+    const { userId } = yield* UserService();
+    return div(function* () {
+      return yield* userId();
+    });
+  },
+);
+```
+
+```ts
+// app.ts — statically loaded by the application
+import { UserService } from './user-page';
+```
+
+```ts
+// app.routes.ts
+{
+  path: 'users',
+  loadComponent: () => import('./user-page').then((module) => module.UserPage),
+}
+```
+
+The assertion reports the eager path to `user-page.ts`, such as
+`src/main.ts -> src/app.ts -> src/user-page.ts`. The same applies if a barrel
+statically re-exports `UserPage` from the eager path.
+
+After — move the shared service into its own module and import it from both
+places:
+
+```ts
+// user.service.ts
+import { craftService, state } from '@craft-ts/core';
+
+export const { UserService } = craftService(
+  { name: 'UserService', providedIn: 'global' },
+  function* () {
+    yield* state('userId', '');
+  },
+);
+```
+
+```ts
+// user-page.ts
+import { craftComponent, div } from '@craft-ts/component';
+import { UserService } from './user.service';
+
+export const UserPage = craftComponent(
+  'UserPage',
+  {},
+  function* () {
+    const { userId } = yield* UserService();
+    return div(function* () {
+      return yield* userId();
+    });
+  },
+);
+```
+
+```ts
+// app.ts
+import { UserService } from './user.service';
+```
+
+Now `App` can make `user.service.ts` eager while `user-page.ts` stays behind
+the route's dynamic import. A type-only import of the page from `App` is also
+safe because it does not create a runtime module edge.
+
+```typescript
+it('keeps lazy route modules outside the eager application import graph', () => {
+  assertLazyRouteTargetsStayLazy(graph.graph, {
+    entryPoints: ['src/main.ts'],
+  });
+});
+```
+
+List every actual application entry point, including a separate server
+bootstrap when it is part of the same architecture project. The check resolves
+TypeScript path aliases and reports the full source path, for example
+`src/main.ts -> src/app/app.config.ts -> src/app.routes.ts -> src/admin.routes.ts`.
+Type-only imports are ignored because they do not create runtime imports.
+Static imports within a lazy target's own feature are allowed unless they
+reach another route's dynamic-import target. There is no autofix: replace the
+eager value import/re-export with the existing route `import()` boundary, or
+move genuinely shared code into a module that does not re-export the lazy
+feature.
+
+This proves a property of the TypeScript source import graph. It does not
+inspect final bundler chunks, whose contents can also be affected by bundler
+configuration, manual chunking or build plugins.
 
 ### `assertMutationHasReactOn`
 

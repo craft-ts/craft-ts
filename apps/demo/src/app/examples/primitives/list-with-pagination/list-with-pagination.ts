@@ -37,7 +37,7 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
     { name: 'listWithPaginationView', providedIn: 'toProvide' },
     function* () {
       const pagination = yield* queryParams(
-        'pagination',
+        'paginationListWithPaginationListWithPagination2',
         paginationQueryParams(),
         ({ patch, state }) => ({
           nextPage: function* () {
@@ -54,7 +54,7 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
         }),
       );
       yield* query(
-        'usersQuery',
+        'usersQueryListWithPaginationListWithPagination',
         {
           params: pagination,
           identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -74,7 +74,7 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
             function* ({ currentPageStatus }) {
               return {
                 isCurrentPageResolved: yield* craftComputed(
-                  'isCurrentPageResolved',
+                  'isCurrentPageResolvedListWithPaginationListWithPagination2',
                   function* () {
                     return (yield* currentPageStatus()) === 'resolved';
                   },
@@ -86,7 +86,7 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
       );
 
       yield* craftMethod(
-        'updatePageSize',
+        'updatePageSizeListWithPaginationListWithPagination2',
         function* (event: Event) {
           yield* pagination.updatePageSize(Number(eventValue(event)));
         },
@@ -105,8 +105,8 @@ const ListWithPagination = craftComponent(
   // page change suspends the badge alone while the table keeps showing the
   // previous page's rows, which is the whole point of the placeholder
   // insertion. One boundary around both would hide them.
-  div([
-        heading([
+  div({ class: example.panel }, [
+        heading({ class: example.title }, [
           'User Management: ',
           span({}, [
             StatusComponent({
@@ -149,7 +149,7 @@ const ListWithPagination = craftComponent(
           select(
             'PageSize',
             {
-              class: example.select,
+              class: example.pageSize,
               'aria-label': 'Page size',
               value: function* () {
                 return String((yield* ListWithPaginationView.pagination()).pageSize);

@@ -60,7 +60,7 @@ export const { TaskRowView, provideTaskRowView } = craftService(
 
     const { id, title } = yield* task();
     yield* craftStateMachine(
-      'machine',
+      'machineStateMachineListTaskBoard',
 
       function* () {
         const note = yield* state('note', '', ({ set }) => ({
@@ -134,16 +134,16 @@ export const { TaskRowView, provideTaskRowView } = craftService(
           reopenDisabled: yield* craftComputed('reopenDisabled', function* () {
             return (yield* machineContext.currentStep()) === 'todo';
           }),
-          historyLabel: yield* craftComputed('historyLabel', function* () {
+          historyLabel: yield* craftComputed('historyLabelStateMachineListTaskBoard', function* () {
             const entries = yield* history.history();
             const cursor = yield* history.historyCursor();
             return `${title} · moment ${cursor + 1}/${entries.length}`;
           }),
-          backDisabled: yield* craftComputed('backDisabled', function* () {
+          backDisabled: yield* craftComputed('backDisabledStateMachineListTaskBoard', function* () {
             return !(yield* history.canGoBack());
           }),
           forwardDisabled: yield* craftComputed(
-            'forwardDisabled',
+            'forwardDisabledStateMachineListTaskBoard',
             function* () {
               return !(yield* history.canGoForward());
             },

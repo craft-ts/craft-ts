@@ -43,6 +43,7 @@ import {
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import { ɵprovidePrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
+import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
@@ -799,13 +800,30 @@ function createQueryParamsRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+            const exposedMethod = createYieldableInsertionMethod(wrappedFn, {
               injector: methodInjector,
               invalidYieldErrorMessage: QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: QUERY_PARAM_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage:
                 QUERY_PARAM_APP_START_ERROR_MESSAGE,
             });
+            ɵregisterCraftReplayMethod(methodInjector, (_receiver, args) => {
+              const result = runInInjectionContext(methodInjector, () =>
+                exposedMethod(...args),
+              );
+              return isGenerator(result)
+                ? runCraftGenerator({
+                    iterator: result,
+                    injector: methodInjector,
+                    hostScope: 'function',
+                    invalidYieldErrorMessage: QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage: QUERY_PARAM_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      QUERY_PARAM_APP_START_ERROR_MESSAGE,
+                  }).value
+                : result;
+            });
+            wrappedAcc[key] = exposedMethod;
             return wrappedAcc;
           },
           {} as Record<string, unknown>,

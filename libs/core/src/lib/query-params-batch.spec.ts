@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { craftWatch } from './host/craft-signal';
 import { queryParams } from './query-params';
 import { craftUse } from './craft-use';
@@ -14,7 +14,7 @@ describe('queryParams following the URL', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({ providers: [provideCraftRouter([])] });
+    CraftTestBed.configureTestingModule({ providers: [provideCraftRouter([])] });
   });
 
   afterEach(() => {
@@ -22,7 +22,7 @@ describe('queryParams following the URL', () => {
   });
 
   it('moves the state and its parse exceptions together', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const router = ɵinjectCraftRouterRuntime()!;
       const filters = craftUse(
         queryParams('filters', {

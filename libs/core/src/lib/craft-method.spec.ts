@@ -1,7 +1,7 @@
 import {
   signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -26,7 +26,7 @@ import { craftExpose } from './craft-primitive-gen';
 
 describe('craftMethod', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     vi.restoreAllMocks();
   });
 
@@ -57,7 +57,7 @@ describe('craftMethod', () => {
       ));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new CounterComponent(),
     );
     const increment = component.increment;
@@ -87,7 +87,7 @@ describe('craftMethod', () => {
       ));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new CounterComponent(),
     );
 
@@ -109,7 +109,7 @@ describe('craftMethod', () => {
       ));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new CounterComponent(),
     );
     const increment = component.increment;
@@ -140,7 +140,7 @@ describe('craftMethod', () => {
       ));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new CounterComponent(),
     );
 
@@ -155,7 +155,7 @@ describe('craftMethod', () => {
       }));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new InvalidComponent(),
     );
 
@@ -186,7 +186,7 @@ describe('craftMethod', () => {
       ));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new CounterComponent(),
     );
 
@@ -237,7 +237,7 @@ describe('craftMethod — object config with providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const increment = craftUse(craftMethod(
         {
           name: 'increment',
@@ -270,7 +270,7 @@ describe('craftMethod — object config with providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const withProvider = craftUse(craftMethod(
         {
           name: 'withProvider',
@@ -308,7 +308,7 @@ describe('craftMethod — object config with providers', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const withoutProviders = craftUse(craftMethod(
         'compute',
         function* (x: number) {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed } from '@craft-ts/core';
+import { CraftTestBed } from '@craft-ts/core';
 import { setupCraftComponentTemplateTest } from '@craft-ts/component';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -40,7 +40,7 @@ export const Tasks = craftComponent(
 beforeAll(() => {});
 
 beforeEach(() => {
-  TestBed.resetTestingModule();
+  CraftTestBed.resetTestingModule();
 });
 
 describe('Learn 01 Tasks snippet', () => {

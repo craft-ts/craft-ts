@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createSendContextSession,
   defaultSendContextRedactor,
+  ɵstableReplaySelector,
 } from './send-context-to-ai.tokens';
 import { createSendContextToAiBuffer } from './send-context-to-ai';
 import { craftUse } from './craft-use';
@@ -9,6 +10,11 @@ import { setupCraftServiceTest } from './setup-craft-service-test';
 import { AppSnapshotRegistry } from './take-app-snapshot';
 
 describe('send context session', () => {
+  it('records valid selectors for the document roots', () => {
+    expect(ɵstableReplaySelector(document.body)).toBe('body');
+    expect(ɵstableReplaySelector(document.documentElement)).toBe('html');
+  });
+
   it('keeps an ordered circular timeline and marks evicted clips', () => {
     const session = createSendContextSession({
       retentionPolicy: { maxEvents: 2 },
@@ -79,7 +85,7 @@ describe('send context session', () => {
     >;
     expect(value).toMatchObject({
       format: 'craft-debug-session',
-      version: 2,
+      version: 6,
       truncated: true,
     });
     expect(value.events).toHaveLength(1);

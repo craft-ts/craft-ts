@@ -23,7 +23,7 @@ type StoragePersisterImplementationApi<Name extends string> = CraftServiceApi<
 >;
 
 /**
- * Abstract storage persister selected through the Angular/Craft DI hierarchy.
+ * Abstract storage persister selected through the Craft injector hierarchy.
  *
  * Applications must provide an implementation with `provideStoragePersister`.
  */

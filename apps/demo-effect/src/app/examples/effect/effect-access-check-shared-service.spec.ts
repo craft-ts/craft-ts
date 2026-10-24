@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed } from '@craft-ts/core';
+import { CraftTestBed } from '@craft-ts/core';
 import {
   installCraftEffectBridge,
   provideLayer,
@@ -14,20 +14,20 @@ describe('demo: checking access rights with a shared service', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
   });
 
   afterEach(() => {
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('resolves the access policy via the application Layer', async () => {
     const element = document.createElement('div');
     document.body.append(element);
-    const injector = TestBed.rootInjector.createChild([
+    const injector = CraftTestBed.rootInjector.createChild([
       provideLayer(AccessPolicyLive),
     ]);
     expect(resolveEffectLevel(injector)).not.toBeNull();
@@ -36,7 +36,7 @@ describe('demo: checking access rights with a shared service', () => {
       element,
       injector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(element.textContent).toContain('Checking access…');
     expect(element.textContent).not.toContain('Unknown user.');
@@ -50,7 +50,7 @@ describe('demo: checking access rights with a shared service', () => {
     );
     expect(grace).toBeDefined();
     grace?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(element.textContent).toContain('Checking access…');
     expect(element.textContent).not.toContain('Unknown user.');
@@ -64,7 +64,7 @@ describe('demo: checking access rights with a shared service', () => {
     );
     expect(linus).toBeDefined();
     linus?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Linus Torvalds');

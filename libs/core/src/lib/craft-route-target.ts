@@ -5,9 +5,7 @@ import {
 import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 
 /**
- * What a route mounts. Everything Craft renders is a Craft component, so the
- * kind is informational: it exists because a route target used to be able to
- * be an Angular component too.
+ * What a route mounts. The renderer package owns the concrete component type.
  */
 export type CraftRouteTarget = {
   readonly kind: 'craft';
@@ -16,8 +14,7 @@ export type CraftRouteTarget = {
 };
 
 /**
- * A route's component: the Craft component itself, or an explicit target. It
- * used to admit an Angular `Type<unknown>` as a third form.
+ * A route's component: the Craft component itself, or an explicit target.
  */
 export type CraftRouteTargetInput = object | CraftRouteTarget;
 
@@ -74,9 +71,8 @@ export function isCraftRouteTarget(value: unknown): value is CraftRouteTarget {
 }
 
 /**
- * A bare component is a Craft component. This used to default to an Angular
- * target, which now resolves to a host that cannot exist — every unwrapped
- * component would have thrown at mount.
+ * A bare component is a Craft component; callers can also use
+ * `craftRouteTarget(...)` for an explicit target.
  */
 export function normalizeCraftRouteTarget(
   input: CraftRouteTargetInput,

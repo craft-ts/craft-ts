@@ -45,7 +45,7 @@ export const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', providedIn: 'toProvide' },
   function* () {
     const nextId = yield* craftPrivate(
-      state('nextId', 3, ({ state, update }) => ({
+      state('nextIdFullDemoFullDemo', 3, ({ state, update }) => ({
         take: function* () {
           const _state = yield* state();
           const id = _state;
@@ -55,13 +55,13 @@ export const { provideTodoStore, TodoStore } = craftService(
       })),
     );
     const records = yield* craftPrivate(
-      state('records', INITIAL_TODOS, ({ update }) => ({
+      state('recordsFullDemoFullDemo', INITIAL_TODOS, ({ update }) => ({
         add: (todo: Todo) => update((current) => [...current, todo]),
         remove: (id: number) =>
           update((current) => current.filter((todo) => todo.id !== id)),
       })),
     );
-    const add = yield* mutation('add', {
+    const add = yield* mutation('addFullDemoFullDemo', {
       method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
         const todo = { id: yield* nextId.take(), title };
@@ -77,7 +77,7 @@ export const { provideTodoStore, TodoStore } = craftService(
       },
     });
     yield* query(
-      'todos',
+      'todosFullDemoFullDemo',
       {
         // The list is loaded once. Mutations update its value through the
         // insertions below, so input changes cannot restart this loader.
@@ -122,7 +122,7 @@ export const { FullDemoCraftView, provideFullDemoCraftView } = craftService(
   function* () {
     yield* TodoStore();
     yield* state(
-      'titleForm',
+      'titleFormFullDemoFullDemo',
       '',
       insertForm(
         insertFormAttributes(() => ({ validators: [cRequired()] })),
@@ -138,7 +138,7 @@ const FullDemoCraft = craftComponent(
     providers: [provideFullDemoCraftView(), provideTodoStore()],
   },
   () =>
-    div({ class: example.page }, [
+    div({ class: example.card }, [
       heading({ class: example.title }, [
         'Full craftService demo ',
         StatusComponent({ status: FullDemoCraftView.todoStore.todos.status }),
@@ -195,7 +195,7 @@ const FullDemoCraft = craftComponent(
                 'RemoveTodoButton',
                 {
                   class: buttonUi.root,
-                  'data-variant': 'danger',
+                  'data-variant': 'secondary',
                   type: 'button',
                   disabled: FullDemoCraftView.todoStore.remove.isLoading,
                   *click() {

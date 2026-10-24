@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { runInInjectionContext } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createCraftRouterOutletController } from './craft-router-outlet';
 import { provideCraftRouter } from './craft-router';
@@ -16,12 +16,12 @@ class PageA {}
 class PageB {}
 
 function history() {
-  return TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
+  return CraftTestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
 }
 
 describe('the router outlet publishing a page', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     window.history.replaceState(null, '', '/');
   });
 
@@ -30,7 +30,7 @@ describe('the router outlet publishing a page', () => {
   });
 
   it('swaps one page for another in a single observable step', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: 'a/:id', component: PageA },
@@ -38,7 +38,7 @@ describe('the router outlet publishing a page', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     history().push('/a/1');
@@ -46,7 +46,7 @@ describe('the router outlet publishing a page', () => {
     // What the mounting component reads: the target, its inputs, its injector.
     const injectors = new Map<unknown, number>();
     const seen: string[] = [];
-    const watch = TestBed.runInInjectionContext(() =>
+    const watch = CraftTestBed.runInInjectionContext(() =>
       craftWatch(() => {
         const target = outlet.displayedTarget();
         const props = outlet.displayedProps();
@@ -69,10 +69,10 @@ describe('the router outlet publishing a page', () => {
   });
 
   it('moves the match and the inputs of a reused page together', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter([{ path: 'a/:id', component: PageA }])],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     history().push('/a/1');
@@ -83,7 +83,7 @@ describe('the router outlet publishing a page', () => {
       ɵinjectCraftMatch(),
     )!;
     const seen: string[] = [];
-    const watch = TestBed.runInInjectionContext(() =>
+    const watch = CraftTestBed.runInInjectionContext(() =>
       craftWatch(() => {
         const props = outlet.displayedProps();
         const live = match();

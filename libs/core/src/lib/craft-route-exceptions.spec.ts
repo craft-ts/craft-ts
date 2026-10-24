@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -173,7 +173,7 @@ describe('craft-route-exceptions (types)', () => {
 
 describe('craft-route-exceptions (runtime)', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('builds discriminated outcomes', () => {
@@ -193,8 +193,8 @@ describe('craft-route-exceptions (runtime)', () => {
   });
 
   it('CraftGlobalError reads the CRAFT_GLOBAL_ERROR signal', () => {
-    TestBed.configureTestingModule({});
-    const { sink, read } = TestBed.runInInjectionContext(() => ({
+    CraftTestBed.configureTestingModule({});
+    const { sink, read } = CraftTestBed.runInInjectionContext(() => ({
       sink: ɵinjectCraftGlobalError(),
       read: craftUse(CraftGlobalError()),
     }));

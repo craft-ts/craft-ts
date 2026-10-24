@@ -4,12 +4,27 @@ import type { SendContextEnvironmentProfile } from '@craft-ts/core';
 export function captureDebugSessionEnvironment(
   browser: Pick<
     Window,
-    'navigator' | 'screen' | 'innerWidth' | 'innerHeight' | 'devicePixelRatio'
+    | 'navigator'
+    | 'screen'
+    | 'innerWidth'
+    | 'innerHeight'
+    | 'devicePixelRatio'
+    | 'document'
+    | 'matchMedia'
   > = window,
 ): SendContextEnvironmentProfile {
   const navigator = browser.navigator;
   const userAgent = navigator.userAgent;
   const browserInfo = identifyBrowser(userAgent);
+  const explicitMode = browser.document.documentElement.getAttribute(
+    'data-mode',
+  );
+  const colorScheme =
+    explicitMode === 'light' || explicitMode === 'dark'
+      ? explicitMode
+      : browser.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
   let timeZone: string | undefined;
   try {
     timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -30,6 +45,7 @@ export function captureDebugSessionEnvironment(
       : {}),
     ...(timeZone ? { timeZone } : {}),
     screen: { width: browser.screen.width, height: browser.screen.height },
+    colorScheme,
   };
 }
 

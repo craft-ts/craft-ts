@@ -81,6 +81,7 @@ import {
 import { ɵinjectCraftSsrRuntime } from './craft-ssr';
 import { ɵinjectCraftPlatform } from './craft-platform';
 import { ɵinjectCraftHydrationRuntime } from './craft-hydration';
+import { ɵinjectCraftRouteActivationTracker } from './craft-route-activation';
 
 const ROUTE_PROP_SKIP = new Set(['craftComponent', 'craftPendingComponent']);
 
@@ -164,7 +165,7 @@ function runRegisteredSyncTemplateFlush(): void {
 /**
  * Runs inside `startViewTransition`'s callback after Craft signals commit, so
  * the displayed DOM is patched before the callback returns. Templates driven by
- * `craftEffect` otherwise bump an Angular signal asynchronously.
+ * `craftEffect` otherwise bump a signal asynchronously.
  */
 const craftSyncTemplateFlushService = ɵcraftValueService(
   { name: 'CraftSyncTemplateFlush', providedIn: 'global' },
@@ -211,6 +212,8 @@ export class CraftRouterOutletController {
   private readonly hydrationRuntime = ɵinjectCraftHydrationRuntime();
   private readonly document = this.platform?.document ?? inject(DOCUMENT);
   private readonly ssrRuntime = ɵinjectCraftSsrRuntime();
+  private readonly routeActivationTracker =
+    ɵinjectCraftRouteActivationTracker();
   private a11yHasCompletedInitialActivation = false;
 
   readonly displayedComponent: CraftWritableSignal<Type<unknown> | null> =
@@ -252,6 +255,7 @@ export class CraftRouterOutletController {
   private _matchWatch: { destroy(): void } | null = null;
   private _frozen = false;
   private _displayVersion = 0;
+  private _routeNavigationId: number | undefined;
 
   get isActivated(): boolean {
     return this._match !== null;
@@ -265,6 +269,11 @@ export class CraftRouterOutletController {
   }
 
   constructor() {
+    const routerEvents = this.router.events;
+    const routerEventsSubscription = routerEvents?.subscribe((event) => {
+      if (event.type === 'NavigationStart')
+        this._routeNavigationId = event.navigationId;
+    });
     const matchSignal = ɵinjectCraftChildMatch() ?? ɵinjectCraftMatch();
     if (matchSignal) {
       this._matchWatch = craftWatch(() => {
@@ -277,6 +286,7 @@ export class CraftRouterOutletController {
       });
     }
     this.destroyRef.onDestroy(() => this.destroy());
+    this.destroyRef.onDestroy(() => routerEventsSubscription?.unsubscribe());
   }
 
   destroy(): void {
@@ -312,6 +322,7 @@ export class CraftRouterOutletController {
     match: CraftMatch,
     environmentInjector?: EnvironmentInjector,
   ): void {
+    this.routeActivationTracker.begin(this.router.url);
     this._pendingDeactivation = false;
     const previousMatchUrl = this._match
       ? serializeLocation(this._match)
@@ -334,7 +345,9 @@ export class CraftRouterOutletController {
         childMatch.set(child);
         this.displayedProps.set(collectMatchProps(activated));
       });
+      this.syncTemplateFlush();
       this.publishViewTransitionPayload();
+      this.publishRouteActivation('activated');
       return;
     }
 
@@ -431,11 +444,14 @@ export class CraftRouterOutletController {
         component,
         this._activeRouteInjector,
         this.resolveRouteTarget(component),
+        () => {
+          craftBatch(() => {
+            this.targetComponent.set(component);
+            this.state.set('loaded');
+          });
+          this.publishRouteActivation('activated');
+        },
       );
-      craftBatch(() => {
-        this.targetComponent.set(component);
-        this.state.set('loaded');
-      });
       return;
     }
 
@@ -556,9 +572,14 @@ export class CraftRouterOutletController {
         this.installReactiveGuard(meta, component);
         return;
       case 'redirect':
+        this.publishRouteActivation(
+          'failed',
+          `Route redirected to ${String(outcome.target)}.`,
+        );
         void this.router.navigateByUrl(String(outcome.target));
         return;
       case 'stay':
+        this.publishRouteActivation('failed', 'Route activation was cancelled.');
         if (this._previousUrl !== this.router.url) {
           void this.router.navigateByUrl(this._previousUrl);
         }
@@ -594,6 +615,7 @@ export class CraftRouterOutletController {
     target: CraftRouteTarget | null = component
       ? craftRouteTarget(component)
       : null,
+    onCommit?: () => void,
   ): void {
     const activationId = this._navId;
     const displayVersion = ++this._displayVersion;
@@ -620,6 +642,7 @@ export class CraftRouterOutletController {
         this.displayedComponent.set(component);
       });
       this.syncTemplateFlush();
+      onCommit?.();
     };
 
     if (!this.viewTransitionsEnabled) {
@@ -667,11 +690,14 @@ export class CraftRouterOutletController {
         component,
         injector,
         this.resolveRouteTarget(component),
+        () => {
+          craftBatch(() => {
+            this.targetComponent.set(component);
+            this.state.set('loaded');
+          });
+          this.publishRouteActivation('activated');
+        },
       );
-      craftBatch(() => {
-        this.targetComponent.set(component);
-        this.state.set('loaded');
-      });
     };
     this.commitWithAntiFlicker(commit, meta);
   }
@@ -680,9 +706,20 @@ export class CraftRouterOutletController {
     input: CraftExceptionComponentInput | null,
     _exception: AnyCraftException | null,
   ): Promise<void> {
-    const resolved = await resolveComponentInput(input);
+    let resolved: CraftRouteTargetInput | null;
+    try {
+      resolved = await resolveComponentInput(input);
+    } catch (error) {
+      this.state.set('error');
+      this._frozen = true;
+      this.publishRouteActivation(
+        'failed',
+        error instanceof Error ? error.message : String(error),
+      );
+      return;
+    }
     const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
-    // Removing the Angular interop left this pinned at `null`, which silently
+    // Keeping this pinned at `null` would silently
     // emptied the error surface: nothing was reported through
     // `errorComponent()` and nothing was mounted. The component IS the
     // normalized target's — everything Craft renders is a Craft component.
@@ -695,9 +732,34 @@ export class CraftRouterOutletController {
       component,
       this._activeRouteInjector ?? this.rootInjector,
       target,
+      () => {
+        this.state.set('error');
+        this._frozen = true;
+        this.publishRouteActivation(
+          'failed',
+          _exception?._tag ?? 'Route activation failed.',
+        );
+      },
     );
-    this.state.set('error');
-    this._frozen = true;
+  }
+
+  private publishRouteActivation(
+    outcome: 'activated' | 'failed',
+    error?: string,
+  ): void {
+    const match = this._match;
+    if (!match) return;
+    const component = this.targetComponent();
+    this.routeActivationTracker.publish({
+      ...(this._routeNavigationId === undefined
+        ? {}
+        : { navigationId: this._routeNavigationId }),
+      url: this.router.url,
+      routePath: match.route.path,
+      ...(component?.name ? { componentName: component.name } : {}),
+      outcome,
+      ...(error ? { error } : {}),
+    });
   }
 
   private commitWithAntiFlicker(
@@ -1042,13 +1104,9 @@ function paramsForActivatedRoute(
 /**
  * Whether the live component survives this navigation.
  *
- * Angular decides this on the route config ALONE — `RouteReuseStrategy` keeps
- * the instance when `future.routeConfig === curr.routeConfig`, and a separate
- * `runGuardsAndResolvers` decides whether the chain re-runs on a param change.
- * Craft drove both from one comparison, so changing `:userId` tore the
- * component down and took with it whatever state it held — which is why a
- * `preservePreviousValue` query could never preserve anything across a
- * navigation.
+ * Craft reuses a component while its route configuration is the same. A
+ * parameter change can rerun guards and resolvers without tearing down the
+ * component or its local state.
  *
  * Craft keeps the component and lets reactivity carry the new params: the
  * fast-path publishes them on the live match signal, `injectRouteParamsSignal`

@@ -41,7 +41,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `LOG_SERVER_PORT=${sessionServerPort} LOG_SERVER_ALLOWED_ORIGINS=${demoOrigin},${dashboardOrigin} DEBUG_SESSION_DIR=${sessionDir} DEBUG_SESSION_MAX_SESSIONS=1000 LOG_SERVER_QUIET=1 npm run logs:server`,
+      command: `LOG_SERVER_PORT=${sessionServerPort} LOG_SERVER_ALLOWED_ORIGINS=${demoOrigin},${dashboardOrigin} DEBUG_SESSION_DIR=${sessionDir} DEBUG_SESSION_MAX_SESSIONS=1000 DEBUG_SESSION_THUMBNAILS=0 LOG_SERVER_QUIET=1 npm run logs:server`,
       url: `${sessionServerOrigin}/health`,
       reuseExistingServer,
       cwd: workspaceRoot,

@@ -50,6 +50,10 @@ implementation details. A polling loop should normally be expressed as a
 sequence of operations and a schedule so it can stop when its owner is
 destroyed.
 
+The runtime defaults to `RealCraftTemporalRuntime`. Provide another runtime
+with `provideCraftTemporalRuntime(...)` when an app or test needs a controlled
+clock; that provider overrides the default.
+
 ## Waiting in a Craft program
 
 `craftSleep` is a yieldable delay. It does not create a native timer when the

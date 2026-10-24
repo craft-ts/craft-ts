@@ -3569,7 +3569,7 @@ function unitTestTs(context: TemplateContext): string {
     : '';
   return `// @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 ${effect ? `import { installCraftEffectBridge${localEffectRepository ? ', provideLayer' : ''} } from '@craft-ts/effect';\n` : ''}${localEffectRepository ? "import { WelcomeRepositoryLive } from './domain';\n" : ''}
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 ${serverMock}import { HomePage } from './home-page';
@@ -3577,7 +3577,7 @@ ${serverMock}import { HomePage } from './home-page';
 describe('HomePage', () => {
   ${effect ? 'let disposeBridge: () => void;' : ''}
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     ${effect ? 'disposeBridge = installCraftEffectBridge();' : ''}
   });
@@ -3585,15 +3585,15 @@ describe('HomePage', () => {
   afterEach(() => {
     ${effect ? 'disposeBridge();' : ''}
     vi.unstubAllGlobals();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('renders the API result', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const injector = ${localEffectRepository ? 'TestBed.rootInjector.createChild([provideLayer(WelcomeRepositoryLive)])' : 'TestBed.rootInjector'};
+    const injector = ${localEffectRepository ? 'CraftTestBed.rootInjector.createChild([provideLayer(WelcomeRepositoryLive)])' : 'CraftTestBed.rootInjector'};
     const mounted = mountCraftComponent(HomePage, host, injector as unknown as Injector);
-    TestBed.tick();
+    CraftTestBed.tick();
     await vi.waitFor(() => expect(host.textContent).toContain('${expectedTitle}'));
     mounted.destroy();
   });

@@ -1,6 +1,6 @@
 import { provideCraftRouter } from './craft-router';
 import { computed, Signal } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   insertAsyncProcessPipe,
   insertMutationPipe,
@@ -15,6 +15,7 @@ import { mutation } from './mutation';
 import { query } from './query';
 import { queryParams } from './query-params';
 import { state } from './state';
+import { ɵinjectCraftMethodReplayRegistry } from './craft-method-replay-registry';
 import {
   craftStateMachine,
   initStateMachine,
@@ -22,8 +23,66 @@ import {
 } from './craft-state-machine';
 
 describe('typed insertion pipes', () => {
+  it('resolves a replay method when host instance ordinals changed after reload', () => {
+    const registry = CraftTestBed.runInInjectionContext(() =>
+      ɵinjectCraftMethodReplayRegistry(),
+    );
+    const calls: unknown[][] = [];
+    const unregister = registry.register(
+      'component:App#1 / component:List#2 / queryParams:pagination / method:nextPage',
+      (_receiver, args) => calls.push([...args]),
+    );
+
+    registry.invoke(
+      'component:App#20 / component:List#53 / queryParams:pagination / method:nextPage',
+      undefined,
+      [2],
+    );
+
+    expect(calls).toEqual([[2]]);
+    unregister();
+  });
+
+  it('does not guess between replay methods with the same ordinal-free address', () => {
+    const registry = CraftTestBed.runInInjectionContext(() =>
+      ɵinjectCraftMethodReplayRegistry(),
+    );
+    const unregisterFirst = registry.register(
+      'component:App#1 / component:List#2 / queryParams:pagination / method:nextPage',
+      () => undefined,
+    );
+    const unregisterSecond = registry.register(
+      'component:App#1 / component:List#3 / queryParams:pagination / method:nextPage',
+      () => undefined,
+    );
+
+    expect(() =>
+      registry.invoke(
+        'component:App#20 / component:List#53 / queryParams:pagination / method:nextPage',
+        undefined,
+        [2],
+      ),
+    ).toThrow(/ambiguous/i);
+    unregisterFirst();
+    unregisterSecond();
+  });
+
+  it('reports an unknown replay method instead of invoking an approximate address', () => {
+    const registry = CraftTestBed.runInInjectionContext(() =>
+      ɵinjectCraftMethodReplayRegistry(),
+    );
+
+    expect(() =>
+      registry.invoke(
+        'component:App#20 / component:List#53 / queryParams:pagination / method:missing',
+        undefined,
+        [],
+      ),
+    ).toThrow(/Replay method is not registered/);
+  });
+
   it('composes state insertions, exposes previous outputs, and supports generators', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const executionOrder: string[] = [];
       const counter = craftUse(
         state(
@@ -54,7 +113,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes query insertions without an explicit context', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const users = craftUse(
         query(
           'users',
@@ -78,7 +137,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes mutation insertions without an explicit context', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const save = craftUse(
         mutation(
           'save',
@@ -101,8 +160,8 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes queryParams insertions without an explicit context', () => {
-    TestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
+    CraftTestBed.runInInjectionContext(() => {
       const pagination = craftUse(
         queryParams(
           'pagination',
@@ -136,7 +195,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes asyncProcess insertions without an explicit context', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const process = craftUse(
         asyncProcess(
           'process',
@@ -158,8 +217,92 @@ describe('typed insertion pipes', () => {
     });
   });
 
+  it('registers methods from every stateful primitive insertion for replay', async () => {
+    CraftTestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
+    const calls: Array<readonly [string, unknown]> = [];
+    const insertion = (primitive: string) => ({
+      replayCall: (payload: unknown) => calls.push([primitive, payload]),
+    });
+
+    const { registry, before } = CraftTestBed.runInInjectionContext(() => {
+      const registry = ɵinjectCraftMethodReplayRegistry();
+      const before = new Set(registry.addresses());
+      craftUse(state('replay-state', 0, () => insertion('state')));
+      craftUse(
+        query(
+          'replay-query',
+          { params: () => 'query', loader: async () => 'query-result' },
+          () => insertion('query'),
+        ),
+      );
+      craftUse(
+        queryParams(
+          'replay-query-params',
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                codec: { decode: Number, encode: String },
+              },
+            },
+          },
+          () => insertion('queryParams'),
+        ),
+      );
+      craftUse(
+        asyncProcess(
+          'replay-async-process',
+          {
+            method: (payload: string) => payload,
+            loader: async ({ params }) => params,
+          },
+          () => insertion('asyncProcess'),
+        ),
+      );
+      craftUse(
+        mutation(
+          'replay-mutation',
+          {
+            method: (payload: string) => payload,
+            loader: async ({ params }) => params,
+          },
+          () => insertion('mutation'),
+        ),
+      );
+      return { registry, before };
+    });
+
+    const addresses = registry.addresses().filter(
+      (address) => !before.has(address) && address.includes('method:replayCall'),
+    );
+    expect(addresses).toHaveLength(5);
+    for (const primitive of [
+      'state',
+      'query',
+      'queryParams',
+      'asyncProcess',
+      'mutation',
+    ]) {
+      const address = addresses.find((value) =>
+        value.includes(`${primitive}:replay-`),
+      );
+      expect(
+        address,
+        `missing replay registration for ${primitive}`,
+      ).toBeDefined();
+      registry.invoke(address!, undefined, [`${primitive}-payload`]);
+    }
+    expect(calls).toEqual([
+      ['state', 'state-payload'],
+      ['query', 'query-payload'],
+      ['queryParams', 'queryParams-payload'],
+      ['asyncProcess', 'asyncProcess-payload'],
+      ['mutation', 'mutation-payload'],
+    ]);
+  });
+
   it('composes state machine insertions and exposes previous outputs', () => {
-    const machine = TestBed.runInInjectionContext(() =>
+    const machine = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         craftStateMachine(
           'pipe-machine',

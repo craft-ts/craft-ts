@@ -8,6 +8,7 @@ import {
   assertHttpEndpointUnique,
   assertInsertSelectUnique,
   assertInteractiveElementNamed,
+  assertLazyRouteTargetsStayLazy,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertNoAppConfigRouteCycles,
@@ -32,6 +33,12 @@ describe('demo-ssr architecture', () => {
     expect(graph.route('data').kind).toBe('route');
     expect(graph.route('client-only').kind).toBe('route');
     expect(graph.component('SsrDataPage').kind).toBe('component');
+  });
+
+  it('keeps lazy route modules outside the eager application import graph', () => {
+    assertLazyRouteTargetsStayLazy(graph.graph, {
+      entryPoints: ['apps/demo-ssr/src/main.ts'],
+    });
   });
 
   it('requires craftUnique identities to appear once', () => {

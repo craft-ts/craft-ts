@@ -9,6 +9,7 @@ import {
   assertHttpEndpointUnique,
   assertInsertSelectUnique,
   assertInteractiveElementNamed,
+  assertLazyRouteTargetsStayLazy,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPersistedPrimitiveHasUnique,
@@ -34,6 +35,12 @@ describe('architecture', () => {
 
   it('loads the architecture graph', () => {
     expect(graph.graph.version).toBe(1);
+  });
+
+  it('keeps lazy route modules outside the eager application import graph', () => {
+    assertLazyRouteTargetsStayLazy(graph.graph, {
+      entryPoints: ['apps/demo-with-server-function/src/client/main.ts'],
+    });
   });
 
   it('indexes server-function families and their client identities', () => {

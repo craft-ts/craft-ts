@@ -274,7 +274,6 @@ type BindingTarget =
 const HOST_FACTORIES = new Set([
   'craftService',
   'craftComponent',
-  'toCraftService',
   'craftGen',
 ]);
 

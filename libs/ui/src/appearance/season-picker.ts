@@ -19,6 +19,12 @@ import {
 } from '../foundation/season.ts';
 import { DocIcon, type IconName } from '../icon/icon.ts';
 import { DocMenuView, provideDocMenuView } from '../menu/menu.ts';
+import {
+  closeMenuAndReturnFocus,
+  handleMenuItemKeydown,
+  handleMenuTriggerKeydown,
+  toggleMenuFromTrigger,
+} from '../menu/keyboard.ts';
 import { menuUi } from '../menu/menu.style.ts';
 
 const stored = (): SeasonChoice | undefined => {
@@ -41,7 +47,8 @@ const apply = (choice: SeasonChoice): SeasonChoice => {
     document.documentElement.setAttribute('data-season', resolveSeason(choice));
   }
   try {
-    if (choice === 'auto') globalThis.localStorage?.removeItem(SEASON_STORAGE_KEY);
+    if (choice === 'auto')
+      globalThis.localStorage?.removeItem(SEASON_STORAGE_KEY);
     else globalThis.localStorage?.setItem(SEASON_STORAGE_KEY, choice);
   } catch {
     // Refused storage: the choice lasts for this visit only.
@@ -65,7 +72,10 @@ export const { DocSeasonView, provideDocSeasonView } = craftService(
       typeof document !== 'undefined' &&
       !document.documentElement.hasAttribute('data-season')
     ) {
-      document.documentElement.setAttribute('data-season', resolveSeason(initial));
+      document.documentElement.setAttribute(
+        'data-season',
+        resolveSeason(initial),
+      );
     }
     const choice = yield* state('choice', initial, ({ update }) => ({
       choose: (next: SeasonChoice) => update(() => apply(next)),
@@ -136,10 +146,14 @@ export const DocSeasonPicker = craftComponent(
             'data-checked': function* () {
               return (yield* view.choice()) === choice ? 'true' : 'false';
             },
-            click: () => {
+            click: (event) => {
               view.choose(choice);
-              menu.close();
+              closeMenuAndReturnFocus(event.currentTarget as HTMLElement, () =>
+                menu.close(),
+              );
             },
+            keydown: (event) =>
+              handleMenuItemKeydown(event, () => menu.close()),
           },
           [glyph(ICON[choice]), span(names[choice])],
         ),
@@ -161,7 +175,17 @@ export const DocSeasonPicker = craftComponent(
             return `${label}: ${names[current]}`;
           },
           title: label,
-          click: () => menu.toggle(id),
+          click: (event) =>
+            toggleMenuFromTrigger(
+              event.currentTarget as HTMLButtonElement,
+              () => menu.toggle(id),
+            ),
+          keydown: (event) =>
+            handleMenuTriggerKeydown(
+              event,
+              event.currentTarget as HTMLButtonElement,
+              () => menu.toggle(id),
+            ),
         },
         [
           DocIcon({

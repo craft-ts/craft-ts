@@ -1,4 +1,4 @@
-import { TestBed } from '../host/craft-test-bed';
+import { CraftTestBed } from '../host/craft-test-bed';
 import { provideCraftRouter } from '../craft-router';
 import { craftService } from '../craft-service';
 import { query } from '../query';
@@ -16,7 +16,7 @@ type User = {
 describe('insertForm compatibility with queryParams', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [...provideCraftRouter([])],
     }).compileComponents();
   });
@@ -26,7 +26,7 @@ describe('insertForm compatibility with queryParams', () => {
   });
 
   it('infers the field tree type from the query param state (not unknown)', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       craftUse(
         queryParams(
           'filters',
@@ -61,7 +61,7 @@ describe('insertForm compatibility with queryParams', () => {
   });
 
   it('exposes a working form at runtime over the query param state', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const params = craftUse(
         queryParams(
           'params',
@@ -95,7 +95,7 @@ describe('insertForm compatibility with queryParams', () => {
   });
 
   it('runs chained insertions inside a queryParams context', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const params = craftUse(
         queryParams(
           'params',
@@ -176,7 +176,7 @@ describe('insertForm compatibility with query', () => {
       },
     );
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const store = craftUse(UserStore());
       expect(store.user.form).toBeDefined();
 
@@ -190,7 +190,7 @@ describe('insertForm compatibility with query', () => {
 
 describe('insertForm regression with state primitive', () => {
   it('still infers the field tree type and works over a plain state', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const loginForm = craftUse(
         state(
           'loginForm',

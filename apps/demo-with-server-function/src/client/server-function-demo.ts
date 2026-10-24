@@ -36,7 +36,7 @@ import { demoPage } from './demo.style';
 export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftService(
   { name: 'serverFunctionDemoView', providedIn: 'toProvide' },
   function* () {
-    const searchInput = yield* state('searchInput', '', ({ set }) => ({
+    const searchInput = yield* state('searchInputClientServerFunctionDemo', '', ({ set }) => ({
       setSearchInput: (value: string) => set(value),
     }));
     const currentUserQuery = yield* craftPrivate(query('currentUserQuery', {
@@ -53,7 +53,7 @@ export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftSe
     }));
     // todo removeImporve and remove all the coments
     const usersQuery = yield* query(
-      'usersQuery',
+      'usersQueryClientServerFunctionDemo',
       {
         method: (term: string) => term,
         loader: function* ({ params }) {
@@ -67,8 +67,8 @@ export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftSe
         },
       },
       ({ resource, exceptions }) => {
-        const hasUsers = craftUse(craftComputed('hasUsers', () => resource.hasValue()));
-        const notFound = craftUse(craftComputed('notFound', function* () {
+        const hasUsers = craftUse(craftComputed('hasUsersClientServerFunctionDemo', () => resource.hasValue()));
+        const notFound = craftUse(craftComputed('notFoundClientServerFunctionDemo', function* () {
           const error = (yield* exceptions()).loader;
           return (
             isCraftException(error) &&
@@ -92,7 +92,7 @@ export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftSe
           hasUsers,
           notFound,
           notFoundMessage,
-          isEmpty: craftUse(craftComputed('isEmpty', function* () {
+          isEmpty: craftUse(craftComputed('isEmptyClientServerFunctionDemo', function* () {
             const currentStatus = yield* resource.status();
             return (
               (yield* currentUser())?.role !== 'member' &&
@@ -102,7 +102,7 @@ export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftSe
               !resource.hasValue()
             );
           })),
-          requestTitle: craftUse(craftComputed('requestTitle', function* () {
+          requestTitle: craftUse(craftComputed('requestTitleClientServerFunctionDemo', function* () {
             const currentStatus = yield* resource.status();
             if ((yield* currentUser())?.role === 'member') {
               return 'Client-side access denied';
@@ -112,7 +112,7 @@ export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftSe
               ? 'Calling demo.users.authenticated-list…'
               : 'Server function ready';
           })),
-          requestDetail: craftUse(craftComputed('requestDetail', function* () {
+          requestDetail: craftUse(craftComputed('requestDetailClientServerFunctionDemo', function* () {
             const currentStatus = yield* resource.status();
             if ((yield* currentUser())?.role === 'member') {
               return `Role “${(yield* currentUser())?.role ?? '…'}” · no request sent`;
@@ -124,7 +124,7 @@ export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftSe
               ? 'POST /__server-functions · Effect is running'
               : `Status: ${currentStatus}`;
           })),
-          resultCount: craftUse(craftComputed('resultCount', function* () {
+          resultCount: craftUse(craftComputed('resultCountClientServerFunctionDemo', function* () {
             const value = yield* resource.value();
             return Array.isArray(value) ? value.length.toString() : '—';
           })),
@@ -132,7 +132,7 @@ export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftSe
       },
     );
     yield* usersQuery.call(''); // trigger first call
-    yield* craftMethod('submitSearch', function* (event?: Event) {
+    yield* craftMethod('submitSearchClientServerFunctionDemo', function* (event?: Event) {
       event?.preventDefault();
       if (!(yield* isAdmin())) return; // todo remove
       yield* usersQuery.call((yield* searchInput()).trim());

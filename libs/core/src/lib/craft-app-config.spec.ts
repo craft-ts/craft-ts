@@ -2,7 +2,7 @@ import {
   ApplicationInitStatus,
   InjectionToken,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { craftAppConfig, toApplicationConfig } from './craft-app-config';
 import {
@@ -23,7 +23,7 @@ describe('craftAppConfig', () => {
     craftAppConfig({ routingDeps: [] as const });
   });
 
-  it('should ignore plain Angular providers when extracting Craft provider names', () => {
+  it('should ignore unregistered provider objects when extracting Craft provider names', () => {
     const { provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
@@ -68,8 +68,8 @@ describe('craftAppConfig appStart', () => {
   it('should run registered appStart services during app initialization', async () => {
     appStartCalls.length = 0;
 
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.configureTestingModule({
       providers: [
         ...craftAppConfig({
           appStart: requiredAppStart,
@@ -77,7 +77,7 @@ describe('craftAppConfig appStart', () => {
       ],
     });
 
-    await TestBed.inject(ApplicationInitStatus).donePromise;
+    await CraftTestBed.inject(ApplicationInitStatus).donePromise;
 
     expect(appStartCalls).toEqual(['started']);
   });
@@ -104,8 +104,8 @@ describe('craftAppConfig appStart', () => {
       },
     );
 
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.configureTestingModule({
       providers: [
         ...craftAppConfig({
           appStart: requiredAppStart,
@@ -113,7 +113,7 @@ describe('craftAppConfig appStart', () => {
       ],
     });
 
-    const pendingInitialization = TestBed.inject(
+    const pendingInitialization = CraftTestBed.inject(
       ApplicationInitStatus,
     ).donePromise;
 
@@ -140,7 +140,7 @@ describe('craftAppConfig appStart', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const service = craftUse(NestedAppStart());
 
       expect(() => runServiceAppStart(NestedAppStart, service)).toThrow(

@@ -3,7 +3,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  assertInInjectionContext,
   createEnvironmentInjector,
   DestroyRef,
   effect,
@@ -13,12 +12,9 @@ import {
   isDevMode,
   signal,
   ɵsetCraftDevMode,
-  ɵsetCraftInjectFallback,
 } from './craft-compat';
-import { craftEffect } from '../craft-effect';
 import type { CraftSignal } from './craft-signal';
 import { CRAFT_SIGNAL } from './craft-signal';
-import { craftUse } from '../craft-use';
 
 describe('isDevMode', () => {
   afterEach(() => {
@@ -101,33 +97,6 @@ describe('inject skipSelf', () => {
     );
 
     expect(child.get(Token)).toEqual(['root', 'child']);
-  });
-});
-
-describe('inject fallback', () => {
-  afterEach(() => {
-    ɵsetCraftInjectFallback(undefined);
-  });
-
-  it('does not create an Angular require() fallback', () => {
-    expect(() => inject(DestroyRef)).toThrow();
-  });
-
-  it('treats an Angular injection context as in-context', () => {
-    const host = createEnvironmentInjector([], Injector.NULL);
-    ɵsetCraftInjectFallback((token) => {
-      if (token === Injector) {
-        return host;
-      }
-      throw new Error(`No fallback for ${String(token)}`);
-    });
-
-    expect(() => inject(Injector)).not.toThrow();
-    expect(inject(Injector)).toBe(host);
-    expect(() => assertInInjectionContext()).not.toThrow();
-    expect(() =>
-      craftUse(craftEffect('fallback-effect', () => undefined, { injector: host })),
-    ).not.toThrow();
   });
 });
 

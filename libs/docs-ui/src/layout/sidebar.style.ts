@@ -37,6 +37,7 @@ import {
   marginInlineEnd,
   maxBlockSize,
   p,
+  paddingBlockEnd,
   paddingInlineStart,
   position,
   provides,
@@ -103,7 +104,12 @@ export const sidebarUi = craftStyles('docSidebar', {
       display.block,
       position.sticky,
       insetBlockStart(unit.rem(4.5)),
+      // The column sticks 4.5rem down, under the bar, and is at most a viewport tall, so its
+      // last 4.5rem hang below the window. The vocabulary has no `calc()` to take the bar off
+      // the height; the bottom padding is the bar plus the usual gap, which puts the last row
+      // inside the window when the column is scrolled to its end.
       maxBlockSize(unit.vh(100)),
+      paddingBlockEnd(unit.rem(6)),
       paddingInlineStart(space(8)),
       provides(scrollPort.block),
     ]),

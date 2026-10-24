@@ -1,5 +1,5 @@
 import { Injector, runInInjectionContext } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CraftGenShortCircuit } from './craft-gen';
 import { craftException } from './craft-exception';
@@ -12,7 +12,7 @@ import {
 import { craftUse } from './craft-use';
 import { FN_WRAPPER, type FnWrapper } from './fn-wrapper';
 
-afterEach(() => TestBed.resetTestingModule());
+afterEach(() => CraftTestBed.resetTestingModule());
 
 describe('isCraftControlFlow', () => {
   it('recognizes expected CraftTS control-flow throws', () => {
@@ -32,17 +32,17 @@ describe('isCraftControlFlow', () => {
 
   it('does not take app snapshots for expected control-flow throws', () => {
     const callback = vi.fn();
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideTakeAppSnapshot(callback)],
     });
-    const wrapper = (TestBed.inject(FN_WRAPPER) as readonly FnWrapper[])[0];
+    const wrapper = (CraftTestBed.inject(FN_WRAPPER) as readonly FnWrapper[])[0];
 
     function* throwExpected(): Generator<never, never, unknown> {
       throw new CraftNotSettled('issue');
     }
 
     expect(() =>
-      runInInjectionContext(TestBed.inject(Injector), () =>
+      runInInjectionContext(CraftTestBed.inject(Injector), () =>
         wrapper(throwExpected, undefined, []).next(),
       ),
     ).toThrow(CraftNotSettled);
@@ -51,21 +51,21 @@ describe('isCraftControlFlow', () => {
 
   it('passes a direct app snapshot to the callback for an ordinary error', () => {
     const reports = vi.fn();
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideTakeAppSnapshot(reports)],
     });
-    const registry = TestBed.runInInjectionContext(() =>
+    const registry = CraftTestBed.runInInjectionContext(() =>
       craftUse(AppSnapshotRegistry()),
     );
     registry.registerSnapshotReader('test', ['component:test'], () => 1);
-    const wrapper = (TestBed.inject(FN_WRAPPER) as readonly FnWrapper[])[0];
+    const wrapper = (CraftTestBed.inject(FN_WRAPPER) as readonly FnWrapper[])[0];
 
     function* throwUnexpected(): Generator<never, never, unknown> {
       throw new Error('failure');
     }
 
     expect(() =>
-      runInInjectionContext(TestBed.inject(Injector), () =>
+      runInInjectionContext(CraftTestBed.inject(Injector), () =>
         wrapper(throwUnexpected, undefined, []).next(),
       ),
     ).toThrow('failure');

@@ -6,7 +6,7 @@ import {
   input,
   mountCraftComponent,
 } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import LoginFormComponent from './examples/primitives/forms/login-form';
 import {
@@ -21,7 +21,7 @@ import {
 
 describe('page actor', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
@@ -58,7 +58,7 @@ describe('page actor', () => {
       const result = applyPageActions(element, [
         { id: 'email', fill: 'ada@example.com' },
       ]);
-      TestBed.tick();
+      CraftTestBed.tick();
       expect(result.error).toBeUndefined();
       const email = element.querySelector<HTMLInputElement>(
         '[data-craft-name="email"]',
@@ -84,7 +84,7 @@ describe('page actor', () => {
     const { element, destroy } = mount(Search);
     try {
       applyPageActions(element, [{ id: 'search', fill: 'dune' }]);
-      TestBed.tick();
+      CraftTestBed.tick();
       expect(typed).toEqual(['dune']);
       expect(
         element.querySelector<HTMLInputElement>('[data-craft-name="search"]')
@@ -112,7 +112,7 @@ describe('page actor', () => {
     const { element, destroy } = mount(Counter);
     try {
       applyPageActions(element, [{ id: 'increment' }]);
-      TestBed.tick();
+      CraftTestBed.tick();
       expect(clicks).toEqual([1]);
     } finally {
       destroy();
@@ -186,7 +186,7 @@ describe('page actor', () => {
         'control "remove" is ambiguous (3 instances); pass match.index or match.track',
       );
       applyPageActions(element, [{ id: 'remove', match: { index: 1 } }]);
-      TestBed.tick();
+      CraftTestBed.tick();
       expect(removed).toEqual(['b']);
     } finally {
       destroy();
@@ -277,8 +277,8 @@ function mount(component: Parameters<typeof mountCraftComponent>[0]) {
   const mounted = mountCraftComponent(
     component,
     element,
-    TestBed.inject(Injector),
+    CraftTestBed.inject(Injector),
   );
-  TestBed.tick();
+  CraftTestBed.tick();
   return { element, destroy: () => mounted.destroy() };
 }

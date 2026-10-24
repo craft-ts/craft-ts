@@ -141,7 +141,7 @@ function getFullStatusSnapshot<
   ][]) {
     if (!resourceRef) continue;
     snapshot.set(id, {
-      // These are the raw (internal) Angular resources; map their technical
+      // These are the raw internal resources; map their technical
       // `'error'` status onto the craft-facing `'exception'` status.
       status: toCraftStatus(resourceRef.status(), false),
       value: resourceRef.hasValue() ? resourceRef.value() : undefined,

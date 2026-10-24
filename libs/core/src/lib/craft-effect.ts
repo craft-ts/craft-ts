@@ -11,7 +11,6 @@ import {
   type EffectCleanupRegisterFn,
   type EffectRef,
 } from './host/craft-compat';
-import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import { craftWatch } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -91,9 +90,7 @@ export function craftEffect(
 
   assertInInjectionContext(craftEffect);
   const parentInjector = inject(Injector);
-  const ownerInjector = ɵcraftInjectorFromHost(
-    options?.injector ?? parentInjector,
-  );
+  const ownerInjector = options?.injector ?? parentInjector;
   const ownerDestroyRef = ownerInjector.get(DestroyRef);
   const effectInjector = ɵcreateHostTaggedInjector(
     ownerInjector,
@@ -132,7 +129,7 @@ export function craftEffect(
   const craftInvalidation = signal(0);
   let craftRef: { destroy(): void } | undefined;
   let destroyed = false;
-  const angularRef = effect(
+  const effectRef = effect(
     () => {
       craftInvalidation();
       craftRef?.destroy();
@@ -162,7 +159,7 @@ export function craftEffect(
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
-      angularRef.destroy();
+      effectRef.destroy();
       craftRef?.destroy();
     },
   } as EffectRef;

@@ -2,7 +2,7 @@
 import {
   provideStorageService,
   SessionStorageService,
-  TestBed,
+  CraftTestBed,
   ɵInjector as Injector,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
@@ -15,15 +15,15 @@ function mount() {
   const mounted = mountCraftComponent(
     ProfileEditorStateMachine,
     element,
-    TestBed.inject(Injector),
+    CraftTestBed.inject(Injector),
   );
-  TestBed.tick();
+  CraftTestBed.tick();
 
   return { element, mounted };
 }
 
 function configureStorageService() {
-  TestBed.configureTestingModule({
+  CraftTestBed.configureTestingModule({
     providers: [
       provideStorageService(function* () {
         return yield* SessionStorageService();
@@ -36,7 +36,7 @@ async function mountLoaded() {
   vi.useFakeTimers();
   const mounted = mount();
   await vi.advanceTimersByTimeAsync(300);
-  TestBed.tick();
+  CraftTestBed.tick();
   return mounted;
 }
 
@@ -46,7 +46,7 @@ function click(element: HTMLElement, name: string) {
   );
   expect(button, `no button named "${name}"`).not.toBeNull();
   button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  TestBed.tick();
+  CraftTestBed.tick();
 }
 
 function field(element: HTMLElement, name: string) {
@@ -62,7 +62,7 @@ function type(element: HTMLElement, name: string, value: string) {
     input.value = value;
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  TestBed.tick();
+  CraftTestBed.tick();
 }
 
 function activeStep(element: HTMLElement) {
@@ -77,7 +77,7 @@ afterEach(() => {
 
 describe('ProfileEditorStateMachine', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     configureStorageService();
     // The machine persists its history in session storage, so a fresh test
@@ -93,7 +93,7 @@ describe('ProfileEditorStateMachine', () => {
     expect(element.textContent).toContain('Loading profile…');
 
     await vi.advanceTimersByTimeAsync(300);
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(element.textContent).toContain('Ada Lovelace');
 
@@ -172,7 +172,7 @@ describe('ProfileEditorStateMachine', () => {
     // Nothing listens for a "save finished" event: the `reading` step watches
     // the mutation's own status through afterRecomputation.
     await vi.advanceTimersByTimeAsync(700);
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(activeStep(element)).toBe('reading');
     expect(element.textContent).toContain('Grace Hopper');
@@ -183,7 +183,7 @@ describe('ProfileEditorStateMachine', () => {
 
 describe('ProfileEditorStateMachine history', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     configureStorageService();
     // The machine persists its history in session storage, so a fresh test
@@ -221,7 +221,7 @@ describe('ProfileEditorStateMachine history', () => {
 
 describe('ProfileEditorStateMachine persisted history', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     configureStorageService();
     sessionStorage.clear();
@@ -237,7 +237,7 @@ describe('ProfileEditorStateMachine persisted history', () => {
 
     // A reload: the DOM and every primitive are rebuilt from scratch, but
     // session storage survives.
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     configureStorageService();
     const after = await mountLoaded();

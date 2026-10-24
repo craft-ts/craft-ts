@@ -1,4 +1,4 @@
-import { TestBed } from '@craft-ts/core';
+import { CraftTestBed } from '@craft-ts/core';
 import { beforeAll, beforeEach } from 'vitest';
 
 export const useSnippetHarness = () => {
@@ -6,6 +6,6 @@ export const useSnippetHarness = () => {
   });
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 };

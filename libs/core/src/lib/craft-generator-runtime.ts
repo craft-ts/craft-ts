@@ -1,4 +1,5 @@
-import { Injector, type Provider } from './host/craft-compat';
+import type { Provider } from './host/craft-compat';
+import type { CraftInjector } from './host/craft-injector';
 import type { Subscribable } from './stream-kernel/subscribable';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
@@ -12,7 +13,6 @@ import {
   ɵwithActiveReactiveReader,
   type ReactiveReadIdentity,
 } from './reactive-read';
-import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 export const SERVICE_YIELD_REQUEST_MARKER = Symbol(
   'service-yield-request-marker',
@@ -78,7 +78,7 @@ export function isPromiseAwaitRequest(
 /** The context a synchronous bridge needs to resolve a foreign yield. */
 export type ForeignSyncYieldContext = {
   /** The injector of the host that yielded — a bridge resolves its runtime from it. */
-  readonly injector: Injector;
+  readonly injector: CraftInjector;
 };
 
 /**
@@ -107,7 +107,7 @@ export function setForeignSyncYieldBridge(
 
 function resolveForeignSyncYield(
   yielded: unknown,
-  injector: Injector,
+  injector: CraftInjector,
 ): { handled: true; value: unknown } | undefined {
   return foreignSyncYieldBridge?.(yielded, { injector });
 }
@@ -116,7 +116,7 @@ export type ServiceYieldContext = Readonly<{
   name: string;
   providedIn: ConcreteServiceScope;
   hostScope: ConcreteServiceScope;
-  injector: Injector;
+  injector: CraftInjector;
   resolve(): unknown;
 }>;
 
@@ -187,7 +187,7 @@ type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
     readonly resolve: (service: Result) => unknown;
   };
   providedIn: ConcreteServiceScope;
-  resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
+  resolve: (injector: CraftInjector, hostScope: ConcreteServiceScope) => Result;
 }>;
 
 type RuntimeServiceDependencyAccessRequest = Readonly<{
@@ -260,7 +260,7 @@ export function isGuardAwaitRequest(
 
 type RunCraftGeneratorOptions = {
   iterator: Generator<unknown, unknown, unknown>;
-  injector: Injector | object;
+  injector: CraftInjector;
   hostScope: ConcreteServiceScope;
   invalidYieldErrorMessage: string;
   multipleAppStartErrorMessage: string;
@@ -300,7 +300,7 @@ export function runCraftGenerator({
   value: unknown;
   appStartHook?: () => AppStartResult;
 } {
-  const injector = ɵcraftInjectorFromHost(injectorInput);
+  const injector = injectorInput;
   let appStartHook: (() => AppStartResult) | undefined;
   let current = iterator.next();
 
@@ -463,7 +463,7 @@ export function executeGeneratorCompatibleFactory<
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
-  getInjector: () => Injector | object;
+  getInjector: () => CraftInjector;
   args: Args;
   invalidYieldErrorMessage: string;
   multipleAppStartErrorMessage: string;
@@ -471,7 +471,7 @@ export function executeGeneratorCompatibleFactory<
   onServiceResolved?: (instance: unknown) => void;
 }): ResolveGeneratorResult<Result> {
   const injector = getInjector();
-  const craftInjector = ɵcraftInjectorFromHost(injector);
+  const craftInjector = injector;
   const wrappedFactory = craftInjector.run(() => injectFnWrapper()(factory));
   const result = wrappedFactory.apply(thisArg, args);
 
@@ -502,7 +502,7 @@ export function executeGeneratorCompatibleFactory<
  */
 export function resolveCraftGeneratorYield(
   yielded: unknown,
-  injector: Injector,
+  injector: CraftInjector,
   hostScope: ConcreteServiceScope,
 ): { handled: true; value: unknown } | { handled: false } {
   if (isReactiveReadRequest(yielded)) {
@@ -540,7 +540,7 @@ export function resolveCraftGeneratorYield(
 
 function resolveServiceYield(
   request: RuntimeServiceYieldRequest,
-  injector: Injector,
+  injector: CraftInjector,
   hostScope: ConcreteServiceScope,
 ): unknown {
   const wrappers = injector.get(

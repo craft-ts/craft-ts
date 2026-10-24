@@ -1,7 +1,7 @@
 import {
-  TitleStrategy,
-} from './host/craft-router-types';
-import { TestBed } from './host/craft-test-bed';
+  CraftTitleStrategy,
+} from './host/craft-router-model';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { isCraftLoadingFeature } from './craft-pending';
 import {
@@ -21,13 +21,13 @@ describe('craft a11y navigation', () => {
   it('exposes withA11yNavigationFocus as a loading feature', () => {
     const feature = withA11yNavigationFocus();
     expect(isCraftLoadingFeature(feature)).toBe(true);
-    TestBed.configureTestingModule({ providers: [...feature.providers] });
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftA11yNavigationFocus())).toBe(true);
+    CraftTestBed.configureTestingModule({ providers: [...feature.providers] });
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftA11yNavigationFocus())).toBe(true);
   });
 
   it('writes the Angular route title through BrowserDocument', async () => {
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.configureTestingModule({
       providers: [
         provideRouter([
           {
@@ -36,11 +36,11 @@ describe('craft a11y navigation', () => {
             component: TitleProbeComponent,
           },
         ]),
-        { provide: TitleStrategy, useFactory: createCraftTitleStrategy },
+        { provide: CraftTitleStrategy, useFactory: createCraftTitleStrategy },
       ],
     });
-    TestBed.runInInjectionContext(() => ɵinjectCraftMatch());
-    const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+    CraftTestBed.runInInjectionContext(() => ɵinjectCraftMatch());
+    const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
     await router.navigateByUrl('/hello');
     expect(document.title).toBe('Hello page');
   });

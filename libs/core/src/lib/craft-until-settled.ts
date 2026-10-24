@@ -31,7 +31,7 @@ type ReactiveResourceValue<T> = Signal<T> | YieldableReactiveValue<T>;
  * read the settled outcome, and the `hasException`/`exceptions` signals to surface
  * a loader `craftException`.
  *
- * `error` is the internal Angular channel: it is no longer part of the public craft
+ * `error` is the internal channel: it is no longer part of the public craft
  * façade type, but the raw signal remains on the ref at runtime (spread by the
  * primitive's `Object.assign`). It is kept optional here so `craftUntilSettled` can
  * re-throw a residual technical failure while public refs still match this shape.
@@ -118,7 +118,7 @@ function* craftUntilSettledResource(
 
   if (adapter.status() === 'exception') {
     // No business `craftException` present but the status is `'exception'` — a
-    // residual technical failure. Rethrow the raw Angular error (internal channel).
+    // residual technical failure. Rethrow the raw technical error (internal channel).
     throw resource.error?.();
   }
 

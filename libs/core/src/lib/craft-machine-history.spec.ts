@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Expect } from 'test-type';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import { craftUnique } from './craft-unique';
 import type { GetServiceDependencies } from './craft-service';
@@ -33,7 +33,7 @@ type HasDependency<Deps, Name extends string> = Name extends keyof ChildrenOf<
   : false;
 
 function configureStorageService() {
-  TestBed.configureTestingModule({
+  CraftTestBed.configureTestingModule({
     providers: [
       provideStorageService(function* () {
         return yield* SessionStorageService();
@@ -43,7 +43,7 @@ function configureStorageService() {
 }
 
 function resetHistoryTestBed() {
-  TestBed.resetTestingModule();
+  CraftTestBed.resetTestingModule();
   configureStorageService();
 }
 
@@ -98,7 +98,7 @@ describe('machine history', () => {
   });
 
   it('records the initial step as its first entry', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     const history = craftUse(machine.history());
     expect(history).toHaveLength(1);
@@ -107,7 +107,7 @@ describe('machine history', () => {
   });
 
   it('appends an entry per accepted transition, with the values of the moment', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     machine.context.edit$.emit();
     craftUse(machine.context.draft.to('edited'));
@@ -124,7 +124,7 @@ describe('machine history', () => {
   });
 
   it('does not record a refused transition', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     // `reading` is the current step, so this attempt goes nowhere.
     machine.context.cancel$.emit();
@@ -133,7 +133,7 @@ describe('machine history', () => {
   });
 
   it('walks back to a recorded moment, restoring step and values', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     machine.context.edit$.emit();
     craftUse(machine.context.draft.to('edited'));
@@ -151,7 +151,7 @@ describe('machine history', () => {
   });
 
   it('walks forward again after a rewind', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     machine.context.edit$.emit();
     craftUse(machine.context.draft.to('edited'));
@@ -167,7 +167,7 @@ describe('machine history', () => {
   });
 
   it('stops at the ends of the recorded range', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     expect(craftUse(machine.canGoBack())).toBe(false);
     expect(craftUse(machine.canGoForward())).toBe(false);
@@ -177,7 +177,7 @@ describe('machine history', () => {
   });
 
   it('drops the forward entries when the machine takes another branch', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
 
     machine.context.edit$.emit();
     machine.context.submit$.emit();
@@ -205,7 +205,7 @@ describe('machine history with an external primitive', () => {
   });
 
   it('captures and restores a state declared outside the machine', () => {
-    const built = TestBed.runInInjectionContext(() => {
+    const built = CraftTestBed.runInInjectionContext(() => {
       // Declared outside the machine: the machine's host chain does not cover
       // it, so it has to be named explicitly.
       const shared = craftUse(
@@ -251,7 +251,7 @@ describe('machine history with an external primitive', () => {
   });
 
   it('ignores an unregistered ref instead of failing the capture', () => {
-    const machine = TestBed.runInInjectionContext(() =>
+    const machine = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         craftStateMachine(
           'unlinked',
@@ -324,7 +324,7 @@ describe('persisted machine history', () => {
   });
 
   it('writes the history under the declared anchor', () => {
-    const machine = TestBed.runInInjectionContext(() =>
+    const machine = CraftTestBed.runInInjectionContext(() =>
       createPersistedMachine('book-1'),
     );
     machine.context.edit$.emit();
@@ -335,7 +335,7 @@ describe('persisted machine history', () => {
   });
 
   it('restores a pre-reload value into primitives created after the reload', () => {
-    const before = TestBed.runInInjectionContext(() =>
+    const before = CraftTestBed.runInInjectionContext(() =>
       createPersistedMachine('book-1'),
     );
     // The value is set BEFORE the transition, so the recorded moment holds it.
@@ -350,7 +350,7 @@ describe('persisted machine history', () => {
     // A reload: a brand new machine, brand new primitives, and none of them
     // ever saw the value 'edited'.
     resetHistoryTestBed();
-    const after = TestBed.runInInjectionContext(() =>
+    const after = CraftTestBed.runInInjectionContext(() =>
       createPersistedMachine('book-1'),
     );
 
@@ -369,7 +369,7 @@ describe('persisted machine history', () => {
   });
 
   it('does not stack an identical moment when a machine is rebuilt', () => {
-    const before = TestBed.runInInjectionContext(() =>
+    const before = CraftTestBed.runInInjectionContext(() =>
       createPersistedMachine('book-1'),
     );
     expect(craftUse(before.history())).toHaveLength(1);
@@ -378,7 +378,7 @@ describe('persisted machine history', () => {
     // starts exactly where the recorded one stood. Recording that again would
     // stack duplicates a rewind then has to walk through.
     resetHistoryTestBed();
-    const after = TestBed.runInInjectionContext(() =>
+    const after = CraftTestBed.runInInjectionContext(() =>
       createPersistedMachine('book-1'),
     );
 
@@ -387,7 +387,7 @@ describe('persisted machine history', () => {
   });
 
   it('keeps two anchors of the same machine apart', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const first = createPersistedMachine('book-1');
       const second = createPersistedMachine('book-2');
       first.context.edit$.emit();
@@ -404,7 +404,7 @@ describe('persisted machine history', () => {
     const circular: Record<string, unknown> = {};
     circular['self'] = circular;
 
-    const machine = TestBed.runInInjectionContext(() =>
+    const machine = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         craftStateMachine(
           'circular',
@@ -496,7 +496,7 @@ describe('machine history with an async resource', () => {
   });
 
   it('restores a settled resource with its parameter, without reloading', async () => {
-    const machine = TestBed.runInInjectionContext(createAsyncMachine);
+    const machine = CraftTestBed.runInInjectionContext(createAsyncMachine);
 
     craftUse(machine.context.details.value());
     await vi.waitFor(() =>
@@ -536,7 +536,7 @@ describe('machine history with an async resource', () => {
   });
 
   it('reloads a resource the snapshot could not capture', async () => {
-    const machine = TestBed.runInInjectionContext(createAsyncMachine);
+    const machine = CraftTestBed.runInInjectionContext(createAsyncMachine);
 
     // The very first moment is recorded before the loader settles, so it holds
     // no value for the resource.
@@ -576,9 +576,9 @@ describe('machine history publishing a moment', () => {
   // run synchronously, so a reader woken between the two sees the cursor behind the
   // entry that was just appended: a "forward" that does not exist.
   it('moves onto a recorded moment without a forward step ever showing', () => {
-    const machine = TestBed.runInInjectionContext(createMachine);
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
     const seen: string[] = [];
-    const watch = TestBed.runInInjectionContext(() =>
+    const watch = CraftTestBed.runInInjectionContext(() =>
       craftWatch(() => {
         seen.push(
           `${craftUse(machine.canGoBack())}|${craftUse(machine.canGoForward())}`,

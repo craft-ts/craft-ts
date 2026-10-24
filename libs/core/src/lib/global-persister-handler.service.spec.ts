@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { LocalStorageService, SessionStorageService } from './browser-boundaries';
 import {
   GlobalPersisterHandlerService,
@@ -15,8 +15,8 @@ import {
 
 describe('global persister handler service', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.configureTestingModule({
       providers: [
         provideGlobalPersisterHandlerService(),
         provideLocalStoragePersister(),
@@ -26,13 +26,13 @@ describe('global persister handler service', () => {
         }),
       ],
     });
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       craftUse(LocalStorageService()).clear();
     });
   });
 
   it('clears only @craft-ts persisted entries', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const storage = craftUse(LocalStorageService());
       const persisterHandler = craftUse(GlobalPersisterHandlerService());
 
@@ -49,8 +49,8 @@ describe('global persister handler service', () => {
   });
 
   it('clears the backend selected through StoragePersister', () => {
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.configureTestingModule({
       providers: [
         provideGlobalPersisterHandlerService(),
         provideLocalStoragePersister(),
@@ -61,7 +61,7 @@ describe('global persister handler service', () => {
       ],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const localStorage = craftUse(LocalStorageService());
       const sessionStorage = craftUse(SessionStorageService());
       const persisterHandler = craftUse(GlobalPersisterHandlerService());

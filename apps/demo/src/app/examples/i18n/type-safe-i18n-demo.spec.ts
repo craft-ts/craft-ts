@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { craftComponent, mountCraftComponent, p } from '@craft-ts/component';
 import type {
   ComponentDepsOf,
@@ -86,7 +86,7 @@ type _DemoProviderSatisfiesTranslationDependency = Expect<
 
 describe('TypeSafeI18nDemo', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     document.documentElement.lang = '';
   });
@@ -98,14 +98,14 @@ describe('TypeSafeI18nDemo', () => {
     const mounted = mountCraftComponent(
       TypeSafeI18nDemo,
       host,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
     );
     const secondMounted = mountCraftComponent(
       TypeSafeI18nDemo,
       secondHost,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(host.textContent).toContain('Type-safe i18n playground');
     expect(host.textContent).toContain('1.5 items are in the order.');
@@ -121,7 +121,7 @@ describe('TypeSafeI18nDemo', () => {
       language.value = 'fr-FR';
       language.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(host.textContent).toContain('Démonstration de l’i18n typée');
     expect(secondHost.textContent).toContain('Démonstration de l’i18n typée');
@@ -135,7 +135,7 @@ describe('TypeSafeI18nDemo', () => {
       client.value = 'globex';
       client.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(host.textContent).toContain('$US');
     expect(host.textContent).toContain('lb');

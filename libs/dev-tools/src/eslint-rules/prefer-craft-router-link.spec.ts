@@ -84,4 +84,17 @@ describe('prefer-craft-router-link', () => {
 
     expect(messages).toHaveLength(1);
   });
+
+  it('reports a named app-local link and allows its Craft route equivalent', async () => {
+    const messages = await lint(`
+      a('hero-shop', { href: '/catalogue' }, 'Découvrir la boutique');
+      a('hero-shop', {}, 'Découvrir la boutique').pipe(
+        CraftRouterLink({ to: 'catalogue' }),
+      );
+      a('docs', { href: 'https://example.com/guide' }, 'Documentation');
+    `);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.messageId).toBe('internal');
+  });
 });

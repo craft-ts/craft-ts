@@ -13,9 +13,12 @@ import {
   assertPersistedPrimitiveHasUnique,
   assertQueryMutationHasServerState,
   assertResourceParamsPreferQueryParams,
+  assertQueryParamsRouteOwnership,
   assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
+  assertLazyRouteTargetsStayLazy,
   noExclusiveLink,
+  routePathParamNavigationFindings,
 } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from './load-graph';
 import { architectureWaiverList } from './waivers';
@@ -34,11 +37,17 @@ describe('demo architecture', () => {
 
   it('indexes demo routes and provided feature services', () => {
     expect(
-      graph.route('craft/query/:userId', 'apps/demo/src/app/app.routes.ts')
+      graph.route(
+        'craft/query/:userId',
+        'apps/demo/src/app/app.routes.ts',
+      )
         .kind,
     ).toBe('route');
     expect(
-      graph.route('craft/mutation/:userId', 'apps/demo/src/app/app.routes.ts')
+      graph.route(
+        'craft/mutation/:userId',
+        'apps/demo/src/app/app.routes.ts',
+      )
         .kind,
     ).toBe('route');
     expect(graph.providedOn('UserList').map((node) => node.label)).toEqual(
@@ -47,6 +56,10 @@ describe('demo architecture', () => {
     expect(graph.providedOn('UserMutation').map((node) => node.label)).toEqual(
       expect.arrayContaining([expect.stringMatching(/Mutation/)]),
     );
+  });
+
+  it('uses pathParams for route-scoped same-route parameter updates', () => {
+    expect(routePathParamNavigationFindings(graph.graph)).toEqual([]);
   });
 
   it('indexes the users HTTP endpoint', () => {
@@ -84,6 +97,12 @@ describe('demo architecture', () => {
 
   it('keeps route definitions separate from page components', () => {
     assertRouteComponentsInSeparateFiles(graph.graph);
+  });
+
+  it('keeps lazy route modules outside the eager application import graph', () => {
+    assertLazyRouteTargetsStayLazy(graph.graph, {
+      entryPoints: ['apps/demo/src/main.ts'],
+    });
   });
 
   it('requires a query to react to each mutation, except pedagogical orphans', () => {
@@ -136,6 +155,35 @@ describe('demo architecture', () => {
         {
           name: 'searchInput',
           file: 'apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts',
+        },
+      ],
+    });
+  });
+
+  it('keeps query params route-owned outside legacy primitive examples', () => {
+    assertQueryParamsRouteOwnership(graph.graph, {
+      // These pages demonstrate the primitive directly before route ownership
+      // is introduced in the route-focused example.
+      allow: [
+        {
+          name: 'pagination',
+          file: 'apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts',
+        },
+        {
+          name: 'pagination',
+          file: 'apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts',
+        },
+        {
+          name: 'pagination',
+          file: 'apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts',
+        },
+        {
+          name: 'pagination',
+          file: 'apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts',
+        },
+        {
+          name: 'modeQueryParams',
+          file: 'apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts',
         },
       ],
     });

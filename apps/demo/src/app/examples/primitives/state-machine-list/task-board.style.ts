@@ -24,7 +24,7 @@ import { theme } from '@craft-ts/ui/style';
 
 /** The Herbier theme, under the names this sheet uses. */
 const board = {
-  surface: { row: theme.raised },
+  surface: { row: theme.surface },
   border: { row: theme.line },
 };
 

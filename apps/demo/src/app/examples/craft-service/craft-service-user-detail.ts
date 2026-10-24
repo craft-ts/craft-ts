@@ -60,7 +60,7 @@ const { User } = craftService(
   { name: 'User', providedIn: 'function' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
     const api = yield* UsersApi();
-    yield* query('user', {
+    yield* query('userCraftServiceCraftServiceUserDetail', {
       params: function* () {
         return yield* inputs.userId();
       },
@@ -76,7 +76,7 @@ export const { CraftServiceUserDetailView, provideCraftServiceUserDetailView } =
   craftService(
     { name: 'craftServiceUserDetailView', providedIn: 'toProvide' },
     function* () {
-      const userId = yield* state('userId', '1', ({ set }) => ({
+      const userId = yield* state('userIdCraftServiceCraftServiceUserDetail', '1', ({ set }) => ({
         selectUser: (value: string) => set(value),
       }));
       const { user } = yield* craftPrivate(User({ userId }));
@@ -87,10 +87,10 @@ export const { CraftServiceUserDetailView, provideCraftServiceUserDetailView } =
       yield* craftComputed('userIdValue', function* () {
         return (yield* user.value())?.id ?? '';
       });
-      yield* craftComputed('userName', function* () {
+      yield* craftComputed('userNameCraftServiceCraftServiceUserDetail', function* () {
         return (yield* user.value())?.name ?? '';
       });
-      yield* craftComputed('userEmail', function* () {
+      yield* craftComputed('userEmailCraftServiceCraftServiceUserDetail', function* () {
         return (yield* user.value())?.email ?? '';
       });
     },

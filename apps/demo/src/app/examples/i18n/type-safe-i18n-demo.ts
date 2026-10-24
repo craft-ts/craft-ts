@@ -49,7 +49,7 @@ export const TypeSafeI18nDemo = craftComponent(
     ],
   },
   () =>
-    section({ class: example.stack, 'aria-labelledby': 'i18n-title' }, [
+    section({ class: example.page, 'aria-labelledby': 'i18n-title' }, [
       div({ class: example.stack }, [
         heading(
           {

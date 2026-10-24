@@ -2,7 +2,7 @@ import {
   computed,
   signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { preservedResource } from './preserved-resource';
 import { vi } from 'vitest';
 
@@ -14,7 +14,7 @@ describe('Preserved Resource', () => {
     vi.restoreAllMocks();
   });
   it('should preserve the resource state across different queries', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const initialParams = signal({ data: 'initial' });
       const resource = preservedResource({
         params: initialParams,
@@ -45,8 +45,8 @@ describe('Preserved Resource', () => {
     });
   });
 
-  it('invalidates Angular computed consumers when the preserved value changes', async () => {
-    await TestBed.runInInjectionContext(async () => {
+  it('invalidates computed consumers when the preserved value changes', async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const params = signal('first');
       const resource = preservedResource({
         params,
@@ -65,7 +65,7 @@ describe('Preserved Resource', () => {
   });
 
   it('clears the preserved value and publishes idle on destroy', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const resource = preservedResource({
         params: () => 'loaded',
         loader: async ({ params }) => params,

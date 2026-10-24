@@ -1,7 +1,7 @@
 import {
   computed,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { source$ } from './source$';
 
 describe('source$', () => {
@@ -13,7 +13,7 @@ describe('source$', () => {
     vi.resetAllMocks();
   });
   it('should generate a source that enable to emit a value, and the listener to receive it', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = source$<string>('mySource');
 
       //expectTypeOf(mySource).toEqualTypeOf<Source<string>>();
@@ -33,7 +33,7 @@ describe('source$', () => {
   });
 
   it('A listener at n+1 should not get the value when listened and get data for the first time', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = source$<string>('mySource');
 
       mySource.emit('Hello World');
@@ -47,7 +47,7 @@ describe('source$', () => {
   });
 
   it('A listener at n+1 should get the last value when using "preserveLastValue" config and listened and get data for the first time ', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = source$<string>('mySource');
 
       mySource.emit('Hello World');
@@ -62,7 +62,7 @@ describe('source$', () => {
   });
 
   it('preserveLastValue emits nothing when no value was emitted yet and does not re-emit to earlier subscribers', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = source$<string>('mySource');
       const preserved = mySource.preserveLastValue();
 
@@ -81,7 +81,7 @@ describe('source$', () => {
 
   describe('replay', () => {
     it('replays the last n values to a late subscriber, oldest first', () => {
-      TestBed.runInInjectionContext(() => {
+      CraftTestBed.runInInjectionContext(() => {
         const mySource = source$<number>('mySource', { replay: 2 });
         mySource.emit(1);
         mySource.emit(2);
@@ -96,7 +96,7 @@ describe('source$', () => {
     });
 
     it('replays through asReadonly and does not replay without the option', () => {
-      TestBed.runInInjectionContext(() => {
+      CraftTestBed.runInInjectionContext(() => {
         const replayed = source$<number>('replayed', { replay: 1 });
         const plain = source$<number>('plain');
         replayed.emit(1);
@@ -115,7 +115,7 @@ describe('source$', () => {
 
   describe('initial', () => {
     it('holds the initial value and replays it to the first subscriber', () => {
-      TestBed.runInInjectionContext(() => {
+      CraftTestBed.runInInjectionContext(() => {
         const mySource = source$<number>('mySource', { initial: 10 });
         expectTypeOf(mySource.value()).toEqualTypeOf<number>();
 
@@ -129,7 +129,7 @@ describe('source$', () => {
     });
 
     it('replays only the latest value once emissions followed the initial one', () => {
-      TestBed.runInInjectionContext(() => {
+      CraftTestBed.runInInjectionContext(() => {
         const mySource = source$<number>('mySource', { initial: 0 });
         mySource.emit(1);
         mySource.emit(2);
@@ -142,7 +142,7 @@ describe('source$', () => {
     });
 
     it('keeps value() undefined-typed without an initial value', () => {
-      TestBed.runInInjectionContext(() => {
+      CraftTestBed.runInInjectionContext(() => {
         const mySource = source$<number>('mySource');
 
         expectTypeOf(mySource.value()).toEqualTypeOf<number | undefined>();

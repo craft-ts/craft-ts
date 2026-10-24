@@ -18,6 +18,7 @@ import {
   font,
   fontWeight,
   gap,
+  inlineSize,
   justifyContent,
   justifyItems,
   lineWidth,
@@ -32,6 +33,7 @@ import {
   py,
   radii,
   radius,
+  shadow,
   space,
   text,
   unit,
@@ -47,6 +49,7 @@ import { theme } from '@craft-ts/ui/style';
 const ui = {
   surface: {
     raised: theme.raised,
+    inset: theme.surface,
     sunken: theme.navHover,
     success: theme.tipSurface,
     danger: theme.dangerSurface,
@@ -91,25 +94,25 @@ const panel = (
   surface: typeof ui.surface.raised,
 ) => [
   display.grid,
-  gap(space(3)),
-  p(space(4)),
+  gap(space(4)),
+  p(space(5)),
   ...hairline(tint),
-  radius(radii.lg),
+  radius(radii.xl),
   bg(surface),
 ];
 
 const callout = (
   ink: typeof ui.text.body,
   surface: typeof ui.surface.raised,
-) => [py(space(3)), px(space(4)), radius(radii.lg), color(ink), bg(surface)];
+) => [py(space(3)), px(space(4)), radius(radii.xl), color(ink), bg(surface)];
 
 export const componentUi = craftStyles('componentDemo', {
   page: [
     display.grid,
-    gap(space(4)),
-    maxInlineSize(unit.rem(44)),
+    gap(space(5)),
+    maxInlineSize(unit.rem(46)),
     marginInline.auto,
-    when(pageWidth.wide, [maxInlineSize(unit.rem(52))]),
+    when(pageWidth.wide, [maxInlineSize(unit.rem(56))]),
   ],
   list: [display.grid, gap(space(2))],
   user: [
@@ -120,7 +123,7 @@ export const componentUi = craftStyles('componentDemo', {
     py(space(3)),
     px(space(4)),
     ...hairline(ui.border.subtle),
-    radius(radii.lg),
+    radius(radii.xl),
     bg(ui.surface.raised),
   ],
   error: [color(ui.text.error)],
@@ -130,13 +133,17 @@ export const componentUi = craftStyles('componentDemo', {
 });
 
 export const projectionDemo = craftStyles('projectionDemo', {
-  card: [...panel(ui.border.card, ui.surface.sunken), color(ui.text.body)],
+  card: [
+    ...panel(ui.border.card, ui.surface.raised),
+    color(ui.text.body),
+    shadow({ y: unit.px(1), blur: unit.px(3), color: theme.shadow }),
+  ],
   body: [
     display.grid,
     gap(space(3)),
-    p(space(3)),
-    radius(radii.md),
-    bg(ui.surface.raised),
+    p(space(4)),
+    radius(radii.xl),
+    bg(ui.surface.inset),
   ],
   content: [color(ui.text.body)],
   fallback: [color(ui.text.muted)],
@@ -148,9 +155,10 @@ export const projectionDemo = craftStyles('projectionDemo', {
     justifyContent.spaceBetween,
     gap(space(2)),
     py(space(3)),
-    px(space(3)),
+    px(space(4)),
     ...hairline(ui.border.subtle),
-    radius(radii.md),
+    radius(radii.xl),
+    bg(ui.surface.raised),
   ],
   badge: [
     py(space(1)),
@@ -176,7 +184,14 @@ export const projectionDemo = craftStyles('projectionDemo', {
 });
 
 export const pendingDemo = craftStyles('pendingDemo', {
-  page: [display.grid, gap(space(4)), p(space(4)), justifyItems.start],
+  page: [
+    display.grid,
+    gap(space(4)),
+    inlineSize(unit.pct(100)),
+    maxInlineSize(unit.rem(46)),
+    marginInline.auto,
+    justifyItems.start,
+  ],
   actions: [display.flex, flexWrap.wrap, gap(space(2))],
   list: [display.grid, gap(space(1)), paddingInlineStart(space(5))],
   count: [font(text.sm), opacity(num(0.72))],

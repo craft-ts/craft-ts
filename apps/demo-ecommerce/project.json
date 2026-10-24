@@ -1,0 +1,14 @@
+{
+  "name": "demo-ecommerce",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/demo-ecommerce/src",
+  "targets": {
+    "serve": { "continuous": true, "executor": "nx:run-commands", "options": { "command": "npx vite --config apps/demo-ecommerce/vite.config.ts", "forwardAllArgs": true } },
+    "build": { "executor": "nx:run-commands", "outputs": ["{workspaceRoot}/dist/apps/demo-ecommerce"], "options": { "command": "npx vite build --config apps/demo-ecommerce/vite.config.ts" }, "configurations": { "production": { "command": "npx vite build --config apps/demo-ecommerce/vite.config.ts --mode production" }, "development": { "command": "npx vite build --config apps/demo-ecommerce/vite.config.ts --mode development" } }, "defaultConfiguration": "production" },
+    "typecheck": { "executor": "nx:run-commands", "options": { "command": "npx tsc -p apps/demo-ecommerce/tsconfig.json --noEmit --pretty false" } },
+    "effect-check": { "executor": "nx:run-commands", "options": { "command": "node tools/run-effect-tsgo.mjs diagnostics --project apps/demo-ecommerce/tsconfig.json --format text --severity error,warning,message" }, "inputs": ["{workspaceRoot}/package.json", "{workspaceRoot}/package-lock.json", "{workspaceRoot}/tsconfig.base.json", "{projectRoot}/tsconfig.json", "{projectRoot}/src/**/*.ts"], "cache": true },
+    "lint": { "executor": "@nx/eslint:lint", "options": { "lintFilePatterns": ["apps/demo-ecommerce/src/server/**/*.ts", "apps/demo-ecommerce/src/shared/**/*.ts", "apps/demo-ecommerce/src/client/**/*.ts"] } },
+    "test": { "executor": "nx:run-commands", "options": { "command": "vitest run --config apps/demo-ecommerce/vitest.config.ts" }, "inputs": ["{projectRoot}/src/**/*.ts", "{projectRoot}/vitest.config.ts"] }
+  }
+}

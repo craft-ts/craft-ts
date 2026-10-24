@@ -63,7 +63,7 @@ export const { PixelArtView, providePixelArtView } = craftService(
       ),
     );
     const cells = yield* state(
-      'cells',
+      'cellsPixelArtPixelArt',
       INDEXES.map((index) => ({
         index,
         color: EMPTY_COLOR,
@@ -76,7 +76,7 @@ export const { PixelArtView, providePixelArtView } = craftService(
             storeName: 'pixel-art-cells',
           }),
         ),
-        insertSelect('cell', function* ({ update }) {
+        insertSelect('cellPixelArtPixelArt', function* ({ update }) {
           return {
             paint: function* () {
               const currentUi = yield* ui();
@@ -135,7 +135,10 @@ const PixelArt = craftComponent(
     section({ class: example.card }, [
       header({ class: example.stack }, [
         heading({ class: example.title }, 'Pixel Art Workshop'),
-        p({ class: example.text, 'data-exampleText': 'muted' }, `${CELL_COUNT} cells with simple state and per-cell insertions.`),
+        p(
+          { class: example.text, 'data-exampleText': 'muted' },
+          `Click to paint one of ${CELL_COUNT} cells. This example focuses on per-cell state and insertions.`,
+        ),
       ]),
       div(
         { class: pixel.palette },

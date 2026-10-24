@@ -6,6 +6,7 @@ import {
   inject,
   Injector,
   createEnvironmentInjector,
+  computed,
   signal,
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
@@ -18,6 +19,8 @@ import {
   craftMethod,
   craftService,
   craftUse,
+  asyncProcess,
+  craftSleep,
   HOST_TAG_LIST,
   insertDeepYieldable,
   mutation,
@@ -25,11 +28,16 @@ import {
   overrideService,
   provideCraftDomEventHook,
   provideCraftLazyLoadRetry,
+  provideSendContextSession,
+  SendContextSession as SendContextSessionService,
+  ɵresolveCraftDeferReplayTarget,
+  ɵsetCraftReplayMode,
   provideCorrelationIdTracking,
   provideTemplateTrace,
   injectCorrelationIdService,
   ɵinjectCraftNodeEffectFactoryIn,
   query,
+  rawReactiveValue,
   state,
   type CraftDomEvent,
   craftExpose,
@@ -51,7 +59,7 @@ import {
 } from '../for-scheduling';
 import { ifNode } from '../if-node';
 import { catchNode } from '../catch-node';
-import { a, button, div, h2, li, p, section, span, ul } from '../hyperscript';
+import { a, button, div, h2, input, li, p, section, span, ul } from '../hyperscript';
 import { craftTemplate, renderTemplate } from '../template';
 import type { ContentSlot, RequiredContent } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
@@ -230,7 +238,7 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  // Angular's scheduler coalesced writes made in the same turn into a single
+  // The scheduler coalesced writes made in the same turn into a single
   // binding run. alien-signals notifies synchronously, so each write re-runs
   // the binding. Batching writes back into one run is a scheduler decision
   // tracked separately; what this spec pins is that the DOM lands on the last
@@ -1011,8 +1019,7 @@ describe('functional component interpreter', () => {
         readonly content: ContentSlot;
         readonly trigger: () => void;
       }) {
-        const { contract, content: label } =
-          yield* RuntimeToolbarActionView();
+        const { contract, content: label } = yield* RuntimeToolbarActionView();
         return button({ click: contract.trigger }, renderContent(label));
       },
     ).pipe(
@@ -1371,6 +1378,62 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
+  it('passes each native click correlation id through to its Craft method', async () => {
+    let session!: import('@craft-ts/core').SendContextSession;
+    const methodCorrelationIds: (string | null)[] = [];
+    const { CorrelatedClickView, provideCorrelatedClickView } = craftService(
+      { name: 'correlatedClickView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftMethod('save', function* () {
+          methodCorrelationIds.push(
+            injectCorrelationIdService().lastCorrelationId(),
+          );
+        });
+      },
+    );
+    const component = craftComponent(
+      'correlatedClick',
+      {
+        providers: [
+          provideCorrelatedClickView(),
+          ...provideSendContextSession(),
+        ],
+      },
+      function* () {
+        session = yield* SendContextSessionService();
+        const { save } = yield* CorrelatedClickView();
+        return button({ click: save }, 'Save');
+      },
+    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component, {
+      providers: [provideCorrelationIdTracking()] as never,
+    });
+    session.startRecord('correlated DOM clicks');
+
+    const target = element.querySelector('button')!;
+    target.click();
+    await flush();
+    target.click();
+    await flush();
+
+    const clicks = session.events.filter(
+      (event) => event.kind === 'dom' && event.payload?.['action'] === 'click',
+    );
+    expect(clicks).toHaveLength(2);
+    expect(clicks.map((event) => event.correlationId)).toEqual(
+      methodCorrelationIds,
+    );
+    expect(clicks[0]?.correlationId).toEqual(expect.any(String));
+    expect(clicks[1]?.correlationId).toEqual(expect.any(String));
+    expect(clicks[0]?.correlationId).not.toBe(clicks[1]?.correlationId);
+
+    destroy();
+  });
+
   it('drives generator callbacks assigned to primitive DOM properties', async () => {
     const { YieldablePropertyView, provideYieldablePropertyView } =
       craftService(
@@ -1555,6 +1618,83 @@ describe('functional component interpreter', () => {
     await flush();
     expect(element.querySelector('.value')?.textContent).toBe('4');
     expect(element.querySelectorAll('li')).toHaveLength(2);
+    destroy();
+  });
+
+  it('updates raw state computed bindings after a DOM input event', async () => {
+    const {
+      RawStateInputView,
+      provideRawStateInputView,
+    } = craftService(
+      { name: 'rawStateInputView', providedIn: 'toProvide' },
+      function* () {
+        const searchInput = yield* state('searchInput', '', ({ state, set }) => ({
+          setSearchInput: (value: string) => set(value),
+          tooShort: computed(
+            () => rawReactiveValue(state)().trim().length < 2,
+          ),
+        }));
+        const debouncedSearch = yield* asyncProcess('debouncedSearch', {
+          params: function* () {
+            return (yield* searchInput()).trim();
+          },
+          loader: function* ({ params }) {
+            yield* craftSleep(350, { owner: 'raw-state-input-test' });
+            return { term: params };
+          },
+        });
+        yield* query('searchQuery', {
+          params: function* () {
+            return (yield* debouncedSearch.value())?.term;
+          },
+          loader: function* ({ params }) {
+            return params;
+          },
+        });
+      },
+    );
+
+    const component = craftComponent(
+      'rawStateInput',
+      {
+        providers: [
+          provideRawStateInputView(),
+          provideCorrelationIdTracking(),
+        ],
+      },
+      () => {
+        return section([
+          input('search', {
+            'aria-label': 'Search',
+            value: RawStateInputView.searchInput,
+            *input(event) {
+              yield* RawStateInputView.searchInput.setSearchInput(
+                event.target.value,
+              );
+            },
+          }),
+          ifNode(
+            RawStateInputView.searchInput.tooShort,
+            () => p('Enter at least two characters'),
+          ),
+          p(function* () {
+            return (yield* RawStateInputView.searchQuery.value()) ?? '';
+          }),
+        ]);
+      },
+    );
+    const { nativeElement: element, flush, destroy } =
+      await renderCraftComponent(component);
+
+    expect(element.textContent).toContain('Enter at least two characters');
+    const search = element.querySelector('input')!;
+    search.value = 'replay';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    await flush();
+
+    expect(element.textContent).not.toContain('Enter at least two characters');
+    expect(search.value).toBe('replay');
+    await vi.waitFor(() => expect(element.textContent).toContain('replay'));
     destroy();
   });
 
@@ -1761,9 +1901,7 @@ describe('functional component interpreter', () => {
           return yield* text();
         });
       },
-    ).pipe(
-      withComponentProviders(({ text }) => [provideLabelView({ text })]),
-    );
+    ).pipe(withComponentProviders(({ text }) => [provideLabelView({ text })]));
     const {
       nativeElement: element,
       flush,
@@ -1978,7 +2116,9 @@ describe('functional component interpreter', () => {
         });
       },
     )
-      .pipe(withComponentProviders(({ user }) => [provideGuardedView({ user })]))
+      .pipe(
+        withComponentProviders(({ user }) => [provideGuardedView({ user })]),
+      )
       .pipe(guard);
     const {
       nativeElement: element,
@@ -2079,9 +2219,7 @@ describe('functional component interpreter', () => {
         return p('conditional').pipe(when);
       },
     ).pipe(
-      withComponentProviders(({ visible }) => [
-        providePanelView({ visible }),
-      ]),
+      withComponentProviders(({ visible }) => [providePanelView({ visible })]),
     );
     const {
       nativeElement: element,
@@ -2116,7 +2254,7 @@ describe('functional component interpreter', () => {
         mountedElements.push(context.element);
         expect(inject(ElementRef).nativeElement).toBe(context.element);
         // Craft directives render through `context.renderer` (the DOM adapter);
-        // there is no Angular Renderer2 anywhere on this path any more.
+        // this path uses the Craft renderer.
         inject(DestroyRef).onDestroy(destroyRefCleanups);
         ɵinjectCraftNodeEffectFactoryIn(context.injector)('marker', () => {
           context.renderer.setAttribute(
@@ -2239,7 +2377,7 @@ describe('functional component interpreter', () => {
 
     // The write is applied synchronously, so the branch throws inside the click
     // listener rather than during the later flush: the error surfaces on the
-    // window instead of rejecting `flush()` as it did on the Angular scheduler.
+    // window instead of rejecting `flush()` as it did before the scheduler settled.
     const listenerErrors: unknown[] = [];
     const captureError = (event: ErrorEvent) => {
       listenerErrors.push(event.error ?? event.message);
@@ -2290,9 +2428,7 @@ describe('functional component interpreter', () => {
     const greeting = craftComponent(
       'greeting',
       {
-        providers: [
-          { provide: PREFIX, useValue: 'Bonjour' },
-        ],
+        providers: [{ provide: PREFIX, useValue: 'Bonjour' }],
       },
       function* (inputs: { readonly name: Input<string> }) {
         const { name, service } = yield* GreetingView();
@@ -2853,6 +2989,73 @@ describe('functional component interpreter', () => {
     expect(calls).toBe(2);
   });
 
+  it('replays a deferred loader whose recorded lazy import recovered by retrying', async () => {
+    let session!: import('@craft-ts/core').SendContextSession;
+    let imports = 0;
+    const component = craftComponent(
+      'recordedDeferRetry',
+      { providers: provideSendContextSession() },
+      function* () {
+        session = yield* SendContextSessionService();
+        session.startRecord('defer retry');
+        return deferNode(
+          ({ withRetry }) =>
+            withRetry(
+              imports++ === 0
+                ? Promise.reject(new Error('offline'))
+                : Promise.resolve('Recovered'),
+            ),
+          {
+            trigger: 'immediate',
+            resolve: (value) => p({ class: 'retry-defer-loaded' }, value),
+          },
+        );
+      },
+    );
+    const providers = [provideCraftLazyLoadRetry({ attempts: 1, delayMs: 0 })];
+    const recorded = await renderCraftComponent(component, { providers });
+    await vi.waitFor(() => {
+      expect(
+        recorded.nativeElement.querySelector('.retry-defer-loaded')
+          ?.textContent,
+      ).toBe('Recovered');
+    });
+    const activation = session.events.find(
+      (event) => event.kind === 'defer' && event.phase === 'started',
+    );
+    const outcome = session.events.find(
+      (event) => event.kind === 'defer' && event.phase === 'succeeded',
+    );
+    expect(activation?.payload).toMatchObject({ trigger: 'immediate' });
+    expect(outcome?.payload).toMatchObject({
+      activationEventId: activation?.id,
+      outcome: 'loaded',
+    });
+    expect(imports).toBe(2);
+    const targetId = (activation?.payload as { targetId: string }).targetId;
+    recorded.destroy();
+
+    ɵsetCraftReplayMode(true);
+    try {
+      const replayed = await renderCraftComponent(component, { providers });
+      expect(imports).toBe(2);
+      const resolution = ɵresolveCraftDeferReplayTarget(targetId);
+      expect(resolution.status).toBe('resolved');
+      if (resolution.status === 'resolved')
+        await expect(resolution.activate()).resolves.toBe('loaded');
+      expect(imports).toBe(3);
+      await vi.waitFor(() => {
+        expect(
+          replayed.nativeElement.querySelector('.retry-defer-loaded')
+            ?.textContent,
+        ).toBe('Recovered');
+      });
+      replayed.destroy();
+    } finally {
+      ɵsetCraftReplayMode(false);
+    }
+  });
+
   it('keeps a defer placeholder until its interaction trigger fires', async () => {
     const { InteractionView, provideInteractionView } = craftService(
       { name: 'interactionView', providedIn: 'toProvide' },
@@ -2944,6 +3147,192 @@ describe('functional component interpreter', () => {
 
     destroy();
   });
+
+  it.each(['click', 'keydown'] as const)(
+    'records and replays deferred interaction activation from %s without redispatch',
+    async (interaction) => {
+      let recordedSession!: import('@craft-ts/core').SendContextSession;
+      const loader = vi.fn(async () => 'Ready');
+      const component = craftComponent(
+        `recordedDefer${interaction}`,
+        { providers: provideSendContextSession() },
+        function* () {
+          recordedSession = yield* SendContextSessionService();
+          return deferNode(loader, {
+            trigger: 'interaction',
+            resolve: (value) => p({ class: 'recorded-defer-loaded' }, value),
+            placeholder: () => button('loadRecordedDefer', 'Load'),
+          });
+        },
+      );
+      const { nativeElement, destroy } = await renderCraftComponent(component);
+      recordedSession.startRecord('defer replay');
+
+      const trigger = nativeElement.querySelector('button')!;
+      if (interaction === 'click') trigger.click();
+      else
+        trigger.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+        );
+      await vi.waitFor(() => {
+        expect(
+          nativeElement.querySelector('.recorded-defer-loaded')?.textContent,
+        ).toBe('Ready');
+      });
+
+      expect(recordedSession.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'defer',
+            phase: 'started',
+            payload: expect.objectContaining({ trigger: 'interaction' }),
+          }),
+          expect.objectContaining({
+            kind: 'defer',
+            phase: 'succeeded',
+            payload: expect.objectContaining({ outcome: 'loaded' }),
+          }),
+        ]),
+      );
+      const activation = recordedSession.events.find(
+        (event) => event.kind === 'defer' && event.phase === 'started',
+      );
+      expect(activation?.payload).toMatchObject({
+        targetId: expect.any(String),
+        trigger: 'interaction',
+      });
+      expect(loader).toHaveBeenCalledOnce();
+      destroy();
+
+      ɵsetCraftReplayMode(true);
+      try {
+        const replayed = await renderCraftComponent(component);
+        const replayTrigger = replayed.nativeElement.querySelector('button')!;
+        if (interaction === 'click') replayTrigger.click();
+        else
+          replayTrigger.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+          );
+        await Promise.resolve();
+        expect(loader).toHaveBeenCalledOnce();
+        const targetId = (activation?.payload as { targetId: string }).targetId;
+        const resolution = ɵresolveCraftDeferReplayTarget(targetId);
+        expect(resolution.status).toBe('resolved');
+        if (resolution.status === 'resolved')
+          await expect(resolution.activate()).resolves.toBe('loaded');
+        expect(loader).toHaveBeenCalledTimes(2);
+        await vi.waitFor(() => {
+          expect(
+            replayed.nativeElement.querySelector('.recorded-defer-loaded')
+              ?.textContent,
+          ).toBe('Ready');
+        });
+        replayed.destroy();
+      } finally {
+        ɵsetCraftReplayMode(false);
+      }
+      recordedSession.destroy();
+    },
+  );
+
+  it.each(['immediate', 'idle', 'viewport'] as const)(
+    'records and replays the %s defer trigger without reinstalling its browser trigger',
+    async (trigger) => {
+      const idleCallbacks: Array<() => void> = [];
+      const idleDescriptor = Object.getOwnPropertyDescriptor(
+        window,
+        'requestIdleCallback',
+      );
+      Object.defineProperty(window, 'requestIdleCallback', {
+        configurable: true,
+        value: (callback: () => void) => {
+          idleCallbacks.push(callback);
+          return idleCallbacks.length;
+        },
+      });
+      const observers: Array<{ intersect: () => void }> = [];
+      class TestIntersectionObserver {
+        constructor(private readonly callback: IntersectionObserverCallback) {
+          observers.push({
+            intersect: () =>
+              callback(
+                [{ isIntersecting: true } as IntersectionObserverEntry],
+                this as unknown as IntersectionObserver,
+              ),
+          });
+        }
+        observe(): void {}
+        disconnect(): void {}
+      }
+      vi.stubGlobal(
+        'IntersectionObserver',
+        TestIntersectionObserver as unknown as typeof IntersectionObserver,
+      );
+
+      try {
+        let session!: import('@craft-ts/core').SendContextSession;
+        const loader = vi.fn(async () => 'Loaded');
+        const component = craftComponent(
+          `recorded-${trigger}-defer`,
+          { providers: provideSendContextSession() },
+          function* () {
+            session = yield* SendContextSessionService();
+            session.startRecord(`${trigger} defer`);
+            return deferNode(loader, {
+              trigger,
+              resolve: (value) => p({ class: 'automatic-defer-loaded' }, value),
+              placeholder: () => button('automatic-defer-placeholder', 'Load'),
+            });
+          },
+        );
+
+        const recorded = await renderCraftComponent(component);
+        if (trigger === 'idle') idleCallbacks.at(-1)?.();
+        if (trigger === 'viewport') observers.at(-1)?.intersect();
+        await vi.waitFor(() => {
+          expect(
+            recorded.nativeElement.querySelector('.automatic-defer-loaded')
+              ?.textContent,
+          ).toBe('Loaded');
+        });
+        const activation = session.events.find(
+          (event) => event.kind === 'defer' && event.phase === 'started',
+        );
+        expect(activation?.payload).toMatchObject({ trigger });
+        const targetId = (activation?.payload as { targetId: string }).targetId;
+        expect(targetId).toEqual(expect.any(String));
+        recorded.destroy();
+
+        ɵsetCraftReplayMode(true);
+        const idleCountBeforeReplay = idleCallbacks.length;
+        const observerCountBeforeReplay = observers.length;
+        const replayed = await renderCraftComponent(component);
+        expect(loader).toHaveBeenCalledOnce();
+        expect(idleCallbacks).toHaveLength(idleCountBeforeReplay);
+        expect(observers).toHaveLength(observerCountBeforeReplay);
+        const resolution = ɵresolveCraftDeferReplayTarget(targetId);
+        expect(resolution.status).toBe('resolved');
+        if (resolution.status === 'resolved')
+          await expect(resolution.activate()).resolves.toBe('loaded');
+        expect(loader).toHaveBeenCalledTimes(2);
+        await vi.waitFor(() => {
+          expect(
+            replayed.nativeElement.querySelector('.automatic-defer-loaded')
+              ?.textContent,
+          ).toBe('Loaded');
+        });
+        replayed.destroy();
+      } finally {
+        ɵsetCraftReplayMode(false);
+        vi.unstubAllGlobals();
+        if (idleDescriptor)
+          Object.defineProperty(window, 'requestIdleCallback', idleDescriptor);
+        else
+          delete (window as Window & { requestIdleCallback?: unknown })
+            .requestIdleCallback;
+      }
+    },
+  );
 
   it('keeps interaction defer idle on a DocumentFragment parent', async () => {
     const { DetachedInteractionView, provideDetachedInteractionView } =

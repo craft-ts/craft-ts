@@ -61,7 +61,7 @@ describe('debug session scroll capture', () => {
     scroller.dispatchEvent(new Event('scroll'));
 
     expect(session.events).toHaveLength(1);
-    await vi.advanceTimersByTimeAsync(50);
+    await vi.advanceTimersByTimeAsync(100);
 
     expect(session.events).toHaveLength(2);
     expect(session.events[1]?.payload).toMatchObject({ scrollTop: 150 });

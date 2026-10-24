@@ -21,8 +21,10 @@ import {
 } from './query.core';
 import {
   executeGeneratorCompatibleFactory,
+  isGenerator,
   GeneratorCompatibleFactory,
   isGeneratorFunction,
+  runCraftGenerator,
 } from './craft-generator-runtime';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import type { ExtractCraftGenExceptions } from './craft-gen';
@@ -80,6 +82,7 @@ import type {
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵprovidePrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
+import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
   ɵcreatePrimitiveResourceByIdRuntimeContext,
   ɵcreatePrimitiveResourceRuntimeContext,
@@ -1299,7 +1302,7 @@ export function query<
  * console.log(searchQuery.status()); // 'idle'
  *
  * // Manually trigger the query
- * searchQuery.call('angular');
+ * searchQuery.call('craft');
  * console.log(searchQuery.status()); // 'loading'
  * ```
  *
@@ -2336,12 +2339,29 @@ function createQueryRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+            const exposedMethod = createYieldableInsertionMethod(wrappedFn, {
               injector: methodInjector,
               invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
             });
+            ɵregisterCraftReplayMethod(methodInjector, (_receiver, args) => {
+              const result = runInInjectionContext(methodInjector, () =>
+                exposedMethod(...args),
+              );
+              return isGenerator(result)
+                ? runCraftGenerator({
+                    iterator: result,
+                    injector: methodInjector,
+                    hostScope: 'function',
+                    invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      QUERY_APP_START_ERROR_MESSAGE,
+                  }).value
+                : result;
+            });
+            wrappedAcc[key] = exposedMethod;
           } else {
             const namedValue = nameInsertedReactiveValue(
               value,

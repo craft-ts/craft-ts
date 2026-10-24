@@ -28,6 +28,14 @@ export type CraftUrlTree = {
 export type CraftRouterEvent = {
   readonly type: 'NavigationStart' | 'NavigationEnd';
   readonly url: string;
+  /** Shared by the start, commit, and rendered route activation for one navigation. */
+  readonly navigationId?: number;
+  /** Set when the browser changed the active history entry. */
+  readonly trigger?: 'history';
+};
+
+export type CraftRouterEvents = {
+  subscribe(fn: (event: CraftRouterEvent) => void): { unsubscribe(): void };
 };
 
 export type CraftNavigationExtras = {
@@ -43,6 +51,7 @@ export type CraftNavigation = { extras?: CraftNavigationExtras };
 
 export type CraftRouterNavigationApi = {
   readonly url: string;
+  readonly events?: CraftRouterEvents;
   createUrlTree(input: {
     to: string;
     params?: Record<string, string>;

@@ -1,11 +1,22 @@
 import type { SendContextSession } from '@craft-ts/core';
 import { CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT } from './debug-session-replay-signals';
 
-const SCROLL_SAMPLE_INTERVAL_MS = 50;
+const SCROLL_SAMPLE_INTERVAL_MS = 100;
+const SCROLL_MIN_DELTA_PX = 2;
+const ACTION_BOUNDARY_EVENTS = [
+  'pointerdown',
+  'click',
+  'keydown',
+  'keyup',
+  'input',
+  'change',
+  'submit',
+] as const;
 
 type ScrollPosition = Readonly<Record<string, string | number>>;
 type PendingScroll = {
   latest: ScrollPosition;
+  refresh?: () => ScrollPosition;
   captured?: ScrollPosition;
   lastCapturedAt: number;
   timer?: ReturnType<typeof setTimeout>;
@@ -18,16 +29,28 @@ export function connectDebugSessionScrollCapture(
   const pending = new Map<string, PendingScroll>();
   let paused = false;
 
-  const capture = (key: string, name: string, payload: ScrollPosition) => {
+  const capture = (
+    key: string,
+    name: string,
+    payload: ScrollPosition,
+    refresh: () => ScrollPosition,
+  ) => {
     if (paused || !session.activeClip) return;
     let state = pending.get(key);
     if (!state) {
-      state = { latest: payload, lastCapturedAt: Number.NEGATIVE_INFINITY };
+      state = {
+        latest: payload,
+        refresh,
+        lastCapturedAt: Number.NEGATIVE_INFINITY,
+      };
       pending.set(key, state);
     } else {
       if (sameScrollPosition(state.latest, payload)) return;
       state.latest = payload;
+      state.refresh = refresh;
     }
+
+    if (!hasMeaningfulScrollDelta(state.captured, state.latest)) return;
 
     const delay =
       SCROLL_SAMPLE_INTERVAL_MS - (performance.now() - state.lastCapturedAt);
@@ -41,12 +64,19 @@ export function connectDebugSessionScrollCapture(
     }
   };
 
+  const viewportPosition = (): ScrollPosition => ({
+    target: 'viewport',
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+  });
+
   const onViewportScroll = () =>
-    capture('viewport', 'Viewport scroll', {
-      target: 'viewport',
-      scrollX: window.scrollX,
-      scrollY: window.scrollY,
-    });
+    capture(
+      'viewport',
+      'Viewport scroll',
+      viewportPosition(),
+      viewportPosition,
+    );
 
   const onElementScroll = (event: Event) => {
     const element = event.target;
@@ -58,12 +88,18 @@ export function connectDebugSessionScrollCapture(
       return;
     const selector = replaySelector(element);
     if (!selector) return;
-    capture(`element:${selector}`, `Défilement · ${selector}`, {
+    const position = (): ScrollPosition => ({
       target: 'element',
       selector,
       scrollLeft: element.scrollLeft,
       scrollTop: element.scrollTop,
     });
+    capture(
+      `element:${selector}`,
+      `Défilement · ${selector}`,
+      position(),
+      position,
+    );
   };
 
   const flushPending = () => {
@@ -75,7 +111,7 @@ export function connectDebugSessionScrollCapture(
           key === 'viewport'
             ? 'Viewport scroll'
             : `Défilement · ${key.slice('element:'.length)}`;
-        flush(key, name, state);
+        flush(key, name, state, true);
       }
     }
   };
@@ -89,9 +125,12 @@ export function connectDebugSessionScrollCapture(
         if (state.timer !== undefined) clearTimeout(state.timer);
         state.timer = undefined;
         state.latest = state.captured ?? state.latest;
+        state.refresh = undefined;
       }
     }
   };
+
+  const onActionBoundary = () => flushPending();
 
   window.addEventListener('scroll', onViewportScroll, { passive: true });
   window.addEventListener(
@@ -102,6 +141,8 @@ export function connectDebugSessionScrollCapture(
     capture: true,
     passive: true,
   });
+  for (const eventName of ACTION_BOUNDARY_EVENTS)
+    document.addEventListener(eventName, onActionBoundary, true);
 
   return () => {
     window.removeEventListener('scroll', onViewportScroll);
@@ -110,11 +151,24 @@ export function connectDebugSessionScrollCapture(
       onReplayPersistence,
     );
     document.removeEventListener('scroll', onElementScroll, true);
+    for (const eventName of ACTION_BOUNDARY_EVENTS)
+      document.removeEventListener(eventName, onActionBoundary, true);
     flushPending();
   };
 
-  function flush(key: string, name: string, state: PendingScroll): void {
+  function flush(
+    key: string,
+    name: string,
+    state: PendingScroll,
+    force = false,
+  ): void {
+    if (state.refresh) state.latest = state.refresh();
     if (sameScrollPosition(state.captured ?? {}, state.latest)) return;
+    if (
+      !force &&
+      !hasMeaningfulScrollDelta(state.captured, state.latest)
+    )
+      return;
     state.lastCapturedAt = performance.now();
     state.captured = state.latest;
     session.capture('scroll', 'emitted', { name, payload: state.latest });
@@ -125,12 +179,34 @@ function sameScrollPosition(a: ScrollPosition, b: ScrollPosition): boolean {
   return Object.keys(b).every((key) => a[key] === b[key]);
 }
 
+function hasMeaningfulScrollDelta(
+  captured: ScrollPosition | undefined,
+  latest: ScrollPosition,
+): boolean {
+  return ['scrollX', 'scrollY', 'scrollLeft', 'scrollTop'].some((key) => {
+    const current = latest[key];
+    if (typeof current !== 'number') return false;
+    const previous = captured?.[key];
+    const baseline = typeof previous === 'number' ? previous : 0;
+    return Math.abs(current - baseline) > SCROLL_MIN_DELTA_PX;
+  });
+}
+
 function replaySelector(element: HTMLElement): string | undefined {
-  if (element.id) return `#${cssEscape(element.id)}`;
-  const named = element.closest('[data-craft-name]');
-  const name = named?.getAttribute('data-craft-name');
-  if (name) {
-    const selector = `[data-craft-name="${cssEscape(name)}"]`;
+  if (element.id) {
+    const selector = `#${cssEscape(element.id)}`;
+    if (isUnique(selector)) return selector;
+  }
+  for (const attribute of [
+    'data-replay-id',
+    'data-craft-name',
+    'data-testid',
+    'data-test',
+    'data-cy',
+  ]) {
+    const value = element.getAttribute(attribute);
+    if (!value) continue;
+    const selector = `[${attribute}="${cssStringEscape(value)}"]`;
     if (isUnique(selector)) return selector;
   }
   const parts: string[] = [];
@@ -163,4 +239,13 @@ function cssEscape(value: string): string {
   return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
     ? CSS.escape(value)
     : value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
+function cssStringEscape(value: string): string {
+  return value
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', '\\"')
+    .replaceAll('\n', '\\a ')
+    .replaceAll('\r', '\\d ')
+    .replaceAll('\f', '\\c ');
 }

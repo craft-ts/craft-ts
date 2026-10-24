@@ -70,7 +70,7 @@ describe('debug session local archive API', () => {
         },
         session: {
           format: 'craft-debug-session',
-          version: 2,
+          version: 6,
           startUrl: 'http://localhost:4200/',
           exportedAt: Date.now(),
           truncated: false,
@@ -315,6 +315,16 @@ describe('debug session local archive API', () => {
     denied.close();
   });
 
+  it('accepts the e-commerce demo origin for session capture', async () => {
+    socket = new WebSocket(
+      baseUrl.replace('http:', 'ws:') + '/sessions/ws',
+      { origin: 'http://localhost:4204' },
+    );
+
+    await once(socket, 'open');
+    expect(socket.readyState).toBe(WebSocket.OPEN);
+  });
+
   it('does not expose the session index to remote browser origins', async () => {
     const response = await fetch(`${baseUrl}/sessions`, {
       headers: { origin: 'https://example.com' },
@@ -330,7 +340,7 @@ describe('debug session local archive API', () => {
       id,
       {
         format: 'craft-debug-session',
-        version: 2,
+        version: 6,
         startUrl: 'http://localhost:4200/',
         exportedAt: Date.now(),
         truncated: false,
@@ -358,7 +368,7 @@ describe('debug session local archive API', () => {
       id,
       {
         format: 'craft-debug-session',
-        version: 2,
+        version: 6,
         startUrl: 'http://localhost:4200/',
         exportedAt: Date.now(),
         truncated: false,
@@ -411,7 +421,7 @@ function syncMessage(id: string, participantId: string, eventId: string) {
     },
     session: {
       format: 'craft-debug-session',
-      version: 2,
+      version: 6,
       startUrl: `http://localhost:4200/${participantId}`,
       viewport: { width: 390, height: 844 },
       exportedAt: Date.now(),

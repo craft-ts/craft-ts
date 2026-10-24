@@ -27,6 +27,8 @@ import {
   assertPathBoundaries,
   assertPersistedPrimitiveHasUnique,
   assertRouteDiProofs,
+  assertLazyRouteTargetsStayLazy,
+  lazyRouteImportViolations,
   assertServerFunctionArchitecture,
   craftComputedPureViolations,
   craftEffectImperativeSyncViolations,
@@ -2363,6 +2365,137 @@ describe('route DI proofs', () => {
 
     expect(routeDiProofViolations(graph.graph)).toEqual([]);
     expect(() => assertRouteDiProofs(graph.graph)).not.toThrow();
+  });
+
+  it('keeps lazy route targets out of the static entry-point import graph', async () => {
+    const graph = await graphOf({
+      'main.ts': `import './app.routes';`,
+      'app.routes.ts': `
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { rootRoutes } = craftRoutes('root', [
+          { path: 'feature', loadChildren: () => import('./feature.routes').then((m) => m.featureRoutes) },
+        ]);
+      `,
+      'feature.routes.ts': `
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { featureRoutes } = craftRoutes('feature', [
+          { path: 'page', loadComponent: () => import('./page').then((m) => m.Page) },
+        ]);
+      `,
+      'page.ts': `export const Page = {};`,
+      'lazy-barrel.ts': `export * from './feature.routes';`,
+    });
+
+    const violations = lazyRouteImportViolations(graph.graph, {
+      entryPoints: ['main.ts'],
+    });
+    expect(violations).toEqual([]);
+    expect(() =>
+      assertLazyRouteTargetsStayLazy(graph.graph, { entryPoints: ['main.ts'] }),
+    ).not.toThrow();
+  });
+
+  it('reports a lazy route imported through a barrel from the app entry point', async () => {
+    const graph = await graphOf({
+      'main.ts': `import './app.routes';`,
+      'app.routes.ts': `
+        import Lazy = require('./lazy-barrel');
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { rootRoutes } = craftRoutes('root', [
+          { path: 'feature', loadChildren: () => import('./feature.routes').then((m) => m.featureRoutes) },
+        ]);
+      `,
+      'feature.routes.ts': `
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { featureRoutes } = craftRoutes('feature', [
+          { path: 'page', loadComponent: () => import('./page').then((m) => m.Page) },
+        ]);
+      `,
+      'page.ts': `export const Page = {};`,
+      'lazy-barrel.ts': `export * from './feature.routes';`,
+    });
+
+    const violations = lazyRouteImportViolations(graph.graph, {
+      entryPoints: ['main.ts'],
+    });
+    expect(violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          lazyTarget: 'feature.routes.ts',
+          importPath: [
+            'main.ts',
+            'app.routes.ts',
+            'lazy-barrel.ts',
+            'feature.routes.ts',
+          ],
+        }),
+      ]),
+    );
+    expect(() =>
+      assertLazyRouteTargetsStayLazy(graph.graph, { entryPoints: ['main.ts'] }),
+    ).toThrow(/statically reachable.*main\.ts -> app\.routes\.ts/);
+  });
+
+  it('reports when one lazy route statically imports another lazy route target', async () => {
+    const graph = await graphOf({
+      'main.ts': `import './app.routes';`,
+      'app.routes.ts': `
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { rootRoutes } = craftRoutes('root', [
+          { path: 'first', loadChildren: () => import('./first.routes').then((m) => m.firstRoutes) },
+          { path: 'second', loadChildren: () => import('./second.routes').then((m) => m.secondRoutes) },
+        ]);
+      `,
+      'first.routes.ts': `
+        import './second.routes';
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { firstRoutes } = craftRoutes('first', []);
+      `,
+      'second.routes.ts': `
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { secondRoutes } = craftRoutes('second', []);
+      `,
+    });
+
+    expect(
+      lazyRouteImportViolations(graph.graph, { entryPoints: ['main.ts'] }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          lazyTarget: 'second.routes.ts',
+          importPath: ['first.routes.ts', 'second.routes.ts'],
+        }),
+      ]),
+    );
+  });
+
+  it('ignores type-only imports and route-local static dependencies', async () => {
+    const graph = await graphOf({
+      'main.ts': `
+        import type { FeatureRoutes } from './feature.routes';
+        export { type FeatureRoutes } from './feature.routes';
+        import './app.routes';
+      `,
+      'app.routes.ts': `
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { rootRoutes } = craftRoutes('root', [
+          { path: 'feature', loadChildren: () => import('./feature.routes').then((m) => m.featureRoutes) },
+        ]);
+      `,
+      'feature.routes.ts': `
+        import { featureHelper } from './feature-helper';
+        declare function craftRoutes(name: string, routes: unknown[]): unknown;
+        export const { featureRoutes } = craftRoutes('feature', [
+          { path: 'page', loadComponent: () => import('./page').then((m) => m.Page) },
+        ]);
+      `,
+      'feature-helper.ts': `export const featureHelper = true;`,
+      'page.ts': `export const Page = {};`,
+    });
+
+    expect(
+      lazyRouteImportViolations(graph.graph, { entryPoints: ['main.ts'] }),
+    ).toEqual([]);
   });
 
   it('requires a pending-component RouteCheckedDI in addition to the target proof', async () => {

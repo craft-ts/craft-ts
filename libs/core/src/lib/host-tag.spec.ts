@@ -10,7 +10,6 @@ import { ɵINJECTOR_SCOPE } from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
 import { COMPONENT_REGISTER, createComponentRegister } from './component-register';
 import { HOST_TAG_LIST, HostName, provideHostName } from './host-tag';
-import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import { craftUse } from './craft-use';
 
 function createHostInjector(providers: Provider[] = []) {
@@ -26,7 +25,7 @@ function createHostInjector(providers: Provider[] = []) {
     Injector.NULL as EnvironmentInjector,
     'host-tag-spec',
   );
-  return ɵcraftInjectorFromHost(environmentInjector);
+  return environmentInjector;
 }
 
 describe('host tags', () => {

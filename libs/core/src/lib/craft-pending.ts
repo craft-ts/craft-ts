@@ -211,7 +211,7 @@ const CRAFT_LOADING_FEATURE = Symbol('craft-loading-feature');
 
 /**
  * An opaque unit of pending/error configuration produced by a `with*` helper and
- * consumed by {@link provideCraftLoading}. Mirrors Angular's `provideRouter`
+ * consumed by {@link provideCraftLoading}. Mirrors the router provider API
  * feature pattern so config reads as `provideCraftLoading(withX(), withY())`.
  */
 export interface CraftLoadingFeature {
@@ -234,7 +234,7 @@ export function craftLoadingFeature(
 
 /**
  * Runtime guard distinguishing a {@link CraftLoadingFeature} (produced by a
- * `with*` loading helper) from any other value — notably an Angular
+ * `with*` loading helper) from any other value — notably an unrelated
  * `RouterFeature`. Lets {@link provideCraftRouter} accept loading and router
  * features mixed in a single call and split them apart.
  */

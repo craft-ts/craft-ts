@@ -74,8 +74,7 @@ export function ɵrunCraftAppInitializers(
  * Boots a Craft application: builds the root injector, runs the app-start
  * hooks, then mounts the root component.
  *
- * This replaces Angular's `bootstrapApplication`. There is no platform to
- * create and no zone to enter — an injector and a mount is the whole of it.
+ * Creates the app injector, runs app-start hooks, and mounts the root component.
  */
 export function bootstrapCraft(options: BootstrapCraftOptions): CraftAppRef {
   const platform = createBrowserPlatform(window);

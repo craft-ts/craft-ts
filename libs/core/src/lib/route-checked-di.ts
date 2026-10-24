@@ -15,9 +15,8 @@ import type {
  * type performs a **local** check: given a component dependency contract and
  * the set of provider names (and optionally provided value types) reachable
  * from this route's ancestors, it returns either `true` or the list of error
- * messages. Functional components expose that contract through
- * `ComponentDepsOf<typeof MyComponent>`; decorated Angular components can
- * still pass their legacy generated `GenDeps_*` alias.
+ * messages. Craft components expose that contract through
+ * `ComponentDepsOf<typeof MyComponent>` or an explicit `componentDeps` map.
  *
  * Recommended placement (used by the type-stress generator): the check lives
  * **in the route file** — i.e. alongside the `craftRoutes(...)` call that
@@ -45,9 +44,7 @@ import type {
  *   export type FeatureXRouteProvidedNames = AppProvidedNames | 'FeatureXRouteService';
  *   export type FeatureXRouteProvidedValues = AppProvidedValues;
  *
- *   // Cascade DI check — name union derived from GenDeps.provided so it stays
- *   // in sync with @Component.providers (via the `brand-angular-deps-match`
- *   // ESLint rule).
+ *   // Cascade DI check — names are derived from the component dependency map.
  *   type FeatureXCompYComponentProvidedNames =
  *     | FeatureXRouteProvidedNames
  *     | Extract<keyof GenDeps_FeatureXCompYComponent['provided'], string>;
@@ -65,11 +62,7 @@ import type {
  *  - Con: Each ancestor (app, parent route) must explicitly re-export its
  *    cumulative provider names. The generator handles this; hand-written
  *    routes must thread the types manually.
- *  - Note: The check reads from `GenDeps.provided`. Drift between
- *    `@Component.providers` (runtime) and `GenDeps.provided` (type-level) is
- *    detected (and auto-fixed) by the `craft-ts/brand-angular-deps-match`
- *    ESLint rule. Running `lint` (or `lint --fix`) before `typecheck` is what
- *    closes the loop end-to-end.
+ *  - Note: Keep the declared dependency map aligned with the route providers.
  */
 
 // -----------------------------------------------------------------------------

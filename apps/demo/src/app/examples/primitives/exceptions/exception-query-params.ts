@@ -75,7 +75,7 @@ export const { ExceptionQueryParamsView, provideExceptionQueryParamsView } =
           };
         },
       );
-      yield* craftMethod('navigate', function* (mode: string) {
+      yield* craftMethod('navigateExceptionsExceptionQueryParams', function* (mode: string) {
         void router.navigate({
           to: 'exception-query-params',
           //@ts-expect-error intentional to demonstrate the example

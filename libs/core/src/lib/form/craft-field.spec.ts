@@ -2,13 +2,13 @@ import {
   computed,
   signal,
 } from '../host/craft-compat';
-import { TestBed } from '../host/craft-test-bed';
+import { CraftTestBed } from '../host/craft-test-bed';
 import { craftException } from '../craft-exception';
 import { craftField, CraftValidator, FieldAttributeMeta } from './craft-field';
 
 describe('craftField', () => {
   it('creates a field tree from an initial value', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ name: 'romain', age: 35 });
 
       expect(form.value()).toEqual({ name: 'romain', age: 35 });
@@ -18,7 +18,7 @@ describe('craftField', () => {
   });
 
   it('preserves child identity across reads', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
 
       expect(form.email).toBe(form.email);
@@ -26,7 +26,7 @@ describe('craftField', () => {
   });
 
   it('updates the model when set is called on a child', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
 
       form.email.set('hello@example.com');
@@ -37,7 +37,7 @@ describe('craftField', () => {
   });
 
   it('marks the field dirty after a set', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
 
       expect(form.email.dirty()).toBe(false);
@@ -51,7 +51,7 @@ describe('craftField', () => {
   });
 
   it('marks touched independently from dirty', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
 
       form.email.ɵmarkTouched();
@@ -63,7 +63,7 @@ describe('craftField', () => {
   });
 
   it('resets value, dirty, and touched recursively', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
 
       form.email.set('foo');
@@ -81,7 +81,7 @@ describe('craftField', () => {
   });
 
   it('patch updates a subset of properties', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ name: 'a', age: 1 });
 
       form.patch(() => ({ age: 42 }));
@@ -91,7 +91,7 @@ describe('craftField', () => {
   });
 
   it('runs registered sync validators and exposes errors', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
       const requiredValidator: CraftValidator<string> = ({ value }) => ({
         result: computed(() =>
@@ -113,7 +113,7 @@ describe('craftField', () => {
   });
 
   it('exposes native constraint metadata via signals', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ age: 0 });
       const minValidator: CraftValidator<number> = () => ({
         result: signal(undefined).asReadonly(),
@@ -130,7 +130,7 @@ describe('craftField', () => {
   });
 
   it('aggregates multiple required validators with OR semantics', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ name: '' });
       const requiredAttr: CraftValidator<string> = () => ({
         result: signal(undefined).asReadonly(),
@@ -147,7 +147,7 @@ describe('craftField', () => {
   });
 
   it('inherits disabled state from a parent', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ profile: { name: '' } });
       const disableSource = signal(false);
       form.ɵregisterStateBinding('disabled', disableSource);
@@ -160,7 +160,7 @@ describe('craftField', () => {
   });
 
   it('resets force-resyncs registered controls via the reset trigger', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ email: '' });
       const trigger = form.email.ɵresetTrigger;
       const initial = trigger();
@@ -173,7 +173,7 @@ describe('craftField', () => {
   });
 
   it('reset accepts an optional fresh value', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ name: 'a' });
 
       form.name.set('b');
@@ -187,7 +187,7 @@ describe('craftField', () => {
   });
 
   it('treats pending validators as not invalid but pending', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const form = craftField({ name: '' });
       const pendingValidator: CraftValidator<string> = () => ({
         result: signal({ pending: true } as const).asReadonly(),

@@ -544,8 +544,8 @@ interface DynamicResourceConfig<T, R, GroupIdentifier extends string> {
 }
 
 /**
- * It is not possible to instantiate a resource from within an effect directly:
- * NG0602: effect() cannot be called from within a reactive context.
+ * A resource cannot be instantiated from within an effect directly because
+ * effects cannot be created from a reactive context.
  *
  * The workaround is to create a dynamic injection token using a factory function,
  * which instantiates the resource using the provided configuration.

@@ -1,10 +1,11 @@
 import { ResourceStatus, Signal } from '../host/craft-compat';
 import { ResourceByIdRef } from '../resource-by-id';
+import type { PersistedStorageSnapshotEntry } from '../persisted-storage-snapshot';
 
 /**
  * The resource surface the persister actually drives: it reads `status` and
  * `value`, restores a cached value with `set`, and can trigger a background
- * reload. Both Angular's `ResourceRef` and craft's `CraftResourceRef` — what
+ * reload. The `CraftResourceRef` produced by `craftResource(...)` and `query(...)` — what
  * `craftResource(...)`/`query(...)` produce — satisfy it.
  */
 export interface PersistedQueryResource {
@@ -49,4 +50,11 @@ export interface QueriesPersister {
   clearAllQueries(): void;
   clearAllQueriesById(): void;
   clearAllCache(): void;
+  /** Captures the registered persisted query values without scanning the backend. */
+  capturePersistedValues?():
+    | readonly PersistedStorageSnapshotEntry[]
+    | Promise<readonly PersistedStorageSnapshotEntry[]>;
+  restorePersistedValues?(
+    entries: readonly PersistedStorageSnapshotEntry[],
+  ): void | Promise<void>;
 }

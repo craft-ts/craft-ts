@@ -1,9 +1,5 @@
-import {
-  computed,
-  DestroyRef,
-  Injector,
-  runInInjectionContext,
-} from './host/craft-compat';
+import { computed, DestroyRef, runInInjectionContext } from './host/craft-compat';
+import type { CraftInjector } from './host/craft-injector';
 import { waitUntilTrue } from './stream-kernel';
 import type { AnyCraftException } from './craft-exception';
 import { CraftGenShortCircuit, isCraftGenShortCircuit } from './craft-gen';
@@ -18,7 +14,6 @@ import {
   type RuntimeAwaitRequest,
 } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
-import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import {
   isTemporalAwaitRequest,
   RealCraftTemporalRuntime,
@@ -81,7 +76,7 @@ export type ForeignYieldContext = {
    * from here, which is what makes per-route runtimes and their inheritance
    * possible at all.
    */
-  readonly injector: Injector;
+  readonly injector: CraftInjector;
   /** Aborted when the owning program is superseded or destroyed. */
   readonly abortSignal?: AbortSignal;
 };
@@ -143,7 +138,7 @@ export type CraftProgramPumpOptions = {
 // resume after an await; ignored on the initial pump).
 export function pumpCraftProgramSync(
   iterator: Generator<unknown, unknown, unknown>,
-  injector: Injector,
+  injector: CraftInjector,
   options: CraftProgramPumpOptions,
   resumeValue?: unknown,
 ): CraftProgramStep {
@@ -225,7 +220,7 @@ export function pumpCraftProgramSync(
 function isResourceSettled(resource: GuardAwaitResourceLike): boolean {
   const status = resource.status();
 
-  // Angular's raw `resource()` reports technical loader failures as `error`,
+  // The underlying resource reports technical loader failures as `error`,
   // while Craft resources map business failures to `exception`.
   return status === 'resolved' || status === 'exception' || status === 'error';
 }
@@ -237,7 +232,7 @@ function isResourceSettled(resource: GuardAwaitResourceLike): boolean {
 function awaitPromiseRequest(
   value: PromiseLike<unknown>,
   cancel: (() => void) | undefined,
-  injector: Injector,
+  injector: CraftInjector,
   abortSignal: AbortSignal | undefined,
 ): Promise<unknown> {
   if (!cancel) return Promise.resolve(value);
@@ -288,7 +283,7 @@ function awaitPromiseRequest(
 // first settle.
 export function awaitCraftProgramRequest(
   request: RuntimeAwaitRequest,
-  injector: Injector,
+  injector: CraftInjector,
   abortSignal?: AbortSignal,
 ): Promise<unknown> {
   if (isTemporalAwaitRequest(request)) {
@@ -333,7 +328,7 @@ export function awaitCraftProgramRequest(
 // `toObservable({ injector })` need it restored.
 export async function driveCraftProgramAsync(
   iterator: Generator<unknown, unknown, unknown>,
-  injector: Injector,
+  injector: CraftInjector,
   step: CraftProgramStep,
   options: CraftProgramPumpOptions,
 ): Promise<CraftProgramSettledStep> {
@@ -379,13 +374,13 @@ export async function executeGeneratorCompatibleFactoryAsync<
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
-  getInjector: () => Injector | object;
+  getInjector: () => CraftInjector;
   args: Args;
   invalidYieldErrorMessage: string;
   appStartNotSupportedErrorMessage?: string;
   abortSignal?: AbortSignal;
 }): Promise<CraftProgramSettledStep> {
-  const injector = ɵcraftInjectorFromHost(getInjector());
+  const injector = getInjector();
   const options: CraftProgramPumpOptions = {
     invalidYieldErrorMessage,
     appStartNotSupportedErrorMessage,

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
@@ -43,8 +43,8 @@ describe('guide/components/css-variables.md #card', () => {
   it('sets a variant per instance and writes the runtime value', () => {
     const host = document.createElement('div');
     document.body.append(host);
-    mountCraftComponent(Page, host, TestBed.inject(Injector));
-    TestBed.tick();
+    mountCraftComponent(Page, host, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
 
     const cards = host.querySelectorAll('article');
     expect(cards[0]?.getAttribute('data-cardLook')).toBe('alert');

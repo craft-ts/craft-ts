@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import {
   ɵinjectCraftRouterRuntime,
@@ -12,23 +12,23 @@ import { demoRoutes } from './app.routes';
 
 describe('App navbar', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
   it('reopens the examples panel after several navigations', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter(demoRoutes.toRoutes())],
     });
 
     const element = document.createElement('div');
     document.body.append(element);
-    const mounted = mountCraftComponent(App, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const mounted = mountCraftComponent(App, element, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
 
     const toggle = () => {
       element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
-      TestBed.tick();
+      CraftTestBed.tick();
     };
     const clickNavLink = async (label: string) => {
       const link = await vi.waitFor(() => {
@@ -39,7 +39,7 @@ describe('App navbar', () => {
         return match;
       });
       link!.click();
-      TestBed.tick();
+      CraftTestBed.tick();
     };
 
     const destinations = [
@@ -70,22 +70,22 @@ describe('App navbar', () => {
   });
 
   it('intercepts an example link before closing the navigation panel', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter(demoRoutes.toRoutes())],
     });
 
-    const router = ɵrunInInjectionContext(TestBed.inject(Injector), () =>
+    const router = ɵrunInInjectionContext(CraftTestBed.inject(Injector), () =>
       ɵinjectCraftRouterRuntime(),
     );
     if (router === null) throw new Error('Craft router was not provided');
     const navigateByUrl = vi.spyOn(router, 'navigateByUrl');
     const element = document.createElement('div');
     document.body.append(element);
-    const mounted = mountCraftComponent(App, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const mounted = mountCraftComponent(App, element, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
 
     element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
     const link = Array.from(
       element.querySelectorAll<HTMLAnchorElement>('a'),
     ).find((anchor) => anchor.textContent?.trim() === 'Reactive Composition');
@@ -101,17 +101,17 @@ describe('App navbar', () => {
   });
 
   it('lists Craft Lazy Layout when the parent lazy-layout route is enabled', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter(demoRoutes.toRoutes())],
     });
 
     const element = document.createElement('div');
     document.body.append(element);
-    const mounted = mountCraftComponent(App, element, TestBed.inject(Injector));
-    TestBed.tick();
+    const mounted = mountCraftComponent(App, element, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
 
     element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
 
     const labels = Array.from(element.querySelectorAll('a')).map((anchor) =>
       anchor.textContent?.trim(),

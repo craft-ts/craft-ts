@@ -1,7 +1,8 @@
 import {
   signal,
 } from '../host/craft-compat';
-import { TestBed } from '../host/craft-test-bed';
+import { ɵinjectCraftMethodReplayRegistry } from '../craft-method-replay-registry';
+import { CraftTestBed } from '../host/craft-test-bed';
 import { craftException } from '../craft-exception';
 import { mutation } from '../mutation';
 import { state } from '../state';
@@ -40,7 +41,7 @@ describe('insertFormSubmit', () => {
   });
 
   it('submits without config (no second argument) — stays clean of exceptions', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const submitRef = craftUse(
         mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) => {
@@ -80,8 +81,36 @@ describe('insertFormSubmit', () => {
     });
   });
 
+  it('registers the exposed form submit method for deterministic replay', async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
+      const submitRef = craftUse(
+        mutation('submitRef', {
+          method: (value: ValidatedFormValue<LoginData>) => value,
+          loader: async ({ params }) => params,
+        }),
+      );
+      const loginForm = craftUse(
+        state(
+          'loginForm',
+          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+          insertForm(insertFormSubmit(submitRef)),
+        ),
+      );
+      const registry = ɵinjectCraftMethodReplayRegistry();
+      const address = registry
+        .addresses()
+        .find((candidate) => candidate.endsWith('form / method:submit'));
+
+      expect(address).toBeDefined();
+      const result = registry.invoke(address!, undefined, []);
+      if (result instanceof Promise) await result;
+
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(true);
+    });
+  });
+
   it('reflects mutation exceptions on the form', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const submitRef = craftUse(
         mutation('submitRef', {
           method: (login: ValidatedFormValue<LoginData>) => login,
@@ -116,7 +145,7 @@ describe('insertFormSubmit', () => {
   });
 
   it('marks hasAttemptedSubmit on submit()', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const submitRef = craftUse(
         mutation('submitRef', {
           method: (login: ValidatedFormValue<LoginData>) => login,
@@ -138,7 +167,7 @@ describe('insertFormSubmit', () => {
   });
 
   it('does not call the loader when the form is invalid', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const loaderSpy = vi.fn();
       const submitRef = craftUse(
         mutation('submitRef', {
@@ -176,7 +205,7 @@ describe('insertFormSubmit', () => {
   // submit() bails out when a sub-field validator (e.g. cRequired on `name`
   // via insertSelectFormTree('name', insertFormAttributes(...))) fails.
   it('does not call the loader when a sub-field validator fails', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const loaderSpy = vi.fn();
       const submitRef = craftUse(
         mutation('submitRef', {
@@ -226,7 +255,7 @@ describe('insertFormSubmit', () => {
 
   describe('config callbacks', () => {
     it('success callback adds exceptions on resolved (no mutation exception)', async () => {
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const submitRef = craftUse(
           mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
@@ -270,7 +299,7 @@ describe('insertFormSubmit', () => {
     });
 
     it('exceptions rules can omit mutation exceptions and add typed form submit exceptions', async () => {
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const submitRef = craftUse(
           mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
@@ -328,7 +357,7 @@ describe('insertFormSubmit', () => {
     });
 
     it('exceptions rules can omit specific mutation exceptions', async () => {
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const submitRef = craftUse(
           mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
@@ -366,7 +395,7 @@ describe('insertFormSubmit', () => {
     });
 
     it('success callback does NOT fire when the mutation returned an exception', async () => {
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const successSpy = vi.fn(() => undefined);
         const submitRef = craftUse(
           mutation('submitRef', {
@@ -393,7 +422,7 @@ describe('insertFormSubmit', () => {
     });
 
     it('resets the form after a successful resolved mutation', async () => {
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const submitRef = craftUse(
           mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
@@ -432,7 +461,7 @@ describe('insertFormSubmit — parallel forms', () => {
   });
 
   it('each parallel form has its own submitting state', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const submitRef = craftUse(
         mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) => {
@@ -490,7 +519,7 @@ describe('insertFormSubmit — parallel forms', () => {
   });
 
   it('each parallel form has its own exceptions and override callbacks', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const submitRef = craftUse(
         mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) =>
@@ -588,11 +617,11 @@ describe('insertFormSubmit — parallel forms', () => {
       expectTypeOf<keyof GetServiceDependencies<typeof View>['dependencies']>()
         .toEqualTypeOf<'Store'>();
 
-      TestBed.configureTestingModule({
+      CraftTestBed.configureTestingModule({
         providers: [provideStore(), provideView()],
       });
 
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const view = craftUse(View());
         const add = craftUse(Store()).add;
 
@@ -635,7 +664,7 @@ describe('insertFormSubmit — parallel forms', () => {
       expectTypeOf<keyof GetServiceDependencies<typeof Form>['dependencies']>()
         .toEqualTypeOf<'Lists'>();
 
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const form = craftUse(Form());
 
         form.titleForm.form.set('milk');
@@ -681,11 +710,11 @@ describe('insertFormSubmit — parallel forms', () => {
       expectTypeOf<keyof GetServiceDependencies<typeof Logins>['dependencies']>()
         .toEqualTypeOf<'Store'>();
 
-      TestBed.configureTestingModule({
+      CraftTestBed.configureTestingModule({
         providers: [provideStore(), provideLogins()],
       });
 
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const { loginForms } = craftUse(Logins());
 
         // The shortcut is resolved for each form, not only the first one.
@@ -730,7 +759,7 @@ describe('insertFormSubmit — parallel forms', () => {
         },
       );
 
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const { loginForms } = craftUse(Logins());
 
         loginForms.select('1')!.submit();

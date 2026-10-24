@@ -23,7 +23,6 @@ const HOSTS = new Set([
   'craftComponent',
   'craftGen',
   'craftService',
-  'toCraftService',
 ]);
 
 const PIPE_BY_PRIMITIVE = {

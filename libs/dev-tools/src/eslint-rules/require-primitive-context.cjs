@@ -14,7 +14,6 @@ const ALLOWED_HOSTS = new Set([
   'craftRoute',
   'craftRoutes',
   'craftService',
-  'toCraftService',
 ]);
 
 const CORE_IMPORTS = new Set([
@@ -29,7 +28,6 @@ const CORE_IMPORTS = new Set([
   'queryParam',
   'queryParams',
   'state',
-  'toCraftService',
 ]);
 
 const COMPONENT_IMPORTS = new Set(['craftComponent']);
@@ -41,7 +39,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Require Craft primitive creation calls to run inside an Angular-aware Craft host.',
+        'Require Craft primitive creation calls to run inside a Craft host.',
     },
     schema: [],
     messages: {

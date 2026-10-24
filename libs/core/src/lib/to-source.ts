@@ -10,7 +10,7 @@ import { ReadonlySource } from './util/source.type';
 import { SourceBranded } from './util/util';
 
 /**
- * Converts an Angular signal into a readonly source with lazy emission semantics.
+ * Converts a Craft signal into a readonly source with lazy emission semantics.
  *
  * This function bridges the gap between signals and sources by:
  * - Converting continuous signal values into discrete source emissions
@@ -96,7 +96,7 @@ import { SourceBranded } from './util/util';
  *   template: `...`,
  * })
  * export class UserDetailComponent {
- *   route = inject(ActivatedRoute);
+ *   route = inject(CraftRouteContext);
  *
  *   // Convert route param to signal
  *   userIdSignal = toSignal(
@@ -192,8 +192,8 @@ import { SourceBranded } from './util/util';
  * // Query executes only after debounce
  * searchInputSignal.set('ang');
  * searchInputSignal.set('angu');
- * searchInputSignal.set('angular');
- * // -> Eventually debouncedSearchSource emits 'angular'
+ * searchInputSignal.set('craft');
+ * // -> Eventually debouncedSearchSource emits 'craft'
  * // -> searchResults query executes once
  * ```
  *

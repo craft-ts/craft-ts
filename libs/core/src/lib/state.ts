@@ -5,14 +5,12 @@ import {
   Injector,
   isSignal,
   isWritableSignal,
-  linkedSignal,
   runInInjectionContext,
   type Provider,
   Signal,
   WritableSignal,
 } from './host/craft-compat';
 
-const UNSET_ANGULAR_STATE = Symbol('unset-angular-state');
 import {
   craftComputed,
   craftLinkedSignal,
@@ -54,6 +52,7 @@ import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
 import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
+import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
@@ -109,14 +108,6 @@ const createLinkedSignalWithOptions = craftLinkedSignal as unknown as <
   computation: () => T;
   equal?: (a: T, b: T) => boolean;
 }) => CraftWritableSignal<T>;
-
-const createCraftLinkedSignalWithOptions = linkedSignal as unknown as <
-  T,
->(options: {
-  source: () => unknown;
-  computation: () => T;
-  equal?: (a: T, b: T) => boolean;
-}) => WritableSignal<T>;
 
 export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
   MergeObject<
@@ -313,7 +304,7 @@ function isGeneratorFunction(value: unknown): value is AnyGeneratorFunction {
 function executeStateFactory<This, Args extends unknown[], Result>(
   factory: (this: This, ...args: Args) => Result,
   thisArg: This,
-  getInjector: () => Injector | object,
+  getInjector: () => Injector,
   ...args: Args
 ): ResolveGeneratorResult<Result> {
   const injector = getInjector();
@@ -347,9 +338,8 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * `insertStatePipe(insertion1, insertion2)`.
  *
  * @remarks
- * For the best TypeScript inference, pass Angular `Signal` values (e.g. `signal`, `linkedSignal`)
- * rather than manually widening to `WritableSignal`. This avoids some overload inference limits
- * and keeps the public state read-only.
+ * Pass a Craft signal value (e.g. `craftSignal` or `craftLinkedSignal`) when
+ * deriving state from another reactive value.
  *
  * @param name - The state name. Used for host tagging and reactive branding
  * (`const counter = yield* state('counter', 0)`) and as the injector host
@@ -554,29 +544,10 @@ function createStateRef<StateType>(
     : rawConfig;
   const isSignalState =
     isCraftSignal(resolvedStateConfig) || isSignal(resolvedStateConfig);
-  const isAngularSignalState =
-    isSignal(resolvedStateConfig) && !isCraftSignal(resolvedStateConfig);
   const isCraftWritableState =
     isCraftSignal(resolvedStateConfig) &&
     typeof Reflect.get(resolvedStateConfig, 'set') === 'function';
   const readResolvedState = () => (resolvedStateConfig as () => unknown)();
-  const wrapAngularReadonlyState = () => {
-    const override = craftSignal<StateType | typeof UNSET_ANGULAR_STATE>(
-      UNSET_ANGULAR_STATE,
-    );
-    const value = (() => {
-      const local = override();
-      return local === UNSET_ANGULAR_STATE
-        ? (readResolvedState() as StateType)
-        : (local as StateType);
-    }) as CraftWritableSignal<StateType>;
-    value.set = (next) => {
-      override.set(next);
-    };
-    value.update = (updateFn) => value.set(updateFn(value()));
-    value.asReadonly = () => value;
-    return value;
-  };
   let lastValidState: StateType | undefined;
   let latestStateException: AnyCraftException | undefined;
   let skipInitialSourceValidation = isSignalState;
@@ -634,36 +605,25 @@ function createStateRef<StateType>(
       ? isWritableSignal(resolvedStateConfig) || isCraftWritableState
         ? (resolvedStateConfig as
             WritableSignal<StateType> | CraftWritableSignal<StateType>)
-        : isAngularSignalState
-          ? wrapAngularReadonlyState()
-          : craftLinkedSignal({
+        : craftLinkedSignal({
               source: readResolvedState,
               computation: () => readResolvedState() as StateType,
             })
       : isSignalState
-        ? isAngularSignalState
-          ? createCraftLinkedSignalWithOptions({
-              source: readResolvedState,
-              computation: () => applySchema(readResolvedState(), 'source'),
-              equal: () => false,
-            })
-          : createLinkedSignalWithOptions({
-              source: readResolvedState,
-              computation: () => applySchema(readResolvedState(), 'source'),
-              equal: () => false,
-            })
+        ? createLinkedSignalWithOptions({
+            source: readResolvedState,
+            computation: () => applySchema(readResolvedState(), 'source'),
+            equal: () => false,
+          })
         : craftSignal(initialStateValue);
   const readonlyStateSignal =
-    isAngularSignalState &&
-    !(isWritableSignal(resolvedStateConfig) || isCraftWritableState)
-      ? (stateSignal as Signal<StateType>)
-      : isCraftSignal(stateSignal)
-        ? craftComputed(() => stateSignal())
-        : 'asReadonly' in stateSignal &&
-            typeof (stateSignal as { asReadonly?: unknown }).asReadonly ===
-              'function'
-          ? (stateSignal as CraftWritableSignal<StateType>).asReadonly()
-          : (stateSignal as Signal<StateType>);
+    isCraftSignal(stateSignal)
+      ? craftComputed(() => stateSignal())
+      : 'asReadonly' in stateSignal &&
+          typeof (stateSignal as { asReadonly?: unknown }).asReadonly ===
+            'function'
+        ? (stateSignal as CraftWritableSignal<StateType>).asReadonly()
+        : (stateSignal as Signal<StateType>);
   const publicStateReader = createYieldableReactiveValue(
     readonlyStateSignal as Signal<StateType>,
     name,
@@ -788,12 +748,28 @@ function createStateRef<StateType>(
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            exposedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+            const exposedMethod = createYieldableInsertionMethod(wrappedFn, {
               injector: methodInjector,
               invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage: STATE_APP_START_ERROR_MESSAGE,
             });
+            ɵregisterCraftReplayMethod(methodInjector, (_receiver, args) => {
+              const result = runInInjectionContext(methodInjector, () =>
+                exposedMethod(...args),
+              );
+              return isGenerator(result)
+                ? runCraftGenerator({
+                    iterator: result,
+                    injector: methodInjector,
+                    hostScope: 'function',
+                    invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+                  }).value
+                : result;
+            });
+            exposedAcc[key] = exposedMethod;
           } else {
             exposedAcc[key] = value;
           }

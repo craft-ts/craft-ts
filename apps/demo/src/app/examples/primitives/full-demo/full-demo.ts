@@ -34,7 +34,7 @@ type Todo = { readonly id: number; readonly title: string };
 export const { FullDemoView, provideFullDemoView } = craftService(
   { name: 'fullDemoView', providedIn: 'toProvide' },
   function* () {
-    const nextId = yield* craftPrivate(state('nextId', 3, ({ state, update }) => ({
+    const nextId = yield* craftPrivate(state('nextIdFullDemoFullDemo2', 3, ({ state, update }) => ({
       take: function* () {
         const _state = yield* state();
         const id = _state;
@@ -43,7 +43,7 @@ export const { FullDemoView, provideFullDemoView } = craftService(
       },
     })));
     const records = yield* craftPrivate(state(
-      'records',
+      'recordsFullDemoFullDemo2',
       [
         { id: 1, title: 'Learn Craft primitives' },
         { id: 2, title: 'Build functional components' },
@@ -54,7 +54,7 @@ export const { FullDemoView, provideFullDemoView } = craftService(
           update((current) => current.filter((todo) => todo.id !== id)),
       }),
     ));
-    const todos = yield* query('todos', {
+    const todos = yield* query('todosFullDemoFullDemo2', {
       method: (_: undefined) => undefined,
       loader: function* () {
         const _records = yield* records();
@@ -62,7 +62,7 @@ export const { FullDemoView, provideFullDemoView } = craftService(
       },
     });
     yield* todos.call(undefined); // trigger first call
-    const addTodo = yield* mutation('addTodo', {
+    const addTodo = yield* mutation('addTodoFullDemoFullDemo', {
       method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
         const todo = { id: yield* nextId.take(), title };
@@ -80,7 +80,7 @@ export const { FullDemoView, provideFullDemoView } = craftService(
       },
     });
     yield* state(
-      'titleForm',
+      'titleFormFullDemoFullDemo2',
       '',
       insertForm(
         insertFormAttributes(() => ({ validators: [cRequired()] })),
@@ -95,7 +95,7 @@ const FullDemo = craftComponent(
   {
     providers: [provideFullDemoView()],
   },
-  () => div({ class: example.page }, [
+  () => div({ class: example.card }, [
         heading({ class: example.title }, [
           'Full primitives demo ',
           StatusComponent({ status: FullDemoView.todos.status }),
@@ -153,7 +153,7 @@ const FullDemo = craftComponent(
                   'RemoveTodoButton',
                   {
                     class: buttonUi.root,
-                    'data-variant': 'danger',
+                    'data-variant': 'secondary',
                     type: 'button',
                   disabled: FullDemoView.removeTodo.isLoading,
                     *click() {

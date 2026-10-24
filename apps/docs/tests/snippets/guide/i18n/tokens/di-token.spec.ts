@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
@@ -72,13 +72,13 @@ describe('guide/i18n/tokens.md #di-token', () => {
     const mounted = mountCraftComponent(
       ShippingLine,
       host,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
     );
-    TestBed.tick();
+    CraftTestBed.tick();
     expect(host.textContent).toContain('kg');
 
     host.querySelector<HTMLButtonElement>('button')?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
     expect(host.textContent).toContain('lb');
 
     mounted.destroy();

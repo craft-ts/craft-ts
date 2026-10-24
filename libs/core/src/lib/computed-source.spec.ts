@@ -1,7 +1,7 @@
 import {
   computed,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { ReadonlySource } from './util/source.type';
 import { signalSource } from './signal-source';
 import { computedSource } from './computed-source';
@@ -15,7 +15,7 @@ describe('computedSource', () => {
     vi.resetAllMocks();
   });
   it('should generate a computedSource', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = signalSource<{ text: string }>('mySource');
       const myComputedSource = computedSource(
         mySource,

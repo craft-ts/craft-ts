@@ -193,16 +193,10 @@ describe('angular-brand-codemod', () => {
           export declare function Component(metadata: unknown): ClassDecorator;
           export declare function input<T>(): T;
         }
-        declare module '@angular/router' {
-          export declare class Router {
-            navigate(commands: unknown[]): void;
-          }
-        }
       `,
       'src/craft-ts-core.d.ts': `
         declare module '@craft-ts/core' {
           export declare function craftService(...args: any[]): any;
-          export declare function toCraftService(...args: any[]): any;
           export type DerivedService<T, U> = T & U;
           export type ExtractDeps<T> = T;
           export type GetDeps<T> = T;
@@ -223,15 +217,7 @@ describe('angular-brand-codemod', () => {
       `,
       'src/app/demo.ts': `
         import { Component, input } from '@angular/core';
-        import { Router } from '@angular/router';
         import { ApiService } from './api.service';
-        import { toCraftService } from '@craft-ts/angular';
-
-        const { Router: RouterService } = toCraftService({
-          name: 'Router',
-          providedIn: 'global',
-          token: Router,
-        });
 
         @Component({
           standalone: true,
@@ -240,9 +226,6 @@ describe('angular-brand-codemod', () => {
         export class DemoComponent {
           readonly userId = input<string>();
           private readonly apiService = ApiService();
-          private readonly router = RouterService(undefined, ({ navigate }) => ({
-            navigate,
-          }));
         }
       `,
     });

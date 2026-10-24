@@ -1,9 +1,8 @@
-import { InjectionToken, signal } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { signal } from './host/craft-compat';
+import { CraftTestBed } from './host/craft-test-bed';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   craftService,
-  ɵtoCraftService as toCraftService,
   type CraftServiceInput,
 } from './craft-service';
 import { craftUse } from './craft-use';
@@ -15,11 +14,11 @@ import {
 import { state } from './state';
 
 describe('craft service inputs', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => CraftTestBed.resetTestingModule());
 
   it('tracks a craft reader consumed through a service input', () => {
     const edges: ReactiveReadEdge[] = [];
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideReactiveReadObserver((edge) => edges.push(edge))],
     });
 
@@ -30,7 +29,7 @@ describe('craft service inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const source = craftUse(state('service-input-source', 3));
       expect(craftUse(ReadInput({ value: source })).value).toBe(3);
     });
@@ -44,9 +43,9 @@ describe('craft service inputs', () => {
     ).toBe(true);
   });
 
-  it('tracks an Angular signal passed as a service input', () => {
+  it('tracks a Craft signal passed as a service input', () => {
     const edges: ReactiveReadEdge[] = [];
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideReactiveReadObserver((edge) => edges.push(edge))],
     });
 
@@ -58,7 +57,7 @@ describe('craft service inputs', () => {
     );
     const source = signal(5);
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(craftUse(ReadSignalInput({ value: source })).value).toBe(5);
     });
 
@@ -67,43 +66,6 @@ describe('craft service inputs', () => {
         ({ reader, dependency }) =>
           reader?.name === 'ReadSignalInput' &&
           dependency.name === 'ReadSignalInput.value',
-      ),
-    ).toBe(true);
-  });
-
-  it('tracks signals exposed by a provider-backed service', () => {
-    type ProviderValue = { readonly value: ReturnType<typeof signal<number>> };
-    const token = new InjectionToken<ProviderValue>('TrackedProviderValue');
-    const edges: ReactiveReadEdge[] = [];
-
-    const { ReadProvider, provideReadProvider } = toCraftService(
-      {
-        name: 'ReadProvider',
-        providedIn: 'toProvide',
-        token,
-        provide: () => [],
-      },
-      function* (provider) {
-        return yield* provider.value();
-      },
-    );
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: token, useValue: { value: signal(7) } },
-        provideReactiveReadObserver((edge) => edges.push(edge)),
-        provideReadProvider(),
-      ],
-    });
-
-    TestBed.runInInjectionContext(() => {
-      expect(craftUse(ReadProvider())).toBe(7);
-    });
-
-    expect(
-      edges.some(
-        ({ reader, dependency }) =>
-          reader?.name === 'ReadProvider' &&
-          dependency.name === 'ReadProvider.value',
       ),
     ).toBe(true);
   });

@@ -40,7 +40,7 @@ export const { provideGranularMutation, GranularMutation } = craftService(
   { name: 'GranularMutation', providedIn: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
-      'pagination',
+      'paginationGranularMutationGranularMutation',
       paginationQueryParams(),
       ({ patch, state }) => ({
         nextPage: function* () {
@@ -56,7 +56,7 @@ export const { provideGranularMutation, GranularMutation } = craftService(
         },
       }),
     );
-    const updateUserName = yield* mutation('updateUserName', {
+    const updateUserName = yield* mutation('updateUserNameGranularMutationGranularMutation', {
       method: (user: User) => ({ ...user, name: `${user.name}-` }),
       identifier: ({ id }) => id,
       loader: function* ({ params }) {
@@ -64,7 +64,7 @@ export const { provideGranularMutation, GranularMutation } = craftService(
       },
     });
     yield* query(
-      'users',
+      'usersGranularMutationGranularMutation',
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -105,7 +105,7 @@ export const { GranularMutationCraftView, provideGranularMutationCraftView } =
     function* () {
       const store = yield* GranularMutation();
       yield* craftMethod(
-        'updatePageSize',
+        'updatePageSizeGranularMutationGranularMutation',
         function* (event: Event) {
           (yield* GranularMutation()).pagination.updatePageSize(
             Number(eventValue(event)),
@@ -197,7 +197,7 @@ const GranularMutationCraft = craftComponent(
                 select(
                   'PageSize',
                   {
-                    class: example.select,
+                    class: example.pageSize,
                     'aria-label': 'Page size',
                     value: function* () {
                       return String((yield* GranularMutationCraftView.store.pagination()).pageSize);

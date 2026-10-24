@@ -4,6 +4,12 @@ const craftMethodNameMatch = require('./craft-method-name-match.cjs');
 const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
 const craftPrimitiveNameMatch = require('./craft-primitive-name-match.cjs');
 const noCraftServiceReturn = require('./no-craft-service-return.cjs');
+const noDuplicateCraftServiceExposure = require(
+  './no-duplicate-craft-service-exposure.cjs',
+);
+const noReexposedCraftServiceUtility = require(
+  './no-reexposed-craft-service-utility.cjs',
+);
 const requireCraftServiceInputScope = require('./require-craft-service-input-scope.cjs');
 const preferDirectCraftServiceExposure = require('./prefer-direct-craft-service-exposure.cjs');
 const preferCraftComputedForReactiveGenerator = require('./prefer-craft-computed-for-reactive-generator.cjs');
@@ -105,6 +111,9 @@ const noServerFunctionOutsideResource = require('./no-server-function-outside-re
 const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
 const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
 const noReusedPrimitiveMethod = require('./no-reused-primitive-method.cjs');
+const preferCraftLongPress = require('./prefer-craft-long-press.cjs');
+const requireCraftReplayTrigger = require('./require-craft-replay-trigger.cjs');
+const preferCraftPointerGestures = require('./prefer-craft-pointer-gestures.cjs');
 const noEffectOutsideLoaders = require('./no-effect-outside-loaders.cjs');
 const noExplicitEffectType = require('./no-explicit-effect-type.cjs');
 const noExplicitCraftInsertionType = require('./no-explicit-craft-insertion-type.cjs');
@@ -127,6 +136,7 @@ const noTrustForwardedHeaders = require('./no-trust-forwarded-headers.cjs');
 const noEffectImportInFrontend = require('./no-effect-import-in-frontend.cjs');
 const requireI18nText = require('./require-i18n-text.cjs');
 const noI18nComposition = require('./no-i18n-composition.cjs');
+const noDirectCraftReactivity = require('./no-direct-craft-reactivity.cjs');
 const requireCatchTagExhaustiveReaction = require('./require-catch-tag-exhaustive-reaction.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 const securityRules = require('./security-config.cjs');
@@ -139,6 +149,8 @@ const plugin = {
     'craft-computed-name-match': craftComputedNameMatch,
     ...craftPrimitiveNameMatch,
     'no-craft-service-return': noCraftServiceReturn,
+    'no-duplicate-craft-service-exposure': noDuplicateCraftServiceExposure,
+    'no-reexposed-craft-service-utility': noReexposedCraftServiceUtility,
     'require-craft-service-input-scope': requireCraftServiceInputScope,
     'prefer-direct-craft-service-exposure': preferDirectCraftServiceExposure,
     'prefer-craft-computed-for-reactive-generator':
@@ -249,6 +261,9 @@ const plugin = {
     'no-invalid-insertion-pipe': noInvalidInsertionPipe,
     'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,
     'no-reused-primitive-method': noReusedPrimitiveMethod,
+    'prefer-craft-long-press': preferCraftLongPress,
+    'require-craft-replay-trigger': requireCraftReplayTrigger,
+    'prefer-craft-pointer-gestures': preferCraftPointerGestures,
     'no-effect-outside-loaders': noEffectOutsideLoaders,
     'no-explicit-effect-type': noExplicitEffectType,
     'no-explicit-craft-insertion-type': noExplicitCraftInsertionType,
@@ -273,6 +288,7 @@ const plugin = {
     'no-effect-import-in-frontend': noEffectImportInFrontend,
     'require-i18n-text': requireI18nText,
     'no-i18n-composition': noI18nComposition,
+    'no-direct-craft-reactivity': noDirectCraftReactivity,
   },
 };
 

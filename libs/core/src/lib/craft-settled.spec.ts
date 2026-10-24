@@ -1,5 +1,5 @@
 import { computed, signal } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   afterEach,
   beforeAll,
@@ -139,7 +139,7 @@ describe('craftSettledValue', () => {
 
 describe('settledValue on query', () => {
   it('is attached to a resource-like query ref and reads through', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const users = craftUse(
         query('users', {
           params: () => true,
@@ -161,7 +161,7 @@ describe('settledValue on query', () => {
   });
 
   it('serves the preserved value during a reload instead of suspending', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const currentId = signal('first');
       const users = craftUse(
         query('users', {
@@ -268,7 +268,7 @@ describe('settledValue on query', () => {
 
 describe('settledValue on mutation and asyncProcess', () => {
   it('suspends a mutation until it settles', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const save = craftUse(
         mutation('save', {
           method: (name: string) => name,
@@ -289,7 +289,7 @@ describe('settledValue on mutation and asyncProcess', () => {
   });
 
   it('suspends an async process until it settles', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const compute = craftUse(
         asyncProcess('compute', {
           method: (value: number) => value,
@@ -342,7 +342,7 @@ describe('settledValue on mutation and asyncProcess', () => {
   });
 
   it('exposes settledValue on by-id selections', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const users = craftUse(
         query('usersById', {
           params: () => ({ id: 'ada' }),
@@ -366,7 +366,7 @@ describe('settledValue on mutation and asyncProcess', () => {
   });
 
   it('exposes settledValue on mutation and asyncProcess by-id selections', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const save = craftUse(
         mutation('saveById', {
           method: (id: string) => ({ id }),
@@ -406,7 +406,7 @@ describe('settledValue on mutation and asyncProcess', () => {
 
 describe('settledState in resource insertions', () => {
   it('propagates pending and exception markers through a derived craftComputed', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       query(
         'typedSettledState',
         {
@@ -427,7 +427,7 @@ describe('settledState in resource insertions', () => {
   });
 
   it('returns a non-nullable value through yield* and suspends until resolution', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const users = craftUse(
         query(
           'usersForSettledState',
@@ -455,7 +455,7 @@ describe('settledState in resource insertions', () => {
   });
 
   it('reads the settled value of the current by-id resource', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const users = craftUse(
         query(
           'usersForSettledStateById',

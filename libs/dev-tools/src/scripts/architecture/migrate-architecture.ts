@@ -103,6 +103,13 @@ const RULES = [
     call: 'assertRouteDiProofs(graph.graph)',
   },
   {
+    file: 'lazy-route-imports.spec.ts',
+    helper: 'assertLazyRouteTargetsStayLazy',
+    describe: 'assertLazyRouteTargetsStayLazy',
+    it: 'keeps lazy route modules outside the eager application import graph',
+    call: "assertLazyRouteTargetsStayLazy(graph.graph, { entryPoints: ['main.ts'] })",
+  },
+  {
     file: 'mutation-react-on.spec.ts',
     helper: 'assertMutationHasReactOn',
     describe: 'assertMutationHasReactOn',
@@ -115,6 +122,13 @@ const RULES = [
     describe: 'assertResourceParamsPreferQueryParams',
     it: 'keeps resource params URL-backed',
     call: 'assertResourceParamsPreferQueryParams(graph.graph)',
+  },
+  {
+    file: 'query-params-route-ownership.spec.ts',
+    helper: 'assertQueryParamsRouteOwnership',
+    describe: 'assertQueryParamsRouteOwnership',
+    it: 'keeps query params owned by their route',
+    call: 'assertQueryParamsRouteOwnership(graph.graph)',
   },
   {
     file: 'persisted-primitive-unique.spec.ts',
@@ -179,7 +193,11 @@ export async function runArchitectureMigration(
     const graphConfig = files['tsconfig.graph.json'];
     if (graphConfig) {
       await mkdir(context.appRoot, { recursive: true });
-      await writeFile(join(context.appRoot, 'tsconfig.graph.json'), graphConfig, 'utf8');
+      await writeFile(
+        join(context.appRoot, 'tsconfig.graph.json'),
+        graphConfig,
+        'utf8',
+      );
     }
   }
 
@@ -255,7 +273,10 @@ async function resolveContext(
       join(appRoot, 'architecture'),
       workspaceRoot,
     ),
-    sourceFromArchitecture: posixRelative(join(appRoot, 'architecture'), rootDir),
+    sourceFromArchitecture: posixRelative(
+      join(appRoot, 'architecture'),
+      rootDir,
+    ),
     style,
   };
 }
@@ -691,7 +712,10 @@ async function scaffoldMatches(
   const pkg = JSON.parse(await readFile(packagePath, 'utf8')) as {
     scripts?: Record<string, string>;
   };
-  return pkg.scripts?.['architecture']?.includes('vitest.architecture.config.ts') === true;
+  return (
+    pkg.scripts?.['architecture']?.includes('vitest.architecture.config.ts') ===
+    true
+  );
 }
 
 function normalize(value: string): string {

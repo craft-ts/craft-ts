@@ -20,6 +20,7 @@ export * from './lib/insert-select-resource';
 export * from './lib/linked-source';
 export * from './lib/mutation';
 export * from './lib/query-params';
+export * from './lib/path-params';
 export * from './lib/query';
 export * from './lib/render/channels';
 // Insertion authoring surface: the contexts an insertion receives, and the
@@ -88,14 +89,23 @@ export * from './lib/insert-typed-pipes';
 export * from './lib/insert-pagination-placeholder-data';
 export * from './lib/resource-by-id';
 export * from './lib/storage-persister.service';
+export {
+  ɵinjectPersistedStorageSnapshotRegistry,
+  type PersistedStorageSnapshotEntry,
+} from './lib/persisted-storage-snapshot';
 export * from './lib/global-persister-handler.service';
 export * from './lib/util/entities-util';
 export * from './lib/craft-method';
+export * from './lib/craft-method-replay-registry';
 export * from './lib/craft-computed';
 export * from './lib/craft-primitive-registry';
 export * from './lib/craft-runtime-mode';
 export * from './lib/loop-guard';
 export * from './lib/craft-replay';
+export * from './lib/craft-replay-trigger';
+export * from './lib/craft-long-press';
+export * from './lib/craft-pointer-gestures';
+export * from './lib/craft-replay-transports';
 export * from './lib/craft-state-machine';
 export * from './lib/craft-machine-history';
 export {
@@ -117,14 +127,12 @@ export {
   CraftCircularDependencyError,
   createCraftInjector,
   getCurrentCraftInjector,
-  ɵcreateCraftInjectorFromHost,
   type CraftInjector,
   type CraftProvider,
 } from './lib/host/craft-injector';
-export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
 // The DI and reactivity surface an application authors against. These are
-// generic concepts, not Angular ones — an app needs a token, an injector, a
-// teardown hook and a way to run something at startup, whatever renders it.
+// generic concepts — an app needs a token, an injector, a teardown hook and a
+// way to run something at startup, whatever renders it.
 export {
   DestroyRef,
   provideAppInitializer,
@@ -135,21 +143,19 @@ export {
   type Signal,
   type EffectRef,
 } from './lib/host/craft-compat';
-// Craft's stand-in for TestBed: a root injector with the six methods specs
-// actually used. Exported so apps can test against the same harness.
+// Shared test harness for service and component specs.
 export {
-  TestBed,
+  CraftTestBed,
   ɵsetCraftTestMounter,
   type CraftComponentFixture,
 } from './lib/host/craft-test-bed';
 export {
   APP_INITIALIZER,
   getCraftRootDefaultProviders as ɵgetCraftRootDefaultProviders,
+  isDevMode as ɵisCraftDevMode,
   DestroyRef as ɵDestroyRef,
   Injector as ɵInjector,
   ɵsetCraftDevMode,
-  ɵsetCraftHostInjectorRunner,
-  ɵsetCraftInjectFallback,
   inject as ɵinject,
   createEnvironmentInjector as ɵcreateEnvironmentInjector,
   ElementRef as ɵElementRef,
@@ -270,6 +276,20 @@ export * from './lib/craft-http-trace';
 export * from './lib/craft-platform';
 export * from './lib/craft-hydration';
 export * from './lib/craft-render-identity';
+export type {
+  CraftReplayTarget,
+  CraftReplayTargetResolution,
+} from './lib/craft-replay-target';
+export {
+  ɵcaptureCraftReplayTarget,
+  ɵregisterCraftReplayTarget,
+  ɵresolveCraftReplayTarget,
+} from './lib/craft-replay-target';
+export type { CraftDeferReplayResolution } from './lib/craft-defer-replay';
+export {
+  ɵregisterCraftDeferReplayTarget,
+  ɵresolveCraftDeferReplayTarget,
+} from './lib/craft-defer-replay';
 export * from './lib/craft-transfer-snapshot';
 export * from './lib/craft-ssr';
 export * from './lib/take-app-snapshot';
@@ -339,7 +359,7 @@ export * from './lib/branded-component/branded-component';
 export * from './lib/craft-app-config';
 export * from './lib/craft-router';
 export * from './lib/craft-activated-route';
-export type { ActivatedRoute } from './lib/host/craft-router-types';
+export type { CraftRouteContext } from './lib/host/craft-router-model';
 export * from './lib/craft-routes';
 export * from './lib/craft-resolve';
 export * from './lib/craft-route-exceptions';
@@ -352,6 +372,11 @@ export * from './lib/craft-route-load-error';
 export * from './lib/craft-lazy';
 export * from './lib/craft-view-transition';
 export * from './lib/craft-router-outlet';
+export {
+  ɵinjectCraftRouteActivationTracker,
+  type CraftRouteActivationEvent,
+  type CraftRouteActivationWaiter,
+} from './lib/craft-route-activation';
 export * from './lib/craft-until-settled';
 export * from './lib/craft-settled';
 export * from './lib/craft-control-flow';

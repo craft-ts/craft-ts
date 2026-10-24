@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   craftService,
@@ -12,7 +12,7 @@ import { craftExpose } from './craft-primitive-gen';
 
 describe('yieldable source services', () => {
   it('keeps the direct source API while resolving through yield*', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const reset$ = source$<void>('reset$');
       const resolved = craftUse(reset$);
 
@@ -53,7 +53,7 @@ describe('yieldable source services', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
 
       counter.counter.increment();

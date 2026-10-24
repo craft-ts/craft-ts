@@ -166,12 +166,12 @@ type RegisterForContract<Contract> = RegisterForNames<
 
 type AppStartDecision = 'run' | 'ignore';
 
-type TestBedOptions = {
+type CraftTestingOptions = {
   providers?: CraftServiceProvider[];
   appStart?: Record<string, AppStartDecision>;
 };
 
-type TemplateOptions<Inputs, Contract> = TestBedOptions & {
+type TemplateOptions<Inputs, Contract> = CraftTestingOptions & {
   /** What the caller passes the component: its one input object. */
   inputs: Inputs;
   register: RegisterForContract<Contract>;

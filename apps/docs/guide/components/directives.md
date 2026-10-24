@@ -11,6 +11,86 @@ own service.
 
 Directives are applied from left to right.
 
+## Long press
+
+Use Craft's `longPress` directive for a press-and-hold action. A local timer
+does not record the semantic trigger that invocation replay needs:
+
+```ts
+// Avoid a custom pointerdown + timer + pointerup implementation.
+element.addEventListener('pointerdown', () => {
+  timer = setTimeout(onLongPress, 450);
+});
+element.addEventListener('pointerup', () => clearTimeout(timer));
+```
+
+The `prefer-craft-long-press` rule reports this pattern. Replace it with the
+shared directive, which handles release and pointer cancellation, suppresses
+the click after a successful hold, and records the semantic replay trigger:
+
+```ts
+import { button } from '@craft-ts/component';
+import { longPress } from '@craft-ts/core';
+
+button('item', {
+  *onLongPress() {
+    yield* Items.selectWithContextMenu();
+  },
+}).pipe(longPress);
+```
+
+For a different native gesture that calls Craft work, use the replay trigger
+helper around the semantic handler. `require-craft-replay-trigger` reports
+direct pointer, touch, keyboard, and other native event listeners whose
+callbacks contain Craft generators or `executeYieldable(...)` without this
+boundary. Craft template event bindings already receive normal interaction
+correlation from the renderer.
+
+## Drag and swipe
+
+Use the core `drag` directive for pointer-based movement and `swipe` for a
+single directional action. Craft manages the pointer listeners, pointer
+capture, click suppression, and semantic replay markers:
+
+```ts
+import { div } from '@craft-ts/component';
+import { drag, swipe } from '@craft-ts/core';
+
+div({ class: 'draggable' }, 'Move me').pipe(
+  drag({
+    onDragPreview: (gesture) => previewOffset(gesture.deltaX, gesture.deltaY),
+    onDrop: function* (gesture) {
+      yield* Board.moveTo(gesture.end);
+    },
+  }),
+);
+
+div({ class: 'swipeable' }, 'Swipe me').pipe(
+  swipe({
+    onSwipe: function* (gesture) {
+      yield* Carousel.move(gesture.direction);
+    },
+  }),
+);
+```
+
+`onDragStart` and `onDragPreview` are transient presentation hooks. Put durable
+state changes in `onDrop`, `onDragCancel`, or `onSwipe`; Craft records those
+handlers behind semantic replay triggers. The optional second callback argument
+is the directive host element. By default, gestures that start on buttons,
+links, or form controls are ignored. Configure thresholds with `dragThreshold`,
+`swipeMinDistance`, and `swipeMaxDurationMs`, and the ignore selectors with
+`dragIgnoreSelector` or `swipeIgnoreSelector`.
+
+Set CSS `touch-action` to match the interaction: use `none` when the gesture
+must own touch movement, or preserve vertical page scrolling for horizontal
+swipes with `pan-y`.
+
+The `prefer-craft-pointer-gestures` ESLint rule flags files that combine native
+pointer listeners, coordinate tracking, and gesture phases. It has no autofix:
+move the interaction to `drag` or `swipe`, or wrap durable Craft work in
+`runCraftReplayTrigger(...)` when the gesture is genuinely custom.
+
 ## Event actions and DOM modifiers
 
 `eventAction(...)` is an element directive. Use it when an element must adjust

@@ -8,6 +8,7 @@ import {
   assertHttpEndpointUnique,
   assertInsertSelectUnique,
   assertInteractiveElementNamed,
+  assertLazyRouteTargetsStayLazy,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
   assertPersistedPrimitiveHasUnique,
@@ -31,6 +32,12 @@ describe('architecture', () => {
 
   it('loads the architecture graph', () => {
     expect(graph.graph.version).toBe(1);
+  });
+
+  it('keeps lazy route modules outside the eager application import graph', () => {
+    assertLazyRouteTargetsStayLazy(graph.graph, {
+      entryPoints: ['apps/demo-effect/src/main.ts'],
+    });
   });
 
   it('indexes the Effect demo routes and services', () => {

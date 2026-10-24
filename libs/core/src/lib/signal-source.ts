@@ -180,8 +180,8 @@ export type SignalSource<T> = SignalSourceReader<T> & {
  *
  * // In component template:
  * // <form (submit)="onSubmit()">
- * //   <input name="name" [(ngModel)]="formData.name" />
- * //   <input name="email" [(ngModel)]="formData.email" />
+ * //   <input name="name" value="formData.name" />
+ * //   <input name="email" value="formData.email" />
  * // </form>
  *
  * onSubmit() {
@@ -412,7 +412,7 @@ export type SignalSource<T> = SignalSourceReader<T> & {
  *
  * // Emit complex search parameters
  * store.search.set({
- *   query: 'angular',
+ *   query: 'craft',
  *   filters: ['tutorial', 'advanced'],
  *   page: 1,
  * });

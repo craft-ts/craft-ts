@@ -31,6 +31,8 @@ export type PrimitiveResourceRuntimeContext<
    * settles as resolved.
    */
   restore?(value: unknown, id?: string): unknown;
+  /** Restores a loader failure without rerunning the loader. */
+  restoreError?(error: unknown, id?: string): unknown;
   status?(id?: string): string;
   error?(id?: string): unknown;
 }>;
@@ -45,6 +47,7 @@ type WritableResourceTarget = Readonly<{
   update(updater: (current: unknown) => unknown): unknown;
   reload?(): boolean;
   restore?(value: unknown): unknown;
+  restoreError?(error: unknown): unknown;
   status?: Signal<string>;
   error?: Signal<unknown>;
 }>;
@@ -114,6 +117,9 @@ export function ɵobservePrimitiveResourceRuntimeContext(
       // to override one, so it must not detach the resource from its loader.
       write: (value) =>
         context.restore ? context.restore(value) : context.set(value),
+      ...(context.restoreError
+        ? { restoreError: (error: unknown) => context.restoreError!(error) }
+        : {}),
       reload: () => context.reload?.() ?? false,
       ...(context.status ? { status: () => context.status!() } : {}),
       ...(context.error ? { error: () => context.error!() } : {}),
@@ -136,6 +142,14 @@ export function ɵcreatePrimitiveResourceRuntimeContext(
       const resolved = rootTarget(target, id);
       return resolved.restore ? resolved.restore(value) : resolved.set(value);
     },
+    ...(target.restoreError
+      ? {
+          restoreError: (error: unknown, id?: string) => {
+            const resolved = rootTarget(target, id);
+            return resolved.restoreError!(error);
+          },
+        }
+      : {}),
     get: (id) => rootTarget(target, id).state(),
     set: (value, id) => rootTarget(target, id).set(value),
     update: (updater, id) => rootTarget(target, id).update(updater),
@@ -154,6 +168,37 @@ export function ɵcreatePrimitiveResourceByIdRuntimeContext(
     kind,
     grouped: true,
     ids: () => Object.keys(target()),
+    restore: (value, id) => {
+      if (id !== undefined) {
+        const selected = selectedTarget(target, id);
+        return selected.restore
+          ? selected.restore(value)
+          : selected.set(value);
+      }
+      if (value === null || typeof value !== 'object' || Array.isArray(value))
+        return target.set(value);
+      for (const [resourceId, result] of Object.entries(value)) {
+        const selected = target.select?.(resourceId) ?? target()[resourceId];
+        if (selected?.restore) selected.restore(result);
+        else selected?.set(result);
+      }
+      return undefined;
+    },
+    restoreError: (error, id) => {
+      if (id !== undefined) {
+        const selected = selectedTarget(target, id);
+        if (selected.restoreError) return selected.restoreError(error);
+        return selected.set(undefined);
+      }
+      if (isRecord(error)) {
+        for (const [resourceId, resourceError] of Object.entries(error)) {
+          const selected = target.select?.(resourceId) ?? target()[resourceId];
+          if (selected?.restoreError) selected.restoreError(resourceError);
+          else selected?.set(undefined);
+        }
+      }
+      return undefined;
+    },
     get: (id) =>
       id === undefined ? target.state() : selectedTarget(target, id).state(),
     set: (value, id) => {
@@ -181,6 +226,10 @@ export function ɵcreatePrimitiveResourceByIdRuntimeContext(
       );
     },
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function patchResourceValue(current: unknown, patch: object): object {

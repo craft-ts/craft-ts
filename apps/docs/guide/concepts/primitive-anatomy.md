@@ -1,6 +1,6 @@
 # Anatomy of a primitive
 
-The five primitives — `state`, `query`, `mutation`, `queryParams`,
+The six primitives — `state`, `query`, `mutation`, `queryParams`, `pathParams`,
 `asyncProcess` — share one shape. Learn it once here; each primitive's page then
 only covers what is specific to it.
 
@@ -30,7 +30,7 @@ function, a `craftService` factory, a `craftComputed`, a `craftMethod`,
 records the dependency on **its** graph:
 
 ```typescript
-const tasks = yield* state('tasks', []);
+const tasks = yield * state('tasks', []);
 ```
 
 `yield*` also folds whatever the primitive depends on into the enclosing
@@ -41,7 +41,7 @@ dependency tree, which is what the route DI check and the test registers read.
 Every named primitive returns its reference directly:
 
 ```typescript
-const tasks = yield* state('tasks', []);
+const tasks = yield * state('tasks', []);
 ```
 
 Inside a `craftService`, the name is also the key the primitive is exposed
@@ -74,9 +74,11 @@ The last argument receives the primitive's internals and returns what to expose:
 ```typescript
 state('counter', 0, ({ state, update }) => ({
   increment: () => update((value) => value + 1),
-  isEven: craftUse(craftComputed('isEven', function* () {
-    return (yield* state()) % 2 === 0;
-  })),
+  isEven: craftUse(
+    craftComputed('isEven', function* () {
+      return (yield* state()) % 2 === 0;
+    }),
+  ),
 }));
 ```
 
@@ -122,14 +124,14 @@ The helpers return `undefined` outside an insertion-method injection context.
 Use the one that matches the primitive, or the generic helper and branch on
 `kind`:
 
-| Primitive      | Helper                                      |
-| -------------- | ------------------------------------------- |
-| `state`        | `injectStateMethodRuntimeContext()`         |
-| `query`        | `injectQueryMethodRuntimeContext()`         |
-| `mutation`     | `injectMutationMethodRuntimeContext()`      |
-| `queryParams`  | `injectQueryParamsMethodRuntimeContext()`   |
-| `asyncProcess` | `injectAsyncProcessMethodRuntimeContext()`  |
-| any of them    | `injectPrimitiveMethodRuntimeContext()`     |
+| Primitive      | Helper                                     |
+| -------------- | ------------------------------------------ |
+| `state`        | `injectStateMethodRuntimeContext()`        |
+| `query`        | `injectQueryMethodRuntimeContext()`        |
+| `mutation`     | `injectMutationMethodRuntimeContext()`     |
+| `queryParams`  | `injectQueryParamsMethodRuntimeContext()`  |
+| `asyncProcess` | `injectAsyncProcessMethodRuntimeContext()` |
+| any of them    | `injectPrimitiveMethodRuntimeContext()`    |
 
 The context is the same shape everywhere:
 
@@ -181,19 +183,21 @@ import {
 
 let usersRuntime: PrimitiveResourceRuntimeContext | undefined;
 
-const users = yield* query('users', {
-  providers: [
-    providePrimitiveResourceRuntimeObserver((context) => {
-      if (context.kind === 'query') {
-        usersRuntime = context;
-      }
-    }),
-  ],
-  params: () => true,
-  loader: function* () {
-    return yield* UserApi.list();
-  },
-});
+const users =
+  yield *
+  query('users', {
+    providers: [
+      providePrimitiveResourceRuntimeObserver((context) => {
+        if (context.kind === 'query') {
+          usersRuntime = context;
+        }
+      }),
+    ],
+    params: () => true,
+    loader: function* () {
+      return yield* UserApi.list();
+    },
+  });
 
 usersRuntime?.set([{ id: 'stub', name: 'Preview' }]);
 ```

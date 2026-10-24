@@ -30,7 +30,7 @@ export const {
       setEffectMiddlewareFilter: (value: string) => set(value),
     }));
     const usersQuery = yield* query(
-      'usersQuery',
+      'usersQueryClientEffectServerMiddlewareDemo',
       {
         method: (request: {
           readonly filter: string;
@@ -47,7 +47,7 @@ export const {
       }),
     );
     yield* usersQuery.call({ filter: '', simulateError: 'none' });
-    const hasUsers = yield* craftComputed('hasUsers', () =>
+    const hasUsers = yield* craftComputed('hasUsersClientEffectServerMiddlewareDemo', () =>
       usersQuery.hasValue(),
     );
     yield* craftComputed(
@@ -64,7 +64,7 @@ export const {
     const hasServerError = yield* craftComputed('hasServerError', () =>
       Boolean(usersQuery.serverError()),
     );
-    yield* craftComputed('isEmpty', function* () {
+    yield* craftComputed('isEmptyClientEffectServerMiddlewareDemo', function* () {
       return (
         !usersQuery.isLoading &&
         !(yield* hasUsers()) &&
