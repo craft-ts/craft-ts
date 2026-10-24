@@ -595,7 +595,7 @@ export function compileReplayPlan(
       operationId,
       kind,
       sequence: step.sequence,
-      atMs: eventTime(step),
+      atMs: eventTime(kind === 'navigate' ? sourceEvent : step),
       ...(participant ? { participantId: participant } : {}),
       dependsOn: dependencies,
       payload,

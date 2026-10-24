@@ -1140,22 +1140,48 @@ export function createReplayController(
         return undefined;
       }
     }
-    if (plannedCommand?.kind === 'navigate' && event.kind === 'navigation') {
-      const payload = isRecord(event.payload) ? event.payload : {};
+    if (plannedCommand?.kind === 'navigate') {
+      const payload =
+        event.kind === 'navigation' && isRecord(event.payload)
+          ? event.payload
+          : plannedCommand.payload;
       const url = payload['url'];
       if (typeof url !== 'string' || !options.navigateToRecordedRoute) {
         stop(true);
         options.onError?.(
           typeof url !== 'string'
             ? `Replay navigation event ${event.sequence} has no recorded URL.`
-            : 'Replay cannot apply a recorded browser history navigation in this application.',
+            : 'Replay cannot apply a recorded navigation in this application.',
         );
         return undefined;
       }
-      if (!(await waitForPlaybackTime(timeOf(event)))) return undefined;
-      await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
-      recordedResponseResolver?.advanceTo(timeOf(event));
-      await options.onTimelineAdvance?.(timeOf(event));
+      const navigationEvent =
+        event.kind === 'navigation'
+          ? event
+          : session.events
+              .filter((candidate) => {
+                if (
+                  candidate.kind !== 'navigation' ||
+                  candidate.phase !== 'started' ||
+                  (event.participantId !== undefined &&
+                    candidate.participantId !== event.participantId) ||
+                  !isRecord(candidate.payload)
+                )
+                  return false;
+                return candidate.payload['url'] === url;
+              })
+              .sort(
+                (left, right) =>
+                  Math.abs(left.sequence - event.sequence) -
+                  Math.abs(right.sequence - event.sequence),
+              )[0];
+      const navigationTime = navigationEvent
+        ? timeOf(navigationEvent)
+        : plannedCommand.atMs;
+      if (!(await waitForPlaybackTime(navigationTime))) return undefined;
+      await clock.advanceTo(Math.max(clock.now(), navigationTime));
+      recordedResponseResolver?.advanceTo(navigationTime);
+      await options.onTimelineAdvance?.(navigationTime);
       const recordedOptions = isRecord(payload['navigationOptions'])
         ? payload['navigationOptions']
         : {};
