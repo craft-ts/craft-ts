@@ -32,6 +32,7 @@ import {
 } from './replay-state';
 import { installReplayWorkerSurface } from './replay-worker';
 import { httpFailureReason, SessionArchive } from './session-archive.service';
+import { E2eComparison } from './e2e-comparison.service';
 import {
   ThumbnailArchive,
   type ThumbnailManifest,
@@ -69,6 +70,7 @@ export const { ReplayRoute } = craftService(
     if (workerMode) installReplayWorkerSurface();
 
     const archive = yield* SessionArchive();
+    const e2eComparison = yield* E2eComparison();
     const thumbnails = yield* ThumbnailArchive();
     const archivedValue = rawReactiveValue(archive.archived.value);
     const archivedException = rawReactiveValue(archive.archived.exception);
@@ -144,14 +146,25 @@ export const { ReplayRoute } = craftService(
     const handleHashChange = (): void => {
       const id = routeSessionId();
       const importedSession = currentHash() === '#/import';
+      const comparison = currentHash().startsWith('#/compare?');
+      const e2eReplay = currentHash().startsWith('#/e2e-replay?');
       const wasDetailPage = page() === 'detail';
-      page.set(id || importedSession ? 'detail' : 'sessions');
+      page.set(
+        comparison
+          ? 'compare'
+          : id || importedSession || e2eReplay
+            ? 'detail'
+            : 'sessions',
+      );
+      if (comparison) {
+        e2eComparison.comparison.call(currentHash());
+      }
       if (id && id !== registers.loadedArchiveSessionId) open(id);
       if (!id) {
         thumbnails.stop();
         thumbnailManifest.set(undefined);
       }
-      if (!id && !importedSession) {
+      if (!id && !importedSession && !e2eReplay) {
         endReplayLoadingIndicator();
         if (wasDetailPage) leaveReplayPage();
         registers.loadedArchiveSessionId = undefined;

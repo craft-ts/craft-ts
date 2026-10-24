@@ -27,6 +27,10 @@ export default defineConfig({
           root,
           '../../libs/component/src/style.ts',
         ),
+        '@craft-ts/component/session-trace': path.resolve(
+          root,
+          '../../libs/component/src/lib/ai/session-trace.ts',
+        ),
         '@craft-ts/component': path.resolve(
           root,
           '../../libs/component/src/index.ts',
@@ -43,6 +47,10 @@ export default defineConfig({
       '@craft-ts/component/style': path.resolve(
         root,
         '../../libs/component/src/style.ts',
+      ),
+      '@craft-ts/component/session-trace': path.resolve(
+        root,
+        '../../libs/component/src/lib/ai/session-trace.ts',
       ),
       '@craft-ts/component': path.resolve(
         root,

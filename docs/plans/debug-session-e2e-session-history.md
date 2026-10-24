@@ -14,10 +14,10 @@ budgets retenus : 100 000 octets par session, 300 000 par test. Le sous-chemin
 
 Lots 1 à 7 : package et fixture Playwright, contrat ESLint, assertion
 d’architecture, capture et métadonnées log-server, stockage versionné, trace et
-comparateur, puis pilote ecommerce et trois historiques initiaux. Lot 8 : les
-endpoints en lecture seule et l’outil MCP `sessions.compare` sont en place ; la
-page dashboard de comparaison côte à côte et le rejeu de référence sur le build
-courant restent à faire. Lot 9 (documentation) est rédigé.
+comparateur, puis pilote ecommerce et trois historiques initiaux. Lot 8 est
+implémenté : lecture des références, comparaison MCP et dashboard à deux replays,
+avec navigation synchronisée sur les trouvailles et diagnostic par rejeu de la
+référence sur le build courant. Lot 9 (documentation) est rédigé.
 
 ## Objectif
 
@@ -565,24 +565,29 @@ demo-ecommerce:architecture` et `nx run demo-ecommerce:lint` verts.
    `GET /e2e-sessions/<id>/<projet>/<fichier>` en lecture seule, racine fournie
    par `CRAFT_E2E_SESSION_STORE` (liste de dossiers autorisés, jamais un
    chemin reçu du client).
-2. **Dashboard** (à faire) : route `#/compare?test=<id>&project=<p>&run=<sessionId>`.
+2. **Dashboard** : route `#/compare?test=<id>&project=<p>&run=<sessionId>`.
    Deux replays côte à côte (référence la plus récente, run observé),
    synchronisés sur les pas alignés ; la liste des trouvailles du comparateur
    en panneau latéral ; un clic sur une trouvaille place les deux replays sur
-   ce pas. Composants séparés sous les règles de style et d'architecture de
-   l'app.
+   ce pas. Le log-server renvoie le paquet de comparaison depuis une route
+   lecture seule afin que le dashboard n'enchaîne pas des lectures client
+   dépendantes. Les replays utilisent des frames isolées et le bridge autorise
+   l'origine configurée du dashboard.
 3. **MCP** (`packages/log-mcp`) : fait — outil `sessions.compare` (`testId`,
    `project`, `sessionId`) qui rend le JSON du comparateur et le lien du
    dashboard.
-4. **Tri front/back** (à faire) : option de la fixture `replayBaselineOnFailure: true`.
+4. **Tri front/back** : option de la fixture `replayBaselineOnFailure: true`.
    En cas d'échec, rejouer la référence la plus récente sur le build courant
-   avec `runReplayTest` (réseau enregistré). Le rapport ajoute :
+   avec le moteur de replay du dashboard (réseau enregistré). Le rapport ajoute :
    « la référence rejoue sans écart : le front n'a pas changé ce parcours, le
    problème vient des données, du back ou de l'environnement », ou l'inverse
    avec le premier écart.
 
-Critère de fin non atteint : le MCP produit le rapport de trace et son lien,
-mais la route dashboard et le rejeu de référence ne sont pas encore implémentés.
+Critère de fin : `sessions.compare` produit le rapport et son lien ; la route
+dashboard charge la comparaison, deux replays atteignent l'état prêt et un clic
+sur une trouvaille envoie les deux demandes de repositionnement. En cas d'échec,
+la fixture joint un rapport indiquant si la référence rejoue ou diverge sur le
+build courant.
 
 ### Lot 9 — Documentation
 

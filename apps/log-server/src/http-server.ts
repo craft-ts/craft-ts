@@ -157,6 +157,56 @@ async function handleRequest(
     return;
   }
 
+  if (request.method === 'GET' && url.pathname === '/e2e-sessions/compare') {
+    const roots = options.e2eSessionRoots ?? [];
+    const testId = url.searchParams.get('test') ?? '';
+    const project = url.searchParams.get('project') ?? '';
+    const sessionId = url.searchParams.get('run') ?? '';
+    const rootParam = url.searchParams.get('root');
+    if (!validE2eTestId(testId) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(project) || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+      sendJson(response, 400, { error: 'Invalid E2E comparison request.' }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
+      return;
+    }
+    const candidates = rootParam === null
+      ? roots.map((path, index) => ({ index, path: resolve(path) }))
+      : [selectedE2eRoot(url, roots)].filter((value): value is { index: number; path: string } => value !== undefined);
+    const selected = candidates.find(({ path }) => {
+      const candidate = readE2eHistory(join(path, testId, project, 'history.json'));
+      return candidate?.id === testId && candidate.project === project;
+    });
+    if (!selected) {
+      sendJson(response, 404, { error: 'E2E comparison history not found.' }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
+      return;
+    }
+    const historyPath = join(selected.path, testId, project, 'history.json');
+    const history = readE2eHistory(historyPath);
+    if (!history || history.id !== testId || history.project !== project || !options.sessionStore) {
+      sendJson(response, 404, { error: 'E2E comparison history not found.' }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
+      return;
+    }
+    const observed = options.sessionStore.get(sessionId);
+    if (!observed) {
+      sendJson(response, 404, { error: 'Observed E2E session not found.' }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
+      return;
+    }
+    const directory = resolve(selected.path, testId, project);
+    const baselines = history.runs.flatMap((run) => {
+      const path = resolve(directory, run.file);
+      if (!path.startsWith(`${directory}/`) || !existsSync(path) || lstatSync(path).isSymbolicLink() || !lstatSync(path).isFile()) return [];
+      const source = `/e2e-sessions/${encodeURIComponent(testId)}/${encodeURIComponent(project)}/${encodeURIComponent(run.file)}?root=${selected.index}&decompress=1`;
+      return [{ source, session: JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as unknown }];
+    });
+    sendJson(response, 200, {
+      testId,
+      project,
+      sessionId,
+      observed,
+      observedSource: `/sessions/${encodeURIComponent(sessionId)}`,
+      baselines,
+    }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
+    return;
+  }
+
   const e2eFileMatch = /^\/e2e-sessions\/([a-z0-9.-]{1,80})\/([a-z0-9_-]{1,80})\/([^/]+)$/.exec(url.pathname);
   if (request.method === 'GET' && e2eFileMatch) {
     const roots = options.e2eSessionRoots ?? [];

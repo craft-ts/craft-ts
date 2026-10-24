@@ -13,6 +13,7 @@ import { join } from 'node:path';
 export type CraftSessionsOptions = Readonly<{
   store?: string;
   serverUrl?: string;
+  dashboardUrl?: string;
   budgetBytes?: Readonly<{ session: number; test: number }>;
   update?: 'on-success' | 'never';
   replayBaselineOnFailure?: boolean;
@@ -116,6 +117,20 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
             await testInfo.attach('craft-session-diff.md', { body: markdown, contentType: 'text/markdown' });
             await testInfo.attach('craft-session-diff.json', { body: Buffer.from(JSON.stringify(comparison, null, 2)), contentType: 'application/json' });
             if (comparison.firstDivergence) testInfo.annotations.push({ type: 'craft-session-divergence', description: JSON.stringify(comparison.firstDivergence) });
+            if (craftSessionsOptions.replayBaselineOnFailure) {
+              testInfo.setTimeout(Math.max(testInfo.timeout, 120_000));
+              const replayReport = await replayLatestBaseline({
+                browser,
+                serverUrl,
+                dashboardUrl: craftSessionsOptions.dashboardUrl ?? process.env['CRAFT_E2E_SESSION_DASHBOARD_URL'] ?? 'http://localhost:4210/',
+                testId: String(sessionMarker.test['id']),
+                project: testInfo.project.name,
+              });
+              await testInfo.attach('craft-session-baseline-replay.md', {
+                body: replayReport,
+                contentType: 'text/markdown',
+              });
+            }
           }
           await testInfo.attach('craft-session.json.gz', { body: gzipSync(JSON.stringify(session)), contentType: 'application/gzip' });
         }
@@ -150,4 +165,65 @@ async function getSessionWithRetry(serverUrl: string, sessionId: string, testId:
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   return undefined;
+}
+
+async function replayLatestBaseline(input: Readonly<{
+  browser: import('@playwright/test').Browser;
+  serverUrl: string;
+  dashboardUrl: string;
+  testId: string;
+  project: string;
+}>): Promise<string> {
+  let context: BrowserContext | undefined;
+  try {
+    const base = input.serverUrl.replace(/\/$/, '');
+    const listingResponse = await fetch(`${base}/e2e-sessions`);
+    if (!listingResponse.ok) return `Référence non rejouée : le log-server répond HTTP ${listingResponse.status}.`;
+    const listing = await listingResponse.json() as {
+      sessions?: Array<{ root: number; id: string; project: string; runs: Array<{ file: string }> }>;
+    };
+    const history = listing.sessions?.find((item) => item.id === input.testId && item.project === input.project);
+    const latest = history?.runs[0];
+    if (!history || !latest) return 'Référence non rejouée : aucun export vert n’est disponible.';
+    const source = `${base}/e2e-sessions/${encodeURIComponent(history.id)}/${encodeURIComponent(history.project)}/${encodeURIComponent(latest.file)}?root=${history.root}&decompress=1`;
+    const dashboard = new URL(input.dashboardUrl);
+    dashboard.hash = `#/e2e-replay?${new URLSearchParams({ source }).toString()}`;
+    context = await input.browser.newContext();
+    const page = await context.newPage();
+    await page.goto(dashboard.toString());
+    try {
+      await page.waitForFunction(() => {
+        const state = document.querySelector('[data-lab="detail-page"]')?.getAttribute('data-replay-state');
+        if (state === 'completed' || state === 'error') return true;
+        const play = document.querySelector<HTMLButtonElement>('[aria-label="Lecture à vitesse réelle"]');
+        return state === 'ready' && play !== null && !play.disabled;
+      }, undefined, { timeout: 30_000 });
+    } catch {
+      const state = await page.locator('[data-lab="detail-page"]').getAttribute('data-replay-state').catch(() => null);
+      const text = (await page.locator('body').innerText().catch(() => '')).slice(0, 2_000);
+      return `Référence non prête (état ${state ?? 'absent'}). Vérifier la route dashboard et le replay.\n\n${text}`;
+    }
+    let state = await page.locator('[data-lab="detail-page"]').getAttribute('data-replay-state');
+    if (state === 'ready') {
+      await page.getByRole('button', { name: 'Lecture à vitesse réelle' }).click();
+      try {
+        await page.waitForFunction(() => {
+          const replayState = document.querySelector('[data-lab="detail-page"]')?.getAttribute('data-replay-state');
+          return replayState === 'completed' || replayState === 'error';
+        }, undefined, { timeout: 60_000 });
+      } catch {
+        const text = (await page.locator('body').innerText().catch(() => '')).slice(0, 2_000);
+        return `Référence lancée mais non terminée.\n\n${text}`;
+      }
+      state = await page.locator('[data-lab="detail-page"]').getAttribute('data-replay-state');
+    }
+    if (state === 'completed')
+      return 'La référence verte rejoue sans écart sur le build courant : le problème observé vient des données, du back ou de l’environnement.';
+    const difference = await page.locator('[data-lab="diff"]').innerText().catch(() => 'Le replay de référence s’est arrêté sans détail de divergence.');
+    return `La référence verte diverge sur le build courant : le front, son environnement de replay ou un adaptateur a changé.\n\n${difference}`;
+  } catch (error) {
+    return `Référence non classée : ${error instanceof Error ? error.message : String(error)}`;
+  } finally {
+    await context?.close().catch(() => undefined);
+  }
 }

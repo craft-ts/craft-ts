@@ -5,7 +5,7 @@ import { ReplayHead } from './replay-head';
 import { ReplayNotices } from './replay-notices';
 import { ReplaySidePanel } from './replay-side-panel';
 import { ReplayPlaybar, ReplayStage } from './replay-stage';
-import { page } from './replay-state';
+import { page, replayState } from './replay-state';
 
 /** Page 2: the replay of one session, with its journal at the side. */
 export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
@@ -17,6 +17,9 @@ export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
     {
       class: ui.page,
       'data-lab': 'detail-page',
+      'data-replay-state': function* () {
+        return replayState();
+      },
       hidden: pageIsHidden,
     },
     [

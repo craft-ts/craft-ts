@@ -114,7 +114,10 @@ export function renderReplayFrames(): void {
 
 /* ── opening a recording ────────────────────────────────────────────────── */
 
-export function importJson(text: string): void {
+export function importJson(
+  text: string,
+  options: Readonly<{ preserveRoute?: boolean }> = {},
+): void {
   registers.loadedArchiveCreatedAtMs = undefined;
   sessionText.set(text);
   const result = validateDebugSessionExport(text.trim());
@@ -138,7 +141,11 @@ export function importJson(text: string): void {
   replayViewport.set(result.session.viewport);
   updateReplayViewport();
   events.set(result.session.events);
-  if (!routeSessionId() && currentHash() !== '#/import') {
+  if (
+    !options.preserveRoute &&
+    !routeSessionId() &&
+    currentHash() !== '#/import'
+  ) {
     goToHash('#/import');
   }
   difference.set(undefined);

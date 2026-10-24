@@ -7,8 +7,11 @@ loopback debug server. Session data stays on the local machine.
 Playwright's `@craft-ts/playwright-sessions` package can attach normalized
 history comparisons to failed test reports. The `sessions.compare` MCP tool
 returns the comparison and a dashboard URL for the observed session. The
-interactive `#/compare` side-by-side replay page is a planned follow-up; the
-current dashboard still opens archived sessions individually.
+`#/compare?test=<id>&project=<project>&run=<sessionId>` route compares the
+observed run with its green history. It shows the latest green reference beside
+the observed session; selecting a finding seeks both isolated replay frames to
+the corresponding elapsed time. The package can also replay the latest green
+reference on the current build after a Playwright failure and attach the result.
 
 ## Run it with the demo
 

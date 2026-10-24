@@ -10,6 +10,8 @@ import {
 import { ui } from './dashboard.style';
 import { replayHost } from './replay-browser';
 import { ReplayPage } from './replay-page';
+import { E2eComparisonPage } from './e2e-comparison-page';
+import { E2eReplayRoute } from './e2e-replay-route';
 import { ReplayRoute } from './replay-route.service';
 import { SessionsPage } from './sessions-page';
 import { lit } from './view-helpers';
@@ -55,7 +57,11 @@ export const DebugSessionDashboard = craftComponent(
     return div({ class: ui.root }, [
       bar,
       // Each page titles itself with an `h1`; only one of them shows at a time.
-      div({ class: ui.page }, [headingRoot([SessionsPage({}), ReplayPage({})])]),
+      div({ class: ui.page }, [
+        headingRoot([SessionsPage({}), ReplayPage({})]),
+        headingRoot([E2eComparisonPage({})]),
+        E2eReplayRoute({}),
+      ]),
     ]).pipe(replayHost);
   },
 );

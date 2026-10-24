@@ -27,6 +27,7 @@ npm run logs:server
 | `WS`     | `/sessions/ws`  | Stream session start, events, and finish.       |
 | `GET`    | `/e2e-sessions` | List histories under explicitly configured roots (`?root=0` selects one). |
 | `GET`    | `/e2e-sessions/:testId/:project/:file` | Read a referenced gzip history session (`?decompress=1` returns JSON). |
+| `GET`    | `/e2e-sessions/compare?test=<id>&project=<project>&run=<sessionId>` | Return the observed session and its green references for the dashboard. |
 
 `POST /logs` accepts three body shapes: a `{ clientId, entries: [...] }`
 envelope (what the demo sends), a bare array of entries, or a single entry.

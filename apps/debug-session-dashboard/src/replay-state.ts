@@ -161,7 +161,10 @@ export const thumbnailManifest = thumbnailManifestBridge.value;
 
 /* ── the page ───────────────────────────────────────────────────────────── */
 
-const pageBridge = createStateBridge<'sessions' | 'detail'>('page', 'sessions');
+const pageBridge = createStateBridge<'sessions' | 'detail' | 'compare'>(
+  'page',
+  'sessions',
+);
 export const page = pageBridge.value;
 const importOpenBridge = createStateBridge('importOpen', false);
 export const importOpen = importOpenBridge.value;
