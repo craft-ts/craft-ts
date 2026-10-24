@@ -35,10 +35,10 @@ export const {
 } = craftService(
   { name: 'portableServerFunctionDemoView', providedIn: 'toProvide' },
   function* () {
-    const searchInput = yield* state('searchInput', '', ({ set }) => ({
+    const searchInput = yield* state('searchInputClientPortableServerFunctionDemo', '', ({ set }) => ({
       setPortableSearchInput: (value: string) => set(value),
     }));
-    const usersQuery = yield* query('usersQuery', {
+    const usersQuery = yield* query('usersQueryClientPortableServerFunctionDemo', {
       method: (term: string) => term,
       loader: function* ({ params }) {
         return yield* getPortableUsers({ filter: params });
@@ -50,10 +50,10 @@ export const {
     const portableUsers = yield* craftComputed('portableUsers', function* () {
       return (yield* usersQuery.value())?.users ?? [];
     });
-    const hasUsers = yield* craftComputed('hasUsers', function* () {
+    const hasUsers = yield* craftComputed('hasUsersClientPortableServerFunctionDemo', function* () {
       return (yield* portableUsers()).length > 0;
     });
-    yield* craftComputed('isEmpty', function* () {
+    yield* craftComputed('isEmptyClientPortableServerFunctionDemo', function* () {
       return !usersQuery.isLoading && !(yield* hasUsers());
     });
     yield* craftComputed('auditId', function* () {
@@ -72,13 +72,13 @@ export const {
     });
 
     yield* craftMethod(
-      'submitSearch',
+      'submitSearchClientPortableServerFunctionDemo',
       function* (event?: Event) {
         event?.preventDefault();
         yield* usersQuery.call((yield* searchInput()).trim());
       },
     );
-    yield* craftComputed('resultCount', function* () {
+    yield* craftComputed('resultCountClientPortableServerFunctionDemo', function* () {
       const value = yield* usersQuery.value();
       return value === undefined ? '—' : value.users.length.toString();
     });

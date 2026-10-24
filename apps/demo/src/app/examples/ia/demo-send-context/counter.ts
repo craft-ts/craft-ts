@@ -24,7 +24,7 @@ export const { SendContextCounterView, provideSendContextCounterView } =
     }) {
       const { initialValue } = inputs.$provided;
 
-      yield* state('counter', yield* initialValue(), ({ update }) => ({
+      yield* state('counterDemoSendContextCounter', yield* initialValue(), ({ update }) => ({
         increment: () => update((value) => value + 1),
         decrement: () => update((value) => value - 1),
       }));

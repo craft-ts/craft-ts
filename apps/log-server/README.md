@@ -30,8 +30,9 @@ npm run logs:server
 envelope (what the demo sends), a bare array of entries, or a single entry.
 Entries missing a known `level` are dropped individually — one bad entry never
 rejects the whole batch. Browser access is limited to exact configured origins.
-Defaults cover the local demo and dashboard on ports 4200, 4210, and 4301; set
-`LOG_SERVER_ALLOWED_ORIGINS` to a comma-separated list when using other ports.
+Defaults cover the local demo, e-commerce demo, and dashboard on ports 4200,
+4204, 4210, and 4301; set `LOG_SERVER_ALLOWED_ORIGINS` to a comma-separated
+list when using other ports.
 Requests without an `Origin` header remain available to local CLI tools.
 
 ## Storage

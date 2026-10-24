@@ -22,15 +22,16 @@ theme, its buttons, callouts, badges, tabs, switch and dialog, in light or dark.
 The layout lives in `src/dashboard.style.ts`.
 
 - **Sessions** (`#/`) is a plain list: when it was recorded, how many tabs and
-  events, and a badge only when something is off (still recording, interrupted,
-  truncated). _Importer un fichier_ opens a dialog for a JSON export.
+  events, visible format/replay version badges, and a warning when those
+  versions cannot be replayed by this dashboard. Incompatible sessions can be
+  removed together; _Importer un fichier_ opens a dialog for a JSON export.
 - **The replay** (`#/sessions/<id>`) is the page: the recorded app fills the
   window, and the timeline lies over its foot, the way a video's controls do: a bar that shows how far the replay is and takes it to any moment with a
   click (or the arrow keys, an action at a time), with the clock, the step and
   the next action under it. The thumbnails the archive prepares are points on
   that bar; hover or focus one to see its picture, click it to go there. Under
-  the frame, the playback bar holds play, pause, restart, next action, stop and
-  the assistant's _Contexte IA_ button. A tab selector appears only when the
+  the frame, the playback bar holds a play/pause/resume button, restart, next
+  action and the assistant's _Contexte IA_ button. A tab selector appears only when the
   session has several replayable tabs.
 - **A gap with the recording** is the one thing that interrupts the replay: it
   shows up as a callout above the stage, with the recovery actions and the
@@ -113,7 +114,10 @@ options. The key is serialized in the archive and must not contain a secret.
 The replay validator leaves sessions without distinct keys inspectable, but
 refuses to replay an overlapping identical request pair.
 
-Exports use format v6 and retain the existing event/byte limits. Truncated
+Exports use format v6 and replay contract v1, and retain the existing
+event/byte limits. The session list shows both versions and marks a replay
+incompatible when the dashboard does not support its format or replay contract.
+Older exports without a `replayVersion` are treated as replay v1. Truncated
 sessions can be inspected but cannot be replayed. Versions v1–v4 are rejected
 with an explicit unsupported-version message; there is no silent migration.
 Events carry monotonic elapsed offsets. Clicks on links retain the

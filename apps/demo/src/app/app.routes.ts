@@ -1,5 +1,6 @@
 import { loadCraftComponent } from '@craft-ts/component';
 import {
+  CRAFT_SERVICE_PROVIDER_BRAND,
   assertExhaustiveRouteExceptions,
   craftExceptionHandler,
   craftRoute,
@@ -397,6 +398,16 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
     ),
   },
 
+  /* demo-route-end */ /* demo-route: replay-methods */
+  {
+    path: 'replay-methods',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/replay-methods/replay-methods'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: state-machine */
   {
     path: 'state-machine',
@@ -580,6 +591,7 @@ type DemoRoutePath =
   | 'state-machine'
   | 'state-machine-text'
   | 'state-machine-list'
+  | 'replay-methods'
   | 'craft-service/counter'
   | 'craft-service/register-for'
   | 'craft-service/user-detail'
@@ -653,6 +665,26 @@ type DemoRouteCheckedDI<
   AppProvidedValues,
   Context,
   RouteInputs
+>;
+
+type RouteProviderNames<RouteDefinition> = RouteDefinition extends {
+  providersFn: infer Factory;
+}
+  ? Factory extends (...args: never[]) => infer Providers
+    ? Providers extends readonly (infer Provider)[]
+      ? Provider extends {
+          readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: {
+            name: infer Name extends string;
+          };
+        }
+        ? Name
+        : never
+      : never
+    : never
+  : never;
+
+type QueryParamsRouteProviderNames = RouteProviderNames<
+  Extract<(typeof demoRoutes)['_routes'][number], { path: 'query-params' }>
 >;
 
 /* demo-check: debounced-web-search */
@@ -938,6 +970,15 @@ type _CanRunStateMachineList = CanRun<
   >
 >;
 /* demo-check-end */
+/* demo-check: replay-methods */
+type _CanRunReplayMethods = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/replay-methods/replay-methods'))['default'],
+    never,
+    'path: "replay-methods"'
+  >
+>;
+/* demo-check-end */
 /* demo-check: state-machine */
 type _CanRunStateMachine = CanRun<
   DemoRouteCheckedDI<
@@ -1025,7 +1066,7 @@ type _CanRunQueryParams = CanRun<
     (typeof import('./examples/routes/list-with-pagination/qp-list-with-pagination'))['default'],
     never,
     'path: "query-params"',
-    'RoutePaginationQueryParams'
+    QueryParamsRouteProviderNames
   >
 >;
 /* demo-check-end */

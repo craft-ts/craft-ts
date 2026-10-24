@@ -10,6 +10,8 @@ import { tooltipUi } from './menu.style.ts';
 export interface TooltipInput {
   /** The words in the bubble. Keep them short: they are a name, not a manual. */
   readonly tip: Input<string>;
+  /** Position of the bubble relative to the control; defaults to above. */
+  readonly placement?: Input<'above' | 'left'>;
   /**
    * The bubble's id. The control inside the wrapper must carry it as
    * `aria-describedby`: that is what makes a screen reader read the tip, and the
@@ -28,6 +30,14 @@ export interface TooltipInput {
 export const DocTooltip = craftComponent('DocTooltip', {}, (props: TooltipInput) =>
   span({ class: tooltipUi.root }, [
     renderContent('body', props.body),
-    span({ class: tooltipUi.bubble, role: 'tooltip', id: props.tipId }, props.tip),
+    span(
+      {
+        class: tooltipUi.bubble,
+        role: 'tooltip',
+        id: props.tipId,
+        'data-tooltip-placement': props.placement ?? 'above',
+      },
+      props.tip,
+    ),
   ]),
 );

@@ -66,7 +66,9 @@ describe('the exit-code policy', () => {
   });
 
   it('fails on a violation', () => {
-    expect(textContrastExitCode(textContrastReport([passing, failing]))).toBe(1);
+    expect(textContrastExitCode(textContrastReport([passing, failing]))).toBe(
+      1,
+    );
   });
 
   it('fails on an unproven result by default', () => {
@@ -74,7 +76,9 @@ describe('the exit-code policy', () => {
     // tell" as "fine" reports a clean bill on the half of the application it
     // understood, and the half it did not is exactly where the gradients and
     // the runtime colours are.
-    expect(textContrastExitCode(textContrastReport([passing, unknown]))).toBe(1);
+    expect(textContrastExitCode(textContrastReport([passing, unknown]))).toBe(
+      1,
+    );
   });
 
   it('downgrades unproven results only when asked in so many words', () => {
@@ -200,15 +204,41 @@ const DUMP: StyleDump = {
     },
   ],
   atoms: [
-    { className: 'bg', property: 'background-color', value: '#ffffff', conditions: [], unproven: '' },
-    { className: 'ink', property: 'color', value: '#bbbbbb', conditions: [], unproven: '' },
-    { className: 'size', property: 'font-size', value: '0.875rem', conditions: [], unproven: '' },
-    { className: 'weight', property: 'font-weight', value: '400', conditions: [], unproven: '' },
+    {
+      className: 'bg',
+      property: 'background-color',
+      value: '#ffffff',
+      conditions: [],
+      unproven: '',
+    },
+    {
+      className: 'ink',
+      property: 'color',
+      value: '#bbbbbb',
+      conditions: [],
+      unproven: '',
+    },
+    {
+      className: 'size',
+      property: 'font-size',
+      value: '0.875rem',
+      conditions: [],
+      unproven: '',
+    },
+    {
+      className: 'weight',
+      property: 'font-weight',
+      value: '400',
+      conditions: [],
+      unproven: '',
+    },
   ],
   vars: [],
 };
 
-async function project(): Promise<string> {
+async function project(
+  files?: Readonly<Record<string, string>>,
+): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'craft-contrast-cli-'));
   temporaryDirectories.push(root);
   await Promise.all([
@@ -225,18 +255,75 @@ async function project(): Promise<string> {
       }),
       'utf8',
     ),
-    writeFile(join(root, 'stubs.ts'), STUBS, 'utf8'),
-    writeFile(join(root, 'app.ts'), APP, 'utf8'),
+    ...Object.entries(files ?? { 'stubs.ts': STUBS, 'app.ts': APP }).map(
+      ([path, contents]) => writeFile(join(root, path), contents, 'utf8'),
+    ),
   ]);
   return root;
 }
 
-const run = (rootDir: string) => {
+const runWithDump = (rootDir: string, dump: StyleDump) => {
   const graph = mergeStyleDump(
     analyzeDependencyGraph({ rootDir, tsConfigFilePath: 'tsconfig.json' }),
-    DUMP,
+    dump,
   );
-  return textContrastReport(analyzeTextContrast(graph, DUMP));
+  return textContrastReport(analyzeTextContrast(graph, dump));
+};
+
+const run = (rootDir: string) => runWithDump(rootDir, DUMP);
+
+const SKIP_LINK_DUMP: StyleDump = {
+  version: 2,
+  classes: [
+    {
+      key: 'craftSkipLink-link',
+      className: 'skip-link',
+      axes: { 'interaction.focus': ['active'] },
+      atoms: ['skip-bg', 'skip-fg', 'skip-size', 'skip-weight', 'skip-focus'],
+      unproven: [],
+      requires: [],
+      provides: [],
+      violates: [],
+    },
+  ],
+  atoms: [
+    {
+      className: 'skip-bg',
+      property: 'background-color',
+      value: '#ffffff',
+      conditions: [],
+      unproven: '',
+    },
+    {
+      className: 'skip-fg',
+      property: 'color',
+      value: '#bbbbbb',
+      conditions: [],
+      unproven: '',
+    },
+    {
+      className: 'skip-size',
+      property: 'font-size',
+      value: '0.875rem',
+      conditions: [],
+      unproven: '',
+    },
+    {
+      className: 'skip-weight',
+      property: 'font-weight',
+      value: '400',
+      conditions: [],
+      unproven: '',
+    },
+    {
+      className: 'skip-focus',
+      property: 'left',
+      value: '1rem',
+      conditions: ['interaction.focus:active'],
+      unproven: '',
+    },
+  ],
+  vars: [],
 };
 
 describe('the two producers, end to end', () => {
@@ -265,5 +352,62 @@ describe('the two producers, end to end', () => {
     expect(JSON.stringify(run(root), null, 2)).toBe(
       JSON.stringify(run(root), null, 2),
     );
+  });
+
+  it('fails on low-contrast text returned by an imported focusable-link helper', async () => {
+    const root = await project({
+      'stubs.ts': `
+export declare function craftComponent(...args: unknown[]): unknown;
+export declare function div(...args: unknown[]): unknown;
+export declare function a(...args: unknown[]): unknown;
+export declare function craftStyles<T>(prefix: string, sheet: T): { [K in keyof T]: string };
+`,
+      'skip-link.style.ts': `
+import { craftStyles } from './stubs';
+export const craftSkipLink = craftStyles('craftSkipLink', { link: [] });
+`,
+      'a11y.ts': `
+import { a } from './stubs';
+import { craftSkipLink } from './skip-link.style';
+export function skipLink(targetId: string, label: string) {
+  return a({ href: \`#\${targetId}\`, class: craftSkipLink.link }, label);
+}
+`,
+      'app.ts': `
+import { craftComponent, div } from './stubs';
+import { skipLink } from './a11y';
+export const App = craftComponent('App', {}, () =>
+  div(skipLink('main', 'Skip to content')),
+);
+`,
+    });
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    const link = graph.nodes.find(
+      (node) => node.kind === 'styled-element' && node.label === 'a',
+    );
+    expect(link?.details?.['classKeys']).toEqual(['craftSkipLink-link']);
+    const merged = mergeStyleDump(graph, SKIP_LINK_DUMP);
+    const classNode = merged.nodes.find(
+      (node) => node.id === 'style-class:craftSkipLink-link',
+    );
+    expect(classNode?.details?.['axes']).toMatchObject({
+      'interaction.focus': ['active'],
+    });
+
+    const report = textContrastReport(
+      analyzeTextContrast(merged, SKIP_LINK_DUMP),
+    );
+    expect(report.summary).toMatchObject({ fail: 1, pass: 0 });
+    expect(report.results[0]).toMatchObject({
+      kind: 'resolved',
+      element: 'a',
+      verdict: 'fail',
+      required: 4.5,
+      fontSizePx: 14,
+    });
+    expect(textContrastExitCode(report)).toBe(1);
   });
 });

@@ -52,7 +52,7 @@ export const ReplaySidePanel = craftComponent(
         'aria-label': 'Journal et détails',
         hidden: closed,
       },
-      [head, tabs],
+      [head, div({ class: ui.sideTabs }, [tabs])],
     );
   },
 );

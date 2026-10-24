@@ -45,7 +45,7 @@ export const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
   { name: 'pendingNodeDemoView', providedIn: 'toProvide' },
   function* () {
     const users = yield* query(
-      'users',
+      'usersComponentPendingNodeDemo',
       {
         method: (_: undefined) => undefined,
         // `preservePreviousValue: false` clears the value on every reload, so the
@@ -66,7 +66,7 @@ export const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
         .sort()
         .join(' · ');
     });
-    yield* craftComputed('total', function* () {
+    yield* craftComputed('totalComponentPendingNodeDemo', function* () {
       const list = yield* settled(users);
       return `${list.items.length} people`;
     });

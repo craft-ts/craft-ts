@@ -63,7 +63,7 @@ export const { PixelArtView, providePixelArtView } = craftService(
       ),
     );
     const cells = yield* state(
-      'cells',
+      'cellsPixelArtPixelArt',
       INDEXES.map((index) => ({
         index,
         color: EMPTY_COLOR,
@@ -76,7 +76,7 @@ export const { PixelArtView, providePixelArtView } = craftService(
             storeName: 'pixel-art-cells',
           }),
         ),
-        insertSelect('cell', function* ({ update }) {
+        insertSelect('cellPixelArtPixelArt', function* ({ update }) {
           return {
             paint: function* () {
               const currentUi = yield* ui();

@@ -793,6 +793,86 @@ export function assertCraftUnique(graph: DependencyGraph): void {
   );
 }
 
+export type RuntimeEntityNameViolation = {
+  name: string;
+  entities: readonly {
+    kind: 'service' | 'primitive';
+    primitive?: string;
+    filePath?: string;
+    line?: number;
+  }[];
+};
+
+/** Finds runtime services and primitives that share the same project identity. */
+export function runtimeEntityNameViolations(
+  graph: DependencyGraph,
+): RuntimeEntityNameViolation[] {
+  const byName = new Map<
+    string,
+    RuntimeEntityNameViolation['entities'][number][]
+  >();
+  for (const node of graph.nodes) {
+    if (
+      node.kind !== 'service' &&
+      node.kind !== 'primitive'
+    ) {
+      continue;
+    }
+    const name =
+      node.kind === 'service'
+        ? node.label
+        : typeof node.details?.['name'] === 'string'
+          ? node.details['name']
+          : undefined;
+    if (!name) continue;
+    const entities = byName.get(name) ?? [];
+    entities.push({
+      kind: node.kind,
+      ...(node.kind === 'primitive' &&
+      typeof node.details?.['primitive'] === 'string'
+        ? { primitive: node.details['primitive'] }
+        : {}),
+      ...(node.filePath ? { filePath: node.filePath } : {}),
+      ...(node.line ? { line: node.line } : {}),
+    });
+    byName.set(name, entities);
+  }
+  return [...byName]
+    .filter(([, entities]) => entities.length > 1)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, entities]) => ({
+      name,
+      entities: entities.sort((left, right) =>
+        `${left.filePath}:${left.line}:${left.kind}:${left.primitive ?? ''}`.localeCompare(
+          `${right.filePath}:${right.line}:${right.kind}:${right.primitive ?? ''}`,
+        ),
+      ),
+    }));
+}
+
+/** Requires every Craft service and primitive to have a project-wide name. */
+export function assertRuntimeEntityNamesUnique(graph: DependencyGraph): void {
+  const violations = runtimeEntityNameViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(({ name, entities }) => {
+        const sites = entities.map((entity) => {
+          const type =
+            entity.kind === 'service'
+              ? 'service'
+              : `primitive ${entity.primitive ?? ''}`.trim();
+          const location = [entity.filePath, entity.line]
+            .filter(Boolean)
+            .join(':');
+          return `${type}${location ? ` at ${location}` : ''}`;
+        });
+        return `Duplicate runtime entity name "${name}": ${sites.join(', ')}. Give each service and primitive a distinct name.`;
+      })
+      .join('\n'),
+  );
+}
+
 export type CraftHandshakeDiagnosticCode =
   | 'CRAFT_HANDSHAKE_MISSING_COUNTERPART'
   | 'CRAFT_HANDSHAKE_NOT_STATIC'
@@ -4765,6 +4845,7 @@ export function architectureReport(
     (graph: DependencyGraph) => void,
   ])[] = [
     ['craft-unique', assertCraftUnique],
+    ['runtime-entity-names-unique', assertRuntimeEntityNamesUnique],
     ['http-endpoint-unique', assertHttpEndpointUnique],
     ['craft-computed-pure', assertCraftComputedPure],
     ['primitive-methods-used-once', assertPrimitiveMethodsUsedOnce],

@@ -1,6 +1,7 @@
 import {
   button,
   craftComponent,
+  content,
   div,
   forNode,
   li,
@@ -9,11 +10,12 @@ import {
   ul,
 } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
-import { DocSwitch } from '@craft-ts/ui';
-import { buttonUi } from '@craft-ts/ui/style';
+import { DocIcon, DocSwitch, DocTooltip } from '@craft-ts/ui';
+import { buttonUi, iconButtonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { eventElapsedLabel, journalSummary } from './replay-labels';
 import { eventDiagnosticLabel, eventSeverity } from './replay-model';
+import { ReplayOrchestration } from './replay-orchestration';
 import { launchDebugApp } from './replay-debug';
 import { setShowAllEvents } from './replay-session';
 import {
@@ -73,8 +75,27 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
   const events = div({ class: ui.scroll }, [
     ul(
       { class: ui.events, 'data-lab': 'events' },
-      forNode(visibleEventPage, { track: (event) => event.id }, (event) =>
-        li(
+      forNode(visibleEventPage, { track: (event) => event.id }, (event) => {
+        const tipId = function* () {
+          return `journal-debug-tip-${(yield* event()).id}`;
+        };
+        const debugButton = button(
+          'debugFromEvent',
+          {
+            type: 'button',
+            class: [iconButtonUi.root, ui.eventAction],
+            'data-lab': 'debug-from-event',
+            'aria-label': 'Déboguer avant cet événement',
+            'aria-describedby': tipId,
+            click: function* () {
+              const item = yield* event();
+              launchDebugApp(item.sequence, item.participantId);
+            },
+          },
+          DocIcon({ name: lit('external'), size: lit('sm') }),
+        );
+
+        return li(
           {
             class: ui.event,
             'data-entry': function* () {
@@ -86,39 +107,29 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
             },
           },
           [
-            span({ class: ui.eventName }, function* () {
-              return eventDiagnosticLabel(yield* event());
-            }),
-            span({ class: ui.eventMeta }, [
-              span(function* () {
-                const item = yield* event();
-                return `${item.kind} · ${item.phase}`;
+            div({ class: ui.eventInfo }, [
+              span({ class: ui.eventName }, function* () {
+                return eventDiagnosticLabel(yield* event());
               }),
-              span(function* () {
-                return eventElapsedLabel(yield* event());
-              }),
-            ]),
-            button(
-              'debugFromEvent',
-              {
-                type: 'button',
-                class: buttonUi.root,
-                'data-variant': 'link',
-                'data-lab': 'debug-from-event',
-                'aria-description':
-                  'Ouvre l’application en mode debug, à l’état qu’elle avait juste avant cet événement.',
-                'data-tooltip':
-                  'Ouvre l’application dans un nouvel onglet, à l’état d’avant cet événement.',
-                click: function* () {
+              span({ class: ui.eventMeta }, [
+                span(function* () {
                   const item = yield* event();
-                  launchDebugApp(item.sequence, item.participantId);
-                },
-              },
-              'Déboguer ici',
-            ),
+                  return `${item.kind} · ${item.phase}`;
+                }),
+                span(function* () {
+                  return eventElapsedLabel(yield* event());
+                }),
+              ]),
+            ]),
+            DocTooltip({
+              tip: lit('Ouvre l’application à l’état d’avant cet événement.'),
+              tipId,
+              placement: lit('left'),
+              body: content(() => debugButton),
+            }),
           ],
-        ),
-      ),
+        );
+      }),
     ),
   ]);
 
@@ -158,5 +169,10 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
     ],
   );
 
-  return div({ class: ui.sideBody }, [filter, events, pager]);
+  return div({ class: ui.sideBody }, [
+    ReplayOrchestration({}),
+    filter,
+    events,
+    pager,
+  ]);
 });

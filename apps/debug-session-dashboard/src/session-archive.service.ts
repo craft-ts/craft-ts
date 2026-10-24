@@ -2,6 +2,7 @@ import {
   CraftHttpClient,
   CraftTemporalRuntime,
   craftComputed,
+  craftExpose,
   craftService,
   insertReactOnMutation,
   mutation,
@@ -23,12 +24,18 @@ export type SessionSummary = Readonly<{
   updatedAt: string;
   status: 'recording' | 'completed' | 'interrupted';
   version: 2;
+  recordingVersion: number;
+  replayVersion: number;
   eventCount: number;
   truncated: boolean;
   participantCount?: number;
 }>;
 
-type SessionList = Readonly<{ sessions: readonly SessionSummary[] }>;
+type SessionList = Readonly<{
+  sessions: readonly SessionSummary[];
+  retentionDays: number;
+  storageBytes: number;
+}>;
 
 function isSessionSummary(value: unknown): value is SessionSummary {
   return (
@@ -41,6 +48,8 @@ function isSessionSummary(value: unknown): value is SessionSummary {
       value['status'] === 'completed' ||
       value['status'] === 'interrupted') &&
     typeof value['eventCount'] === 'number' &&
+    typeof value['recordingVersion'] === 'number' &&
+    typeof value['replayVersion'] === 'number' &&
     typeof value['truncated'] === 'boolean'
   );
 }
@@ -49,7 +58,32 @@ function isSessionSummary(value: unknown): value is SessionSummary {
 const sessionListDecoder = {
   decode(input: unknown): SessionList {
     const sessions = isRecord(input) ? input['sessions'] : undefined;
-    return { sessions: Array.isArray(sessions) ? sessions.filter(isSessionSummary) : [] };
+    const retentionDays = isRecord(input) ? input['retentionDays'] : undefined;
+    const storageBytes = isRecord(input) ? input['storageBytes'] : undefined;
+    return {
+      sessions: Array.isArray(sessions)
+        ? sessions.filter(isSessionSummary)
+        : [],
+      retentionDays:
+        typeof retentionDays === 'number' && retentionDays > 0
+          ? retentionDays
+          : 30,
+      storageBytes:
+        typeof storageBytes === 'number' && Number.isFinite(storageBytes)
+          ? Math.max(0, storageBytes)
+          : 0,
+    };
+  },
+};
+
+const pruneResultDecoder = {
+  decode(input: unknown): Readonly<{ deleted: number }> {
+    return {
+      deleted:
+        isRecord(input) && typeof input['deleted'] === 'number'
+          ? input['deleted']
+          : 0,
+    };
   },
 };
 
@@ -96,6 +130,28 @@ export const { SessionArchive } = craftService(
       },
     });
 
+    const pruneSessions = yield* mutation('pruneSessions', {
+      method: (requested: boolean) => requested,
+      loader: function* () {
+        return yield* CraftHttpClient.post(({ response }) => ({
+          url: `${SESSION_ARCHIVE_URL}/sessions/prune`,
+          payload: {},
+          success: response(pruneResultDecoder),
+        }));
+      },
+    });
+
+    const deleteSessions = yield* mutation('deleteSessions', {
+      method: (ids: readonly string[]) => ids,
+      loader: function* ({ params: ids }) {
+        return yield* CraftHttpClient.post(({ response }) => ({
+          url: `${SESSION_ARCHIVE_URL}/sessions/delete-many`,
+          payload: { ids },
+          success: response(pruneResultDecoder),
+        }));
+      },
+    });
+
     const sessions = yield* query(
       'sessions',
       {
@@ -129,6 +185,12 @@ export const { SessionArchive } = craftService(
     yield* craftComputed('savedSessions', function* () {
       return (yield* sessions.value())?.sessions ?? [];
     });
+    yield* craftComputed('retentionDays', function* () {
+      return (yield* sessions.value())?.retentionDays ?? 30;
+    });
+    yield* craftComputed('storageBytes', function* () {
+      return (yield* sessions.value())?.storageBytes ?? 0;
+    });
     yield* craftComputed('reachable', function* () {
       return !(yield* sessions.hasException());
     });
@@ -140,5 +202,17 @@ export const { SessionArchive } = craftService(
       });
     };
     refreshAgain();
+
+    yield* craftExpose('pruneExpired', function* () {
+      yield* pruneSessions.mutate(true);
+      refreshRequested$.emit(++refreshCount);
+    });
+    yield* craftExpose(
+      'deleteArchivedSessions',
+      function* (ids: readonly string[]) {
+        yield* deleteSessions.mutate(ids);
+        refreshRequested$.emit(++refreshCount);
+      },
+    );
   },
 );

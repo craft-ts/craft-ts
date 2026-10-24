@@ -76,7 +76,7 @@ export const { EffectI18nView, provideEffectI18nView } = craftService(
         total: craftUse(craftComputed('total', function* () {
           return (yield* settled(resource)).total;
         })),
-        lines: craftUse(craftComputed('lines', function* () {
+        lines: craftUse(craftComputed('linesEffectEffectI18n', function* () {
           return (yield* settled(resource)).lines;
         })),
       }),

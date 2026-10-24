@@ -40,7 +40,7 @@ export const { provideUserList, UserList } = craftService(
   { name: 'UserList', providedIn: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
-      'pagination',
+      'paginationListWithPaginationListWithPagination',
       paginationQueryParams(),
       ({ patch, state }) => ({
         nextPage: function* () {
@@ -57,7 +57,7 @@ export const { provideUserList, UserList } = craftService(
       }),
     );
     yield* query(
-      'users',
+      'usersListWithPaginationListWithPagination',
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -76,7 +76,7 @@ export const { provideUserList, UserList } = craftService(
           { initialValue: Array<User>() },
           function* ({ state }) {
             return {
-              total: yield* craftComputed('total', function* () {
+              total: yield* craftComputed('totalListWithPaginationListWithPagination', function* () {
                 return (yield* state()).length;
               }),
             };
@@ -95,7 +95,7 @@ export const {
   function* () {
     const store = yield* UserList();
     yield* craftComputed(
-      'isCurrentPageResolved',
+      'isCurrentPageResolvedListWithPaginationListWithPagination',
       function* () {
         const _storeuserscurrentPageStatus =
           yield* store.users.currentPageStatus();
@@ -103,7 +103,7 @@ export const {
       },
     );
     yield* craftMethod(
-      'updatePageSize',
+      'updatePageSizeListWithPaginationListWithPagination',
       function* (event: Event) {
         (yield* UserList()).pagination.updatePageSize(
           Number(eventValue(event)),

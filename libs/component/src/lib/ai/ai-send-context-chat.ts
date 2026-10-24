@@ -174,13 +174,13 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     };
 
     const instruction = (yield* craftPrivate(
-      state('instruction', '', ({ set }) => ({
+      state('sendContextInstruction', '', ({ set }) => ({
         setInstruction: (value: string) => set(value),
       })),
     )) as unknown as InstructionState;
     const promptOptions = (yield* craftPrivate(
       state(
-        'promptOptions',
+        'sendContextPromptOptions',
         DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
         ({ set }) => ({
           setOptions: (value: SendContextPromptOptions) => set(value),

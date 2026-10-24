@@ -159,6 +159,7 @@ import {
   assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
   assertLazyRouteTargetsStayLazy,
+  assertRuntimeEntityNamesUnique,
   buildArchitectureCatalog,
   createArchitectureGraph,
   noExclusiveLink,
@@ -509,6 +510,7 @@ rules that express your application's boundaries.
 | Helper                                                                                             | Fails when                                                                                                                                                                                                                                             |
 | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [`assertCraftUnique`](/guide/testing/architecture/unique-identities)                               | the same `craftUnique` identity appears twice, or the argument is not a static literal                                                                                                                                                                 |
+| [`assertRuntimeEntityNamesUnique`](/guide/testing/architecture/runtime-entity-names)               | a Craft service or primitive shares its runtime name with another service or primitive in the project                                                                                                                                                 |
 | [`assertHttpEndpointUnique`](/guide/testing/architecture/http-endpoint-ownership)                  | the same HTTP verb+URL is called from more than one site                                                                                                                                                                                               |
 | `assertVisualHappyPathArchitecture`                                                                | a routed page, mobile/desktop viewport, or Craft HTTP endpoint has no successful visual happy-path fixture                                                                                                                                             |
 | [`assertCraftComputedPure`](/guide/testing/architecture/computed-purity)                           | a `craftComputed` `calls` a method or `writes` a `source$`                                                                                                                                                                                             |

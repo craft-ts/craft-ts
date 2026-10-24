@@ -31,6 +31,11 @@ export default [
     },
   },
   {
+    files: ['**/src/client/**/*.ts'],
+    plugins: { 'craft-ts': craftRules },
+    rules: { 'craft-ts/prefer-craft-router-link': 'error' },
+  },
+  {
     files: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
     rules: {
       'craft-ts/prefer-craft-template-blocks': 'off',

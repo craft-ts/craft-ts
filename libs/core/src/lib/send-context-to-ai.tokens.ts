@@ -89,6 +89,8 @@ export interface SendContextEvent {
   readonly state?: unknown;
   readonly targets?: readonly SendContextTarget[];
   readonly source?: string;
+  /** Stable Craft host path for replayable custom source emissions. */
+  readonly replayAddress?: string;
   /** Present when a local archive combines events from multiple page tabs. */
   readonly participantId?: string;
   /** Event sequence within its originating page tab. */
@@ -128,12 +130,16 @@ export interface SendContextSessionParticipant {
 
 /** Current portable recording schema. Bump only with an explicit replay migration decision. */
 export const DEBUG_SESSION_EXPORT_VERSION = 6 as const;
+/** Bump when replay semantics change incompatibly with previously captured sessions. */
+export const DEBUG_SESSION_REPLAY_VERSION = 1 as const;
 
 /** A portable, redacted recording that can be validated before replay. */
 export interface SendContextReplayExport {
   readonly format: 'craft-debug-session';
   /** Runtime target identities and transport contracts are defined by this schema version. */
   readonly version: typeof DEBUG_SESSION_EXPORT_VERSION;
+  /** Replay contract version, independent from the portable JSON format. */
+  readonly replayVersion?: number;
   readonly startUrl: string;
   /** CSS-pixel viewport dimensions when session capture is initialized. */
   readonly viewport?: Readonly<{ width: number; height: number }>;
@@ -834,6 +840,7 @@ export function createSendContextSession(
       return safeJson({
         format: 'craft-debug-session',
         version: DEBUG_SESSION_EXPORT_VERSION,
+        replayVersion: DEBUG_SESSION_REPLAY_VERSION,
         startUrl,
         ...(viewport ? { viewport } : {}),
         exportedAt: Date.now(),

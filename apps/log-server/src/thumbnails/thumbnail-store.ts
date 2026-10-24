@@ -4,6 +4,7 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -61,6 +62,11 @@ export class ThumbnailStore {
   constructor(directory: string) {
     this.directory = directory;
     mkdirSync(directory, { recursive: true });
+  }
+
+  /** Bytes used by cached thumbnail manifests and image files. */
+  get storageBytes(): number {
+    return directoryBytes(this.directory);
   }
 
   readManifest(sessionId: string): ThumbnailManifest | undefined {
@@ -131,6 +137,30 @@ export class ThumbnailStore {
   private manifestPath(sessionId: string): string {
     return join(this.folder(sessionId), 'manifest.json');
   }
+}
+
+function directoryBytes(directory: string): number {
+  let bytes = 0;
+  let entries;
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const entry of entries) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      bytes += directoryBytes(path);
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    try {
+      bytes += statSync(path).size;
+    } catch {
+      // A thumbnail may be removed while the archive is being updated.
+    }
+  }
+  return bytes;
 }
 
 function isManifest(

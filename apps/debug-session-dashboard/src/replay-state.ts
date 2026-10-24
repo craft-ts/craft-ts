@@ -244,6 +244,22 @@ const replayWarningsBridge = createStateBridge<readonly string[]>(
   [],
 );
 export const replayWarnings = replayWarningsBridge.value;
+/** Errors stay in the notes history but do not behave like dismissible waits. */
+export const REPLAY_ERROR_NOTE_PREFIX = 'Erreur à corriger · ';
+export function isReplayErrorNote(note: string): boolean {
+  return note.startsWith(REPLAY_ERROR_NOTE_PREFIX);
+}
+/** Stale visual/CSS targets stay in history without covering the replay. */
+export function isReplayVisualWarning(note: string): boolean {
+  return [
+    'Replay CSS',
+    'Replay Craft target',
+    'Replay Craft hover target',
+    'Replay target selector',
+    'Replay hover target',
+    'Replay scroll target',
+  ].some((prefix) => note.startsWith(prefix));
+}
 /** The notes someone has already put away; they stay in the history. */
 const dismissedWarningsBridge = createStateBridge<readonly string[]>(
   'dismissedWarnings',
@@ -628,7 +644,9 @@ export const { ReplayState } = craftService(
       'replayableParticipantsState',
       () =>
         sessionParticipants().filter(
-          (participant) => !continuations().has(participant.id),
+          (participant) =>
+            !continuations().has(participant.id) &&
+            hasReplayableParticipantData(participant),
         ),
     );
     replayableParticipantsBridge.bind(
@@ -698,7 +716,10 @@ export const { ReplayState } = craftService(
       'pendingWarningsState',
       () =>
         replayWarnings().filter(
-          (warning) => !dismissedWarnings().includes(warning),
+          (warning) =>
+            !isReplayErrorNote(warning) &&
+            !isReplayVisualWarning(warning) &&
+            !dismissedWarnings().includes(warning),
         ),
     );
     pendingWarningsBridge.bind(rawReactiveValue(pendingWarningsState));
@@ -944,15 +965,13 @@ function computeVisibleEventPage(): readonly SendContextEvent[] {
 }
 
 /**
- * When each replayable action happens, in milliseconds from the first one: the
- * recorded timeline the replay keeps to when it plays at real speed.
+ * When each replayable action happens, in milliseconds from the first one.
+ * Prefer the archive clock when present: a page reload can reset elapsedMs
+ * even though the participant's events continue in the same session.
  */
 function computeReplayActionOffsetsMs(): readonly number[] {
-  const shared = selectedParticipantId() === 'all';
-  const times = replayableEvents().map((event) =>
-    shared
-      ? (event.globalElapsedMs ?? event.elapsedMs ?? event.timestamp)
-      : (event.elapsedMs ?? event.timestamp),
+  const times = replayableEvents().map(
+    (event) => event.globalElapsedMs ?? event.elapsedMs ?? event.timestamp,
   );
   const origin = times[0] ?? 0;
   let latest = 0;
@@ -1022,6 +1041,22 @@ export function participantTitle(participantId: string): string {
   );
 }
 
+function hasReplayableParticipantData(
+  participant: SendContextSessionParticipant,
+): boolean {
+  const replay = sessionForParticipant(participant.id);
+  if (!replay || replay.truncated) return false;
+  // A hidden tab that produced no replay events or snapshots is a transient
+  // browser participant, not a screen the replay can show. An empty recording
+  // clip alone does not make it a replayable screen.
+  return !(
+    replay.events.length === 0 &&
+    (replay.snapshots?.length ?? 0) === 0 &&
+    !replay.initialSnapshot &&
+    participant.state === 'hidden'
+  );
+}
+
 /** The tabs the replay plays, in the order the stage lays them out. */
 export function replayParticipantIds(): readonly string[] {
   const participants = sessionParticipants();
@@ -1034,8 +1069,7 @@ export function replayParticipantIds(): readonly string[] {
   return candidates
     .filter((participant) => {
       if (continuations().has(participant.id)) return false;
-      const replay = sessionForParticipant(participant.id);
-      return replay !== undefined && !replay.truncated;
+      return hasReplayableParticipantData(participant);
     })
     .map((participant) => participant.id);
 }

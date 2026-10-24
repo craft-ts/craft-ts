@@ -37,7 +37,7 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
     { name: 'listWithPaginationView', providedIn: 'toProvide' },
     function* () {
       const pagination = yield* queryParams(
-        'pagination',
+        'paginationListWithPaginationListWithPagination2',
         paginationQueryParams(),
         ({ patch, state }) => ({
           nextPage: function* () {
@@ -54,7 +54,7 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
         }),
       );
       yield* query(
-        'usersQuery',
+        'usersQueryListWithPaginationListWithPagination',
         {
           params: pagination,
           identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -74,7 +74,7 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
             function* ({ currentPageStatus }) {
               return {
                 isCurrentPageResolved: yield* craftComputed(
-                  'isCurrentPageResolved',
+                  'isCurrentPageResolvedListWithPaginationListWithPagination2',
                   function* () {
                     return (yield* currentPageStatus()) === 'resolved';
                   },
@@ -86,7 +86,7 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
       );
 
       yield* craftMethod(
-        'updatePageSize',
+        'updatePageSizeListWithPaginationListWithPagination2',
         function* (event: Event) {
           yield* pagination.updatePageSize(Number(eventValue(event)));
         },

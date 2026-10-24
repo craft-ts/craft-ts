@@ -219,7 +219,10 @@ export const aiDialog = craftStyles(
         duration: unit.ms(150),
         easing: easing.ease,
       }),
-      when(copyState.done, [bg(ai['success-fill'])]),
+      when(copyState.done, [
+        bg(ai['success-fill']),
+        color(ai['success-on-fill']),
+      ]),
       when(interaction.disabled, [opacity(num(0.6)), cursor.notAllowed]),
     ],
   },

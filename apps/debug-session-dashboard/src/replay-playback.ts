@@ -180,13 +180,15 @@ export function updateReplayTileIndicators(): void {
       const actionTarget = registers.actionParticipantId === id;
       const state = participantStates.get(id)?.state;
       const message =
-        state === 'hidden'
-          ? 'Non visible'
-          : state === 'closed'
-            ? 'Onglet fermé'
-            : state === 'interrupted'
-              ? 'Connexion interrompue'
-              : undefined;
+        state === 'closed'
+          ? 'Onglet fermé'
+          : state === 'interrupted'
+            ? 'Connexion interrompue'
+            : replayState() === 'paused'
+              ? 'En pause'
+              : state === 'hidden'
+                ? 'Non visible'
+                : undefined;
       return {
         participantId: id,
         focus: recordedActive,
@@ -202,7 +204,10 @@ export function updateReplayTileIndicators(): void {
         veil:
           message === undefined
             ? undefined
-            : { message, dim: state === 'hidden' },
+            : {
+                message,
+                dim: state === 'hidden' && replayState() !== 'paused',
+              },
       };
     }),
   );
@@ -289,7 +294,14 @@ export function prepareReplayVisibilityTimeline(): void {
   registers.recordedActiveParticipantId = undefined;
   const slices = sessionsForReplay();
   const clock = recordingClock();
-  registers.visibilityOriginMs = replaySessionStartAtMs(slices, clock);
+  // The playback clock starts at its first replayable action, not when the
+  // archive was first opened. Seed visibility from that same point so state
+  // changes during a long idle period are applied before the first action.
+  const firstAction = replayableEvents()[0];
+  registers.visibilityOriginMs =
+    firstAction?.globalElapsedMs ??
+    firstAction?.elapsedMs ??
+    replaySessionStartAtMs(slices, clock);
   registers.visibilityTimeline = visibilityTimeline(
     slices,
     clock,
@@ -372,6 +384,7 @@ export function updateGlobalReplayState(): void {
   if (replayState() !== 'playing' && registers.clockStartedAt !== undefined) {
     freezeReplayVisibilityClock();
   }
+  updateReplayTileIndicators();
 }
 
 /* ── talking to the tabs ────────────────────────────────────────────────── */

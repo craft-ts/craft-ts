@@ -191,7 +191,7 @@ const { AiSendDialogState, provideAiSendDialogState } = craftService(
     // the emitter cannot name (TS4023),
     // so the signals stay local and the context exposes plain accessors only.
     const instruction = (yield* craftPrivate(
-      state('instruction', '', ({ set }) => ({
+      state('sendDialogInstruction', '', ({ set }) => ({
         setInstruction: (value: string) => set(value),
       })),
     )) as unknown as InstructionState;
@@ -201,7 +201,7 @@ const { AiSendDialogState, provideAiSendDialogState } = craftService(
       })),
     )) as unknown as CopiedState;
     const promptOptions = (yield* craftPrivate(
-      state('promptOptions', DEFAULT_PROMPT_OPTIONS, ({ set }) => ({
+      state('sendDialogPromptOptions', DEFAULT_PROMPT_OPTIONS, ({ set }) => ({
         setPromptOptions: (value: PromptOptions) => set(value),
       })),
     )) as unknown as PromptOptionsState;

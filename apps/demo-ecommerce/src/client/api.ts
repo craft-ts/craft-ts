@@ -1,8 +1,12 @@
 import { craftUnique, createServerFunctionClient, isCraftException } from '@craft-ts/core';
-import type { getCatalog, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore } from '../server/functions';
-import type { CartLine, Category, Order, Product, StoreData } from '../shared/model';
+import type { getCatalog, login, logout, getAdminOverview, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore } from '../server/functions';
+import type { AccountSession } from '../shared/accounts';
+import type { Catalog, CartLine, Category, Order, Product, StoreData } from '../shared/model';
 
 const rawCatalog = createServerFunctionClient<typeof getCatalog>(craftUnique('ecommerce.catalog'));
+const rawLogin = createServerFunctionClient<typeof login>(craftUnique('ecommerce.auth.login'));
+const rawLogout = createServerFunctionClient<typeof logout>(craftUnique('ecommerce.auth.logout'));
+const rawAdminOverview = createServerFunctionClient<typeof getAdminOverview>(craftUnique('ecommerce.admin.overview'));
 const rawProductSave = createServerFunctionClient<typeof saveProduct>(craftUnique('ecommerce.product.save'));
 const rawProductDelete = createServerFunctionClient<typeof deleteProduct>(craftUnique('ecommerce.product.delete'));
 const rawCategorySave = createServerFunctionClient<typeof saveCategory>(craftUnique('ecommerce.category.save'));
@@ -15,10 +19,15 @@ function decode<A>(value: string): A {
   // for query/resource handling instead of trying to parse them as JSON text.
   return isCraftException(value) ? value as A : JSON.parse(value) as A;
 }
-export function* catalog(input: Record<string, never>): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawCatalog(input)); }
-export function* productSave(input: { readonly product: Product }): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawProductSave(input)); }
-export function* productDelete(input: { readonly id: string }): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawProductDelete(input)); }
-export function* categorySave(input: { readonly category: Category }): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawCategorySave(input)); }
-export function* categoryDelete(input: { readonly id: string }): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawCategoryDelete(input)); }
+type Authenticated<Input> = Input & { readonly token: string };
+
+export function* catalog(input: Record<string, never>): Generator<unknown, Catalog, unknown> { return decode<Catalog>(yield* rawCatalog(input)); }
+export function* signIn(input: { readonly email: string; readonly password: string }): Generator<unknown, AccountSession, unknown> { return decode<AccountSession>(yield* rawLogin(input)); }
+export function* signOut(input: { readonly token: string }): Generator<unknown, unknown, unknown> { return yield* rawLogout(input); }
+export function* adminOverview(input: Authenticated<Record<never, never>>): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawAdminOverview(input)); }
+export function* productSave(input: Authenticated<{ readonly product: Product }>): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawProductSave(input)); }
+export function* productDelete(input: Authenticated<{ readonly id: string }>): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawProductDelete(input)); }
+export function* categorySave(input: Authenticated<{ readonly category: Category }>): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawCategorySave(input)); }
+export function* categoryDelete(input: Authenticated<{ readonly id: string }>): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawCategoryDelete(input)); }
 export function* placeOrder(input: { readonly lines: readonly CartLine[] }): Generator<unknown, Order, unknown> { return decode<Order>(yield* rawOrder(input)); }
-export function* reset(input: Record<string, never>): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawReset(input)); }
+export function* reset(input: Authenticated<Record<never, never>>): Generator<unknown, StoreData, unknown> { return decode<StoreData>(yield* rawReset(input)); }

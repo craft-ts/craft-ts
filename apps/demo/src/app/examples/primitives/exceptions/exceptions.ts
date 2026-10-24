@@ -27,13 +27,13 @@ export const { ExceptionsView, provideExceptionsView } = craftService(
   { name: 'exceptionsView', providedIn: 'toProvide' },
   function* () {
     yield* state(
-      'lastHandledException',
+      'lastHandledExceptionExceptionsExceptions',
       '',
       ({ set }) => ({ record: (tag: string) => set(tag) }),
     );
 
     const userQuery = yield* query(
-      'userQuery',
+      'userQueryExceptionsExceptions',
       {
         method: (scenario: Scenario) => scenario,
         loader: craftGen(function* ({ params }) {
@@ -61,7 +61,7 @@ export const { ExceptionsView, provideExceptionsView } = craftService(
       },
       function* ({ resource, exceptions }) {
         return {
-          hasUser: yield* craftComputed('hasUser', () => resource.hasValue()),
+          hasUser: yield* craftComputed('hasUserExceptionsExceptions', () => resource.hasValue()),
           userExceptionLoader: yield* craftComputed(
             'userExceptionLoader',
             function* () {
@@ -75,13 +75,13 @@ export const { ExceptionsView, provideExceptionsView } = craftService(
           userStatusLabel: yield* craftComputed('userStatusLabel', function* () {
             return yield* resource.status();
           }),
-          userId: yield* craftComputed('userId', function* () {
+          userId: yield* craftComputed('userIdExceptionsExceptions', function* () {
             return (yield* resource.value())?.id ?? '';
           }),
-          userName: yield* craftComputed('userName', function* () {
+          userName: yield* craftComputed('userNameExceptionsExceptions', function* () {
             return (yield* resource.value())?.name ?? '';
           }),
-          userEmail: yield* craftComputed('userEmail', function* () {
+          userEmail: yield* craftComputed('userEmailExceptionsExceptions', function* () {
             return (yield* resource.value())?.email ?? '';
           }),
           typedUserExceptionLoader: yield* craftComputed(

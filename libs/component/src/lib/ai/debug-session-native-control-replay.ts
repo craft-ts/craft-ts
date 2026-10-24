@@ -44,19 +44,22 @@ export function createDebugSessionNativeControlReplayPresentation(): {
     const left = Math.max(0, Math.min(rect.left, viewportWidth - width));
     const availableBelow = Math.max(0, viewportHeight - rect.bottom - 8);
     const availableAbove = Math.max(0, rect.top - 8);
-    const maxHeight = Math.max(
-      48,
-      Math.min(280, Math.max(availableBelow, availableAbove)),
-    );
-    const placeAbove =
-      availableBelow < Math.min(180, maxHeight) &&
-      availableAbove > availableBelow;
 
     popup.style.left = `${left}px`;
     popup.style.width = `${width}px`;
+    popup.style.maxHeight = 'none';
+    const desiredHeight = Math.min(280, popup.getBoundingClientRect().height);
+    const placeAbove =
+      availableBelow < desiredHeight && availableAbove > availableBelow;
+    const availableOnChosenSide = placeAbove
+      ? availableAbove
+      : availableBelow;
+    const maxHeight = Math.max(48, Math.min(280, availableOnChosenSide));
+    const renderedHeight = Math.min(desiredHeight, maxHeight);
+
     popup.style.maxHeight = `${maxHeight}px`;
     popup.style.top = placeAbove
-      ? `${Math.max(0, rect.top - maxHeight)}px`
+      ? `${Math.max(0, rect.top - renderedHeight)}px`
       : `${Math.max(0, rect.bottom)}px`;
   }
 

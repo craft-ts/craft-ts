@@ -37,7 +37,7 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
   }) {
     const { userId } = inputs.$provided;
 
-    const updateUserName = yield* mutation('updateUserName', {
+    const updateUserName = yield* mutation('updateUserNameMutationMutation2', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
         name: payload.userName,
@@ -46,11 +46,11 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
         return yield* ApiService.updateItem(user);
       },
     });
-    yield* state('nameInput', '', ({ set }) => ({
+    yield* state('nameInputMutationMutation2', '', ({ set }) => ({
       setName: (value: string) => set(value.trim()),
     }));
     const userQuery = yield* query(
-      'userQuery',
+      'userQueryMutationMutation',
       {
         params: userId,
         loader: function* ({ params }) {
@@ -73,8 +73,8 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
         }),
       ),
     );
-    yield* craftComputed('hasUser', () => userQuery.hasValue());
-    yield* craftComputed('userValueJson', function* () {
+    yield* craftComputed('hasUserMutationMutation2', () => userQuery.hasValue());
+    yield* craftComputed('userValueJsonMutationMutation2', function* () {
       return JSON.stringify(yield* userQuery.value(), null, 2);
     });
     const userIdPathParams = yield* UserIdPathParams();

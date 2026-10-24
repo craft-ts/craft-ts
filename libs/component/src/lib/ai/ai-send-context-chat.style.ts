@@ -297,7 +297,8 @@ export const aiChat = craftStyles(
       when(buttonTone.recording, [
         bg(ai['danger-fill']),
         borderColor(ai['danger-fill']),
-        color(ai['on-accent']),
+        color(ai['danger-on-fill']),
+        when(interaction.hover, [bg(ai['danger-fill'])]),
       ]),
       when(interaction.disabled, [opacity(num(0.55)), cursor.notAllowed]),
     ],

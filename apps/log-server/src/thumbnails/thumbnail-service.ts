@@ -118,6 +118,10 @@ export class ThumbnailService {
     return this.options.capturer !== undefined;
   }
 
+  get storageBytes(): number {
+    return this.options.store.storageBytes;
+  }
+
   /**
    * The state of a recording's pictures. Nothing is started here: the
    * manifest on disk is the answer, or the live one while a job runs.

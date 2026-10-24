@@ -42,7 +42,7 @@ export const { GranularMutationView, provideGranularMutationView } =
     { name: 'granularMutationView', providedIn: 'toProvide' },
     function* () {
       const pagination = yield* queryParams(
-        'pagination',
+        'paginationGranularMutationGranularMutation2',
         paginationQueryParams(),
         ({ patch, state }) => ({
           nextPage: function* () {
@@ -59,7 +59,7 @@ export const { GranularMutationView, provideGranularMutationView } =
         }),
       );
 
-      const updateUserName = yield* mutation('updateUserName', {
+      const updateUserName = yield* mutation('updateUserNameGranularMutationGranularMutation2', {
         method: (user: User) => ({ ...user, name: `${user.name}-` }),
         identifier: ({ id }) => id,
         loader: function* ({ params }) {
@@ -67,7 +67,7 @@ export const { GranularMutationView, provideGranularMutationView } =
         },
       });
       yield* query(
-        'usersQuery',
+        'usersQueryGranularMutationGranularMutation',
         {
           params: pagination,
           identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -137,7 +137,7 @@ export const { GranularMutationView, provideGranularMutationView } =
         return yield* (read as Generator<unknown, boolean, unknown>);
       }
       yield* craftExpose('isUpdatePending', isUpdatePending);
-      yield* craftMethod('updatePageSize', function* (event: Event) {
+      yield* craftMethod('updatePageSizeGranularMutationGranularMutation2', function* (event: Event) {
         yield* pagination.updatePageSize(Number(eventValue(event)));
       });
     },

@@ -49,6 +49,7 @@ import {
   replayViewport,
   replayViewports,
   replayWarnings,
+  REPLAY_ERROR_NOTE_PREFIX,
   seekHooks,
   warningIndexes,
   autoSkipDifferences,
@@ -207,6 +208,16 @@ function onInteraction(
   if (data['kind'] === 'hover') {
     if (
       action === 'enter' &&
+      data['pointerId'] === -1 &&
+      x === 0 &&
+      y === 0
+    ) {
+      // Keyboard focus uses a synthetic pointer id and has no mouse location.
+      hideClickMarker(participantId);
+      return;
+    }
+    if (
+      action === 'enter' &&
       typeof x === 'number' &&
       Number.isFinite(x) &&
       typeof y === 'number' &&
@@ -234,6 +245,13 @@ function onInteraction(
     typeof y === 'number' &&
     Number.isFinite(y)
   ) {
+    // Keyboard-activated clicks have no pointer position. Older recordings
+    // serialize their coordinates as (0, 0); showing that as a mouse marker
+    // makes the click appear in the viewport's top-left corner.
+    if (action === 'click' && x === 0 && y === 0) {
+      hideClickMarker(participantId);
+      return;
+    }
     const scale = replayScales.get(participantId) ?? 1;
     showClickMarker(
       participantId,
@@ -389,6 +407,12 @@ function onError(
   endReplayLoadingIndicator();
   status.set(
     `Replay interrompu · ${String(data['message'] ?? 'erreur inconnue')}`,
+  );
+  const errorNote = `${REPLAY_ERROR_NOTE_PREFIX}${String(
+    data['message'] ?? 'erreur inconnue',
+  )}`;
+  replayWarnings.update((notes) =>
+    notes.includes(errorNote) ? notes : [...notes, errorNote].slice(-50),
   );
 }
 

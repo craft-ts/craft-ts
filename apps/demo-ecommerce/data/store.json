@@ -19,21 +19,13 @@
   "products": [
     {
       "kind": "simple",
-      "id": "espresso",
-      "name": "Espresso",
-      "description": "Double espresso, grains du jour.",
-      "categoryId": "coffee",
-      "price": 3.5,
-      "stock": 32
-    },
-    {
-      "kind": "simple",
       "id": "flat-white",
       "name": "Flat white",
       "description": "Espresso, lait velouté.",
       "categoryId": "coffee",
       "price": 5,
-      "stock": 18
+      "stock": 14,
+      "emoji": "🥛"
     },
     {
       "kind": "simple",
@@ -42,7 +34,8 @@
       "description": "Feuilletage croustillant, beurre AOP.",
       "categoryId": "pastries",
       "price": 3,
-      "stock": 12
+      "stock": 0,
+      "emoji": "🥐"
     },
     {
       "kind": "simple",
@@ -51,7 +44,8 @@
       "description": "Chocolat noir et fleur de sel.",
       "categoryId": "pastries",
       "price": 3.5,
-      "stock": 9
+      "stock": 7,
+      "emoji": "🍪"
     },
     {
       "kind": "simple",
@@ -60,7 +54,8 @@
       "description": "Infusion maison, pêche blanche.",
       "categoryId": "drinks",
       "price": 4.5,
-      "stock": 15
+      "stock": 13,
+      "emoji": "🍑"
     },
     {
       "kind": "formule",
@@ -82,8 +77,117 @@
           "min": 0,
           "max": 1
         }
-      ]
+      ],
+      "emoji": "🧺"
     }
   ],
-  "orders": []
+  "orders": [
+    {
+      "id": "order-1792847503837-k9byw",
+      "createdAt": "2026-10-24T13:11:43.837Z",
+      "lines": [
+        {
+          "productId": "flat-white",
+          "quantity": 1
+        },
+        {
+          "productId": "croissant",
+          "quantity": 1
+        },
+        {
+          "productId": "cookie",
+          "quantity": 1
+        }
+      ],
+      "total": 11.5
+    },
+    {
+      "id": "order-1792847724181-ou3m4",
+      "createdAt": "2026-10-24T13:15:24.181Z",
+      "lines": [
+        {
+          "productId": "flat-white",
+          "quantity": 1
+        },
+        {
+          "productId": "croissant",
+          "quantity": 1
+        },
+        {
+          "productId": "pause-cafe",
+          "quantity": 1,
+          "selections": [
+            {
+              "groupId": "pause-pastry",
+              "productIds": [
+                "croissant"
+              ]
+            },
+            {
+              "groupId": "pause-drink",
+              "productIds": [
+                "iced-tea"
+              ]
+            }
+          ]
+        }
+      ],
+      "total": 16
+    },
+    {
+      "id": "order-1792848753631-eejvo",
+      "createdAt": "2026-10-24T13:32:33.631Z",
+      "lines": [
+        {
+          "productId": "croissant",
+          "quantity": 4
+        },
+        {
+          "productId": "pause-cafe",
+          "quantity": 1,
+          "selections": [
+            {
+              "groupId": "pause-pastry",
+              "productIds": [
+                "croissant"
+              ]
+            },
+            {
+              "groupId": "pause-drink",
+              "productIds": [
+                "iced-tea"
+              ]
+            }
+          ]
+        }
+      ],
+      "total": 20
+    },
+    {
+      "id": "order-1792848928544-sfhes",
+      "createdAt": "2026-10-24T13:35:28.544Z",
+      "lines": [
+        {
+          "productId": "flat-white",
+          "quantity": 2
+        }
+      ],
+      "total": 10
+    },
+    {
+      "id": "order-1792849911134-v8x0z",
+      "createdAt": "2026-10-24T13:51:51.134Z",
+      "lines": [
+        {
+          "productId": "croissant",
+          "quantity": 4
+        },
+        {
+          "productId": "cookie",
+          "quantity": 1
+        }
+      ],
+      "total": 15.5
+    }
+  ]
 }

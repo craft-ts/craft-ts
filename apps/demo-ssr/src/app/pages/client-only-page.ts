@@ -35,7 +35,7 @@ export const { SsrClientOnlyPageView, provideSsrClientOnlyPageView } = craftServ
         return { width, visits };
       },
     }));
-    yield* craftComputed('resolved', function* () {
+    yield* craftComputed('resolvedPagesClientOnlyPage', function* () {
       return yield* settled(data);
     });
   },

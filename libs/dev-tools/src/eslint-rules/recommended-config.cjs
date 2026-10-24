@@ -9,6 +9,8 @@ module.exports = {
   'craft-ts/craft-query-params-name-match': 'warn',
   // A craftService exposes the named primitives it yields; it never returns.
   'craft-ts/no-craft-service-return': 'error',
+  'craft-ts/no-duplicate-craft-service-exposure': 'error',
+  'craft-ts/no-reexposed-craft-service-utility': 'error',
   'craft-ts/require-craft-service-input-scope': 'error',
   'craft-ts/prefer-direct-craft-service-exposure': 'error',
   'craft-ts/prefer-craft-computed-for-reactive-generator': 'error',

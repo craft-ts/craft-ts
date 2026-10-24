@@ -70,7 +70,7 @@ export const {
     const permissions = yield* ProfilePermissions();
 
     yield* craftStateMachine(
-      'machine',
+      'machineStateMachineProfileEditor',
 
       // 1. The machine's context: every primitive its steps and workflows use.
       function* () {
@@ -269,15 +269,15 @@ export const {
                 (yield* permissions.readOnly())
               );
             }),
-            historyLabel: yield* craftComputed('historyLabel', function* () {
+            historyLabel: yield* craftComputed('historyLabelStateMachineProfileEditor', function* () {
               const entries = yield* insertions.history();
               const cursor = yield* insertions.historyCursor();
               return `step ${cursor + 1} of ${entries.length}`;
             }),
-            backDisabled: yield* craftComputed('backDisabled', function* () {
+            backDisabled: yield* craftComputed('backDisabledStateMachineProfileEditor', function* () {
               return !(yield* insertions.canGoBack());
             }),
-            forwardDisabled: yield* craftComputed('forwardDisabled', function* () {
+            forwardDisabled: yield* craftComputed('forwardDisabledStateMachineProfileEditor', function* () {
               return !(yield* insertions.canGoForward());
             }),
             requestEdit: () => context.edit$.emit(),

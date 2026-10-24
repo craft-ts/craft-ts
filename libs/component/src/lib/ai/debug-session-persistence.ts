@@ -113,7 +113,7 @@ export function connectDebugSessionPersistence(
       participantId,
       createdAt,
       participant: {
-        title: `Onglet ${participantId.slice(0, 6)}`,
+        title: document.title.trim() || `Onglet ${participantId.slice(0, 6)}`,
         state: participantState(),
         environment: captureDebugSessionEnvironment(),
       },

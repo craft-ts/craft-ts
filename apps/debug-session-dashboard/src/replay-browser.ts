@@ -3,6 +3,7 @@ import {
   type CraftNodeDirectiveContext,
 } from '@craft-ts/core';
 import { assign, num, unit } from '@craft-ts/style';
+import { iconUi } from '@craft-ts/ui/style';
 import { frameVars, markerVars, ui, viewportVars } from './dashboard.style';
 import type {
   ReplayDialogView,
@@ -157,6 +158,18 @@ let host: Host | undefined;
 /** The element with this id, among the descendants of the dashboard's root. */
 function byId(id: string): HTMLElement | null {
   return host?.root.querySelector<HTMLElement>(`#${CSS.escape(id)}`) ?? null;
+}
+
+function syncVisibilityToggle(toggle: Element | null, compact: boolean): void {
+  if (!toggle) return;
+  toggle.setAttribute('aria-expanded', String(!compact));
+  toggle.setAttribute(
+    'aria-label',
+    compact ? 'Afficher le bandeau' : 'Réduire le bandeau',
+  );
+  const glyph = toggle.querySelector('[data-lab="replay-visibility-glyph"]');
+  if (compact) glyph?.setAttribute('data-veil', 'compact');
+  else glyph?.removeAttribute('data-veil');
 }
 
 function frames(): readonly HTMLIFrameElement[] {
@@ -418,7 +431,47 @@ export function renderFrames(
       'aria-label',
       'Onglet non visible',
     );
-    write(visibilityOverlay, 'Non visible');
+    const visibilityLabel = element(
+      'span',
+      ui.veilLabel,
+      'replay-visibility-label',
+    );
+    write(visibilityLabel, 'Non visible');
+    const visibilityToggle = element(
+      'button',
+      ui.veilToggle,
+      'replay-visibility-toggle',
+    );
+    const visibilityGlyph = element(
+      'span',
+      [iconUi.root, ui.veilToggleIcon].join(' '),
+      'replay-visibility-glyph',
+    );
+    renderer.setAttribute(visibilityGlyph, 'data-icon', 'chevron');
+    renderer.setAttribute(visibilityGlyph, 'data-icon-size', 'sm');
+    renderer.setAttribute(visibilityGlyph, 'aria-hidden', 'true');
+    renderer.setProperty(visibilityToggle, 'type', 'button');
+    renderer.setAttribute(visibilityToggle, 'aria-expanded', 'true');
+    renderer.setAttribute(visibilityToggle, 'aria-label', 'Réduire le bandeau');
+    renderer.appendChild(visibilityToggle, visibilityGlyph);
+    renderer.listen(visibilityToggle, 'click', () => {
+      if (visibilityOverlay.getAttribute('data-veil') === 'compact') {
+        if (visibilityOverlay.getAttribute('data-veil-was-dim') === 'true')
+          visibilityOverlay.setAttribute('data-veil', 'dim');
+        else visibilityOverlay.removeAttribute('data-veil');
+        visibilityOverlay.removeAttribute('data-veil-was-dim');
+        syncVisibilityToggle(visibilityToggle, false);
+      } else {
+        visibilityOverlay.setAttribute(
+          'data-veil-was-dim',
+          String(visibilityOverlay.getAttribute('data-veil') === 'dim'),
+        );
+        visibilityOverlay.setAttribute('data-veil', 'compact');
+        syncVisibilityToggle(visibilityToggle, true);
+      }
+    });
+    renderer.appendChild(visibilityOverlay, visibilityLabel);
+    renderer.appendChild(visibilityOverlay, visibilityToggle);
     const marker = element('div', ui.marker, 'click-marker');
     renderer.setAttribute(marker, 'id', markerId(participantId));
     hide(marker, true);
@@ -528,12 +581,22 @@ export function paintTiles(tiles: readonly TilePaint[]): void {
     );
     if (veil) {
       veil.hidden = tile.veil === undefined;
-      if (tile.veil?.dim) veil.setAttribute('data-veil', 'dim');
+      if (tile.veil === undefined) {
+        veil.removeAttribute('data-veil');
+        veil.removeAttribute('data-veil-was-dim');
+      } else if (veil.getAttribute('data-veil') === 'compact') {
+        veil.setAttribute('data-veil-was-dim', String(tile.veil.dim));
+      } else if (tile.veil.dim) veil.setAttribute('data-veil', 'dim');
       else veil.removeAttribute('data-veil');
       if (tile.veil) {
-        veil.textContent = tile.veil.message;
+        const label = veil.querySelector<HTMLElement>(
+          '[data-lab="replay-visibility-label"]',
+        );
+        if (label) label.textContent = tile.veil.message;
         veil.setAttribute('aria-label', tile.veil.message);
       }
+      const toggle = veil.querySelector('[data-lab="replay-visibility-toggle"]');
+      syncVisibilityToggle(toggle, veil.getAttribute('data-veil') === 'compact');
     }
   }
 }

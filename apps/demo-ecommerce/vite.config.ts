@@ -10,15 +10,16 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 function serverFunctionsPlugin() {
   return {
     name: 'ecommerce-server-functions',
-    async configureServer(server: ViteDevServer) {
-      const { handleDemoRequest } = await server.ssrLoadModule('/src/server/server.ts');
+    configureServer(server: ViteDevServer) {
       server.middlewares.use('/__server-functions', (request, response) => {
         const headers = new Headers();
         for (const [key, value] of Object.entries(request.headers)) if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(', ') : value);
         const method = request.method ?? 'GET';
         const hasBody = method !== 'GET' && method !== 'HEAD';
         const webRequest = new Request(`http://${request.headers.host ?? 'localhost'}${request.url ?? '/'}`, { method, headers, ...(hasBody ? { body: request as unknown as BodyInit, duplex: 'half' } : {}) } as RequestInit);
-        void handleDemoRequest(webRequest).then(async (result) => { response.statusCode = result.status; result.headers.forEach((value, key) => response.setHeader(key, value)); response.end(Buffer.from(await result.arrayBuffer())); }).catch((error: unknown) => { if (!response.headersSent) response.statusCode = 500; response.end('Internal Server Error'); console.error(error); });
+        // Chargé à chaque requête : Vite garde le module en cache et ne le
+        // recharge qu'après une modification du code serveur.
+        void server.ssrLoadModule('/src/server/server.ts').then(({ handleDemoRequest }) => handleDemoRequest(webRequest)).then(async (result) => { response.statusCode = result.status; result.headers.forEach((value, key) => response.setHeader(key, value)); response.end(Buffer.from(await result.arrayBuffer())); }).catch((error: unknown) => { if (!response.headersSent) response.statusCode = 500; response.end('Internal Server Error'); console.error(error); });
       });
     },
   };

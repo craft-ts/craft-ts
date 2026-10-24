@@ -19,6 +19,7 @@ import {
   left,
   kind,
   cssVars,
+  descendant,
   uaScheme,
   alignItems,
   animate,
@@ -95,9 +96,11 @@ import {
   provides,
   px,
   py,
+  rotate,
   radii,
   scrollPort,
   shadow,
+  set,
   space,
   text,
   textAlign,
@@ -128,9 +131,13 @@ import {
 export const tileFocus = defineStateAxis('tile-focus', ['true'] as const);
 export const tileAction = defineStateAxis('tile-action', ['true'] as const);
 /** How a tab's note is drawn over its frame. */
-export const veilMode = defineStateAxis('veil', ['dim'] as const);
+export const veilMode = defineStateAxis('veil', ['dim', 'compact'] as const);
 /** A note that has been put away, still readable in the history. */
-export const noteState = defineStateAxis('note', ['dismissed'] as const);
+export const noteState = defineStateAxis('note', [
+  'dismissed',
+  'error',
+] as const);
+export const noteBadgeState = defineStateAxis('note-badge', ['error'] as const);
 /** A thumbnail's point on the timeline: already behind the replay, or the one it is at. */
 export const markState = defineStateAxis('mark', [
   'passed',
@@ -179,6 +186,10 @@ export const markerVars = cssVars('dashboardMarker', {
 /** How far the replay got: a share of the recorded interactions. */
 export const progressVars = cssVars('dashboardProgress', {
   done: kind.percentage(unit.pct(0)),
+});
+/** The journal action fades in when its row is hovered or focused. */
+const eventActionVars = cssVars('dashboardJournalAction', {
+  opacity: kind.number(num(0), { inherits: true }),
 });
 
 /** Where a thumbnail's point sits on the timeline, and how far its picture slides to stay inside. */
@@ -276,6 +287,13 @@ export const ui = craftStyles('dashboard', {
     alignItems.end,
     justifyContent.spaceBetween,
     gap(space(4)),
+  ],
+  listHeadActions: [
+    display.flex,
+    flexWrap.wrap,
+    alignItems.center,
+    justifyContent.end,
+    gap(space(2)),
   ],
   title: [
     fontFamily(displayFont),
@@ -491,15 +509,18 @@ export const ui = craftStyles('dashboard', {
     position.fixed,
     insetBlockEnd(unit.rem(6)),
     insetInlineStart(space(4)),
+    insetInlineEnd(space(4)),
     zIndex(int(8)),
     display.grid,
     gap(space(2)),
-    inlineSize(math.min(unit.rem(28), unit.pct(92))),
+    inlineSize.auto,
+    maxInlineSize(unit.rem(28)),
   ],
   toast: [
     display.flex,
     alignItems.center,
     gap(space(2)),
+    minInlineSize(space(0)),
     py(space(1)),
     paddingInlineStart(space(3)),
     paddingInlineEnd(space(1)),
@@ -518,6 +539,17 @@ export const ui = craftStyles('dashboard', {
     clipOverflow.inline,
     textOverflow.ellipsis,
     whiteSpace.nowrap,
+  ],
+  warningToastCopy: [
+    blockSize.auto,
+    minBlockSize(space(0)),
+    inlineSize.auto,
+    minInlineSize(space(0)),
+    maxInlineSize(unit.pct(100)),
+    paddingInlineStart(space(0)),
+    paddingInlineEnd(space(0)),
+    py(space(0)),
+    textAlign.start,
   ],
   toastBar: [
     display.flex,
@@ -544,6 +576,7 @@ export const ui = craftStyles('dashboard', {
     fontWeight(weight.semibold),
     fontVariantNumeric.tabularNums,
     pointerEvents.none,
+    when(noteBadgeState.error, [bg(theme.danger)]),
   ],
   noteIcon: [fontSize(unit.rem(1.25)), lineHeight(num(1))],
   noteHistory: [
@@ -566,6 +599,17 @@ export const ui = craftStyles('dashboard', {
     shadow({ y: unit.px(8), blur: unit.px(24), color: theme.shadow }),
   ],
   noteText: [flexGrow(num(1)), minInlineSize(space(0)), overflowWrap.anywhere],
+  warningHistoryCopy: [
+    blockSize.auto,
+    minBlockSize(space(0)),
+    inlineSize.auto,
+    minInlineSize(space(0)),
+    paddingInlineStart(space(0)),
+    paddingInlineEnd(space(0)),
+    py(space(0)),
+    textAlign.start,
+    whiteSpace.normal,
+  ],
   noteItem: [
     display.flex,
     alignItems.center,
@@ -576,6 +620,13 @@ export const ui = craftStyles('dashboard', {
     borderBlockEndStyle.solid,
     borderBlockEndColor(theme.line),
     when(noteState.dismissed, [color(theme.inkSubtle)]),
+    when(noteState.error, [
+      borderInlineStartWidth(lineWidth.thick),
+      borderInlineStartStyle.solid,
+      borderInlineStartColor(theme.danger),
+      bg(theme.dangerSurface),
+      color(theme.dangerInk),
+    ]),
   ],
   // The player: the replayed pages and, under them, the timeline that moves
   // through the recording — one frame, the way a video sits with its controls.
@@ -815,6 +866,57 @@ export const ui = craftStyles('dashboard', {
       fontSize(unit.rem(1.25)),
       opacity(num(0.82)),
     ]),
+    when(veilMode.compact, [
+      insetBlockStart(space(3)),
+      insetBlockEnd.auto,
+      insetInlineStart.auto,
+      insetInlineEnd(space(3)),
+      display.flex,
+      alignItems.center,
+      justifyContent.spaceBetween,
+      gap(space(2)),
+      inlineSize.fitContent,
+      maxInlineSize(unit.pct(90)),
+      px(space(3)),
+      py(space(1)),
+      borderRadius(radii.full),
+      borderWidth(lineWidth.hairline),
+      borderStyle.solid,
+      borderColor(theme.dangerBorder),
+      bg(theme.dangerSurface),
+      color(theme.dangerInk),
+      fontFamily(sansFont),
+      ...font(text.xs),
+      fontWeight(weight.semibold),
+      opacity(num(1)),
+      textAlign.start,
+    ]),
+  ],
+  veilLabel: [flexGrow(num(1)), minInlineSize(space(0))],
+  veilToggle: [
+    display.inlineFlex,
+    alignItems.center,
+    justifyContent.center,
+    inlineSize(unit.rem(2)),
+    blockSize(unit.rem(2)),
+    pointerEvents.auto,
+    flexShrink(num(0)),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.dangerBorder),
+    borderRadius(radii.full),
+    px(space(0)),
+    py(space(0)),
+    bg(theme.raised),
+    color(theme.ink),
+    fontFamily(sansFont),
+    ...font(text.xs),
+    fontWeight(weight.semibold),
+    cursor.pointer,
+  ],
+  veilToggleIcon: [
+    rotate(unit.deg(-90)),
+    when(veilMode.compact, [rotate(unit.deg(90))]),
   ],
   pageDialog: [
     position.absolute,
@@ -1093,7 +1195,15 @@ export const ui = craftStyles('dashboard', {
     rowGap(space(0)),
   ],
   progressLabel: [flexShrink(num(0)), whiteSpace.nowrap],
-  next: [display.flex, minInlineSize(space(0)), whiteSpace.nowrap],
+  // Give the action the space left after the step label. Its intrinsic text
+  // width must not make the step wrap to a new row before the name is clipped.
+  next: [
+    display.flex,
+    flexGrow(num(1)),
+    flexBasis(unit.rem(0)),
+    minInlineSize(space(0)),
+    whiteSpace.nowrap,
+  ],
   nextName: [
     clipOverflow.inline,
     textOverflow.ellipsis,
@@ -1187,6 +1297,13 @@ export const ui = craftStyles('dashboard', {
     borderBlockEndStyle.solid,
     borderBlockEndColor(theme.line),
   ],
+  sideTabs: [
+    display.flex,
+    flexDirection.column,
+    flexGrow(num(1)),
+    minBlockSize(space(0)),
+    provides(scrollPort.block),
+  ],
   sideBody: [
     display.flex,
     flexDirection.column,
@@ -1216,8 +1333,10 @@ export const ui = craftStyles('dashboard', {
     listStyleType.none,
   ],
   event: [
-    display.grid,
-    gap(space(1)),
+    display.flex,
+    alignItems.center,
+    justifyContent.spaceBetween,
+    gap(space(2)),
     py(space(2)),
     px(space(3)),
     borderBlockEndWidth(lineWidth.hairline),
@@ -1227,6 +1346,9 @@ export const ui = craftStyles('dashboard', {
     borderInlineStartWidth(lineWidth.thick),
     borderInlineStartStyle.solid,
     borderInlineStartColor(theme.clear),
+    set(eventActionVars.opacity, num(0)),
+    when(interaction.hover, [set(eventActionVars.opacity, num(1))]),
+    when(descendant.focusVisible, [set(eventActionVars.opacity, num(1))]),
     when(entry.error, [
       bg(theme.dangerSurface),
       borderInlineStartColor(theme.danger),
@@ -1240,6 +1362,12 @@ export const ui = craftStyles('dashboard', {
       borderInlineStartColor(theme.action),
     ]),
   ],
+  eventInfo: [
+    display.grid,
+    flexGrow(num(1)),
+    minInlineSize(space(0)),
+    gap(space(1)),
+  ],
   eventName: [color(theme.ink), overflowWrap.anywhere],
   eventMeta: [
     display.flex,
@@ -1247,6 +1375,13 @@ export const ui = craftStyles('dashboard', {
     gap(space(2)),
     color(theme.inkSubtle),
     fontVariantNumeric.tabularNums,
+  ],
+  eventAction: [
+    opacity(eventActionVars.opacity),
+    ...transitions([prop.opacity], {
+      duration: duration.normal,
+      easing: ease,
+    }),
   ],
   pager: [
     display.flex,

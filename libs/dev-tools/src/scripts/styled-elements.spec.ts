@@ -102,14 +102,15 @@ export const Card = craftComponent(
 describe('one node per element, with its class', () => {
   it('records every hyperscript call, not only the interactive ones', async () => {
     const graph = analyse(await fixture({ 'card.ts': CARD }));
-    expect(elements(graph).map((node) => node.label).sort()).toEqual([
-      'div.card',
-      'p.body',
-      'p.title',
-    ]);
+    expect(
+      elements(graph)
+        .map((node) => node.label)
+        .sort(),
+    ).toEqual(['div.card', 'p.body', 'p.title']);
     // The interactive family is untouched: nothing here is interactive.
-    expect(graph.nodes.filter((node) => node.kind === 'template-element'))
-      .toHaveLength(0);
+    expect(
+      graph.nodes.filter((node) => node.kind === 'template-element'),
+    ).toHaveLength(0);
   });
 
   it('resolves card.body to the key the sheet registered', async () => {
@@ -133,7 +134,9 @@ describe('one node per element, with its class', () => {
     expect(
       graph.edges.some(
         (edge) =>
-          edge.from === root.id && edge.kind === 'contains' && edge.to === body.id,
+          edge.from === root.id &&
+          edge.kind === 'contains' &&
+          edge.to === body.id,
       ),
     ).toBe(true);
   });
@@ -152,9 +155,7 @@ export const Two = craftComponent('Two', {}, () =>
       }),
     );
     expect(elements(graph)).toHaveLength(2);
-    expect(
-      new Set(elements(graph).map((node) => node.id)).size,
-    ).toBe(2);
+    expect(new Set(elements(graph).map((node) => node.id)).size).toBe(2);
   });
 });
 
@@ -172,6 +173,39 @@ describe('which elements can hold text', () => {
     expect(elementByLabel(graph, 'div.card').details?.['mayContainText']).toBe(
       false,
     );
+  });
+});
+
+describe('helpers that return elements', () => {
+  it('follows an imported skip-link helper to its link and its class', async () => {
+    const graph = analyse(
+      await fixture({
+        'skip-link.style.ts': `
+declare function craftStyles<T>(prefix: string, sheet: T): { [K in keyof T]: string };
+export const craftSkipLink = craftStyles('craftSkipLink', { link: [] });
+`,
+        'a11y.ts': `
+import { craftSkipLink } from './skip-link.style';
+declare function a(...args: unknown[]): unknown;
+export function skipLink(targetId: string, label: string) {
+  return a({ href: \`#\${targetId}\`, class: craftSkipLink.link }, label);
+}
+`,
+        'app.ts': `
+import { skipLink } from './a11y';
+declare function craftComponent(...args: unknown[]): unknown;
+declare function div(...args: unknown[]): unknown;
+export const App = craftComponent('App', {}, () =>
+  div(skipLink('main', 'Skip to content')),
+);
+`,
+      }),
+    );
+    const link = elementByLabel(graph, 'a');
+    expect(link.details?.['tag']).toBe('a');
+    expect(link.details?.['classKeys']).toEqual(['craftSkipLink-link']);
+    expect(link.details?.['textKind']).toBe('static');
+    expect(link.details?.['staticText']).toBe('Skip to content');
   });
 });
 
@@ -231,9 +265,9 @@ export const Dynamic = craftComponent('Dynamic', {}, () =>
         (diagnostic) => diagnostic.code === 'styled-element-class-unresolved',
       ),
     ).toBe(true);
-    expect(
-      elementByLabel(graph, 'div').details?.['unresolvedClass'],
-    ).toContain('not a constant sheet class');
+    expect(elementByLabel(graph, 'div').details?.['unresolvedClass']).toContain(
+      'not a constant sheet class',
+    );
   });
 });
 

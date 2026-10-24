@@ -74,6 +74,11 @@ import {
 
 /** The menu is showing. Written beside `aria-expanded`. */
 export const menuState = defineStateAxis('menu-state', ['open'] as const);
+/** Where a tooltip sits relative to its control. */
+export const tooltipPlacement = defineStateAxis('tooltip-placement', [
+  'above',
+  'left',
+] as const);
 
 const panelBase = [
     display.none,
@@ -193,5 +198,13 @@ export const tooltipUi = craftStyles('docTooltip', {
     zIndex(int(40)),
     opacity(tipVars.show),
     ...transitions([prop.opacity], { duration: duration.fast, easing: ease }),
+    when(tooltipPlacement.left, [
+      insetBlockStart(unit.px(0)),
+      insetBlockEnd.auto,
+      insetInlineStart.auto,
+      insetInlineEnd(unit.pct(100)),
+      translate(unit.px(0)),
+      marginBlockEnd(space(0)),
+    ]),
   ],
 });

@@ -17,6 +17,7 @@ import {
   type CraftMachineContext,
 } from './craft-state-machine';
 import { craftExpose } from './craft-primitive-gen';
+import { ɵinjectCraftMethodReplayRegistry } from './craft-method-replay-registry';
 
 type ChildrenOf<Deps> = Deps extends { dependencies: infer Children }
   ? Children
@@ -129,8 +130,9 @@ function createMachine() {
         };
       },
 
-      function* ({ currentStep, currentStepWithContext }) {
+      function* ({ context, currentStep, currentStepWithContext }) {
         return {
+          back: () => context.validateEvent.emit({ reason: 'replay' }),
           isReading: yield* craftComputed('isReading', function* () {
             return (yield* currentStep()) === 'reading';
           }),
@@ -169,6 +171,21 @@ describe('craftStateMachine', () => {
     expect(craftUse(machine.currentStep())).toBe('editing');
 
     machine.context.validateEvent.emit({ reason: 'submit' });
+    expect(craftUse(machine.currentStep())).toBe('saving');
+  });
+
+  it('registers insertion methods so replay can invoke them by address', () => {
+    const machine = CraftTestBed.runInInjectionContext(createMachine);
+    const registry = CraftTestBed.runInInjectionContext(
+      ɵinjectCraftMethodReplayRegistry,
+    );
+    const address = registry
+      .addresses()
+      .find((candidate) => candidate.endsWith('method:back'));
+
+    expect(address).toBeDefined();
+    registry.invoke(address!, undefined, []);
+
     expect(craftUse(machine.currentStep())).toBe('saving');
   });
 

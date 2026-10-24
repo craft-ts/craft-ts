@@ -2,11 +2,11 @@ import { createServer } from '@craft-ts/core';
 import { executeEffect } from '@craft-ts/effect';
 import { createServer as createHttpServer } from 'node:http';
 import { createStoreLayer } from './database';
-import { getCatalog, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore } from './functions';
+import { getCatalog, login, logout, getAdminOverview, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore } from './functions';
 
 export function createDemoApplication(path?: string) {
   const registry = createServer({
-    functions: [getCatalog, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore],
+    functions: [getCatalog, login, logout, getAdminOverview, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore],
     execute: executeEffect(createStoreLayer(path)).run,
     runtimeOptions: { maxBodyBytes: 1_048_576, maxOutputBytes: 1_048_576, timeoutMs: 15_000 },
   });

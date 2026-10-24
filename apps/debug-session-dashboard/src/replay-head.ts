@@ -15,12 +15,13 @@ import { ui } from './dashboard.style';
 import { goToHash, requestFrameFullscreen } from './replay-browser';
 import { launchDebugAppAtReplay } from './replay-debug';
 import { sessionDate } from './replay-labels';
-import { participantOptionLabel } from './replay-model';
+import { isRecord, participantOptionLabel } from './replay-model';
 import { selectParticipant } from './replay-session';
 import {
   connected,
   differenceHistoryOpen,
   errorCount,
+  isReplayErrorNote,
   pendingWarnings,
   replayWarnings,
   warningHistoryOpen,
@@ -43,9 +44,30 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     const selected = savedSessions().find(
       (item) => item.id === routeSessionId(),
     );
-    return selected
+    const date = selected
       ? sessionDate.format(new Date(selected.createdAt))
       : 'Session importée';
+    const recorded = session();
+    const recordedTitle = recorded?.participants?.find(
+      (participant) =>
+        participant.title && !/^Onglet\s/i.test(participant.title),
+    )?.title;
+    const appShell = recorded?.events.find(
+      (event) =>
+        event.kind === 'component-lifecycle' &&
+        isRecord(event.payload) &&
+        typeof event.payload['componentName'] === 'string' &&
+        event.payload['componentName'].endsWith('AppShell'),
+    );
+    const appShellName = isRecord(appShell?.payload)
+      ? appShell.payload['componentName']
+      : undefined;
+    const appName =
+      recordedTitle ??
+      (typeof appShellName === 'string'
+        ? appShellName.replace(/AppShell$/, '')
+        : undefined);
+    return appName ? `${appName} · ${date}` : date;
   };
   const sessionTitleText = yield* craftComputed(
     'sessionTitleText',
@@ -70,6 +92,10 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
   const notesHidden = yield* craftComputed(
     'notesHidden',
     () => replayWarnings().length === 0,
+  );
+  const hasReplayErrorNote = yield* craftComputed(
+    'hasReplayErrorNote',
+    () => replayWarnings().some(isReplayErrorNote),
   );
   const warningCount = yield* craftComputed('warningCount', () =>
     String(replayWarnings().length),
@@ -222,6 +248,9 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       span(
         {
           class: ui.noteBadge,
+          'data-note-badge': function* () {
+            return (yield* hasReplayErrorNote()) ? 'error' : undefined;
+          },
           'data-lab': 'notes-count',
           'aria-hidden': 'true',
         },

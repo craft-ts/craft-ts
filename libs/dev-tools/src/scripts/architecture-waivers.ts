@@ -20,6 +20,7 @@ import type { ArchitectureCatalog } from './architecture-graph.ts';
 
 export const ARCHITECTURE_RULE_NAMES = [
   'craft-unique',
+  'runtime-entity-names-unique',
   'http-endpoint-unique',
   'craft-computed-pure',
   'primitive-methods-used-once',

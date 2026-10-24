@@ -30,7 +30,7 @@ const { UserQuery } = craftService(
   { name: 'UserQuery', providedIn: 'function' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
     yield* query(
-      'userQuery',
+      'userQueryQueryQuery',
       {
         params: inputs.userId,
         loader: function* ({ params }) {
@@ -61,11 +61,11 @@ export const { UserQueryView, provideUserQueryView } = craftService(
 
     const userIdPathParams = yield* UserIdPathParams();
 
-    yield* craftMethod('navigate', function* (offset: number) {
+    yield* craftMethod('navigateQueryQuery', function* (offset: number) {
       return yield* userIdPathParams.shiftUser(offset);
     });
-    yield* craftComputed('hasUser', () => user.hasValue());
-    yield* craftComputed('userValueJson', function* () {
+    yield* craftComputed('hasUserQueryQuery', () => user.hasValue());
+    yield* craftComputed('userValueJsonQueryQuery', function* () {
       return JSON.stringify(yield* user.value(), null, 2);
     });
     yield* craftExpose('user', user);

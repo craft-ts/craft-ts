@@ -34,6 +34,21 @@ export const sessionDate = new Intl.DateTimeFormat('fr-FR', {
   timeStyle: 'short',
 });
 
+/** A compact, French label for the bytes the local replay archive occupies. */
+export function storageSizeLabel(bytes: number): string {
+  const units = ['o', 'Ko', 'Mo', 'Go', 'To'];
+  let value = Math.max(0, bytes);
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const formatted = new Intl.NumberFormat('fr-FR', {
+    maximumFractionDigits: unit === 0 ? 0 : 1,
+  }).format(value);
+  return `${formatted} ${units[unit]}`;
+}
+
 export function nextActionTimingLabel(): string {
   return replayState() === 'playing' ? countdownLabel(nextActionDelayMs()) : '';
 }
@@ -123,7 +138,7 @@ export function recordingCaption(): string {
   const truncated = recorded.truncated
     ? ' · archive tronquée, onglets incomplets exclus du replay'
     : '';
-  return `Format v${recorded.version} · ${plural(events().length, 'événement')}${truncated}`;
+  return `Format v${recorded.version} · replay v${recorded.replayVersion ?? 1} · ${plural(events().length, 'événement')}${truncated}`;
 }
 
 export function viewportCaption(): string {
@@ -148,7 +163,14 @@ const thumbnailReasonLabels: Readonly<Record<string, string>> = {
 
 /** What a thumbnail shows, in a few words: its most telling reason. */
 export function thumbnailReasonLabel(entry: ThumbnailEntry): string {
-  const order = ['start', 'end', 'navigation', 'craft', 'checkpoint', 'interaction'];
+  const order = [
+    'start',
+    'end',
+    'navigation',
+    'craft',
+    'checkpoint',
+    'interaction',
+  ];
   const reason = order.find((candidate) => entry.reasons.includes(candidate));
   return reason ? (thumbnailReasonLabels[reason] ?? reason) : 'Étape';
 }

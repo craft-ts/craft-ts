@@ -8,6 +8,8 @@ import {
   signal,
 } from './host/craft-compat';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
+import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
+import { getCurrentStartCorrelationId } from './correlation-id';
 import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -212,6 +214,7 @@ export function source$<T, Name extends string = string>(
 
   const sourceRef$ = new EventEmitter<T>();
   const destroyRef = inject(DestroyRef);
+  const replayAddress = sourceInjector.get(ɵHOST_TAG_LIST, []).join(' / ');
 
   const hasInitial = 'initial' in options;
   const replayCapacity = Math.max(
@@ -263,10 +266,13 @@ export function source$<T, Name extends string = string>(
         );
         ɵmarkReplayDomEventCaptured(value);
       } else {
+        const correlationId = getCurrentStartCorrelationId();
         sendContextSession.capture('custom', 'emitted', {
           name,
           payload: value,
           source: 'source$',
+          replayAddress,
+          ...(correlationId ? { correlationId } : {}),
         });
       }
     }
@@ -311,6 +317,10 @@ export function source$<T, Name extends string = string>(
       value: sourceAsSignal.asReadonly(),
     }),
   } as unknown as SourceInstance<T, Name>;
+
+  ɵregisterCraftReplayMethod(sourceInjector, (_receiver, args) =>
+    emit(args[0] as T),
+  );
 
   const generator = createNamedPrimitiveGen(name, source);
 

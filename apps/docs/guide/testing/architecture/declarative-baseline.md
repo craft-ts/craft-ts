@@ -2,7 +2,7 @@
 
 `assertDeclarativeArchitecture` is the first architecture test to add to a
 Craft app. It is not a style check and it does not test the DOM. It reads the
-static Craft graph and verifies eight relationships that are easy to lose during
+static Craft graph and verifies nine relationships that are easy to lose during
 a refactor:
 
 <<< @/tests/snippets/guide/testing/architecture/declarative-baseline.spec.ts#example
@@ -12,6 +12,7 @@ The same test protects eight different failure modes:
 | Rule | If it is missing, this can happen |
 | --- | --- |
 | `assertCraftUnique` | two persisted resources restore from the same storage slot |
+| `assertRuntimeEntityNamesUnique` | replay or dependency override cannot address one service or primitive unambiguously |
 | `assertHttpEndpointUnique` | two services own `GET users` and evolve it differently |
 | `assertCraftComputedPure` | reading a derived value writes state or starts work |
 | `assertNoDependencyCycles` | service construction loops through `A → B → A` |
@@ -22,7 +23,29 @@ The same test protects eight different failure modes:
 
 The following examples show the actual code shape that each rule rejects.
 
-## 1. Two persisted resources share one identity
+## 1. A service and a primitive share a runtime name
+
+These declarations use the same runtime name even though they are different
+primitive kinds:
+
+```typescript
+const user = yield* query('User', { loader: loadUser });
+const selectedUser = yield* state('User', { initialValue: null });
+```
+
+Give each entity a distinct name so a replay or restore can target it without
+colliding with another entity:
+
+```typescript
+const user = yield* query('currentUserQuery', { loader: loadUser });
+const selectedUser = yield* state('selectedUserState', { initialValue: null });
+```
+
+`assertRuntimeEntityNamesUnique` compares every service and primitive name,
+including names shared across kinds. See [Unique runtime entity names](./runtime-entity-names)
+for how this supports replay and dependency overrides.
+
+## 2. Two persisted resources share one identity
 
 Two feature files can both look reasonable in isolation:
 
@@ -55,7 +78,7 @@ craftUnique({ storeName: 'shop', key: 'user-detail' });
 See [Unique identities](./unique-identities) and
 [Persisted identities](./persisted-identities).
 
-## 2. Two services call the same HTTP endpoint
+## 3. Two services call the same HTTP endpoint
 
 This duplication is also invisible to TypeScript:
 
@@ -91,7 +114,7 @@ const admins = craftUse(craftComputed('admins', function* () {
 
 See [HTTP endpoint ownership](./http-endpoint-ownership).
 
-## 3. A computed value performs work while being read
+## 4. A computed value performs work while being read
 
 The purpose of `craftComputed` is to derive a value:
 
@@ -121,7 +144,7 @@ the computed only read.
 
 See [Computed purity](./computed-purity).
 
-## 4. Two services depend on each other
+## 5. Two services depend on each other
 
 The graph for this pair is enough to fail the suite:
 
@@ -162,7 +185,7 @@ UserList ──▶ Auth ◀── Checkout
 
 See [Dependency cycles](./dependency-cycles).
 
-## 5. A mutation succeeds but the list never refreshes
+## 6. A mutation succeeds but the list never refreshes
 
 The orphan mutation is the most user-visible failure:
 
@@ -203,7 +226,7 @@ important part is that it is declared where the query is defined.
 
 See [Mutation reactions](./mutation-reactions).
 
-## 6. An input-driven action bypasses a form
+## 7. An input-driven action bypasses a form
 
 This relationship can cross files. The component may own the input and button,
 while a service owns the mutation. The graph follows both sides:

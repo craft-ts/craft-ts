@@ -31,7 +31,7 @@ export const { SsrFallbackPageView, provideSsrFallbackPageView } = craftService(
         }));
       },
     }));
-    yield* craftComputed('resolved', function* () {
+    yield* craftComputed('resolvedPagesFallbackPage', function* () {
       return yield* settled(data);
     });
   },

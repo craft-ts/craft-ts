@@ -11,6 +11,8 @@ import {
 } from './host/craft-signal';
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
+import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import type {
   CompleteServiceDependencyMapFromYielded,
   SERVICE_HELPER_DEPENDENCIES,
@@ -814,7 +816,7 @@ function exposeInsertionOutput(
         const wrappedFn = runInInjectionContext(methodInjector, () =>
           injectFnWrapper()(value as (...args: unknown[]) => unknown),
         );
-        exposed[key] = createYieldableInsertionMethod(wrappedFn, {
+        const exposedMethod = createYieldableInsertionMethod(wrappedFn, {
           injector: methodInjector,
           invalidYieldErrorMessage:
             'craftStateMachine insertion method generators can only yield craftService dependencies or exposed dependency helpers.',
@@ -823,6 +825,25 @@ function exposeInsertionOutput(
           onAppStartNotSupportedErrorMessage:
             'craftStateMachine insertion methods do not support onAppStart(...).',
         });
+        ɵregisterCraftReplayMethod(methodInjector, (_receiver, args) => {
+          const result = runInInjectionContext(methodInjector, () =>
+            exposedMethod(...args),
+          );
+          return isGenerator(result)
+            ? runCraftGenerator({
+                iterator: result,
+                injector: methodInjector,
+                hostScope: 'function',
+                invalidYieldErrorMessage:
+                  'craftStateMachine insertion method generators can only yield craftService dependencies or exposed dependency helpers.',
+                multipleAppStartErrorMessage:
+                  'craftStateMachine insertion methods do not support multiple onAppStart(...) declarations.',
+                onAppStartNotSupportedErrorMessage:
+                  'craftStateMachine insertion methods do not support onAppStart(...).',
+              }).value
+            : result;
+        });
+        exposed[key] = exposedMethod;
         return exposed;
       }
 

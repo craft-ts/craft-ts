@@ -96,9 +96,9 @@ export const interactionReplayDemo = craftStyles('interactionReplayDemo', {
       duration: unit.ms(180),
       easing: easing.easeOut,
     }),
-    when(interaction.hover, [bg(theme.navHover)]),
+    when(interaction.hover, [bg(theme.navHover), color(theme.ink)]),
     when(interaction.focus, [borderColor(theme.accent2)]),
-    when(interaction.active, [bg(theme.selected)]),
+    when(interaction.active, [bg(theme.selected), color(theme.ink)]),
     when(interaction.disabled, [opacity(num(0.5)), cursor.notAllowed]),
   ],
   focusGroup: [

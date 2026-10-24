@@ -228,7 +228,15 @@ function sameRecordedDestination(
 function replayInvocation(
   event: SendContextEvent,
 ): ReplayInvocation | undefined {
-  if (event.kind !== 'craft' || event.phase !== 'started') return undefined;
+  if (
+    !(
+      (event.kind === 'craft' && event.phase === 'started') ||
+      (event.kind === 'custom' &&
+        event.phase === 'emitted' &&
+        event.source === 'source$')
+    )
+  )
+    return undefined;
   const payload = isRecord(event.payload) ? event.payload : undefined;
   const value = isRecord(payload?.['replayInvocation'])
     ? payload['replayInvocation']
@@ -266,12 +274,15 @@ export function rootInvocations(
   const grouped = new Map<string, SendContextEvent[]>();
   for (const event of roots) {
     const invocation = replayInvocation(event)!;
-    const key = `${event.correlationId ?? event.id}\u0000${invocation.address}`;
+    const key =
+      event.kind === 'custom'
+        ? event.id
+        : `${event.correlationId ?? event.id}\u0000${invocation.address}`;
     const group = grouped.get(key) ?? [];
     group.push(event);
     grouped.set(key, group);
   }
-  return [...grouped.values()]
+  const collapsed = [...grouped.values()]
     .map((group) => {
       const first = group.reduce((a, b) => (a.sequence < b.sequence ? a : b));
       const richest = group.reduce((a, b) =>
@@ -283,6 +294,22 @@ export function rootInvocations(
       return { ...richest, sequence: first.sequence, id: first.id };
     })
     .sort((a, b) => a.sequence - b.sequence);
+  const craftRoots = collapsed.filter((event) => event.kind === 'craft');
+  const sourceRoots = collapsed.filter((event) => event.kind === 'custom');
+  return collapsed.filter((event) => {
+    if (!event.correlationId) return true;
+    if (event.kind === 'custom')
+      return !craftRoots.some(
+        (craft) =>
+          craft.correlationId === event.correlationId &&
+          craft.sequence < event.sequence,
+      );
+    return !sourceRoots.some(
+      (source) =>
+        source.correlationId === event.correlationId &&
+        source.sequence < event.sequence,
+    );
+  });
 }
 
 function asObservation(event: SendContextEvent): ReplayObservation {

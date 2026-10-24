@@ -7,19 +7,27 @@ import {
   heading,
   li,
   p,
+  supportsDebugSessionExportVersion,
+  supportsDebugSessionReplayVersion,
   span,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, rawReactiveValue } from '@craft-ts/core';
+import {
+  DEBUG_SESSION_EXPORT_VERSION,
+  DEBUG_SESSION_REPLAY_VERSION,
+  craftComputed,
+  rawReactiveValue,
+} from '@craft-ts/core';
 import { DocCallout } from '@craft-ts/ui';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { ImportDialog } from './import-dialog';
 import { goToHash } from './replay-browser';
-import { sessionDate } from './replay-labels';
+import { sessionDate, storageSizeLabel } from './replay-labels';
 import { plural } from './replay-model';
 import { ReplayRoute } from './replay-route.service';
 import { openImport } from './replay-session';
+import type { SessionSummary } from './session-archive.service';
 import {
   page,
   pendingDeleteSessionId,
@@ -29,16 +37,51 @@ import {
 import { SessionArchive } from './session-archive.service';
 import { lit } from './view-helpers';
 
+function hasSupportedVersions(session: SessionSummary): boolean {
+  return (
+    supportsDebugSessionExportVersion(session.recordingVersion) &&
+    supportsDebugSessionReplayVersion(session.replayVersion)
+  );
+}
+
 /** Page 1: the sessions the local archive holds, to open or to delete. */
 export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const archive = yield* SessionArchive();
   const route = yield* ReplayRoute();
   const savedSessions = rawReactiveValue(archive.savedSessions);
+  const retentionDays = rawReactiveValue(archive.retentionDays);
+  const storageBytes = rawReactiveValue(archive.storageBytes);
   const reachable = rawReactiveValue(archive.reachable);
+  const expiredSessions = yield* craftComputed('expiredSessions', () => {
+    const cutoff = Date.now() - retentionDays() * 24 * 60 * 60 * 1000;
+    return savedSessions().filter(
+      (item) =>
+        item.status !== 'recording' && Date.parse(item.createdAt) < cutoff,
+    );
+  });
+  const expiredSessionsValue = rawReactiveValue(expiredSessions);
+  const expiredSessionCount = yield* craftComputed(
+    'expiredSessionCount',
+    () => expiredSessionsValue().length,
+  );
+  const expiredCount = rawReactiveValue(expiredSessionCount);
+  const incompatibleSessions = yield* craftComputed(
+    'incompatibleSessions',
+    () =>
+      savedSessions().filter(
+        (item) => item.status !== 'recording' && !hasSupportedVersions(item),
+      ),
+  );
+  const incompatibleSessionsValue = rawReactiveValue(incompatibleSessions);
+  const incompatibleCountSignal = yield* craftComputed(
+    'incompatibleSessionCount',
+    () => incompatibleSessionsValue().length,
+  );
+  const incompatibleCount = rawReactiveValue(incompatibleCountSignal);
   const sessionsSummary = yield* craftComputed(
     'sessionsSummary',
     () =>
-      `${plural(savedSessions().length, 'session')} · enregistrées sur cette machine, rien n’est envoyé.`,
+      `${plural(savedSessions().length, 'session')} · ${storageSizeLabel(storageBytes())} pour les replays · sur cette machine, rien n’est envoyé · nettoyage après ${retentionDays()} jours.`,
   );
   const emptyHidden = yield* craftComputed(
     'emptyHidden',
@@ -54,16 +97,76 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
       heading({ class: ui.title }, 'Sessions'),
       p({ class: ui.lede }, sessionsSummary),
     ]),
-    button(
-      'openImport',
-      {
-        type: 'button',
-        class: buttonUi.root,
-        'data-variant': 'secondary',
-        click: openImport,
-      },
-      'Importer un fichier',
-    ),
+    div({ class: ui.listHeadActions }, [
+      button(
+        'deleteIncompatibleSessions',
+        {
+          type: 'button',
+          class: buttonUi.root,
+          'data-variant': 'danger',
+          'data-lab': 'delete-incompatible-sessions',
+          disabled: function* () {
+            return incompatibleCount() === 0 || !reachable();
+          },
+          'data-tooltip':
+            'Supprime les sessions dont le format ou le replay n’est pas pris en charge.',
+          click: function* () {
+            const incompatible = incompatibleSessionsValue();
+            if (
+              incompatible.length === 0 ||
+              !globalThis.confirm(
+                `Supprimer définitivement ${plural(incompatible.length, 'session')} dont le format ou le replay n’est pas pris en charge ?`,
+              )
+            )
+              return;
+            yield* archive.deleteArchivedSessions(
+              incompatible.map((item) => item.id),
+            );
+          },
+        },
+        function* () {
+          return `Supprimer les incompatibles (${incompatibleCount()})`;
+        },
+      ),
+      button(
+        'cleanupOldSessions',
+        {
+          type: 'button',
+          class: buttonUi.root,
+          'data-variant': 'secondary',
+          'data-lab': 'cleanup-old-sessions',
+          disabled: function* () {
+            return expiredCount() === 0 || !reachable();
+          },
+          'data-tooltip': function* () {
+            return `Supprime les sessions terminées de plus de ${retentionDays()} jours.`;
+          },
+          click: function* () {
+            const count = expiredCount();
+            const days = retentionDays();
+            if (
+              count === 0 ||
+              !globalThis.confirm(
+                `Supprimer définitivement ${plural(count, 'session')} terminée${count > 1 ? 's' : ''}, créée${count > 1 ? 's' : ''} il y a plus de ${days} jours ?`,
+              )
+            )
+              return;
+            yield* archive.pruneExpired();
+          },
+        },
+        'Nettoyer les anciennes',
+      ),
+      button(
+        'openImport',
+        {
+          type: 'button',
+          class: buttonUi.root,
+          'data-variant': 'secondary',
+          click: openImport,
+        },
+        'Importer un fichier',
+      ),
+    ]),
   ]);
 
   const unreachable = div({ class: ui.gap, hidden: reachable }, [
@@ -126,6 +229,31 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                       : 'Tronquée';
                 },
               ),
+              span(
+                {
+                  class: badgeUi.root,
+                  'data-tone': 'warning',
+                  'data-lab': 'replay-compatibility',
+                  'data-tooltip': `Dashboard courant : format v${DEBUG_SESSION_EXPORT_VERSION}, replay v${DEBUG_SESSION_REPLAY_VERSION}.`,
+                  hidden: function* () {
+                    const item = yield* saved();
+                    return (
+                      supportsDebugSessionExportVersion(
+                        item.recordingVersion,
+                      ) && supportsDebugSessionReplayVersion(item.replayVersion)
+                    );
+                  },
+                },
+                'Replay incompatible',
+              ),
+              span({ class: badgeUi.root, 'data-tone': 'tip' }, function* () {
+                const item = yield* saved();
+                return `Format v${item.recordingVersion}`;
+              }),
+              span({ class: badgeUi.root, 'data-tone': 'tip' }, function* () {
+                const item = yield* saved();
+                return `Replay v${item.replayVersion}`;
+              }),
             ]),
             span({ class: ui.rowMeta }, function* () {
               const item = yield* saved();

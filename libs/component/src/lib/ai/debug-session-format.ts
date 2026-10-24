@@ -1,5 +1,6 @@
 import {
   DEBUG_SESSION_EXPORT_VERSION,
+  DEBUG_SESSION_REPLAY_VERSION,
   type SendContextReplayExport,
 } from '@craft-ts/core';
 
@@ -18,6 +19,32 @@ export const DEBUG_SESSION_EXPORT_MIGRATIONS: ReadonlyMap<
   DebugSessionExportMigration
 > = new Map();
 
+/** Replay versions this dashboard explicitly promises to support. */
+export const SUPPORTED_DEBUG_SESSION_REPLAY_VERSIONS: ReadonlySet<number> =
+  new Set([DEBUG_SESSION_REPLAY_VERSION]);
+
+export function supportsDebugSessionExportVersion(version: unknown): boolean {
+  if (
+    !Number.isSafeInteger(version) ||
+    (version as number) < 1 ||
+    (version as number) > DEBUG_SESSION_EXPORT_VERSION
+  )
+    return false;
+  let current = version as number;
+  while (current < DEBUG_SESSION_EXPORT_VERSION) {
+    if (!DEBUG_SESSION_EXPORT_MIGRATIONS.has(current)) return false;
+    current += 1;
+  }
+  return true;
+}
+
+export function supportsDebugSessionReplayVersion(version: unknown): boolean {
+  return (
+    Number.isSafeInteger(version) &&
+    SUPPORTED_DEBUG_SESSION_REPLAY_VERSIONS.has(version as number)
+  );
+}
+
 export type DebugSessionFormatResult =
   | Readonly<{ ok: true; value: SendContextReplayExport }>
   | Readonly<{ ok: false; error: string }>;
@@ -28,14 +55,29 @@ export function migrateDebugSessionExport(
 ): DebugSessionFormatResult {
   const sourceVersion = input['version'];
   if (!Number.isSafeInteger(sourceVersion) || (sourceVersion as number) < 1)
-    return { ok: false, error: 'La version du format de session est invalide.' };
+    return {
+      ok: false,
+      error: 'La version du format de session est invalide.',
+    };
   if ((sourceVersion as number) > DEBUG_SESSION_EXPORT_VERSION)
     return {
       ok: false,
       error: `Cette session utilise le format v${sourceVersion}, plus récent que le format pris en charge (v${DEBUG_SESSION_EXPORT_VERSION}). Mets à jour le dashboard pour la lire.`,
     };
 
-  let value = input;
+  const replayVersion = input['replayVersion'] ?? DEBUG_SESSION_REPLAY_VERSION;
+  if (!Number.isSafeInteger(replayVersion) || (replayVersion as number) < 1)
+    return { ok: false, error: 'La version du replay est invalide.' };
+  if (!supportsDebugSessionReplayVersion(replayVersion))
+    return {
+      ok: false,
+      error: `Cette session utilise la version de replay v${replayVersion}, incompatible avec cette version du dashboard. Mets à jour le dashboard pour la rejouer.`,
+    };
+
+  let value: Readonly<Record<string, unknown>> = {
+    ...input,
+    replayVersion,
+  };
   let version = sourceVersion as number;
   while (version < DEBUG_SESSION_EXPORT_VERSION) {
     const migrate = DEBUG_SESSION_EXPORT_MIGRATIONS.get(version);

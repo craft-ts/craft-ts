@@ -11,7 +11,6 @@ import {
   cancelReplaySeek,
   startReplay,
   stepNextReplayAction,
-  stopReplay,
 } from './replay-session';
 import {
   connected,
@@ -98,7 +97,7 @@ export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
   return div({ class: ui.player }, [stage, ReplayTimeline({})]);
 });
 
-/** The transport: play, pause, restart, step, stop, and how far along it is. */
+/** The transport: play/pause, restart, step, and how far along it is. */
 export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
   const aiChat = yield* AiChatBridge();
   const canStep = yield* craftComputed(
@@ -108,24 +107,35 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
       !replayableEvents()[replayIndex()] ||
       !['ready', 'paused'].includes(replayState()),
   );
+  const playLabel = yield* craftComputed('playLabel', () => {
+    switch (replayState()) {
+      case 'playing':
+        return 'Pause';
+      case 'paused':
+        return 'Reprendre';
+      case 'completed':
+        return 'Recommencer';
+      default:
+        return 'Lecture';
+    }
+  });
   const diagnosticLabel = yield* craftComputed('diagnosticLabel', () =>
     diagnosticReplay() ? 'Diagnostic activé' : 'Diagnostic désactivé',
   );
-  const pauseDisabled = yield* craftComputed(
-    'pauseDisabled',
-    () => !connected() || replayState() !== 'playing',
+  const playDisabled = yield* craftComputed(
+    'playDisabled',
+    () =>
+      !['playing', 'completed'].includes(replayState()) &&
+      (!connected() ||
+        !replayableEvents()[replayIndex()] ||
+        !['ready', 'paused'].includes(replayState())),
   );
   const restartDisabled = yield* craftComputed(
     'restartDisabled',
     () =>
-      !['ready', 'playing', 'paused', 'completed', 'error'].includes(
+      !['playing', 'paused', 'completed', 'error'].includes(
         replayState(),
       ),
-  );
-  const stopDisabled = yield* craftComputed(
-    'stopDisabled',
-    () =>
-      !connected() || !['ready', 'playing', 'paused'].includes(replayState()),
   );
   const assistantDisabled = yield* craftComputed(
     'assistantDisabled',
@@ -133,6 +143,14 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
       return !(yield* aiChat.chat.available());
     },
   );
+  const playPauseOrRestart = (): void => {
+    if (replayState() === 'playing') {
+      pauseReplay();
+      return;
+    }
+    if (replayState() === 'completed') startReplay();
+    else playReplay();
+  };
 
   const transport = div({ class: ui.transport }, [
     button(
@@ -141,15 +159,28 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         type: 'button',
         class: buttonUi.root,
         'data-variant': 'primary',
-        'aria-label': 'Lecture à vitesse réelle',
-        'aria-description':
-          'Rejoue les interactions en respectant les délais enregistrés.',
-        'data-tooltip':
-          'Lance le replay et respecte les délais réellement enregistrés entre les interactions.',
-        click: playReplay,
-        disabled: canStep,
+        'aria-label': () =>
+          replayState() === 'playing'
+            ? 'Mettre le replay en pause'
+            : replayState() === 'paused'
+              ? 'Reprendre le replay'
+              : replayState() === 'completed'
+                ? 'Recommencer le replay depuis le début'
+                : 'Lecture à vitesse réelle',
+        'aria-description': () =>
+          replayState() === 'playing'
+            ? 'Met en pause la lecture chronométrée.'
+            : 'Rejoue les interactions en respectant les délais enregistrés.',
+        'data-tooltip': () =>
+          replayState() === 'playing'
+            ? 'Met en pause le replay. Appuie de nouveau pour le reprendre.'
+            : replayState() === 'paused'
+              ? 'Reprend le replay en respectant les délais enregistrés.'
+              : 'Lance le replay et respecte les délais réellement enregistrés entre les interactions.',
+        click: playPauseOrRestart,
+        disabled: playDisabled,
       },
-      'Lecture',
+      playLabel,
     ),
     button(
       'diagnostic-mode',
@@ -164,20 +195,6 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         click: () => diagnosticReplay.update((enabled) => !enabled),
       },
       diagnosticLabel,
-    ),
-    button(
-      'pause',
-      {
-        type: 'button',
-        class: buttonUi.root,
-        'data-variant': 'secondary',
-        'aria-description': 'Met en pause la lecture chronométrée.',
-        'data-tooltip':
-          'Met en pause le replay. Tu peux le reprendre avec Lecture à vitesse réelle ou avancer avec Action suivante.',
-        click: pauseReplay,
-        disabled: pauseDisabled,
-      },
-      'Pause',
     ),
     button(
       'restart',
@@ -211,21 +228,6 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         disabled: canStep,
       },
       'Action suivante',
-    ),
-    button(
-      'stop',
-      {
-        type: 'button',
-        class: buttonUi.root,
-        'data-variant': 'link',
-        'aria-description':
-          'Arrête le replay et revient à la première interaction.',
-        'data-tooltip':
-          'Arrête la reproduction en cours et remet le curseur à la première interaction.',
-        click: stopReplay,
-        disabled: stopDisabled,
-      },
-      'Arrêter',
     ),
   ]);
 

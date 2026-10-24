@@ -47,7 +47,7 @@ export const { EffectSyncMembersView, provideEffectSyncMembersView } =
     function* () {
       // Everything derived from the quantity alone lives in its insertion.
       const qty = yield* state('qty', 2, ({ state: read, update }) => {
-        const lines = craftUse(craftComputed('lines', function* () {
+        const lines = craftUse(craftComputed('linesEffectEffectSyncMembers', function* () {
           const currentQty = yield* read();
           return CATALOG.map((item) => ({ ...item, qty: currentQty }));
         }));

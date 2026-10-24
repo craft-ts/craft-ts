@@ -18,6 +18,7 @@ import {
   provideSendContextToAiBuffer,
   provideAppInitializer,
   provideSendContextEventFilter,
+  provideSendContextEventEnricher,
   provideSendContextEventSource,
   provideSendContextSession,
   getCurrentStartCorrelationId,
@@ -503,7 +504,7 @@ export function provideCraftDebugSessionCapture(
      * Requires a loopback WebSocket URL; defaults to false.
      */
     captureBrowserStorage?: boolean;
-    /** EXPERIMENTAL: capture method arguments for local invocation replay. */
+    /** EXPERIMENTAL: capture Craft and source$ arguments for local invocation replay. */
     captureReplayArguments?: boolean;
     /** Capture serialized restart points after the app reaches a stable state. */
     captureReplaySnapshots?: Readonly<{
@@ -573,6 +574,30 @@ export function provideCraftDebugSessionCapture(
       captureInputValues: options.captureInputValues,
       captureSensitiveInputValues: options.captureSensitiveInputValues,
     }),
+    ...(options.captureReplayArguments === true &&
+    isLoopbackWebSocketUrl(options.webSocketUrl)
+      ? [
+          provideSendContextEventEnricher((event) => {
+            if (
+              event.kind !== 'custom' ||
+              event.phase !== 'emitted' ||
+              event.source !== 'source$' ||
+              !event.replayAddress
+            )
+              return event;
+            return {
+              ...event,
+              payload: {
+                value: event.payload,
+                replayInvocation: {
+                  address: event.replayAddress,
+                  args: [ɵserializeReplayArgument(event.payload)],
+                },
+              },
+            };
+          }),
+        ]
+      : []),
     ...(recording
       ? [
           provideAppInitializer(async () => {

@@ -35,9 +35,11 @@ const DEFAULT_MAX_BODY_SIZE = 2 * 1024 * 1024;
 
 const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:4200',
+  'http://localhost:4204',
   'http://localhost:4210',
   'http://localhost:4301',
   'http://127.0.0.1:4200',
+  'http://127.0.0.1:4204',
   'http://127.0.0.1:4210',
   'http://127.0.0.1:4301',
 ] as const;
@@ -143,9 +145,80 @@ async function handleRequest(
       200,
       {
         sessions: options.sessionStore?.list() ?? [],
+        retentionDays: options.sessionStore?.retentionDays ?? 30,
+        storageBytes:
+          (options.sessionStore?.storageBytes ?? 0) +
+          (options.thumbnails?.storageBytes ?? 0),
       },
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
     );
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/sessions/prune') {
+    if (!options.sessionStore) {
+      sendJson(response, 404, { error: 'Session archive is unavailable.' });
+      return;
+    }
+    const deleted = options.sessionStore.pruneExpired();
+    options.thumbnails?.prune();
+    sendJson(
+      response,
+      200,
+      { deleted, retentionDays: options.sessionStore.retentionDays },
+      sessionCorsHeaders(request.headers.origin, allowedOrigins),
+    );
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/sessions/delete-many') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionStore) {
+      sendJson(
+        response,
+        404,
+        { error: 'Session archive is unavailable.' },
+        headers,
+      );
+      return;
+    }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(
+        await readBody(request, Math.min(maxBodySize, 64_000)),
+      );
+    } catch {
+      sendJson(
+        response,
+        400,
+        { error: 'Invalid session deletion payload.' },
+        headers,
+      );
+      return;
+    }
+    const ids = isRecord(payload) ? payload['ids'] : undefined;
+    if (
+      !Array.isArray(ids) ||
+      ids.length > 100 ||
+      !ids.every(
+        (id) =>
+          typeof id === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            id,
+          ),
+      )
+    ) {
+      sendJson(
+        response,
+        400,
+        { error: 'Invalid session deletion payload.' },
+        headers,
+      );
+      return;
+    }
+    const deleted = options.sessionStore.deleteMany(ids);
+    options.thumbnails?.prune();
+    sendJson(response, 200, { deleted }, headers);
     return;
   }
 
@@ -173,12 +246,7 @@ async function handleRequest(
         sendJson(response, 404, { error: 'Session not found.' }, headers);
         return;
       }
-      sendJson(
-        response,
-        202,
-        manifest ?? noThumbnails(id, false),
-        headers,
-      );
+      sendJson(response, 202, manifest ?? noThumbnails(id, false), headers);
       return;
     }
     if (request.method === 'DELETE') {
@@ -493,6 +561,9 @@ function isPortableSession(value: unknown): value is PortableDebugSession {
     isRecord(value) &&
     value['format'] === 'craft-debug-session' &&
     value['version'] === PORTABLE_DEBUG_SESSION_VERSION &&
+    (value['replayVersion'] === undefined ||
+      (Number.isSafeInteger(value['replayVersion']) &&
+        (value['replayVersion'] as number) >= 1)) &&
     typeof value['startUrl'] === 'string' &&
     Array.isArray(value['events']) &&
     Array.isArray(value['clips']) &&

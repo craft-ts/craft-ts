@@ -3175,9 +3175,11 @@ const isTextLiteral = (node: Node): boolean =>
 function textKindOf(
   call: CallExpression,
   childrenStart: number,
+  bindings: ReadonlyMap<string, Node> = new Map(),
 ): ElementTextKind {
   let kind: ElementTextKind = 'none';
-  for (const child of call.getArguments().slice(childrenStart)) {
+  for (const rawChild of call.getArguments().slice(childrenStart)) {
+    const child = resolveTemplateBinding(rawChild, bindings);
     if (isTextLiteral(child)) return 'static';
     if (Node.isCallExpression(child)) {
       const callee = child.getExpression().getText();
@@ -3189,6 +3191,164 @@ function textKindOf(
     kind = 'dynamic';
   }
   return kind;
+}
+
+/**
+ * Recover text known at build time. Nested hyperscript calls contribute their
+ * rendered text; dynamic expressions leave the value unknown rather than
+ * producing a partial string.
+ */
+function staticTextOf(
+  call: CallExpression,
+  childrenStart: number,
+  bindings: ReadonlyMap<string, Node> = new Map(),
+): string | undefined {
+  const collect = (expression: Node): string | undefined => {
+    const node = resolveTemplateBinding(expression, bindings);
+    if (
+      Node.isStringLiteral(node) ||
+      Node.isNoSubstitutionTemplateLiteral(node)
+    ) {
+      return node.getLiteralValue();
+    }
+    if (Node.isNumericLiteral(node)) return node.getLiteralValue().toString();
+    if (Node.isArrayLiteralExpression(node)) {
+      const parts = node.getElements().map(collect);
+      return parts.every((part) => part !== undefined)
+        ? parts.join('')
+        : undefined;
+    }
+    if (Node.isCallExpression(node)) {
+      const parsed = parseCraftHyperscript(node);
+      if (parsed) return staticTextOf(node, parsed.childrenStart, bindings);
+    }
+    return undefined;
+  };
+
+  const parts = call.getArguments().slice(childrenStart).map(collect);
+  return parts.every((part) => part !== undefined) ? parts.join('') : undefined;
+}
+
+/** Resolve a template-helper parameter to the expression supplied at its call site. */
+function resolveTemplateBinding(
+  node: Node,
+  bindings: ReadonlyMap<string, Node>,
+): Node {
+  if (!Node.isIdentifier(node)) return node;
+  const bound = bindings.get(node.getText());
+  return bound && bound !== node
+    ? resolveTemplateBinding(bound, bindings)
+    : node;
+}
+
+type TemplateHelperFunction =
+  | import('ts-morph').ArrowFunction
+  | import('ts-morph').FunctionDeclaration
+  | import('ts-morph').FunctionExpression
+  | import('ts-morph').MethodDeclaration;
+
+function isTemplateHelperFunction(node: Node): node is TemplateHelperFunction {
+  return (
+    Node.isArrowFunction(node) ||
+    Node.isFunctionDeclaration(node) ||
+    Node.isFunctionExpression(node) ||
+    Node.isMethodDeclaration(node)
+  );
+}
+
+function returnsTemplateNode(expression: Node): boolean {
+  if (Node.isCallExpression(expression)) {
+    return (
+      parseCraftHyperscript(expression) !== undefined ||
+      TEMPLATE_BLOCK_HELPERS.has(expression.getExpression().getText())
+    );
+  }
+  if (Node.isArrayLiteralExpression(expression)) {
+    return expression.getElements().some(returnsTemplateNode);
+  }
+  if (Node.isConditionalExpression(expression)) {
+    return (
+      returnsTemplateNode(expression.getWhenTrue()) ||
+      returnsTemplateNode(expression.getWhenFalse())
+    );
+  }
+  if (
+    Node.isParenthesizedExpression(expression) ||
+    Node.isAsExpression(expression) ||
+    Node.isSatisfiesExpression(expression)
+  ) {
+    return returnsTemplateNode(expression.getExpression());
+  }
+  return false;
+}
+
+/**
+ * The element calls used by the contrast graph are sometimes hidden behind a
+ * small render helper (`skipLink` is one). Resolve its returned expression and
+ * bind its parameters to the call-site arguments so the caller's element tree
+ * retains the helper's tag and class and the caller's text.
+ */
+function templateHelperReturns(
+  call: CallExpression,
+  inheritedBindings: ReadonlyMap<string, Node>,
+  activeHelpers: ReadonlySet<Node>,
+):
+  | {
+      readonly expressions: readonly Node[];
+      readonly bindings: ReadonlyMap<string, Node>;
+      readonly declaration: Node;
+    }
+  | undefined {
+  const callee = call.getExpression();
+  const symbol = callee.getSymbol();
+  const resolved = symbol?.getAliasedSymbol() ?? symbol;
+  const declarations = resolved?.getDeclarations() ?? [];
+
+  for (const declaration of declarations) {
+    let implementation: TemplateHelperFunction | undefined;
+    if (isTemplateHelperFunction(declaration)) {
+      implementation = declaration;
+    } else if (Node.isVariableDeclaration(declaration)) {
+      const initializer = declaration.getInitializer();
+      if (initializer && isTemplateHelperFunction(initializer)) {
+        implementation = initializer;
+      }
+    }
+    if (!implementation || activeHelpers.has(implementation)) continue;
+    const body = implementation.getBody();
+    if (!body) continue;
+
+    const bindings = new Map(inheritedBindings);
+    implementation.getParameters().forEach((parameter, index) => {
+      const argument = call.getArguments()[index];
+      if (argument) {
+        bindings.set(
+          parameter.getName(),
+          resolveTemplateBinding(argument, inheritedBindings),
+        );
+      }
+    });
+
+    const expressions: Node[] = [];
+    if (!Node.isBlock(body)) {
+      expressions.push(body);
+    } else {
+      const collectReturns = (node: Node): void => {
+        if (isTemplateHelperFunction(node)) return;
+        if (Node.isReturnStatement(node)) {
+          const expression = node.getExpression();
+          if (expression) expressions.push(expression);
+          return;
+        }
+        node.forEachChild(collectReturns);
+      };
+      collectReturns(body);
+    }
+    if (expressions.some(returnsTemplateNode)) {
+      return { expressions, bindings, declaration: implementation };
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -3239,12 +3399,18 @@ function walkStyledElements(
   parentId: string | undefined,
   branch: readonly BranchSegment[],
   depth: number,
+  context: {
+    readonly bindings: ReadonlyMap<string, Node>;
+    readonly instanceCall?: CallExpression;
+    readonly activeHelpers: ReadonlySet<Node>;
+  } = { bindings: new Map(), activeHelpers: new Set() },
 ): void {
   const descend = (
     child: Node,
     nextParent: string | undefined,
     nextBranch: readonly BranchSegment[],
     nextDepth: number,
+    nextContext = context,
   ) =>
     walkStyledElements(
       builder,
@@ -3253,6 +3419,7 @@ function walkStyledElements(
       nextParent,
       nextBranch,
       nextDepth,
+      nextContext,
     );
 
   if (Node.isCallExpression(node)) {
@@ -3282,6 +3449,8 @@ function walkStyledElements(
         parsed,
         branch,
         depth,
+        context.bindings,
+        context.instanceCall,
       );
       if (parentId) {
         addEdge(builder, parentId, element.id, 'contains', 'ast');
@@ -3290,6 +3459,26 @@ function walkStyledElements(
       }
       for (const argument of node.getArguments()) {
         descend(argument, element.id, branch, depth + 1);
+      }
+      return;
+    }
+
+    const helper = templateHelperReturns(
+      node,
+      context.bindings,
+      context.activeHelpers,
+    );
+    if (helper) {
+      const instanceCall = context.instanceCall ?? node;
+      const activeHelpers = new Set(context.activeHelpers);
+      activeHelpers.add(helper.declaration);
+      const helperContext = {
+        bindings: helper.bindings,
+        instanceCall,
+        activeHelpers,
+      };
+      for (const expression of helper.expressions) {
+        descend(expression, parentId, branch, depth, helperContext);
       }
       return;
     }
@@ -3318,20 +3507,38 @@ function addStyledElementNode(
   parsed: ParsedHyperscript,
   branch: readonly BranchSegment[],
   depth: number,
+  bindings: ReadonlyMap<string, Node> = new Map(),
+  instanceCall?: CallExpression,
 ): DependencyGraphNode {
-  const classes = resolveStyleClasses(classExpression(parsed.props));
-  const textKind = textKindOf(call, parsed.childrenStart);
-  const filePath = call.getSourceFile().getFilePath();
+  const classValue = classExpression(parsed.props);
+  const classes = resolveStyleClasses(
+    classValue ? resolveTemplateBinding(classValue, bindings) : undefined,
+  );
+  const textKind = textKindOf(call, parsed.childrenStart, bindings);
+  const staticText =
+    textKind === 'static'
+      ? staticTextOf(call, parsed.childrenStart, bindings)
+      : undefined;
+  const sourceCall = instanceCall ?? call;
+  const filePath = sourceCall.getSourceFile().getFilePath();
   const label = parsed.name ? `${parsed.tag}.${parsed.name}` : `${parsed.tag}`;
+  const id = stableNodeId(
+    'styled-element',
+    'styled-element',
+    sourceCall,
+    instanceCall
+      ? `helper:${call.getSourceFile().getFilePath()}#${call.getStart()}`
+      : undefined,
+  );
 
   const element = addNode(
     builder,
     {
-      id: stableNodeId('styled-element', 'styled-element', call),
+      id,
       kind: 'styled-element',
       label,
       filePath,
-      line: call.getStartLineNumber(),
+      line: sourceCall.getStartLineNumber(),
       details: {
         tag: parsed.tag,
         localName: parsed.name,
@@ -3342,6 +3549,7 @@ function addStyledElementNode(
         branchSegments: branch.map((segment) => ({ ...segment })),
         mayContainText: textKind !== 'none',
         textKind,
+        ...(staticText !== undefined ? { staticText } : {}),
         classKeys: classes.kind === 'resolved' ? classes.keys : [],
         ...(classes.kind === 'resolved' && classes.outsideStyleModule
           ? { sheetOutsideStyleModule: classes.outsideStyleModule }
@@ -3351,7 +3559,7 @@ function addStyledElementNode(
           : {}),
       },
     },
-    call,
+    sourceCall,
   );
 
   if (classes.kind === 'resolved') {
@@ -3369,7 +3577,7 @@ function addStyledElementNode(
       message: `${component.node.label}: ${classes.detail}`,
       proof: {
         filePath,
-        line: call.getStartLineNumber(),
+        line: sourceCall.getStartLineNumber(),
         symbol: component.node.label,
       },
     });

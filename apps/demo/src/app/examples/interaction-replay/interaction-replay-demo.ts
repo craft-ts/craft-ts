@@ -13,7 +13,7 @@ import {
   strong,
   heading,
 } from '@craft-ts/component';
-import { craftExpose, craftService, state } from '@craft-ts/core';
+import { craftService, state } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import {
   interactionReplayDemo as demo,
@@ -23,18 +23,16 @@ export const { provideInteractionReplayDemoView, InteractionReplayDemoView } =
   craftService(
     { name: 'interactionReplayDemoView', providedIn: 'toProvide' },
     function* () {
-      const expanded = yield* state('expanded', false, ({ update }) => ({
+      yield* state('expanded', false, ({ update }) => ({
         toggle: () => update((value) => !value),
       }));
-      const animationRunning = yield* state(
+      yield* state(
         'animationRunning',
         false,
         ({ update }) => ({
           toggle: () => update((value) => !value),
         }),
       );
-      yield* craftExpose('expanded', expanded);
-      yield* craftExpose('animationRunning', animationRunning);
     },
   );
 

@@ -50,9 +50,11 @@ export function createStoreLayer(path = databasePath) {
     read,
     reset: () => update(() => ({ data: cloneInitial(), value: cloneInitial() })),
     saveProduct: (product) => update((data) => {
+      if (!product.name.trim()) throw new StoreError('Le nom du produit est obligatoire.');
       if (!data.categories.some((category) => category.id === product.categoryId)) throw new StoreError('La catégorie du produit est introuvable.');
       if (!Number.isFinite(product.price) || product.price < 0) throw new StoreError('Le prix doit être positif.');
       if (product.kind === 'simple' && (!Number.isInteger(product.stock) || product.stock < 0)) throw new StoreError('Le stock doit être un entier positif.');
+      if (product.kind === 'formule' && !product.groups.length) throw new StoreError('Une formule doit proposer au moins un groupe de choix.');
       if (product.kind === 'formule') for (const group of product.groups) {
         if (!data.categories.some((category) => category.id === group.categoryId)) throw new StoreError('La catégorie d’un groupe est introuvable.');
         if (!Number.isInteger(group.min) || !Number.isInteger(group.max) || group.min < 0 || group.max < group.min) throw new StoreError('Les bornes du groupe sont invalides.');
@@ -65,6 +67,7 @@ export function createStoreLayer(path = databasePath) {
       return { data: { ...data, products }, value: { ...data, products } };
     }),
     saveCategory: (category) => update((data) => {
+      if (!category.name.trim()) throw new StoreError('Le nom de la catégorie est obligatoire.');
       const categories = [...data.categories.filter((row) => row.id !== category.id), category];
       return { data: { ...data, categories }, value: { ...data, categories } };
     }),

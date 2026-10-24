@@ -315,6 +315,16 @@ describe('debug session local archive API', () => {
     denied.close();
   });
 
+  it('accepts the e-commerce demo origin for session capture', async () => {
+    socket = new WebSocket(
+      baseUrl.replace('http:', 'ws:') + '/sessions/ws',
+      { origin: 'http://localhost:4204' },
+    );
+
+    await once(socket, 'open');
+    expect(socket.readyState).toBe(WebSocket.OPEN);
+  });
+
   it('does not expose the session index to remote browser origins', async () => {
     const response = await fetch(`${baseUrl}/sessions`, {
       headers: { origin: 'https://example.com' },

@@ -85,6 +85,7 @@ const NAV_GROUPS = [
       ['State Machine', { to: 'state-machine' }],
       ['State Machine — text editor', { to: 'state-machine-text' }],
       ['State Machine — list', { to: 'state-machine-list' }],
+      ['Replay method coverage', { to: 'replay-methods' }],
       ['Exception QueryParams', { to: 'exception-query-params' }],
     ],
   },

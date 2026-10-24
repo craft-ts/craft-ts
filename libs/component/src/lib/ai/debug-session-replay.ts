@@ -17,6 +17,10 @@ import {
 } from './debug-session-scenario';
 import { createDebugSessionNativeControlReplayPresentation } from './debug-session-native-control-replay';
 import { migrateDebugSessionExport } from './debug-session-format';
+export {
+  supportsDebugSessionExportVersion,
+  supportsDebugSessionReplayVersion,
+} from './debug-session-format';
 import {
   compileReplayPlan,
   executeReplayPlan,
@@ -310,7 +314,10 @@ export function validateDebugSessionExport(json: string): ReplayValidation {
     eventIds.add(event.id);
     previousSequence = event.sequence;
   }
-  return { ok: true, session: value as unknown as SendContextReplayExport };
+  return {
+    ok: true,
+    session: normalizedValue as unknown as SendContextReplayExport,
+  };
 }
 
 function validateReplaySteps(
@@ -564,11 +571,14 @@ async function waitForReplayTarget(
   aborted?: () => boolean,
 ): Promise<HTMLElement | null> {
   const deadline = performance.now() + timeoutMs;
-  do {
-    const target = safeQuerySelector(selector);
-    if (target instanceof HTMLElement) return target;
+  let target = safeQuerySelector(selector);
+  if (target instanceof HTMLElement || timeoutMs <= 0)
+    return target instanceof HTMLElement ? target : null;
+  while (performance.now() < deadline && !aborted?.()) {
     await new Promise<void>((resolve) => setTimeout(resolve, 25));
-  } while (performance.now() < deadline && !aborted?.());
+    target = safeQuerySelector(selector);
+    if (target instanceof HTMLElement) return target;
+  }
   return null;
 }
 
@@ -864,6 +874,7 @@ export function createReplayController(
     number,
     Map<string, { element: Element; state: ReplayVisualState }>
   >();
+  const warnedReplayVisualTargets = new Set<string>();
   const replayVisualReferenceCounts = new Map<
     Element,
     Map<ReplayVisualState, number>
@@ -926,7 +937,18 @@ export function createReplayController(
             : !replayTarget && selector
               ? safeQuerySelector(selector)
               : null;
-        if (!element) continue;
+        if (!element) {
+          if (!warnedReplayVisualTargets.has(key)) {
+            warnedReplayVisualTargets.add(key);
+            const targetDescription = replayTarget
+              ? `Craft target is ${resolution?.status ?? 'missing'}`
+              : `selector was not found: ${selector}`;
+            options.onWarning?.(
+              `Replay CSS ${state} target ${targetDescription}; skipped visual state restoration.`,
+            );
+          }
+          continue;
+        }
         activeTargets.set(key, { element, state });
         const states = replayVisualReferenceCounts.get(element) ?? new Map();
         const references = states.get(state) ?? 0;
@@ -1384,13 +1406,14 @@ export function createReplayController(
         typeof payload['scrollLeft'] === 'number' &&
         typeof payload['scrollTop'] === 'number'
       ) {
-        const scroller = await waitForReplayTarget(payload['selector']);
+        // Scroll restoration is presentation-only. Resolve it once and skip
+        // stale selectors instead of waiting for an element from a previous
+        // route to appear and holding up semantic replay actions.
+        const candidate = safeQuerySelector(payload['selector']);
+        const scroller = candidate instanceof HTMLElement ? candidate : null;
         if (!scroller) {
-          // Scroll positions are presentation state. A selector generated from
-          // the old DOM can become stale after a route or layout change; keep
-          // replaying semantic interactions and report the skipped scroll.
           options.onWarning?.(
-            `Replay scroll target is invalid or not found: ${payload['selector']}`,
+            `Replay scroll target is invalid or not found; skipped scroll restoration: ${payload['selector']}`,
           );
         } else if (
           scroller.scrollLeft !== payload['scrollLeft'] ||
@@ -1404,9 +1427,9 @@ export function createReplayController(
           );
         }
       } else {
-        stop(true);
-        options.onError?.(`Replay scroll event ${event.sequence} is invalid.`);
-        return undefined;
+        options.onWarning?.(
+          `Replay scroll event ${event.sequence} is invalid; skipped scroll restoration.`,
+        );
       }
       await Promise.all(scrollSettlers);
       if (playbackEpoch === undefined && cursor === startingCursor && running)
@@ -1512,6 +1535,10 @@ export function createReplayController(
         candidate.correlationId === event.correlationId;
       const replayRelevantEvent =
         candidate.kind === 'craft' ||
+        (useInvocationReplay &&
+          candidate.kind === 'custom' &&
+          candidate.phase === 'emitted' &&
+          candidate.source === 'source$') ||
         candidate.kind === 'transport' ||
         (useInvocationReplay && candidate.kind === 'route-load') ||
         (useInvocationReplay && candidate.kind === 'pending') ||
@@ -1666,7 +1693,10 @@ export function createReplayController(
           ? ɵresolveCraftReplayTarget(replayTarget)
           : await waitForCraftReplayTarget(
               replayTarget,
-              undefined,
+              // Invocation replay does not dispatch the native interaction;
+              // an unresolved element is only a visual cue. Do not spend ten
+              // seconds waiting for a target that cannot affect app state.
+              useInvocationReplay ? 0 : undefined,
               skippable(),
             );
       target =
@@ -1722,7 +1752,9 @@ export function createReplayController(
       }
       target = await waitForReplayTarget(
         payload['selector'] as string,
-        undefined,
+        // A missing CSS selector in invocation replay is a journal note, not
+        // a reason to stall the recorded Craft calls behind this visual cue.
+        useInvocationReplay ? 0 : undefined,
         skippable(),
       );
       if (!target) {
@@ -1864,10 +1896,13 @@ export function createReplayController(
           typeof scrollState['scrollTop'] !== 'number'
         )
           continue;
-        const scroller = await waitForReplayTarget(scrollState['selector']);
+        // The event's ancestor scroll positions are also cosmetic. Do not
+        // block a real interaction while waiting for a stale ancestor.
+        const candidate = safeQuerySelector(scrollState['selector']);
+        const scroller = candidate instanceof HTMLElement ? candidate : null;
         if (!scroller) {
           options.onWarning?.(
-            `Replay scroll target selector is invalid or not found: ${scrollState['selector']}`,
+            `Replay scroll target selector is invalid or not found; skipped scroll restoration: ${scrollState['selector']}`,
           );
           continue;
         }
@@ -1956,6 +1991,13 @@ export function createReplayController(
           plannedCommand?.kind === 'invoke'
             ? rootReplayInvocationEvents(intervalEvents)
             : [];
+        const sourceEmissionWithoutInvocation = intervalEvents.some(
+          (candidate) =>
+            candidate.kind === 'custom' &&
+            candidate.phase === 'emitted' &&
+            candidate.source === 'source$' &&
+            !isReplayInvocationEvent(candidate),
+        );
         const documentReloads = intervalEvents.filter(
           isDocumentReloadInvocation,
         );
@@ -1985,6 +2027,14 @@ export function createReplayController(
           options.onWarning?.(
             `[Invocation non exécutée] Appui long enregistré (${String(payload['trigger'])}, corrélation ${event.correlationId ?? 'absente'}), mais aucun appel Craft rejouable n'est associé. Le handler natif n'a pas été exécuté.`,
           );
+        else if (
+          replayCalls.length === 0 &&
+          sourceEmissionWithoutInvocation &&
+          target !== document.body
+        )
+          // Older recordings contain source$ emissions without replay metadata.
+          // Dispatch their recorded native action once to preserve behavior.
+          target.dispatchEvent(native);
         else if (documentReloads.length > 0)
           options.onWarning?.(
             `Document reload recorded for ${event.name ?? event.sequence} is a session boundary and was not executed during replay. Resume from a new recording after the page reload.`,
@@ -2625,7 +2675,15 @@ export function createReplayController(
 }
 
 function isReplayInvocationEvent(event: SendContextEvent): boolean {
-  if (event.kind !== 'craft' || event.phase !== 'started') return false;
+  if (
+    !(
+      (event.kind === 'craft' && event.phase === 'started') ||
+      (event.kind === 'custom' &&
+        event.phase === 'emitted' &&
+        event.source === 'source$')
+    )
+  )
+    return false;
   const payload = isRecord(event.payload) ? event.payload : undefined;
   const invocation =
     payload && isRecord(payload['replayInvocation'])
@@ -2662,12 +2720,31 @@ function rootReplayInvocationEvents(
     );
   });
 
+  const craftRoots = roots.filter((event) => event.kind === 'craft');
+  const sourceRoots = roots.filter((event) => event.kind === 'custom');
+  const nonDuplicatedRoots = roots.filter(
+    (event) => {
+      if (!event.correlationId) return true;
+      if (event.kind === 'custom')
+        return !craftRoots.some(
+          (craft) =>
+            craft.correlationId === event.correlationId &&
+            craft.sequence < event.sequence,
+        );
+      return !sourceRoots.some(
+        (source) =>
+          source.correlationId === event.correlationId &&
+          source.sequence < event.sequence,
+      );
+    },
+  );
+
   // A single Craft call can pass through several wrapped layers. The runtime
   // wrapper records each layer with the same correlation id and method address,
   // often with an empty argument list before the real payload reaches it. The
   // replay must invoke that call once, using the richest captured arguments.
   const byCall = new Map<string, SendContextEvent[]>();
-  for (const event of roots) {
+  for (const event of nonDuplicatedRoots) {
     const payload = isRecord(event.payload) ? event.payload : undefined;
     const invocation =
       payload && isRecord(payload['replayInvocation'])
@@ -2675,7 +2752,10 @@ function rootReplayInvocationEvents(
         : undefined;
     const address = String(invocation?.['address'] ?? '');
     const correlation = event.correlationId ?? event.id;
-    const key = `${correlation}\u0000${address}`;
+    const key =
+      event.kind === 'custom'
+        ? event.id
+        : `${correlation}\u0000${address}`;
     const group = byCall.get(key) ?? [];
     group.push(event);
     byCall.set(key, group);

@@ -57,7 +57,7 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
       ({ patch }) => ({ patch }),
     );
     const usersQuery = yield* query(
-      'usersQuery',
+      'usersQueryClientSimpleListDemo',
       {
         params: () => usersFilter.filter(),
         loader: function* ({ params }) {
@@ -65,21 +65,21 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
         },
       },
       ({ resource, exceptions }) => {
-        const notFound = craftUse(craftComputed('notFound', function* () {
+        const notFound = craftUse(craftComputed('notFoundClientSimpleListDemo', function* () {
           const error = (yield* exceptions()).loader;
           return isCraftException(error) && error._tag === 'UsersNotFound';
         }));
 
         return {
           notFound,
-          requestTitle: craftUse(craftComputed('requestTitle', function* () {
+          requestTitle: craftUse(craftComputed('requestTitleClientSimpleListDemo', function* () {
             const currentStatus = yield* resource.status();
             if (yield* notFound()) return 'Server returned 404';
             return currentStatus === 'loading' || currentStatus === 'reloading'
               ? 'Calling demo.users.list from the URL filter…'
               : 'Server function ready';
           })),
-          requestDetail: craftUse(craftComputed('requestDetail', function* () {
+          requestDetail: craftUse(craftComputed('requestDetailClientSimpleListDemo', function* () {
             const currentStatus = yield* resource.status();
             if (yield* notFound()) {
               const error = (yield* exceptions()).loader;
@@ -89,7 +89,7 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
               ? 'POST /__server-functions · Effect is running'
               : `Status: ${currentStatus}`;
           })),
-          resultCount: craftUse(craftComputed('resultCount', function* () {
+          resultCount: craftUse(craftComputed('resultCountClientSimpleListDemo', function* () {
             const value = yield* resource.value();
             return Array.isArray(value) ? value.length.toString() : '—';
           })),
@@ -101,13 +101,13 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
       return Array.isArray(value) ? value : [];
     });
     const searchInput = yield* state(
-      'searchInput',
+      'searchInputClientSimpleListDemo',
       yield* usersFilter.filter(),
       ({ set }) => ({
         setSearchInput: (value: string) => set(value),
       }),
     );
-    yield* craftMethod('submitSearch', function* (event?: Event) {
+    yield* craftMethod('submitSearchClientSimpleListDemo', function* (event?: Event) {
       event?.preventDefault();
       yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
     });

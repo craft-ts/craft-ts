@@ -33,7 +33,7 @@ export const { GlobalQueryView, provideGlobalQueryView } = craftService(
     const { userId } = inputs.$provided;
 
     const userQuery = yield* query(
-      'userQuery',
+      'userQueryQueryQuery2',
       {
         params: userId,
         preservePreviousValue: () => true,
@@ -49,8 +49,8 @@ export const { GlobalQueryView, provideGlobalQueryView } = craftService(
         { enabled: !isCraftDebugReplayLaunch() },
       ),
     );
-    yield* craftComputed('hasUser', () => userQuery.hasValue());
-    yield* craftComputed('userValueJson', function* () {
+    yield* craftComputed('hasUserQueryQuery2', () => userQuery.hasValue());
+    yield* craftComputed('userValueJsonQueryQuery2', function* () {
       return JSON.stringify(yield* userQuery.value(), null, 2);
     });
     const userIdPathParams = yield* UserIdPathParams();
