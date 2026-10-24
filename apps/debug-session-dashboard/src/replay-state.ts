@@ -156,7 +156,7 @@ export const loadError = loadErrorBridge.value;
 /** The thumbnails the archive prepared for the open recording, as far as known. */
 const thumbnailManifestBridge = createStateBridge<
   ThumbnailManifest | undefined
->('thumbnailManifest', undefined);
+>('openThumbnailManifest', undefined);
 export const thumbnailManifest = thumbnailManifestBridge.value;
 
 /* ── the page ───────────────────────────────────────────────────────────── */
@@ -191,7 +191,7 @@ export const targetUrl = targetUrlBridge.value;
 const startModeBridge = createStateBridge<ReplayStartMode>('startMode', 'url');
 export const startMode = startModeBridge.value;
 const statusBridge = createStateBridge(
-  'status',
+  'dashboardReplayStatus',
   'Importe une session v6 pour commencer.',
 );
 export const status = statusBridge.value;
@@ -327,8 +327,8 @@ function createStateWriter<T>(name: string, bridge: StateBridge<T>) {
 }
 
 /** Craft owner for replay state; bridge facades above serve imperative listeners. */
-export const { ReplayState } = craftService(
-  { name: 'replayState', providedIn: 'global' },
+export const { ReplayDashboardState: ReplayState } = craftService(
+  { name: 'replayDashboardState', providedIn: 'global' },
   function* () {
     const localStorage = LocalStorage;
     const browserDocument = yield* BrowserDocumentService();
@@ -384,12 +384,12 @@ export const { ReplayState } = craftService(
       ),
     );
     const thumbnailManifestWriter = createStateWriter(
-      'thumbnailManifest',
+      'openThumbnailManifest',
       thumbnailManifestBridge,
     );
     thumbnailManifestWriter.bind(
       yield* state(
-        'thumbnailManifest',
+        'openThumbnailManifest',
         thumbnailManifestBridge.initialValue,
         thumbnailManifestWriter.insertion,
       ),
@@ -451,10 +451,10 @@ export const { ReplayState } = craftService(
         startModeWriter.insertion,
       ),
     );
-    const statusWriter = createStateWriter('status', statusBridge);
+    const statusWriter = createStateWriter('dashboardReplayStatus', statusBridge);
     statusWriter.bind(
       yield* state(
-        'status',
+        'dashboardReplayStatus',
         'Importe une session v6 pour commencer.',
         statusWriter.insertion,
       ),

@@ -4,7 +4,6 @@ import {
   craftUse,
   fromEventToSource$,
   state,
-  type CraftTemporalRuntime as CraftTemporalRuntimeApi,
   type TemporalTaskHandle,
   type SendContextPayload,
   craftPrivate,
@@ -51,23 +50,6 @@ const DEFAULT_PROMPT_OPTIONS: PromptOptions = {
   includeAppSnapshot: true,
   includeDomStyles: false,
   includePageDomStyles: false,
-};
-
-type AiDialogContext = {
-  payload: Input<AiDialogPayload>;
-  onClose: () => void;
-  instruction: () => string;
-  writeInstruction: (value: string) => Generator<never, unknown, unknown>;
-  copied: () => boolean;
-  options: () => PromptOptions;
-  writeOptions: (value: PromptOptions) => Generator<never, unknown, unknown>;
-  captureInProgress: () => boolean;
-  captureError: () => string;
-  copy: () => void;
-};
-
-type AiDialogFactoryContext = Omit<AiDialogContext, 'onClose'> & {
-  onClose: Output<() => void>;
 };
 
 function formatPrompt(
@@ -196,7 +178,7 @@ const { AiSendDialogState, provideAiSendDialogState } = craftService(
       })),
     )) as unknown as InstructionState;
     const copied = (yield* craftPrivate(
-      state('copied', false, ({ set }) => ({
+      state('sendDialogCopied', false, ({ set }) => ({
         setCopied: (value: boolean) => set(value),
       })),
     )) as unknown as CopiedState;

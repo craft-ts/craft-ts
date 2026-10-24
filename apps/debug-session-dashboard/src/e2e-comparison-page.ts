@@ -51,7 +51,7 @@ export const E2eComparisonPage = craftComponent(
         ? `Comparaison · ${result.testId} · ${result.project ?? ''}`
         : 'Comparaison de session E2E';
     });
-    const summary = yield* craftComputed('summary', () => {
+    const summary = yield* craftComputed('comparisonSummary', () => {
       const result = report() as
         | {
             baselineCount?: number;
