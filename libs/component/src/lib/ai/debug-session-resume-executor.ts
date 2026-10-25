@@ -274,10 +274,15 @@ async function runWithRetry(
   }
 }
 
-/** Network failures surface as `TypeError` from fetch; servers as 5xx. */
+/**
+ * Network failures surface as a `TypeError` from fetch (`Failed to fetch`,
+ * `NetworkError`, `Load failed`); servers as 5xx. A programming error is not
+ * worth retrying.
+ */
 export function isTechnicalFailure(error: unknown): boolean {
-  if (error instanceof ResumeTechnicalError || error instanceof TypeError)
-    return true;
+  if (error instanceof ResumeTechnicalError) return true;
+  if (error instanceof TypeError)
+    return /fetch|network|load failed/i.test(error.message);
   if (typeof error !== 'object' || error === null) return false;
   const record = error as Record<string, unknown>;
   const status = record['status'] ?? record['statusCode'];

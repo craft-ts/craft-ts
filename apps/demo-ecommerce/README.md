@@ -37,7 +37,7 @@ Le serveur délivre un jeton de session à la connexion et le vérifie dans chaq
 
 ## Données et règles
 
-Le magasin sauvegarde les catégories, les produits et les commandes dans `apps/demo-ecommerce/data/store.json`. Le bouton **Réinitialiser la démo** de l’administration réinstalle le catalogue initial défini dans le code et efface les commandes de démonstration. Les produits simples portent le stock; les formules ont un prix propre et consomment les composants choisis à la validation. Le serveur contrôle les groupes, catégories, bornes, choix distincts et quantités disponibles avant d’enregistrer une commande.
+Le magasin sauvegarde les catégories, les produits et les commandes dans `apps/demo-ecommerce/data/store.json`, créé depuis le catalogue initial au premier démarrage et hors du suivi git ; `ECOMMERCE_STORE_PATH` le remplace par un autre fichier (les e2e de reprise en utilisent un jetable par run). Le bouton **Réinitialiser la démo** de l’administration réinstalle le catalogue initial défini dans le code et efface les commandes de démonstration. Les produits simples portent le stock; les formules ont un prix propre et consomment les composants choisis à la validation. Le serveur contrôle les groupes, catégories, bornes, choix distincts et quantités disponibles avant d’enregistrer une commande.
 
 La vitrine ne lit que les catégories et les produits ; les commandes ne sont servies qu’à l’administration.
 
@@ -69,3 +69,18 @@ correspondance est unique.
 Les captures incluent un baseline d’empreintes dépourvu de chemins locaux ; le
 dashboard le compare aux empreintes courantes et signale son absence au lieu
 de conclure à tort que le code n’a pas changé.
+
+La reprise reconnecte l’identité enregistrée (lue dans la réponse de
+`ecommerce.auth.me`, l’état restauré ou le storage), jamais une persona fixée
+dans le code ; une ressource fermée avant le point ciblé (déconnexion, panier
+vide) n’est pas réacquise. Le panier serveur est synchronisé par la mutation
+`syncServerCart` : les méthodes d’un `state` tournent avec le pilote synchrone
+et ne peuvent pas attendre le réseau.
+
+Les e2e de reprise (S1 à S5) tournent avec
+`npx nx e2e-resume demo-ecommerce`. Ils révoquent toutes les sessions avant de
+reprendre (`POST /__dev/auth/revoke-all`, actif seulement si `CRAFT_E2E=1`),
+vérifient l’identité que le serveur renvoie et échouent si une requête porte
+encore un `craft-ref:`. Les ports se changent avec `CRAFT_E2E_DEMO_PORT`,
+`CRAFT_E2E_DASHBOARD_PORT` et `CRAFT_E2E_SESSION_SERVER_PORT` ;
+`RESUME_E2E_DEBUG=1` affiche les consoles des onglets.

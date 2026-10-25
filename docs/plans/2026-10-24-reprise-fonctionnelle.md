@@ -5,7 +5,16 @@ choisi d'une session, avec des états réels et valides : connexion refaite,
 droits du bon rôle, références serveur (jeton, panier) réacquises, temps
 recalé, et rien d'écrit sur un backend sans accord.
 
-> **Statut.** Mise en œuvre terminée dans le worktree `codex/reprise-fonctionnelle`.
+> **Statut corrigé (2026-10-25).** La revue a montré que plusieurs points
+> ci-dessous n'étaient pas vrais ; ils sont corrigés par
+> `2026-10-25-reprise-fonctionnelle-corrections.md`. En particulier : la
+> persona était fixée dans la déclaration, les acquisitions partaient sans
+> test de vivacité, `expect`/`onMismatch`/`cleanup` n'étaient pas exécutés,
+> et les valeurs ne restaient **pas** hors archive (jetons en clair dans les
+> réponses JSON encodées deux fois, ressources relayées par `postMessage`).
+> Le masquage des secrets reste reporté.
+>
+> **Statut d'origine.** Mise en œuvre annoncée terminée dans le worktree `codex/reprise-fonctionnelle`.
 > Les lots 0 à 10 sont raccordés à la démo. Le graphe statique de reprise
 > est produit par `resume-check`, servi en développement sur loopback, et ses
 > empreintes sont raccordées aux déclarations runtime quand la correspondance
@@ -14,8 +23,8 @@ recalé, et rien d'écrit sur un backend sans accord.
 > barrière réseau et d’un lancement guidé multi-onglets : le dashboard prépare
 > un plan par participant, ouvre un onglet par participant archivé, puis lance
 > le participant de tête avant les suivants. Les onglets suivants attendent
-> leurs ressources partagées en mémoire, puis exécutent leur propre plan. Les
-> valeurs restent hors archive. Le dashboard affiche la progression et le
+> leurs ressources partagées en mémoire, puis exécutent leur propre plan.
+> Le dashboard affiche la progression et le
 > rapport agrégé de fidélité. La
 > barrière couvre `fetch`, XHR, WebSocket et workers à partir des appels
 > explicitement autorisés, et l’instantané conserve maintenant les horloges

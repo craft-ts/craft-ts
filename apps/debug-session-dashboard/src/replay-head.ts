@@ -717,12 +717,11 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
           {
             'data-lab': 'resume-execution-report',
             // Lu par les e2e : la classe ne dépend pas du libellé affiché.
-            'data-fidelity': yield* craftComputed('resumeFidelity', () => {
-              const report = resumeExecution();
-              return report?.status === 'completed'
-                ? report.classification
-                : undefined;
-            }),
+            'data-fidelity': yield* craftComputed('resumeFidelity', () =>
+              resumeExecution()?.status === 'completed'
+                ? resumeExecution()?.classification
+                : undefined,
+            ),
             hidden: yield* craftComputed(
               'resumeExecutionHidden',
               () => !resumeExecution(),

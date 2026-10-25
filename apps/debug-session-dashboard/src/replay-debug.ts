@@ -13,6 +13,7 @@ import {
   type DebugSessionResumeSourceHashRecord,
   type DebugAppSnapshot,
   type ResumeOverride,
+  type ResumeFidelityClass,
   type ResumeStepStatus,
   classifyResumeFidelity,
   RESUME_FIDELITY_LABELS,
@@ -782,7 +783,12 @@ function listenToDebugTabs(): void {
           ...(typeof data['detail'] === 'string' ? { detail: data['detail'] } : {}),
         };
         const steps = [...report.steps, step];
-        const classOrder = ['real', 'assisted', 'partially-simulated', 'refused'] as const;
+        const classOrder: readonly ResumeFidelityClass[] = [
+          'real',
+          'assisted',
+          'partially-simulated',
+          'refused',
+        ];
         const stepClass = classifyResumeFidelity([step]);
         const classification =
           classOrder.indexOf(stepClass) >
@@ -1102,7 +1108,7 @@ function listenToDebugTabs(): void {
 }
 
 function isResumeStepStatus(value: unknown): value is ResumeStepStatus {
-  return RESUME_STEP_STATUSES.includes(value as ResumeStepStatus);
+  return RESUME_STEP_STATUSES.some((status) => status === value);
 }
 
 function updateResumeLaunchGroup(
@@ -1286,7 +1292,10 @@ export function launchResumeAtReplay(): void {
     ...new Map(
       [...currentResumePlans.values()]
         .flatMap(({ plan }) => plan.substitutions)
-        .map((item) => [`${item.resource}:${item.fingerprint}`, item] as const),
+        .map((item): [string, typeof item] => [
+          `${item.resource}:${item.fingerprint}`,
+          item,
+        ]),
     ).values(),
   ];
   const groupId = newUuid();

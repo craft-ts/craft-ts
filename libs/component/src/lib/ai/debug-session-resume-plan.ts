@@ -419,19 +419,21 @@ export function buildDebugSessionResumePlan(
         });
         continue;
       }
-      const references = options.archive.events
-        .filter(
-          (event) =>
-            (event.globalElapsedMs ?? event.elapsedMs ?? 0) <=
-            options.targetElapsedMs,
-        )
-        .flatMap((event) => event.refs ?? [])
-        .filter(
-          (ref) =>
-            declaration.path !== undefined &&
-            ref.direction === 'in' &&
-            referencePathEndsWith(ref.path, declaration.path),
-        );
+      const valuePath = declaration.path ?? '';
+      const references = valuePath
+        ? options.archive.events
+            .filter(
+              (event) =>
+                (event.globalElapsedMs ?? event.elapsedMs ?? 0) <=
+                options.targetElapsedMs,
+            )
+            .flatMap((event) => event.refs ?? [])
+            .filter(
+              (ref) =>
+                ref.direction === 'in' &&
+                referencePathEndsWith(ref.path, valuePath),
+            )
+        : [];
       for (const ref of references) {
         if (
           substitutions.some(
@@ -445,7 +447,7 @@ export function buildDebugSessionResumePlan(
           fingerprint: ref.fingerprint,
           placeholder: `craft-ref:${ref.fingerprint}`,
           path: ref.path,
-          valuePath: declaration.path!,
+          valuePath,
         });
       }
       steps.push({

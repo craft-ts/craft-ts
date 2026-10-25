@@ -127,6 +127,18 @@ loopback host. Either way, approval changes the active profile in memory, and
 archive. MCP tools never call the replayed application. The plan, mismatch
 context, and proposal queue are cleared when the local log server stops.
 
+**Limit.** "Human" approval is enforced by the log server through the
+`Origin` header of the decision request. Any local process can forge that
+header: the check keeps other web pages out, not other programs on the
+machine. Treat the decision endpoint as trusted-local only.
+
+During a functional resume the report is French-labelled (*réelle*,
+*assistée*, *partiellement simulée*, *refusée*) and its class is also exposed
+on `data-fidelity` for tests. Tolerated drifts and skipped steps are listed as
+warnings without lowering the class; overrides, held calls let through and
+another persona make it *assistée*; a served recorded answer makes it
+*partiellement simulée*; any blocked step makes it *refusée*.
+
 For two concurrent `CraftHttpClient` requests with the same method, URL,
 parameters, and body, set distinct stable `replayKey` values in their request
 options. The key is serialized in the archive and must not contain a secret.

@@ -1,4 +1,8 @@
-/** Automatic resume-assistant approval is restricted to loopback origins. */
+/**
+ * Automatic resume-assistant approval is restricted to loopback origins. The
+ * log server trusts the `Origin` header of a decision, which a local process
+ * can forge: this keeps web pages out, not programs on the same machine.
+ */
 export function isLoopbackResumeAssistantOrigin(origin: string): boolean {
   try {
     const hostname = new URL(origin).hostname.replace(/^\[|\]$/g, '');

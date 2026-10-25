@@ -5,7 +5,19 @@ commit `e109372d8` (branche `codex/reprise-fonctionnelle`) a trouvé des écarts
 entre ce que la reprise annonce et ce qu'elle fait. Ce plan les corrige, sur
 la même branche.
 
-> **Statut.** Plan. Rien n'est corrigé.
+> **Statut (2026-10-25).** C1 à C9 faits sur
+> `claude/reprise-fonctionnelle-corrections` ; S1 à S5 verts. Écarts :
+> C2, C3 et C4 sont un seul commit (mêmes fonctions, commits séparés non
+> compilables) ; la vivacité compte aussi la valeur gardée par le fournisseur
+> lui-même (un catalogue chargé) ; `state` n'acceptant qu'une insertion,
+> `withResume` s'écrit seul ou après celle-ci ; l'assertion d'architecture
+> sur la démo est un diagnostic de `resume-check` ; la cible de moins de 40
+> lignes de reprise dans `shop-state.ts` n'est pas tenue (environ 75, dont
+> les adaptateurs d'acquisition et de nettoyage).
+> Découvert en route : la déconnexion de la démo n'atteignait pas le
+> serveur, le panier serveur n'était jamais synchronisé (méthode de state
+> asynchrone), le snapshot gardait une primitive remise à `undefined`, les
+> requêtes de démarrage partaient avant la barrière.
 
 ## Constats à corriger
 
