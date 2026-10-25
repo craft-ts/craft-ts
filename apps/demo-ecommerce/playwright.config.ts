@@ -19,7 +19,6 @@ process.env['CRAFT_DEMO_ECOMMERCE_STORE'] = storePath;
 
 export default defineConfig({
   testDir: './e2e',
-  globalSetup: './playwright.global-setup.ts',
   // Hors de git : des artefacts dans `test-results/` rendraient l'arbre « dirty » pendant le run.
   outputDir: './tmp/test-results',
   fullyParallel: false,

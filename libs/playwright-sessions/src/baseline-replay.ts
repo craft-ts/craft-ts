@@ -15,6 +15,8 @@ type WorkerSnapshot = Readonly<{
 type WorkerWindow = { __craftReplayWorker?: { snapshot(): WorkerSnapshot; advanceTo(index: number): void } };
 
 export const BASELINE_REPLAY_TIMEOUT_MS = 60_000;
+/** No action completed for this long: the replayed page stopped answering. */
+const STALL_MS = 10_000;
 
 /**
  * Replays the latest green reference of a test on the current build, through
@@ -51,8 +53,16 @@ export async function replayBaselineInDashboard(input: Readonly<{
     if (!ready) return { status: 'timeout', message: `référence non prête après ${timeoutMs / 1000} s` };
     if (ready.failed !== undefined) return { status: 'error', message: ready.failed };
     await page.evaluate((index) => (window as unknown as WorkerWindow).__craftReplayWorker!.advanceTo(index), ready.total);
-    const end = await waitForSnapshot(page, (snapshot) => snapshot.difference || snapshot.failed !== undefined || (!snapshot.seeking && snapshot.replayIndex >= snapshot.total), deadline);
-    if (!end) return { status: 'timeout', message: `référence lancée mais non terminée en ${timeoutMs / 1000} s` };
+    let progress = { index: ready.replayIndex, at: Date.now() };
+    let last = ready;
+    const end = await waitForSnapshot(page, (snapshot) => {
+      last = snapshot;
+      if (snapshot.replayIndex !== progress.index) progress = { index: snapshot.replayIndex, at: Date.now() };
+      return snapshot.difference || snapshot.failed !== undefined || (!snapshot.seeking && snapshot.replayIndex >= snapshot.total) || Date.now() - progress.at > STALL_MS;
+    }, deadline);
+    if (!end) return { status: 'timeout', message: `référence arrêtée à l’étape ${last.replayIndex} sur ${last.total} après ${timeoutMs / 1000} s` };
+    if (!end.difference && end.failed === undefined && end.replayIndex < end.total)
+      return { status: 'timeout', message: `la page rejouée ne répond plus depuis ${STALL_MS / 1000} s à l’étape ${end.replayIndex} sur ${end.total}` };
     if (end.difference) return { status: 'diverged', difference: end.differenceDetail ?? null };
     if (end.failed !== undefined) return { status: 'error', message: end.failed };
     return { status: 'completed' };

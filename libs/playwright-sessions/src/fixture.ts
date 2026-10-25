@@ -30,9 +30,12 @@ const SESSION_READY_BINDING = '__craftE2eSessionReady';
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
   craftSessionsOptions: [{}, { scope: 'worker', option: true }],
+  // Playwright reads a fixture's dependencies from its destructuring: none for these two.
+  // eslint-disable-next-line no-empty-pattern
   craftSessionGit: [async ({}, use) => { await use(readGitState()); }, { scope: 'worker' }],
+  // eslint-disable-next-line no-empty-pattern
   craftSessionContract: [async ({}, use, testInfo) => { await use(parseTestCraftSession(testInfo)); }, { auto: true }],
-  craftSessions: [async ({ browser, context, page, craftSessionContract, craftSessionsOptions, craftSessionGit }, use, testInfo) => {
+  craftSessions: [async ({ browser, context, craftSessionContract, craftSessionsOptions, craftSessionGit }, use, testInfo) => {
     const mode = resolveCraftSessionMode(process.env, craftSessionsOptions);
     const captured = mode !== 'off' && craftSessionContract.capture !== 'none';
     const runId = captured ? randomUUID() : undefined;
