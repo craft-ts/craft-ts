@@ -38,6 +38,8 @@ export type StoredEnvironmentProfile = Readonly<{
 
 export type DebugSessionTestMetadata = Readonly<{
   id: string; title: string; specFile: string; project: string; retry: number; gitSha: string;
+  /** One UUID per test attempt: finds this attempt's session and no other. */
+  runId?: string;
 }>;
 
 export type StoredDebugSessionSummary = Readonly<{
@@ -163,9 +165,9 @@ export class DebugSessionStore {
     this.prune();
   }
 
-  list(testId?: string): readonly StoredDebugSessionSummary[] {
+  list(filter: Readonly<{ testId?: string; runId?: string }> = {}): readonly StoredDebugSessionSummary[] {
     return [...this.sessions.values()]
-      .filter((session) => testId === undefined || session.test?.id === testId)
+      .filter((session) => (filter.testId === undefined || session.test?.id === filter.testId) && (filter.runId === undefined || session.test?.runId === filter.runId))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map(
         ({
@@ -849,7 +851,8 @@ function isStoredSession(value: unknown): value is StoredSession {
 }
 
 export function isDebugSessionTestMetadata(value: unknown): value is DebugSessionTestMetadata {
-  return isRecord(value) && ['id', 'title', 'specFile', 'project', 'gitSha'].every((key) => typeof value[key] === 'string' && value[key].length <= 512) && Number.isInteger(value['retry']) && Number(value['retry']) >= 0;
+  return isRecord(value) && ['id', 'title', 'specFile', 'project', 'gitSha'].every((key) => typeof value[key] === 'string' && value[key].length <= 512) && Number.isInteger(value['retry']) && Number(value['retry']) >= 0
+    && (value['runId'] === undefined || (typeof value['runId'] === 'string' && /^[0-9a-f-]{36}$/i.test(value['runId'])));
 }
 
 function mergeParticipant(

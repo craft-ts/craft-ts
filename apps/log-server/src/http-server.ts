@@ -17,6 +17,14 @@ import type {
 } from './debug-session-store.js';
 import { isDebugSessionTestMetadata } from './debug-session-store.js';
 import { PORTABLE_DEBUG_SESSION_VERSION } from './debug-session-store.js';
+import {
+  compareSessionTraces,
+  isSessionHistory,
+  normalizeSessionTrace,
+  SESSION_HISTORY_FILE,
+  type PortableSessionForTrace,
+  type SessionHistory,
+} from '@craft-ts/session-trace';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
 import type { ThumbnailManifest } from './thumbnails/thumbnail-store.js';
 
@@ -145,101 +153,8 @@ async function handleRequest(
     return;
   }
 
-  if (request.method === 'GET' && url.pathname === '/e2e-sessions') {
-    const roots = options.e2eSessionRoots ?? [];
-    const rootParam = url.searchParams.get('root');
-    const selected = rootParam === null
-      ? roots.map((path, index) => ({ index, path: resolve(path) }))
-      : [selectedE2eRoot(url, roots)].filter((value): value is { index: number; path: string } => value !== undefined);
-    if (selected.length === 0) { sendJson(response, 404, { error: 'E2E session history root is unavailable.' }); return; }
-    const sessions = selected.flatMap((root) => listE2eHistories(root.path).map((history) => ({ root: root.index, ...history })));
-    sendJson(response, 200, { roots: selected.map((root) => ({ index: root.index, name: basename(root.path) })), sessions }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
-    return;
-  }
-
-  if (request.method === 'GET' && url.pathname === '/e2e-sessions/compare') {
-    const roots = options.e2eSessionRoots ?? [];
-    const testId = url.searchParams.get('test') ?? '';
-    const project = url.searchParams.get('project') ?? '';
-    const sessionId = url.searchParams.get('run') ?? '';
-    const rootParam = url.searchParams.get('root');
-    if (!validE2eTestId(testId) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(project) || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
-      sendJson(response, 400, { error: 'Invalid E2E comparison request.' }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
-      return;
-    }
-    const candidates = rootParam === null
-      ? roots.map((path, index) => ({ index, path: resolve(path) }))
-      : [selectedE2eRoot(url, roots)].filter((value): value is { index: number; path: string } => value !== undefined);
-    const selected = candidates.find(({ path }) => {
-      const candidate = readE2eHistory(join(path, testId, project, 'history.json'));
-      return candidate?.id === testId && candidate.project === project;
-    });
-    if (!selected) {
-      sendJson(response, 404, { error: 'E2E comparison history not found.' }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
-      return;
-    }
-    const historyPath = join(selected.path, testId, project, 'history.json');
-    const history = readE2eHistory(historyPath);
-    if (!history || history.id !== testId || history.project !== project || !options.sessionStore) {
-      sendJson(response, 404, { error: 'E2E comparison history not found.' }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
-      return;
-    }
-    const observed = options.sessionStore.get(sessionId);
-    if (!observed) {
-      sendJson(response, 404, { error: 'Observed E2E session not found.' }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
-      return;
-    }
-    const directory = resolve(selected.path, testId, project);
-    const baselines = history.runs.flatMap((run) => {
-      const path = resolve(directory, run.file);
-      if (!path.startsWith(`${directory}/`) || !existsSync(path) || lstatSync(path).isSymbolicLink() || !lstatSync(path).isFile()) return [];
-      const source = `/e2e-sessions/${encodeURIComponent(testId)}/${encodeURIComponent(project)}/${encodeURIComponent(run.file)}?root=${selected.index}&decompress=1`;
-      return [{ source, session: JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as unknown }];
-    });
-    sendJson(response, 200, {
-      testId,
-      project,
-      sessionId,
-      observed,
-      observedSource: `/sessions/${encodeURIComponent(sessionId)}`,
-      baselines,
-    }, sessionCorsHeaders(request.headers.origin, allowedOrigins));
-    return;
-  }
-
-  const e2eFileMatch = /^\/e2e-sessions\/([a-z0-9.-]{1,80})\/([a-z0-9_-]{1,80})\/([^/]+)$/.exec(url.pathname);
-  if (request.method === 'GET' && e2eFileMatch) {
-    const roots = options.e2eSessionRoots ?? [];
-    const selected = selectedE2eRoot(url, roots);
-    const [id, project, file] = e2eFileMatch.slice(1);
-    if (!selected || !id || !validE2eTestId(id) || !project || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(project) || !file || basename(file) !== file || !file.endsWith('.session.json.gz')) {
-      sendJson(response, 404, { error: 'E2E session history file not found.' }); return;
-    }
-    const directory = resolve(selected.path, id, project);
-    if (!directory.startsWith(resolve(selected.path) + '/')) { sendJson(response, 404, { error: 'E2E session history file not found.' }); return; }
-    if (!existsSync(directory) || !lstatSync(directory).isDirectory() || lstatSync(directory).isSymbolicLink()) {
-      sendJson(response, 404, { error: 'E2E session history file not found.' }); return;
-    }
-    const historyPath = join(directory, 'history.json');
-    if (!existsSync(historyPath) || lstatSync(historyPath).isSymbolicLink() || !lstatSync(historyPath).isFile()) {
-      sendJson(response, 404, { error: 'E2E session history file not found.' }); return;
-    }
-    const history = readE2eHistory(historyPath);
-    if (!history || history.id !== id || history.project !== project || !history.runs.some((run) => run.file === file)) {
-      sendJson(response, 404, { error: 'E2E session history file not found.' }); return;
-    }
-    const path = resolve(directory, file);
-    if (!path.startsWith(resolve(directory) + '/') || !existsSync(path) || lstatSync(path).isSymbolicLink() || !lstatSync(path).isFile()) {
-      sendJson(response, 404, { error: 'E2E session history file not found.' }); return;
-    }
-    const compressed = readFileSync(path);
-    if (url.searchParams.get('decompress') === '1') {
-      response.writeHead(200, { ...sessionCorsHeaders(request.headers.origin, allowedOrigins), 'content-type': 'application/json', 'cache-control': 'no-store' });
-      response.end(gunzipSync(compressed));
-    } else {
-      response.writeHead(200, { ...sessionCorsHeaders(request.headers.origin, allowedOrigins), 'content-type': 'application/gzip', 'cache-control': 'no-store' });
-      response.end(compressed);
-    }
+  if (request.method === 'GET' && isE2eSessionRoute) {
+    handleE2eSessionRequest(url, response, options, sessionCorsHeaders(request.headers.origin, allowedOrigins));
     return;
   }
 
@@ -249,7 +164,10 @@ async function handleRequest(
       response,
       200,
       {
-        sessions: options.sessionStore?.list(url.searchParams.get('testId') ?? undefined) ?? [],
+        sessions: options.sessionStore?.list({
+          ...(url.searchParams.has('testId') ? { testId: url.searchParams.get('testId')! } : {}),
+          ...(url.searchParams.has('runId') ? { runId: url.searchParams.get('runId')! } : {}),
+        }) ?? [],
         retentionDays: options.sessionStore?.retentionDays ?? 30,
         storageBytes:
           (options.sessionStore?.storageBytes ?? 0) +
@@ -774,7 +692,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-type E2EHistoryFile = Readonly<{ format: string; schemaVersion: number; id: string; project: string; keep: number; runs: readonly Readonly<{ file: string; traceHash: string; recordedAt: string; sizeBytes: number; retry: number }>[] }>;
 
 function selectedE2eRoot(url: URL, roots: readonly string[]): { index: number; path: string } | undefined {
   const rawIndex = url.searchParams.get('root') ?? (roots.length === 1 ? '0' : undefined);
@@ -784,32 +701,126 @@ function selectedE2eRoot(url: URL, roots: readonly string[]): { index: number; p
   return path ? { index, path: resolve(path) } : undefined;
 }
 
-function listE2eHistories(root: string): Array<{ id: string; project: string; keep: number; runs: E2EHistoryFile['runs'] }> {
+function listE2eHistories(root: string): Array<Pick<SessionHistory, 'id' | 'project' | 'keep' | 'runs'>> {
   if (!existsSync(root)) return [];
-  const histories: Array<{ id: string; project: string; keep: number; runs: E2EHistoryFile['runs'] }> = [];
+  const histories: Array<Pick<SessionHistory, 'id' | 'project' | 'keep' | 'runs'>> = [];
   for (const testEntry of readdirSync(root, { withFileTypes: true })) {
     if (!testEntry.isDirectory() || !validE2eTestId(testEntry.name)) continue;
     for (const projectEntry of readdirSync(join(root, testEntry.name), { withFileTypes: true })) {
-      if (!projectEntry.isDirectory()) continue;
-      const history = readE2eHistory(join(root, testEntry.name, projectEntry.name, 'history.json'));
-      if (history?.id === testEntry.name && history.project === projectEntry.name)
-        histories.push({ id: history.id, project: history.project, keep: history.keep, runs: history.runs });
+      if (!projectEntry.isDirectory() || !validE2eProject(projectEntry.name)) continue;
+      const history = readE2eHistory(root, testEntry.name, projectEntry.name);
+      if (history) histories.push({ id: history.id, project: history.project, keep: history.keep, runs: history.runs });
     }
   }
   return histories;
 }
 
 function validE2eTestId(value: string): boolean {
-  return /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$/.test(value);
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$/.test(value) && value.length <= 80;
 }
 
-function readE2eHistory(path: string): E2EHistoryFile | undefined {
+/** One rule for every endpoint: a Playwright project name that is a safe directory name. */
+function validE2eProject(value: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(value);
+}
+
+/** The history of one test and project, or undefined when its files are not trusted. */
+function readE2eHistory(root: string, testId: string, project: string): SessionHistory | undefined {
+  const directory = resolve(root, testId, project);
+  if (!directory.startsWith(`${resolve(root)}/`) || !isPlainDirectory(directory)) return undefined;
+  const path = join(directory, 'history.json');
+  if (!isPlainFile(path)) return undefined;
   try {
     const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
-    if (!isRecord(value) || value['format'] !== 'craft-e2e-session-history' || value['schemaVersion'] !== 1 || typeof value['id'] !== 'string' || typeof value['project'] !== 'string' || !Number.isInteger(value['keep']) || !Array.isArray(value['runs'])) return undefined;
-    if (!value['runs'].every((run) => isRecord(run) && typeof run['file'] === 'string' && basename(run['file']) === run['file'] && typeof run['traceHash'] === 'string' && typeof run['recordedAt'] === 'string' && Number.isInteger(run['sizeBytes']) && Number.isInteger(run['retry']))) return undefined;
-    return value as unknown as E2EHistoryFile;
+    return isSessionHistory(value) && value.id === testId && value.project === project ? value : undefined;
   } catch { return undefined; }
+}
+
+function readE2eRunSession(root: string, history: SessionHistory, file: string): Buffer | undefined {
+  if (!history.runs.some((run) => run.file === file)) return undefined;
+  const directory = resolve(root, history.id, history.project);
+  const path = resolve(directory, file);
+  return path.startsWith(`${directory}/`) && isPlainFile(path) ? readFileSync(path) : undefined;
+}
+
+function isPlainDirectory(path: string): boolean { return existsSync(path) && !lstatSync(path).isSymbolicLink() && lstatSync(path).isDirectory(); }
+function isPlainFile(path: string): boolean { return existsSync(path) && !lstatSync(path).isSymbolicLink() && lstatSync(path).isFile(); }
+
+function handleE2eSessionRequest(
+  url: URL,
+  response: ServerResponse,
+  options: LogHttpServerOptions,
+  cors: Readonly<Record<string, string>>,
+): void {
+  const roots = options.e2eSessionRoots ?? [];
+  const rootParam = url.searchParams.get('root');
+  const candidates = rootParam === null
+    ? roots.map((path, index) => ({ index, path: resolve(path) }))
+    : [selectedE2eRoot(url, roots)].filter((value): value is { index: number; path: string } => value !== undefined);
+
+  if (url.pathname === '/e2e-sessions') {
+    if (candidates.length === 0) { sendJson(response, 404, { error: 'E2E session history root is unavailable.' }, cors); return; }
+    const sessions = candidates.flatMap((root) => listE2eHistories(root.path).map((history) => ({ root: root.index, ...history })));
+    sendJson(response, 200, { roots: candidates.map((root) => ({ index: root.index, name: basename(root.path) })), sessions }, cors);
+    return;
+  }
+
+  if (url.pathname === '/e2e-sessions/compare') {
+    const testId = url.searchParams.get('test') ?? '';
+    const project = url.searchParams.get('project') ?? '';
+    const sessionId = url.searchParams.get('run') ?? '';
+    if (!validE2eTestId(testId) || !validE2eProject(project) || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+      sendJson(response, 400, { error: 'Invalid E2E comparison request.' }, cors);
+      return;
+    }
+    const selected = candidates.flatMap((root) => {
+      const history = readE2eHistory(root.path, testId, project);
+      return history ? [{ root, history }] : [];
+    })[0];
+    if (!selected || !options.sessionStore) { sendJson(response, 404, { error: 'E2E comparison history not found.' }, cors); return; }
+    const observed = options.sessionStore.get(sessionId);
+    if (!observed) { sendJson(response, 404, { error: 'Observed E2E session not found.' }, cors); return; }
+    const baselines = selected.history.runs.flatMap((run) => {
+      const compressed = readE2eRunSession(selected.root.path, selected.history, run.file);
+      if (!compressed) return [];
+      const source = `/e2e-sessions/${encodeURIComponent(testId)}/${encodeURIComponent(project)}/${encodeURIComponent(run.file)}?root=${selected.root.index}&decompress=1`;
+      return [{ source, file: run.file, markers: run.markers ?? [], session: JSON.parse(gunzipSync(compressed).toString('utf8')) as unknown }];
+    });
+    // The same module as the fixture and the MCP: every reader shows the same findings.
+    const comparison = compareSessionTraces(
+      normalizeSessionTrace(asPortableSession(observed)),
+      baselines.map((baseline) => normalizeSessionTrace(asPortableSession(baseline.session), { markers: baseline.markers })),
+    );
+    sendJson(response, 200, {
+      testId,
+      project,
+      sessionId,
+      observed,
+      observedSource: `/sessions/${encodeURIComponent(sessionId)}`,
+      baselines: baselines.map(({ source, session }) => ({ source, session })),
+      comparison,
+    }, cors);
+    return;
+  }
+
+  const fileMatch = /^\/e2e-sessions\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+  const [testId, project, file] = fileMatch?.slice(1).map(safeDecode) ?? [];
+  const root = selectedE2eRoot(url, roots);
+  const history = root && testId && project && validE2eTestId(testId) && validE2eProject(project) ? readE2eHistory(root.path, testId, project) : undefined;
+  const compressed = root && history && file && SESSION_HISTORY_FILE.test(file) ? readE2eRunSession(root.path, history, file) : undefined;
+  if (!compressed) { sendJson(response, 404, { error: 'E2E session history file not found.' }, cors); return; }
+  const decompress = url.searchParams.get('decompress') === '1';
+  response.writeHead(200, { ...cors, 'content-type': decompress ? 'application/json' : 'application/gzip', 'cache-control': 'no-store' });
+  response.end(decompress ? gunzipSync(compressed) : compressed);
+}
+
+function safeDecode(value: string): string | undefined {
+  try { return decodeURIComponent(value); } catch { return undefined; }
+}
+
+function asPortableSession(value: unknown): PortableSessionForTrace {
+  const events = isRecord(value) && Array.isArray(value['events']) ? value['events'].filter(isRecord) : [];
+  return { events };
 }
 
 function readBody(

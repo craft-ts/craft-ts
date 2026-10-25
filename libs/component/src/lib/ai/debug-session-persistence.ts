@@ -6,6 +6,7 @@ const SHARED_SESSION_ID_KEY = 'craft-debug-session-id';
 const PARTICIPANT_ID_KEY = 'craft-debug-session-participant-id';
 
 type E2ESessionMarker = Readonly<{ id: string; test: Readonly<Record<string, unknown>> }>;
+type E2ESessionReady = (id: string) => unknown;
 type CraftDebugSessionApi = Readonly<{
   id(): string;
   finish(): Promise<'acknowledged' | 'timeout' | 'offline'>;
@@ -275,6 +276,9 @@ export function connectDebugSessionPersistence(
               // The in-memory id is sufficient for this page if storage is denied.
             }
           }
+          // Under a Playwright test, the fixture keeps the effective id even if
+          // the test closes this page before the end.
+          if (marker) reportE2eSessionId(id);
           if (syncing) sendHistory();
         },
       );
@@ -532,4 +536,14 @@ function isUuid(value: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function reportE2eSessionId(id: string): void {
+  const report = (globalThis as typeof globalThis & { __craftE2eSessionReady?: E2ESessionReady }).__craftE2eSessionReady;
+  if (typeof report !== 'function') return;
+  try {
+    void Promise.resolve(report(id)).catch(() => undefined);
+  } catch {
+    // The binding disappears when the test context closes.
+  }
 }

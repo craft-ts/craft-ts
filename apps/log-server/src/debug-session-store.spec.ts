@@ -101,11 +101,15 @@ describe('DebugSessionStore', () => {
     expect(readFileSync(join(directory, 'index.json'), 'utf8')).toContain(id);
   });
 
-  it('retains Playwright test metadata and filters session summaries by test id', () => {
-    const test = { id: 'cart.checkout', title: 'checkout', specFile: 'e2e/cart.spec.ts', project: 'chromium', retry: 1, gitSha: 'f40a123cb' };
+  it('retains Playwright test metadata and filters session summaries by test and attempt', () => {
+    const runId = '7a6c4f8e-1d2b-4c3a-9e8f-0123456789ab';
+    const test = { id: 'cart.checkout', title: 'checkout', specFile: 'e2e/cart.spec.ts', project: 'chromium', retry: 1, gitSha: 'f40a123cb', runId };
     store.begin(id, { ...fixture(), test }, createdAt);
-    expect(store.list('cart.checkout')).toHaveLength(1);
-    expect(store.list('another-test')).toHaveLength(0);
+    expect(store.list({ testId: 'cart.checkout' })).toHaveLength(1);
+    expect(store.list({ testId: 'another-test' })).toHaveLength(0);
+    expect(store.list({ testId: 'cart.checkout', runId })).toHaveLength(1);
+    // A previous attempt of the same test is never returned for this one.
+    expect(store.list({ testId: 'cart.checkout', runId: '00000000-0000-4000-8000-000000000000' })).toHaveLength(0);
     expect(store.get(id)?.test).toEqual(test);
   });
 

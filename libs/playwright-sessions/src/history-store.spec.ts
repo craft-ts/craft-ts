@@ -29,14 +29,24 @@ describe('session history store', () => {
     expect(names.some((name) => name.endsWith('.tmp'))).toBe(false);
   });
 
+  it('recomputes stored hashes instead of trusting them', () => {
+    const data = fixture();
+    const input = { id: 'cart.checkout', project: 'chromium', keep: 2, session: data.session, trace: data.trace, meta: data.meta };
+    recordRun(data.dir, { ...input, trace: { ...data.trace, hash: 'written-by-an-old-normalizer' } });
+    expect(recordRun(data.dir, input)).toBe('unchanged');
+    expect(readBaselines(data.dir)[0]?.trace.hash).toBe(data.trace.hash);
+  });
+
   it('rotates the oldest sessions when keep is exceeded', () => {
     const data = fixture();
+    const hashes: string[] = [];
     for (const index of [1, 2, 3]) {
-      const session = { ...data.session, exportedAt: index };
-      const trace = { ...data.trace, hash: `trace-${index}` };
+      const session = { ...data.session, events: [{ kind: 'dom', sequence: 1, payload: { interactionName: `Cart:button:step-${index}:click` } }] };
+      const trace = normalizeSessionTrace(session);
+      hashes.push(trace.hash);
       recordRun(data.dir, { id: 'cart.checkout', project: 'chromium', keep: 2, session, trace, meta: { ...data.meta, recordedAt: `2026-10-24T15:02:1${index}.000Z` } });
     }
-    expect(readHistory(data.dir)?.runs.map((run) => run.traceHash)).toEqual(['trace-3', 'trace-2']);
+    expect(readHistory(data.dir)?.runs.map((run) => run.traceHash)).toEqual([hashes[2], hashes[1]]);
     expect(readdirSync(data.dir).filter((name) => name.endsWith('.session.json.gz'))).toHaveLength(2);
   });
 });

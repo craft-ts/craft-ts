@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./architecture": "./src/architecture.ts"
+    "./architecture": "./src/architecture.ts",
+    "./history": "./src/history.ts"
   }
 }

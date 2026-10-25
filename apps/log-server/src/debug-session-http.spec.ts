@@ -55,7 +55,7 @@ describe('debug session local archive API', () => {
         type: 'session:sync',
         id,
         participantId: 'tab-profile',
-        test: { id: 'cart.checkout', title: 'checkout', specFile: 'e2e/cart.spec.ts', project: 'chromium', retry: 0, gitSha: 'f40a123cb' },
+        test: { id: 'cart.checkout', title: 'checkout', specFile: 'e2e/cart.spec.ts', project: 'chromium', retry: 0, gitSha: 'f40a123cb', runId: '7a6c4f8e-1d2b-4c3a-9e8f-0123456789ab' },
         createdAt: '2026-10-15T08:00:00.000Z',
         participant: {
           title: 'Demo tab',
@@ -152,6 +152,10 @@ describe('debug session local archive API', () => {
     ]);
     const filtered = await fetch(`${baseUrl}/sessions?testId=cart.checkout`).then((response) => response.json());
     expect(filtered.sessions).toHaveLength(1);
+    const attempt = await fetch(`${baseUrl}/sessions?testId=cart.checkout&runId=7a6c4f8e-1d2b-4c3a-9e8f-0123456789ab`).then((response) => response.json());
+    expect(attempt.sessions).toHaveLength(1);
+    const otherAttempt = await fetch(`${baseUrl}/sessions?testId=cart.checkout&runId=00000000-0000-4000-8000-000000000000`).then((response) => response.json());
+    expect(otherAttempt.sessions).toHaveLength(0);
     const loaded = await fetch(`${baseUrl}/sessions/${id}`).then((response) =>
       response.json(),
     );
@@ -252,6 +256,42 @@ describe('debug session local archive API', () => {
     expect(Buffer.from(await downloaded.arrayBuffer())).toEqual(compressed);
     expect((await fetch(`${baseUrl}/e2e-sessions/cart.checkout/chromium/unlisted.session.json.gz?root=0`)).status).toBe(404);
     expect((await fetch(`${baseUrl}/e2e-sessions/cart.checkout/chromium/${file}?root=../`)).status).toBe(404);
+  });
+
+  it('computes the E2E comparison with the shared trace module and answers 404s with CORS headers', async () => {
+    const root = join(directory, 'e2e-sessions');
+    const historyDir = join(root, 'shop.checkout', 'chromium');
+    mkdirSync(historyDir, { recursive: true });
+    const order = (status: number) => [
+      { id: 'e1', sequence: 1, timestamp: 1_000, kind: 'http', phase: 'started', operationId: 'fetch-1', payload: { method: 'POST', url: 'http://localhost/__server-functions', body: '{"id":"ecommerce.checkout"}' } },
+      { id: 'e2', sequence: 2, timestamp: 1_010, kind: 'http', phase: 'succeeded', operationId: 'fetch-1', response: { status, body: '"{}"' } },
+    ];
+    const file = '2026-10-24T15-02-11Z-ab1234.session.json.gz';
+    const compressed = gzipSync(JSON.stringify({ format: 'craft-debug-session', version: 6, events: order(200) }));
+    writeFileSync(join(historyDir, file), compressed);
+    writeFileSync(join(historyDir, 'history.json'), JSON.stringify({
+      format: 'craft-e2e-session-history', schemaVersion: 1, id: 'shop.checkout', project: 'chromium', keep: 1,
+      runs: [{ file, traceHash: 'abc123', traceSchemaVersion: 2, recordedAt: '2026-10-24T15:02:11.000Z', durationMs: 12, retry: 0, gitSha: 'f40a123cb', dirty: false, title: 'checkout', specFile: 'e2e/checkout.spec.ts', environment: {}, sizeBytes: compressed.byteLength, markers: [] }],
+    }));
+    const observedId = '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5678';
+    sessionStore.begin(observedId, { format: 'craft-debug-session', version: 6, startUrl: 'http://localhost/', exportedAt: 1_000, truncated: false, clips: [], events: order(500) }, '2026-10-24T15:03:00.000Z');
+
+    const origin = 'http://localhost:4200';
+    const compared = await fetch(`${baseUrl}/e2e-sessions/compare?test=shop.checkout&project=chromium&run=${observedId}`, { headers: { origin } });
+    expect(compared.status).toBe(200);
+    const body = await compared.json();
+    expect(body.comparison.firstDivergence).toMatchObject({ kind: 'changed-invariant', expected: { key: 'server-fn:ecommerce.checkout' }, fields: ['status', 'outcome'] });
+    expect(body.baselines).toHaveLength(1);
+
+    for (const path of [
+      `/e2e-sessions/compare?test=shop.checkout&project=firefox&run=${observedId}`,
+      '/e2e-sessions/shop.checkout/chromium/unlisted.session.json.gz?root=0',
+      '/e2e-sessions/shop.checkout/chromium/%E0%A4%A.session.json.gz?root=0',
+    ]) {
+      const missing = await fetch(`${baseUrl}${path}`, { headers: { origin } });
+      expect(missing.status, path).toBe(404);
+      expect(missing.headers.get('access-control-allow-origin'), path).toBe(origin);
+    }
   });
 
   it('merges same-session participants and finishes only after the last tab leaves', async () => {
