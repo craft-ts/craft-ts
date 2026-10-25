@@ -43,15 +43,22 @@ export class StoreRepository extends Context.Service<
       line: CartLine,
     ) => Effect.Effect<ServerCart, StoreError>;
     readonly getCart: (cartId: string) => Effect.Effect<ServerCart, StoreError>;
+    readonly deleteCart: (cartId: string) => Effect.Effect<void, StoreError>;
   }
 >()('ecommerce/StoreRepository') {}
 
 const databasePath = fileURLToPath(
   new URL('../../data/store.json', import.meta.url),
 );
+
+/** `ECOMMERCE_STORE_PATH` isole un run (e2e, essai local) du magasin partagé. */
+function defaultStorePath(): string {
+  const configured = process.env['ECOMMERCE_STORE_PATH'];
+  return configured && configured.trim() ? configured : databasePath;
+}
 const cloneInitial = (): StoreData => structuredClone(initialStore);
 
-export function createStoreLayer(path = databasePath) {
+export function createStoreLayer(path = defaultStorePath()) {
   let writes = Promise.resolve();
   const update = <A>(
     f: (data: StoreData) => { readonly data: StoreData; readonly value: A },

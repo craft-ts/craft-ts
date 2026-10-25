@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
-import { resolve } from 'node:path';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 const workspaceRoot = resolve(import.meta.dirname, '../..');
 const demoPort = process.env['CRAFT_E2E_DEMO_PORT'] ?? '4602';
@@ -8,6 +10,12 @@ const sessionServerPort = process.env['CRAFT_E2E_SESSION_SERVER_PORT'] ?? '4603'
 const sessionDir =
   process.env['CRAFT_E2E_SESSION_DIR'] ??
   resolve(workspaceRoot, 'apps/log-server/tmp/ecommerce-resume-e2e');
+// Chaque run part du catalogue initial, dans un magasin jetable : les
+// commandes et paniers des scénarios ne touchent jamais `data/store.json`.
+const storePath =
+  process.env['ECOMMERCE_STORE_PATH'] ??
+  join(mkdtempSync(join(tmpdir(), 'craft-ecommerce-resume-')), 'store.json');
+process.env['ECOMMERCE_STORE_PATH'] = storePath;
 const demoOrigin = `http://localhost:${demoPort}`;
 const dashboardOrigin = `http://localhost:${dashboardPort}`;
 const sessionServerOrigin = `http://127.0.0.1:${sessionServerPort}`;
@@ -41,7 +49,7 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: `VITE_CRAFT_LOG_SERVER_URL=${sessionServerOrigin} VITE_CRAFT_REPLAY_DASHBOARD_ORIGIN=${dashboardOrigin} npx vite --config apps/demo-ecommerce/vite.config.ts --host localhost --port ${demoPort} --strictPort`,
+      command: `CRAFT_E2E=1 ECOMMERCE_STORE_PATH=${storePath} VITE_CRAFT_LOG_SERVER_URL=${sessionServerOrigin} VITE_CRAFT_REPLAY_DASHBOARD_ORIGIN=${dashboardOrigin} npx vite --config apps/demo-ecommerce/vite.config.ts --host localhost --port ${demoPort} --strictPort`,
       url: `${demoOrigin}/`,
       reuseExistingServer: false,
       cwd: workspaceRoot,

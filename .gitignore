@@ -71,3 +71,6 @@ apps/demo-ecommerce/.craft/craft-dependency-graph.json
 apps/demo-ecommerce/.craft/craft-dependency-graph.architecture.ts
 apps/demo-ecommerce/.craft/resume-graph.json
 libs/review-attestation/test-results/
+
+# Magasin de la démo : créé depuis initialStore au premier démarrage.
+apps/demo-ecommerce/data/store.json

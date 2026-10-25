@@ -39,6 +39,32 @@ function serverFunctionsPlugin() {
             );
           });
       });
+      // Les e2e de reprise révoquent les sessions entre l'enregistrement et la
+      // reprise : un ancien jeton encore valide masquerait une reconnexion ratée.
+      if (process.env['CRAFT_E2E'] === '1')
+        server.middlewares.use('/__dev/auth/revoke-all', (request, response) => {
+          if (
+            request.method !== 'POST' ||
+            !isLoopbackHost(request.headers.host) ||
+            !isLoopbackAddress(request.socket.remoteAddress)
+          ) {
+            response.statusCode = 403;
+            response.end();
+            return;
+          }
+          void server
+            .ssrLoadModule('/src/server/auth.ts')
+            .then(({ revokeAllSessions }) => {
+              response.statusCode = 200;
+              response.setHeader('content-type', 'application/json');
+              response.end(JSON.stringify({ revoked: revokeAllSessions() }));
+            })
+            .catch((error: unknown) => {
+              response.statusCode = 500;
+              response.end();
+              console.error(error);
+            });
+        });
       server.middlewares.use('/__server-functions', (request, response) => {
         const headers = new Headers();
         for (const [key, value] of Object.entries(request.headers))
