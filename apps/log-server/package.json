@@ -14,7 +14,7 @@
     "craft-ts-log-server": "dist/main.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build --workspace @craft-ts/session-trace && tsc -p tsconfig.json",
     "start": "npm run build && node dist/main.js",
     "test": "vitest run --config vitest.config.mts"
   },
@@ -28,6 +28,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@craft-ts/session-trace": "^0.9.3",
     "ws": "^8.21.3"
   }
 }

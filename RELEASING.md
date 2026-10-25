@@ -1,6 +1,6 @@
 # Releasing CraftTS
 
-Fifteen packages share one version and one Git tag. `releasePackages` in
+Nineteen packages share one version and one Git tag. `releasePackages` in
 [`tools/release.mjs`](tools/release.mjs) is the source of truth for that list —
 `nx.json` (`release.projects`) is aligned on it, and every step below is derived
 from it rather than from a hand-kept enumeration.
@@ -21,6 +21,7 @@ from it rather than from a hand-kept enumeration.
 | `@craft-ts/i18n`                  | `craft-ts-i18n`           | `libs/i18n`                      |
 | `@craft-ts/i18n-effect`           | `craft-ts-i18n-effect`    | `libs/i18n-effect`               |
 | `@craft-ts/mcp`                   | `mcp`                     | `packages/mcp`                   |
+| `@craft-ts/session-trace`         | `session-trace`           | `packages/session-trace`         |
 | `@craft-ts/log-server`            | `log-server`              | `apps/log-server`                |
 | `@craft-ts/log-mcp`               | `log-mcp`                 | `packages/log-mcp`               |
 | `@craft-ts/function-registry-mcp` | `function-registry-mcp`   | `packages/function-registry-mcp` |

@@ -93,6 +93,7 @@
       "craft-ts-i18n",
       "craft-ts-i18n-effect",
       "mcp",
+      "session-trace",
       "log-server",
       "log-mcp",
       "function-registry-mcp",

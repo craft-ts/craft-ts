@@ -8,7 +8,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "types": ["node", "@playwright/test"],
-    "paths": { "@craft-ts/component/session-trace": ["../component/src/lib/ai/session-trace.ts"] }
+    "paths": { "@craft-ts/session-trace": ["../../packages/session-trace/src/index.ts"] }
   },
   "include": ["src/**/*.ts"]
 }

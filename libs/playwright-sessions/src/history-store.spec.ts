@@ -2,7 +2,7 @@ import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { normalizeSessionTrace } from '@craft-ts/component/session-trace';
+import { normalizeSessionTrace } from '@craft-ts/session-trace';
 import { readBaselines, readHistory, recordRun } from './history-store.js';
 
 const directories: string[] = [];

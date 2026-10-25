@@ -12,7 +12,12 @@
     "sourceMap": true,
     "noEmit": false,
     "strict": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    // Built and published on its own: workspace path mappings would pull
+    // library sources into this program. Dependencies resolve the way a
+    // consumer resolves them, through their built `dist`.
+    "customConditions": [],
+    "paths": {}
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"]

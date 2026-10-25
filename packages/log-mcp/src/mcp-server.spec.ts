@@ -1,9 +1,10 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync } from 'node:zlib';
+import { compareSessionTraces, normalizeSessionTrace } from '@craft-ts/session-trace';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LogReader } from './log-reader.js';
 import { createLogMcpServer } from './mcp-server.js';
@@ -68,27 +69,30 @@ describe('logs MCP server', () => {
     ]);
   });
 
-  it('compares a failed session with the test history and returns a dashboard link', async () => {
+  it('returns exactly what the shared comparator computes on the same files', async () => {
     const previousFetch = globalThis.fetch;
     const previousUrl = process.env['LOG_SERVER_URL'];
     process.env['LOG_SERVER_URL'] = 'http://log.test';
-    const baseline = {
-      events: [{ sequence: 1, timestamp: 1000, kind: 'route', payload: { url: '/checkout' } }],
-    };
+    const baselineGzip = readFileSync(new URL('../../session-trace/src/__fixtures__/shop.checkout.session.json.gz', import.meta.url));
+    const baseline = JSON.parse(gunzipSync(baselineGzip).toString('utf8')) as { events: Array<Record<string, unknown>> };
+    // The order server function answers 500 in the observed run.
     const observed = {
-      events: [{ sequence: 1, timestamp: 1000, kind: 'route', payload: { url: '/catalog' } }],
+      ...baseline,
+      events: baseline.events.map((event) => event['operationId'] === 'fetch-4' && event['phase'] === 'succeeded' ? { ...event, response: { status: 500, body: '"{}"' } } : event),
     };
     globalThis.fetch = async (input) => {
       const url = new URL(String(input));
       if (url.pathname === '/e2e-sessions') return Response.json({ sessions: [{ root: 0, id: 'shop.checkout', project: 'chromium', runs: [{ file: 'run.session.json.gz' }] }] });
       if (url.pathname === '/sessions/00000000-0000-4000-8000-000000000001') return Response.json(observed);
-      if (url.pathname.endsWith('/run.session.json.gz')) return new Response(gzipSync(Buffer.from(JSON.stringify(baseline))));
+      if (url.pathname.endsWith('/run.session.json.gz')) return new Response(baselineGzip);
       return new Response(null, { status: 404 });
     };
     try {
       const result = await client.callTool({ name: 'sessions.compare', arguments: { testId: 'shop.checkout', project: 'chromium', sessionId: '00000000-0000-4000-8000-000000000001' } });
-      const payload = result.structuredContent as { result: { dashboardUrl: string; comparison: { firstDivergence?: { kind: string } } } };
-      expect(payload.result.comparison.firstDivergence?.kind).toBe('missing-invariant');
+      const payload = result.structuredContent as { result: { dashboardUrl: string; comparison: unknown } };
+      const expected = compareSessionTraces(normalizeSessionTrace(observed), [normalizeSessionTrace(baseline)]);
+      expect(payload.result.comparison).toEqual(JSON.parse(JSON.stringify(expected)));
+      expect(expected.firstDivergence).toMatchObject({ kind: 'changed-invariant', expected: { key: 'server-fn:ecommerce.checkout' } });
       expect(payload.result.dashboardUrl).toContain('#/compare?');
     } finally {
       globalThis.fetch = previousFetch;

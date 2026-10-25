@@ -27,9 +27,9 @@ export default defineConfig({
           root,
           '../../libs/component/src/style.ts',
         ),
-        '@craft-ts/component/session-trace': path.resolve(
+        '@craft-ts/session-trace': path.resolve(
           root,
-          '../../libs/component/src/lib/ai/session-trace.ts',
+          '../../packages/session-trace/src/index.ts',
         ),
         '@craft-ts/component': path.resolve(
           root,
@@ -48,9 +48,9 @@ export default defineConfig({
         root,
         '../../libs/component/src/style.ts',
       ),
-      '@craft-ts/component/session-trace': path.resolve(
+      '@craft-ts/session-trace': path.resolve(
         root,
-        '../../libs/component/src/lib/ai/session-trace.ts',
+        '../../packages/session-trace/src/index.ts',
       ),
       '@craft-ts/component': path.resolve(
         root,

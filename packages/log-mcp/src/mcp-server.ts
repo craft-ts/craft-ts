@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { LOG_LEVELS } from './levels.js';
 import type { LogReader } from './log-reader.js';
 import { gunzipSync } from 'node:zlib';
-import { compareSessionTraces, normalizeSessionTrace } from './session-trace.js';
+import { compareSessionTraces, normalizeSessionTrace, type PortableSessionForTrace } from '@craft-ts/session-trace';
 
 export function createLogMcpServer(reader: LogReader): McpServer {
   const server = new McpServer({ name: 'craft-ts-logs', version: '0.1.0' });
@@ -124,12 +124,17 @@ async function compareE2eSession(input: Readonly<{ testId: string; project: stri
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Could not read baseline ${run.file} (HTTP ${response.status}).`);
     const session = JSON.parse(gunzipSync(Buffer.from(await response.arrayBuffer())).toString('utf8')) as Record<string, unknown>;
-    return normalizeSessionTrace(session as never);
+    return normalizeSessionTrace(asPortableSession(session));
   }));
-  const comparison = compareSessionTraces(normalizeSessionTrace(observed as never), baselines);
+  const comparison = compareSessionTraces(normalizeSessionTrace(asPortableSession(observed)), baselines);
   const dashboard = new URL(process.env['DEBUG_SESSION_DASHBOARD_URL'] ?? 'http://localhost:4210/');
   dashboard.hash = `#/compare?${new URLSearchParams({ test: input.testId, project: input.project, run: input.sessionId })}`;
   return { testId: input.testId, project: input.project, sessionId: input.sessionId, comparison, dashboardUrl: dashboard.toString() };
+}
+
+function asPortableSession(value: Record<string, unknown>): PortableSessionForTrace {
+  const events = Array.isArray(value['events']) ? value['events'].filter((event): event is Record<string, unknown> => typeof event === 'object' && event !== null && !Array.isArray(event)) : [];
+  return { events };
 }
 
 function toolResult(result: unknown) {

@@ -113,6 +113,13 @@ export const releasePackages = [
     distRoot: 'packages/mcp',
   },
   {
+    key: 'session_trace',
+    name: '@craft-ts/session-trace',
+    project: 'session-trace',
+    sourceManifest: 'packages/session-trace/package.json',
+    distRoot: 'packages/session-trace',
+  },
+  {
     key: 'log_server',
     name: '@craft-ts/log-server',
     project: 'log-server',

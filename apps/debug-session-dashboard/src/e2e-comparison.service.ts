@@ -6,7 +6,7 @@ import {
 import {
   compareSessionTraces,
   normalizeSessionTrace,
-} from '@craft-ts/component/session-trace';
+} from '@craft-ts/session-trace';
 import { isRecord } from './replay-model';
 
 const SESSION_SERVER_URL =

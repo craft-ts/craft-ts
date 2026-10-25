@@ -10,6 +10,15 @@
     "effect-check": { "executor": "nx:run-commands", "options": { "command": "node tools/run-effect-tsgo.mjs diagnostics --project apps/demo-ecommerce/tsconfig.json --format text --severity error,warning,message" }, "inputs": ["{workspaceRoot}/package.json", "{workspaceRoot}/package-lock.json", "{workspaceRoot}/tsconfig.base.json", "{projectRoot}/tsconfig.json", "{projectRoot}/src/**/*.ts"], "cache": true },
     "lint": { "executor": "@nx/eslint:lint", "options": { "lintFilePatterns": ["apps/demo-ecommerce/src/server/**/*.ts", "apps/demo-ecommerce/src/shared/**/*.ts", "apps/demo-ecommerce/src/client/**/*.ts", "apps/demo-ecommerce/e2e/**/*.ts"] } },
     "test": { "executor": "nx:run-commands", "options": { "command": "vitest run --config apps/demo-ecommerce/vitest.config.ts" }, "inputs": ["{projectRoot}/src/**/*.ts", "{projectRoot}/vitest.config.ts"] },
-    "architecture": { "executor": "nx:run-commands", "options": { "command": "npx vitest run --config apps/demo-ecommerce/vitest.architecture.config.ts" }, "inputs": ["{projectRoot}/e2e/**/*.ts", "{projectRoot}/architecture/**/*.ts", "{projectRoot}/playwright.config.ts"] }
+    "architecture": { "executor": "nx:run-commands", "options": { "command": "npx vitest run --config apps/demo-ecommerce/vitest.architecture.config.ts" }, "inputs": ["{projectRoot}/e2e/**/*.ts", "{projectRoot}/architecture/**/*.ts", "{projectRoot}/playwright.config.ts"] },
+    "lint-e2e": { "executor": "@nx/eslint:lint", "options": { "lintFilePatterns": ["apps/demo-ecommerce/e2e/**/*.ts"] } },
+    "e2e": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["lint-e2e", "architecture"],
+      "cache": false,
+      "options": {
+        "command": "npx playwright test --config apps/demo-ecommerce/playwright.config.ts"
+      }
+    }
   }
 }

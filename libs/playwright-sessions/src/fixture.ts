@@ -3,10 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
-import { normalizeSessionTrace } from '@craft-ts/component/session-trace';
+import { normalizeSessionTrace } from '@craft-ts/session-trace';
 import { parseTestCraftSession } from './contract.js';
 import { recordRun, readBaselines } from './history-store.js';
-import { compareSessionTraces, renderSessionTraceComparison } from '@craft-ts/component/session-trace';
+import { compareSessionTraces, renderSessionTraceComparison } from '@craft-ts/session-trace';
 import { resolveCraftSessionMode } from './mode.js';
 import { join } from 'node:path';
 

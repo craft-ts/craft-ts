@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import type { SessionTrace } from '@craft-ts/component/session-trace';
+import type { SessionTrace } from '@craft-ts/session-trace';
 
 export type HistoryRun = Readonly<{
   file: string; traceHash: string; recordedAt: string; durationMs: number; retry: number;
