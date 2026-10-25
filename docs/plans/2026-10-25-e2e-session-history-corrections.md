@@ -38,11 +38,20 @@ Vérifié : les quatre pannes de la revue donnent la bonne première divergence
 sur le pilote réel ; deux runs successifs (`CI=1` puis `CRAFT_SESSIONS=update`)
 ne modifient aucun fichier ; les historiques ont `dirty: false`.
 
-Reste ouvert : le rejeu de la référence de `shop.checkout` s'arrête le plus
-souvent à l'étape 11 sur 17. Le pont de la page rejouée ne répond pas à un
-survol pendant un retour accéléré (`seekStepping` reste vrai). Le rapport le
-dit ; la conclusion « le front a changé » n'a donc pas pu être vérifiée sur le
-pilote.
+Rejeu de la référence (corrigé ensuite) : il s'arrêtait le plus souvent à
+l'étape 11 sur 17. L'app rejouée renvoyait une requête `ecommerce.catalog` de
+plus que l'enregistrement. Le résolveur, strictement ordonné, n'avait plus de
+réponse pour la commande ; le rejeu s'arrêtait sur une erreur, puis la réponse
+`step … paused` qui suivait effaçait cette erreur et le dashboard redemandait
+le même pas sans fin. Une requête répétée reçoit désormais la réponse
+enregistrée de la même requête, et un pas qui suit une erreur ne la masque plus.
+Sur le pilote : 500 sur la commande → « rejoue sans écart » ; méthode `add` qui
+lève → « ne rejoue plus sur le build courant ».
+
+Reste ouvert : une méthode `add` qui n'ajoute plus rien rejoue encore « sans
+écart ». Le replay restaure les `primitive-change` enregistrés au lieu de les
+comparer (`restoreState` dans `debug-session-replay.ts`) : c'est un choix du
+moteur, à trancher avant de promettre que le rejeu détecte une régression d'état.
 
 ## Constats de départ
 

@@ -156,6 +156,9 @@ export function provideCraftDebugReplayBridge(
           })
         : undefined;
       let replay: ReturnType<typeof createReplayController> | undefined;
+      // Set once the replay reports an error: it has stopped, and a step that
+      // resolves afterwards must not tell the dashboard it is merely paused.
+      let replayFailed = false;
       let replayInteractionCount = 0;
       let activeReplayRunId: string | undefined;
       let restoreCraftHttpReplay: (() => void) | undefined;
@@ -331,6 +334,7 @@ export function provideCraftDebugReplayBridge(
           replayInteractionCount = getReplaySteps(
             validation.session.events,
           ).length;
+          replayFailed = false;
           replay = createReplayController(validation.session, {
             mode: message['mode'] === 'diagnostic' ? 'diagnostic' : 'invocation',
             resolveTarget: createReplayTargetResolver(
@@ -473,6 +477,7 @@ export function provideCraftDebugReplayBridge(
                 registry.restore(validation.session.initialSnapshot);
             },
             onError: (error) => {
+              replayFailed = true;
               if (replayRunId) clearReplayStorageRestoreMarker(replayRunId);
               restoreDialogs();
               restoreDialogs = () => undefined;
@@ -616,6 +621,7 @@ export function provideCraftDebugReplayBridge(
           void replay
             ?.step()
             .then((difference) => {
+              if (replayFailed) return;
               send(event.origin, 'step', {
                 index: replay?.index() ?? 0,
                 href: location.href,

@@ -306,6 +306,14 @@ function onStep(
   connection: ReplayFrameConnection,
   data: Readonly<Record<string, unknown>>,
 ): void {
+  // A page that reported an error has stopped its replay: a step answer that
+  // arrives afterwards must not bring it back to "paused", or an advance would
+  // ask for the same step again and again.
+  if (connection.status === 'error') {
+    registers.seekStepping = false;
+    seekHooks.drive();
+    return;
+  }
   setNextActionCountdown(undefined);
   const index = typeof data['index'] === 'number' ? data['index'] : 0;
   const total = replayableEvents().length;

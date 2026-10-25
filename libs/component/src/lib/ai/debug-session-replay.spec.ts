@@ -4833,3 +4833,77 @@ describe('debug session replay format', () => {
     replay.stop();
   });
 });
+
+describe('recorded responses for repeated requests', () => {
+  // The pilot's checkout: the catalogue loads before the first click, then on
+  // each page, then the order is placed.
+  const call = (sequence: number, operationId: string, id: string, result: unknown) => [
+    {
+      id: `${operationId}-start`,
+      sequence,
+      timestamp: sequence,
+      kind: 'http',
+      phase: 'started',
+      operationId,
+      payload: {
+        source: 'browser-fetch',
+        method: 'POST',
+        url: 'http://localhost/__server-functions',
+        body: JSON.stringify({ id, input: {} }),
+      },
+    },
+    {
+      id: `${operationId}-end`,
+      sequence: sequence + 0.5,
+      timestamp: sequence + 0.5,
+      kind: 'http',
+      phase: 'succeeded',
+      operationId,
+      response: {
+        source: 'browser-fetch-response',
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(result),
+      },
+    },
+  ] as const;
+  const session = (): SendContextReplayExport => ({
+    format: 'craft-debug-session',
+    version: 6,
+    startUrl: 'http://localhost/',
+    exportedAt: 20,
+    truncated: false,
+    clips: [],
+    events: [
+      ...call(1, 'initial', 'shop.catalog', { products: ['initial'] }),
+      { id: 'click', sequence: 2, timestamp: 2, kind: 'dom', phase: 'emitted', payload: { selector: '#add', action: 'click' } },
+      ...call(3, 'cart', 'shop.catalog', { products: ['cart'] }),
+      ...call(4, 'payment', 'shop.catalog', { products: ['payment'] }),
+      ...call(5, 'order', 'shop.checkout', { order: 1 }),
+    ],
+  });
+  const request = (id: string) =>
+    new Request('http://localhost/__server-functions', { method: 'POST', body: JSON.stringify({ id, input: {} }) });
+
+  it('answers a request the app sends again with its recorded answer, without shifting the next ones', async () => {
+    const resolver = createRecordedResponseResolver(session());
+    const answers: unknown[] = [];
+    for (const id of ['shop.catalog', 'shop.catalog', 'shop.catalog', 'shop.checkout'])
+      answers.push(await (await resolver(request(id)))?.json());
+    expect(answers).toEqual([{ products: ['cart'] }, { products: ['payment'] }, { products: ['payment'] }, { order: 1 }]);
+  });
+
+  it('answers a late initial load with the answer recorded before the first interaction', async () => {
+    const resolver = createRecordedResponseResolver(session());
+    await resolver(request('shop.catalog'));
+    await resolver(request('shop.catalog'));
+    expect(await (await resolver(request('shop.checkout')))?.json()).toEqual({ order: 1 });
+    // Every catalogue answer is known by now; an order sent twice is too.
+    expect(await (await resolver(request('shop.checkout')))?.json()).toEqual({ order: 1 });
+  });
+
+  it('still stops on a request the recording never answered', async () => {
+    const resolver = createRecordedResponseResolver(session());
+    expect(await resolver(request('shop.unknown'))).toBeUndefined();
+  });
+});

@@ -117,14 +117,15 @@ export function describeBaselineReplay(replay: BaselineReplay): string {
   switch (replay.status) {
     case 'completed':
       return 'La référence verte rejoue sans écart sur le build courant, avec les réponses enregistrées. '
-        + 'L’écart vient soit des réponses réelles (données, back, environnement), soit de l’interaction elle-même : '
-        + 'le replay appelle les méthodes enregistrées sans passer par les gestionnaires de clic, il ne vérifie donc pas qu’un bouton est toujours branché.';
+        + 'L’écart vient le plus souvent des réponses réelles (données, back, environnement). Le replay ne prouve pas tout du front : '
+        + 'il appelle les méthodes enregistrées sans passer par les gestionnaires de clic (un bouton débranché passe), '
+        + 'et il restaure les changements d’état enregistrés au lieu de les vérifier (une méthode qui ne modifie plus l’état passe aussi).';
     case 'diverged':
       return `Le front a changé ce parcours : la référence verte ne rejoue plus à l’identique sur le build courant.\n\nPremière différence du replay :\n\n\`\`\`json\n${JSON.stringify(replay.difference ?? null, null, 2)}\n\`\`\``;
     case 'timeout':
       return `Rejeu de la référence interrompu : ${replay.message ?? 'délai dépassé'}. Aucune conclusion.`;
     case 'error':
-      return `Le rejeu de la référence a échoué : ${replay.message ?? 'erreur inconnue'}. Aucune conclusion.`;
+      return `La référence verte ne rejoue plus sur le build courant : ${replay.message ?? 'erreur inconnue'}. Le front, ou son environnement de replay, a changé ce parcours.`;
     case 'unavailable':
       return `Référence non rejouée : ${replay.message ?? 'aucun export vert disponible'}.`;
   }

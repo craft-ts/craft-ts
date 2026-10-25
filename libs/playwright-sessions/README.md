@@ -93,12 +93,15 @@ A compared test gets these attachments:
 
 With `replayBaselineOnFailure`, the latest green reference is replayed on the
 current build through the dashboard's worker contract (at most 60 s, added to
-the test's timeout). When it replays without a gap, the difference comes from
-the real responses (data, back end, environment) or from the interaction
-itself: the replay calls the recorded methods without going through click
-handlers, so it does not prove a button is still wired. When it diverges, the
-front end changed the journey, and the report quotes the replay's first gap.
-A replay that stops answering is reported as such, with no conclusion.
+the test's timeout). When it replays without a gap, the difference most often
+comes from the real responses (data, back end, environment). The replay does
+not prove everything about the front end: it calls the recorded methods
+without going through click handlers (an unwired button passes), and it
+restores the recorded state changes instead of checking them (a method that no
+longer changes the state passes too). When it diverges or stops on an error,
+the front end changed the journey, and the report quotes the replay's first
+gap or error. A replay that stops answering is reported as such, with no
+conclusion.
 
 The `sessions.compare` tool of the logs MCP and the dashboard's `#/compare`
 view show the comparison computed by the log server with the same module.

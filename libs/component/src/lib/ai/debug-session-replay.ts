@@ -3152,13 +3152,12 @@ export function createRecordedResponseResolver(
       else item.resolve(item.response!);
     }
   };
-  const resolver = (async (request: Request) => {
-    const requestBody = await request
-      .clone()
-      .text()
-      .catch(() => '');
-    const started = starts[nextIndex];
-    if (!started?.operationId || !isRecord(started.payload)) return undefined;
+  const matches = (
+    started: SendContextEvent,
+    request: Request,
+    requestBody: string,
+  ): boolean => {
+    if (!started.operationId || !isRecord(started.payload)) return false;
     const payload = started.payload;
     const recordedMethod =
       typeof payload['method'] === 'string'
@@ -3182,28 +3181,56 @@ export function createRecordedResponseResolver(
             session.startUrl,
           ))
     )
-      return undefined;
+      return false;
     const rawBody = payload['body'];
-    if (
-      rawBody === undefined
-        ? requestBody !== ''
-        : !(scenario
-            ? bodyMatchesStrict(
-                rawBody,
-                requestBody,
-                request,
-                payload,
-                scenario,
-              )
-            : bodyMatches(rawBody, requestBody))
-    )
-      return undefined;
-    const finish = session.events.find(
+    return rawBody === undefined
+      ? requestBody === ''
+      : scenario
+        ? bodyMatchesStrict(rawBody, requestBody, request, payload, scenario)
+        : bodyMatches(rawBody, requestBody);
+  };
+  const finishOf = (started: SendContextEvent) =>
+    session.events.find(
       (event) =>
         event.kind === 'http' &&
         event.operationId === started.operationId &&
         (event.phase === 'succeeded' || event.phase === 'failed'),
     );
+  // Requests the recording answered before the first interaction: the replay
+  // restores their results from the snapshot, but the app may still send one.
+  const initialStarts = session.events.filter(
+    (event) =>
+      event.kind === 'http' &&
+      event.phase === 'started' &&
+      event.sequence <= firstInteractionSequence &&
+      isRecord(event.payload) &&
+      event.payload['source'] === 'browser-fetch',
+  );
+  const resolver = (async (request: Request) => {
+    const requestBody = await request
+      .clone()
+      .text()
+      .catch(() => '');
+    const started = starts[nextIndex];
+    if (!started || !matches(started, request, requestBody)) {
+      // A replayed app may send again a request it already sent (a query
+      // reloaded by a navigation, an initial load the snapshot did not
+      // settle in time). Its recorded answer is known: give it again, without
+      // consuming the next recorded request. Outside a scenario only; a new
+      // request still stops the replay.
+      const repeated = scenario
+        ? undefined
+        : // The latest answer to the same request first.
+          [...initialStarts, ...starts.slice(0, nextIndex)]
+            .reverse()
+            .find((candidate) => matches(candidate, request, requestBody));
+      const repeatedFinish = repeated && finishOf(repeated);
+      if (!repeatedFinish) return undefined;
+      const repeatedResponse = recordedFetchResponse(repeatedFinish);
+      if (repeatedResponse instanceof Error) throw repeatedResponse;
+      return repeatedResponse;
+    }
+    const finish = finishOf(started);
     if (!finish) return undefined;
     nextIndex += 1;
     const response = recordedFetchResponse(finish);
