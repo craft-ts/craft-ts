@@ -94,11 +94,14 @@ A compared test gets these attachments:
 With `replayBaselineOnFailure`, the latest green reference is replayed on the
 current build through the dashboard's worker contract (at most 60 s, added to
 the test's timeout). When it replays without a gap, the difference most often
-comes from the real responses (data, back end, environment). The replay does
-not prove everything about the front end: it calls the recorded methods
-without going through click handlers (an unwired button passes), and it
-restores the recorded state changes instead of checking them (a method that no
-longer changes the state passes too). When it diverges or stops on an error,
+comes from the real responses (data, back end, environment). The replay runs
+with `?replay-verify-state=1`: the state owned by a method it replays (a
+service's state changed by `add`) is checked against the recorded change, so a
+method that no longer produces it shows as a gap. It does not prove everything
+about the front end: it calls those methods without going through click
+handlers (an unwired button passes), and it restores the other recorded state
+changes (queries, responses) instead of recomputing them. When it diverges or
+stops on an error,
 the front end changed the journey, and the report quotes the replay's first
 gap or error. A replay that stops answering is reported as such, with no
 conclusion.

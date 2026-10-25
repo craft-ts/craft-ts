@@ -79,6 +79,8 @@ export type ReplayFrameConnection = {
   session: SendContextReplayExport;
   startMode: ReplayStartMode;
   diagnostic: boolean;
+  /** Check recorded state changes against the live state instead of restoring them. */
+  verifyState?: boolean;
   timelineOriginMs?: number;
   startOffsetMs: number;
   pendingStep?: boolean;

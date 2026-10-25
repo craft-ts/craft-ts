@@ -117,9 +117,9 @@ export function describeBaselineReplay(replay: BaselineReplay): string {
   switch (replay.status) {
     case 'completed':
       return 'La référence verte rejoue sans écart sur le build courant, avec les réponses enregistrées. '
-        + 'L’écart vient le plus souvent des réponses réelles (données, back, environnement). Le replay ne prouve pas tout du front : '
-        + 'il appelle les méthodes enregistrées sans passer par les gestionnaires de clic (un bouton débranché passe), '
-        + 'et il restaure les changements d’état enregistrés au lieu de les vérifier (une méthode qui ne modifie plus l’état passe aussi).';
+        + 'Les méthodes qu’il rejoue produisent l’état enregistré : l’écart vient le plus souvent des réponses réelles (données, back, environnement). '
+        + 'Le replay ne prouve pas tout du front : il appelle ces méthodes sans passer par les gestionnaires de clic (un bouton débranché passe), '
+        + 'et il restaure les autres changements d’état (queries, réponses) au lieu de les recalculer.';
     case 'diverged':
       return `Le front a changé ce parcours : la référence verte ne rejoue plus à l’identique sur le build courant.\n\nPremière différence du replay :\n\n\`\`\`json\n${JSON.stringify(replay.difference ?? null, null, 2)}\n\`\`\``;
     case 'timeout':

@@ -337,6 +337,7 @@ export function provideCraftDebugReplayBridge(
           replayFailed = false;
           replay = createReplayController(validation.session, {
             mode: message['mode'] === 'diagnostic' ? 'diagnostic' : 'invocation',
+            verifyRecordedState: message['verifyState'] === true,
             resolveTarget: createReplayTargetResolver(
               methodReplayRegistry,
               ɵinjectCraftCompiledRoutes(),

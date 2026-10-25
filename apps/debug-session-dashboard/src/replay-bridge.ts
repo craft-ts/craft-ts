@@ -134,6 +134,7 @@ function onReady(connection: ReplayFrameConnection, origin: string): void {
       session: connection.session,
       startMode: connection.startMode,
       mode: connection.diagnostic ? 'diagnostic' : 'invocation',
+      ...(connection.verifyState ? { verifyState: true } : {}),
       startIndex: connection.resumeIndex,
       replayRunId: connection.replayRunId,
       ...(connection.timelineOriginMs === undefined

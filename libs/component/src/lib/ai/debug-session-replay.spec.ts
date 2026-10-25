@@ -17,6 +17,7 @@ import {
   runReplayTestOrThrow,
 } from './debug-session-replay';
 import { compileReplayPlan } from './debug-session-orchestrator';
+import type { ReplayScenario } from './debug-session-scenario';
 
 describe('debug session replay format', () => {
   it('returns a structured test verdict and records applied tolerances', async () => {
@@ -4837,7 +4838,7 @@ describe('debug session replay format', () => {
 describe('recorded responses for repeated requests', () => {
   // The pilot's checkout: the catalogue loads before the first click, then on
   // each page, then the order is placed.
-  const call = (sequence: number, operationId: string, id: string, result: unknown) => [
+  const call = (sequence: number, operationId: string, id: string, result: unknown, input: unknown = {}) => [
     {
       id: `${operationId}-start`,
       sequence,
@@ -4849,7 +4850,7 @@ describe('recorded responses for repeated requests', () => {
         source: 'browser-fetch',
         method: 'POST',
         url: 'http://localhost/__server-functions',
-        body: JSON.stringify({ id, input: {} }),
+        body: JSON.stringify({ id, input }),
       },
     },
     {
@@ -4902,8 +4903,94 @@ describe('recorded responses for repeated requests', () => {
     expect(await (await resolver(request('shop.checkout')))?.json()).toEqual({ order: 1 });
   });
 
+  it('answers two distinct requests sent in another order than recorded', async () => {
+    const resolver = createRecordedResponseResolver(session());
+    // The order before the catalogue: a page that no longer waits for it.
+    expect(await (await resolver(request('shop.checkout')))?.json()).toEqual({ order: 1 });
+    expect(await (await resolver(request('shop.catalog')))?.json()).toEqual({ products: ['cart'] });
+    expect(await (await resolver(request('shop.catalog')))?.json()).toEqual({ products: ['payment'] });
+  });
+
+  it('keeps the recorded order strict in a scenario', async () => {
+    const scenario: ReplayScenario = {
+      format: 'craft-replay-scenario', schemaVersion: 1, id: 'order', scenarioVersion: 1, reason: 'Order matters.',
+      checkpoints: [], eventAssertions: [], visualAssertions: [], tolerances: [],
+    };
+    const resolver = createRecordedResponseResolver(session(), scenario);
+    expect(await resolver(request('shop.checkout'))).toBeUndefined();
+  });
+
+  it('matches a request that carries a value restored from a redacted state', async () => {
+    const recorded = session();
+    const withToken: SendContextReplayExport = {
+      ...recorded,
+      events: [
+        ...recorded.events.filter((event) => event.operationId !== 'order'),
+        ...call(5, 'order', 'shop.checkout', { order: 1 }, { token: 'real-token-1' }),
+      ],
+    };
+    const resolver = createRecordedResponseResolver(withToken);
+    const replayed = new Request('http://localhost/__server-functions', { method: 'POST', body: JSON.stringify({ id: 'shop.checkout', input: { token: '[REDACTED]' } }) });
+    expect(await (await resolver(replayed))?.json()).toEqual({ order: 1 });
+  });
+
   it('still stops on a request the recording never answered', async () => {
     const resolver = createRecordedResponseResolver(session());
     expect(await resolver(request('shop.unknown'))).toBeUndefined();
+  });
+});
+
+describe('verifyRecordedState', () => {
+  // A click replays `add`, which owns `service:cart / state:lines`; the
+  // recording then holds the line it added.
+  const session = (): SendContextReplayExport => ({
+    format: 'craft-debug-session',
+    version: 6,
+    startUrl: 'http://localhost/',
+    exportedAt: 1_000,
+    truncated: false,
+    clips: [],
+    events: [
+      { id: 'add-click', sequence: 1, timestamp: 1_000, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#add', action: 'click' } },
+      {
+        id: 'add-started', sequence: 2, timestamp: 1_001, kind: 'craft', phase: 'started', name: 'method:add', operationId: 'add',
+        payload: { host: 'method:add', replayInvocation: { address: 'service:cart / state:lines / method:add', args: [] } },
+      },
+      {
+        id: 'lines-changed', sequence: 3, timestamp: 1_002, kind: 'primitive', phase: 'emitted', name: 'primitive-change',
+        payload: { address: 'service:cart / state:lines / state:lines#1', primitiveKind: 'state' },
+        state: { 'service:cart / state:lines / state:lines#1': ['espresso'] },
+      },
+      { id: 'other-click', sequence: 4, timestamp: 1_003, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#other', action: 'click' } },
+    ],
+  });
+  const run = async (options: { verify?: boolean; adds: boolean }) => {
+    document.body.innerHTML = '<button id="add">Add</button><button id="other">Other</button>';
+    let lines: string[] = [];
+    const replay = createReplayController(session(), {
+      ...(options.verify ? { verifyRecordedState: true } : {}),
+      invokeRecordedMethod: () => { if (options.adds) lines = ['espresso']; },
+      readState: () => ({ 'service:cart / state:lines / state:lines#1': lines }),
+      restoreState: (state) => { lines = (state as Record<string, string[]>)['service:cart / state:lines / state:lines#1'] ?? lines; },
+    });
+    const difference = await replay.step();
+    replay.stop();
+    return { difference, lines };
+  };
+
+  it('accepts a replayed method that produces the recorded state', async () => {
+    expect((await run({ verify: true, adds: true })).difference).toBeUndefined();
+  });
+
+  it('reports a replayed method that no longer produces it', async () => {
+    expect((await run({ verify: true, adds: false })).difference).toMatchObject({
+      eventId: 'lines-changed',
+      expected: { 'service:cart / state:lines / state:lines#1': ['espresso'] },
+      actual: { 'service:cart / state:lines / state:lines#1': [] },
+    });
+  });
+
+  it('restores it by default, as the interactive replay does', async () => {
+    expect(await run({ adds: false })).toEqual({ difference: undefined, lines: ['espresso'] });
   });
 });

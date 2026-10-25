@@ -642,6 +642,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** `service:cart / state:lines / method:add` and `… / state:lines#1` share `service:cart / state:lines`. */
+function ownerOfAddress(address: string): string {
+  return address.replace(/#\d+/g, '').split(' / ').slice(0, -1).join(' / ');
+}
+
+function stateOwner(event: SendContextEvent): string {
+  const address = isRecord(event.payload) ? event.payload['address'] : undefined;
+  return typeof address === 'string' ? ownerOfAddress(address) : '';
+}
+
+/** One turn of the task queue, without the timers a replay may virtualize. */
+function nextReplayTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(undefined);
+  });
+}
+
+/** The live values at the addresses a recorded state names, for a readable gap. */
+function pickReplayState(expected: unknown, actual: unknown): unknown {
+  if (!isRecord(expected) || !isRecord(actual)) return actual;
+  return Object.fromEntries(
+    Object.keys(expected)
+      .filter((key) => key in actual)
+      .map((key) => [key, actual[key]]),
+  );
+}
+
 function hasReplayStateDifference(expected: unknown, actual: unknown): boolean {
   if (isRecord(expected) && isRecord(actual)) {
     // Route transitions add and remove registry entries while a checkpoint is
@@ -660,7 +692,7 @@ function replaySnapshotValueMatches(
 ): boolean {
   // Session exports replace repeated references and over-deep values with
   // these markers. They describe serialization limits, not the live value.
-  if (expected === '[Circular]' || expected === '[Depth limit]') return true;
+  if (expected === '[Circular]' || expected === '[Depth limit]' || expected === '[REDACTED]') return true;
   if (Array.isArray(expected))
     return (
       Array.isArray(actual) &&
@@ -743,6 +775,14 @@ export function createReplayController(
     readState?: () => unknown;
     /** Applies recorded primitive checkpoints at their original timeline position. */
     restoreState?: (state: unknown, event?: SendContextEvent) => void;
+    /**
+     * Check each recorded state change caused by an interaction against the
+     * live state (`readState`) once the replayed calls settled, and report a
+     * gap when they differ, instead of restoring it. Restoring keeps a replay
+     * going whatever the front does; checking tells when it no longer
+     * produces the recorded state.
+     */
+    verifyRecordedState?: boolean;
     /** Advances async replay adapters alongside the recorded event timeline. */
     onTimelineAdvance?: (elapsedMs: number) => void | Promise<void>;
     prepare?: () => void | Promise<void>;
@@ -2252,6 +2292,23 @@ export function createReplayController(
       return undefined;
     };
     let lastExpectedState: unknown;
+    const verifiedState: Record<string, unknown> = {};
+    // Owners (service and state, without instance counters) of the methods
+    // this step replays: only their state is checked under verifyRecordedState.
+    const replayedMethodOwners = new Set(
+      intervalEvents.flatMap((candidate) => {
+        const invocation = isRecord(candidate.payload)
+          ? candidate.payload['replayInvocation']
+          : undefined;
+        return candidate.kind === 'craft' &&
+          candidate.phase === 'started' &&
+          isRecord(invocation) &&
+          typeof invocation['address'] === 'string'
+          ? [ownerOfAddress(invocation['address'])]
+          : [];
+      }),
+    );
+    let verifiedEvent: SendContextEvent | undefined;
     for (const intervalEvent of intervalEvents) {
       if (intervalEvent.kind === 'route-load') {
         if (!(await waitForPlaybackTime(timeOf(intervalEvent))))
@@ -2346,7 +2403,20 @@ export function createReplayController(
         intervalEvent.kind === 'primitive' &&
         intervalEvent.name === 'primitive-change' &&
         intervalEvent.state !== undefined;
-      if (isRecordedPrimitiveChange && options.restoreState) {
+      const ownedByReplayedMethod =
+        isRecordedPrimitiveChange &&
+        options.verifyRecordedState === true &&
+        options.readState !== undefined &&
+        !options.scenario &&
+        replayedMethodOwners.has(stateOwner(intervalEvent));
+      if (ownedByReplayedMethod) {
+        // The replay calls this method itself: its state must come out of the
+        // call, so it is checked, not restored. Checked once the interval is
+        // over (below): the effect may wait on a later recorded response.
+        if (isRecord(intervalEvent.state))
+          Object.assign(verifiedState, intervalEvent.state);
+        verifiedEvent = intervalEvent;
+      } else if (isRecordedPrimitiveChange && options.restoreState) {
         options.restoreState(intervalEvent.state, intervalEvent);
       } else if (
         intervalEvent.state !== undefined &&
@@ -2381,6 +2451,29 @@ export function createReplayController(
     if (navigationTask) {
       await navigationTask;
       if (navigationFailed) throw navigationError;
+    }
+    if (verifiedEvent && options.readState) {
+      // Replayed calls and the responses they consumed may still be settling:
+      // a bounded number of tasks, never the replay's own (virtual) timers.
+      let actualState = options.readState();
+      for (
+        let turn = 0;
+        turn < 50 && hasReplayStateDifference(verifiedState, actualState);
+        turn += 1
+      ) {
+        await nextReplayTask();
+        actualState = options.readState();
+      }
+      if (hasReplayStateDifference(verifiedState, actualState))
+        return reportDifference(
+          {
+            eventId: verifiedEvent.id,
+            expected: verifiedState,
+            actual: pickReplayState(verifiedState, actualState),
+          },
+          verifiedState,
+          cursor + 1,
+        );
     }
     for (const missingStart of missingRouteStarts) {
       const payload = isRecord(missingStart.payload)
@@ -3133,6 +3226,7 @@ export function createRecordedResponseResolver(
       event.payload['source'] === 'browser-fetch',
   );
   let nextIndex = 0;
+  const consumed = new Set<number>();
   let currentElapsedMs = Number.NEGATIVE_INFINITY;
   let timelineEnabled = false;
   const pending: Array<{
@@ -3211,17 +3305,32 @@ export function createRecordedResponseResolver(
       .clone()
       .text()
       .catch(() => '');
-    const started = starts[nextIndex];
-    if (!started || !matches(started, request, requestBody)) {
+    // Scenarios replay requests strictly in their recorded order. Otherwise a
+    // request gets the first recorded answer to the same request that is not
+    // used yet: a replayed app may send two distinct requests in another
+    // order than the recording (a page that loads before the login it waited
+    // for, because the session was restored first).
+    const expected = starts[nextIndex];
+    const index = scenario
+      ? expected && matches(expected, request, requestBody)
+        ? nextIndex
+        : -1
+      : starts.findIndex(
+          (candidate, candidateIndex) =>
+            !consumed.has(candidateIndex) &&
+            matches(candidate, request, requestBody),
+        );
+    const started = index >= 0 ? starts[index] : undefined;
+    if (!started) {
       // A replayed app may send again a request it already sent (a query
       // reloaded by a navigation, an initial load the snapshot did not
-      // settle in time). Its recorded answer is known: give it again, without
-      // consuming the next recorded request. Outside a scenario only; a new
-      // request still stops the replay.
+      // settle in time). Its recorded answer is known: give it again. Outside
+      // a scenario only; a request the recording never answered still stops
+      // the replay.
       const repeated = scenario
         ? undefined
         : // The latest answer to the same request first.
-          [...initialStarts, ...starts.slice(0, nextIndex)]
+          [...initialStarts, ...starts.filter((_, candidateIndex) => consumed.has(candidateIndex))]
             .reverse()
             .find((candidate) => matches(candidate, request, requestBody));
       const repeatedFinish = repeated && finishOf(repeated);
@@ -3232,7 +3341,8 @@ export function createRecordedResponseResolver(
     }
     const finish = finishOf(started);
     if (!finish) return undefined;
-    nextIndex += 1;
+    consumed.add(index);
+    while (consumed.has(nextIndex)) nextIndex += 1;
     const response = recordedFetchResponse(finish);
     const dueMs =
       finish.globalElapsedMs ?? finish.elapsedMs ?? finish.timestamp;
@@ -4004,7 +4114,10 @@ function bodyMatches(expected: unknown, actual: string): boolean {
 }
 
 function matchesRedacted(expected: unknown, actual: unknown): boolean {
-  if (expected === '[REDACTED]') return true;
+  // Redacted when recorded, or sent by the replayed app from a recorded state
+  // that was redacted (a session token restored as `[REDACTED]`): either way
+  // the real value is unknown and cannot be compared.
+  if (expected === '[REDACTED]' || actual === '[REDACTED]') return true;
   if (Array.isArray(expected))
     return (
       Array.isArray(actual) &&

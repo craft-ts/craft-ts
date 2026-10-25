@@ -114,6 +114,15 @@ export function isReplayWorkerMode(): boolean {
   return new URLSearchParams(platform.search()).get('replay-worker') === '1';
 }
 
+/**
+ * The worker asks the replay to check the recorded state changes against the
+ * page's live state instead of restoring them (`?replay-verify-state=1`): the
+ * e2e baseline replay uses it to tell when the front no longer produces them.
+ */
+export function isReplayStateVerification(): boolean {
+  return new URLSearchParams(platform.search()).get('replay-verify-state') === '1';
+}
+
 /** Hands the worker's browser the control surface, on the page's global. */
 export function exposeReplayWorkerSurface(surface: object): void {
   Object.defineProperty(globalThis, '__craftReplayWorker', {

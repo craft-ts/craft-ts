@@ -5,6 +5,7 @@ import {
   firstSelectedFile,
   hasFrame,
   hasFrameGrid,
+  isReplayStateVerification,
   newUuid,
   renderFrames,
   setFramePlaceholder,
@@ -362,6 +363,7 @@ export function startReplay(): void {
       session: replaySession,
       startMode: mode,
       diagnostic: diagnosticReplay(),
+      ...(isReplayStateVerification() ? { verifyState: true } : {}),
       timelineOriginMs: participantTimelineOriginMs,
       startOffsetMs,
     };

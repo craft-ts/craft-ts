@@ -45,6 +45,9 @@ export async function replayBaselineInDashboard(input: Readonly<{
     const source = `${base}/e2e-sessions/${encodeURIComponent(input.testId)}/${encodeURIComponent(input.project)}/${encodeURIComponent(input.baselineFile)}?root=${history.root}&decompress=1`;
     const url = new URL(input.dashboardUrl);
     url.searchParams.set('replay-worker', '1');
+    // A method that no longer changes the state must show as a gap, not be
+    // hidden by restoring the recorded state.
+    url.searchParams.set('replay-verify-state', '1');
     url.hash = `#/e2e-replay?${new URLSearchParams({ source })}`;
     context = await input.browser.newContext();
     const page = await context.newPage();

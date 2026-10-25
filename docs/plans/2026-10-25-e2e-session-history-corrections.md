@@ -48,10 +48,18 @@ enregistrée de la même requête, et un pas qui suit une erreur ne la masque pl
 Sur le pilote : 500 sur la commande → « rejoue sans écart » ; méthode `add` qui
 lève → « ne rejoue plus sur le build courant ».
 
-Reste ouvert : une méthode `add` qui n'ajoute plus rien rejoue encore « sans
-écart ». Le replay restaure les `primitive-change` enregistrés au lieu de les
-comparer (`restoreState` dans `debug-session-replay.ts`) : c'est un choix du
-moteur, à trancher avant de promettre que le rejeu détecte une régression d'état.
+Vérification d'état (ensuite) : le replay restaurait tous les `primitive-change`
+enregistrés, donc une méthode `add` qui n'ajoutait plus rien rejouait « sans
+écart ». Le rejeu de la référence passe `?replay-verify-state=1` : l'état
+possédé par une méthode que le replay rejoue lui-même (`service:cart / state:cartLines`
+pour `method:add`) est comparé à la fin de l'intervalle du pas, et rapporté
+comme écart s'il diffère ; les autres changements (queries, réponses non
+rejouées) restent restaurés. Le dashboard interactif garde son comportement.
+Sur le pilote, 60 rejeux des trois références vertes n'ont aucun faux écart, et
+`add` qui n'ajoute plus rien donne « le front a changé ». En chemin, le
+résolveur sert la première réponse enregistrée non utilisée (une page admin
+chargée avant la connexion qu'elle attendait) et un `[REDACTED]` restauré dans
+une requête ne bloque plus sa correspondance.
 
 ## Constats de départ
 
