@@ -1,5 +1,10 @@
 import type { SendContextReplayExport } from '@craft-ts/core';
-import type { DebugSessionResumePlan } from './debug-session-resume-plan';
+import { buildDebugAppSnapshot } from './debug-session-app-snapshot';
+import {
+  callNamesOf,
+  type DebugSessionResumePlan,
+} from './debug-session-resume-plan';
+import { decodeNestedJson, readResumePath } from './debug-session-resume-path';
 
 export type ResumeManifestLevel = 'required' | 'expected' | 'informational';
 
@@ -17,50 +22,87 @@ export interface DebugSessionResumeManifest {
   readonly checklistMarkdown: string;
 }
 
-/** Builds a staging checklist from the preflight plan without exposing secrets. */
+/**
+ * Builds a staging checklist from the preflight plan. Backend facts come only
+ * from the declarations' `entities`: those found in restored application
+ * state (`restores`, `holds`) are required, those only seen in server lists
+ * are expected. Every acquisition needs a persona of its role.
+ */
 export function buildDebugSessionResumeManifest(
   plan: DebugSessionResumePlan,
   archive: SendContextReplayExport,
 ): DebugSessionResumeManifest {
   const entries: DebugSessionResumeManifestEntry[] = [];
-  const seenFacts = new Set<string>();
-  const addRequiredFact = (kind: 'product' | 'category', name: unknown) => {
-    if (typeof name !== 'string' || !name) return;
-    const key = `${kind}\0${name}`;
-    if (seenFacts.has(key)) return;
-    seenFacts.add(key);
-    entries.push({ level: 'required', kind: 'entity', name, detail: kind });
+  const seen = new Set<string>();
+  const add = (entry: DebugSessionResumeManifestEntry) => {
+    const key = `${entry.kind}\0${entry.name}\0${entry.detail ?? ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    entries.push(entry);
   };
-  const started = new Map<string, Readonly<{ id?: string; input?: unknown }>>();
+  const required = new Set<string>();
+  const entityKey = (kind: string, name: string) => `${kind}\0${name}`;
+  const beforeSequence = archive.events
+    .filter(
+      (event) =>
+        (event.globalElapsedMs ?? event.elapsedMs ?? 0) > plan.targetElapsedMs,
+    )
+    .reduce<number | undefined>(
+      (first, event) =>
+        first === undefined || event.sequence < first ? event.sequence : first,
+      undefined,
+    );
+  const restored = buildDebugAppSnapshot(archive, beforeSequence).primitives;
+  const restoredValueOf = (address: string) => {
+    const wanted = ordinalFree(address);
+    const key = Object.keys(restored).find(
+      (candidate) => ordinalFree(candidate) === wanted,
+    );
+    return key === undefined ? undefined : restored[key];
+  };
+  for (const source of plan.entities ?? []) {
+    if (source.role !== 'restores' && source.role !== 'holds') continue;
+    for (const id of entityIdsAt(restoredValueOf(source.primitive), source.path)) {
+      required.add(entityKey(source.kind, id));
+      add({ level: 'required', kind: 'entity', name: id, detail: source.kind });
+    }
+  }
+  const listed = (plan.entities ?? []).filter(
+    (source) => source.role !== 'restores' && source.role !== 'holds',
+  );
+  const addExpected = (kind: string, id: string) => {
+    if (!required.has(entityKey(kind, id)))
+      add({ level: 'expected', kind: 'entity', name: id, detail: kind });
+  };
+  for (const source of listed)
+    for (const id of entityIdsAt(restoredValueOf(source.primitive), source.path))
+      addExpected(source.kind, id);
+  const started = new Map<string, ReadonlySet<string>>();
   for (const event of archive.events) {
     if ((event.globalElapsedMs ?? event.elapsedMs ?? 0) > plan.targetElapsedMs) continue;
-    const payload = isRecord(event.payload) ? event.payload : undefined;
-    if (event.kind === 'http' && event.phase === 'started' &&
-        typeof event.operationId === 'string' && payload?.['source'] === 'browser-fetch') {
-      const requestBody = parseNestedJson(payload['body']);
-      if (isRecord(requestBody)) {
-        started.set(event.operationId, {
-          ...(typeof requestBody['id'] === 'string' ? { id: requestBody['id'] } : {}),
-          input: requestBody['input'],
-        });
-      }
+    if (event.kind !== 'http' || !event.operationId) continue;
+    const key = `${event.participantId ?? ''}:${event.operationId}`;
+    if (event.phase === 'started') {
+      started.set(key, callNamesOf(event.payload));
+      continue;
     }
-    if (event.kind !== 'http' || event.phase !== 'succeeded' || !event.operationId) continue;
-    const request = started.get(event.operationId);
-    if (!request?.id) continue;
-    const response = isRecord(event.response) ? event.response['body'] : event.response;
-    const value = parseNestedJson(response);
-    if (!isRecord(value)) continue;
-    if (request.id === 'ecommerce.catalog' || request.id === 'ecommerce.admin.overview') {
-      for (const product of Array.isArray(value['products']) ? value['products'] : [])
-        if (isRecord(product)) addRequiredFact('product', product['id']);
-      for (const category of Array.isArray(value['categories']) ? value['categories'] : [])
-        if (isRecord(category)) addRequiredFact('category', category['id']);
+    if (event.phase !== 'succeeded') continue;
+    const names = started.get(key);
+    const response = isRecord(event.response) ? event.response['body'] : undefined;
+    for (const source of listed) {
+      if (!names || !(source.calls ?? []).some((call) => names.has(call))) continue;
+      for (const id of entityIdsAt(decodeNestedJson(response), source.path))
+        addExpected(source.kind, id);
     }
-    if (request.id === 'ecommerce.cart.get' || request.id === 'ecommerce.cart.addLine') {
-      const lines = Array.isArray(value['lines']) ? value['lines'] : [];
-      for (const line of lines) if (isRecord(line)) addRequiredFact('product', line['productId']);
-    }
+  }
+  for (const step of plan.steps) {
+    if (step.kind !== 'acquire' || step.unneeded || !step.persona) continue;
+    add({
+      level: 'required',
+      kind: 'persona',
+      name: step.persona,
+      ...(step.personaId ? { detail: step.personaId } : {}),
+    });
   }
   for (const call of plan.expectedCalls) {
     entries.push({ level: 'expected', kind: 'call', name: call });
@@ -108,9 +150,8 @@ export function buildDebugSessionResumeManifest(
     `Point ciblé : ${plan.targetElapsedMs} ms`,
     '',
     ...entries.map((entry) => {
-      const box = entry.level === 'required' ? '[ ]' : '[ ]';
       const detail = entry.detail ? ` — ${entry.detail}` : '';
-      return `- ${box} **${entry.level} · ${entry.kind}** ${entry.name}${detail}`;
+      return `- [ ] **${entry.level} · ${entry.kind}** ${entry.name}${detail}`;
     }),
     '',
     `Plan : ${plan.status === 'ready' ? 'prêt' : 'refusé'}`,
@@ -123,16 +164,21 @@ export function buildDebugSessionResumeManifest(
   };
 }
 
-function parseNestedJson(value: unknown): unknown {
-  let current = value;
-  for (let depth = 0; depth < 3 && typeof current === 'string'; depth += 1) {
-    try {
-      current = JSON.parse(current) as unknown;
-    } catch {
-      break;
-    }
-  }
-  return current;
+/** String or number ids at a declared path; placeholders are not ids. */
+function entityIdsAt(value: unknown, path: string): readonly string[] {
+  return readResumePath(value, path).flatMap((id) =>
+    (typeof id === 'string' && id && !id.startsWith('craft-ref:')) ||
+    typeof id === 'number'
+      ? [String(id)]
+      : [],
+  );
+}
+
+function ordinalFree(address: string): string {
+  return address
+    .split(' / ')
+    .map((part) => part.replace(/#\d+$/, ''))
+    .join(' / ');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

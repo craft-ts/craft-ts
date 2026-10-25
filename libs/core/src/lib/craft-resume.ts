@@ -31,6 +31,16 @@ export interface CraftResumeIdentity {
   readonly storageKey?: string;
 }
 
+/**
+ * Backend entities a primitive's value refers to (`$.products[*].id`). Those
+ * found in restored application state are required by the resume preflight;
+ * those only seen in server lists are expected.
+ */
+export interface CraftResumeEntity {
+  readonly kind: string;
+  readonly path: string;
+}
+
 export interface CraftResumeExpectation<Value = unknown> {
   readonly outcome: 'recorded';
   readonly match?: readonly (readonly (string | number)[])[];
@@ -49,6 +59,7 @@ export interface CraftResumeDeclaration<Resource extends string = string> {
   readonly calls?: readonly string[];
   readonly value?: unknown;
   readonly identity?: CraftResumeIdentity;
+  readonly entities?: readonly CraftResumeEntity[];
   /** Locally executed adapter that reacquires the resource for a persona. */
   readonly acquire?: (
     persona: CraftResumePersona,

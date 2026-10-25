@@ -123,6 +123,7 @@ export const { Cart } = craftService(
           resource: 'cart',
           role: 'restores',
           value: [] as readonly CartLine[],
+          entities: [{ kind: 'product', path: '$[*].productId' }],
           write: (value) =>
             Array.isArray(value)
               ? writeCartLines(value as readonly CartLine[])

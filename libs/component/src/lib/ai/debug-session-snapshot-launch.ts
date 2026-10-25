@@ -589,7 +589,13 @@ export function startDebugSnapshotLaunch(
         );
         let substitutedCalls = new Set<string>();
         if (placeholders.length) {
-          const call = resumeCallNameOf(request.method, request.url, bodyText, location.href);
+          const call = resumeCallNameOf(
+            request.method,
+            request.url,
+            bodyText,
+            location.href,
+            request.headers,
+          );
           const missing = await waitForPlaceholders(placeholders);
           if (missing.length) throw refusePlaceholders(call, missing);
           const url = substituteResumePlaceholders(request.url, (fingerprint) => {
@@ -625,6 +631,7 @@ export function startDebugSnapshotLaunch(
           request.url,
           bodyText,
           location.href,
+          request.headers,
         );
         const live = () => nativeFetch.call(globalThis, request);
         if (!barrierActive) {

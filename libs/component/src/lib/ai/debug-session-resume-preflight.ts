@@ -1,3 +1,4 @@
+import type { CraftResumePersona } from '@craft-ts/core';
 import type { DebugSessionResumeManifest } from './debug-session-resume-manifest';
 
 export interface ResumePreflightFact {
@@ -29,8 +30,22 @@ export interface ResumePreflightAdapter {
 export async function runDebugSessionResumePreflight(
   manifest: DebugSessionResumeManifest,
   adapter: ResumePreflightAdapter,
+  options: Readonly<{
+    /** Checked here, before the backend: an acquisition needs its persona. */
+    personas?: readonly Pick<CraftResumePersona, 'role' | 'id'>[];
+  }> = {},
 ): Promise<ResumePreflightResult> {
-  const actual = await adapter.readFacts(manifest);
+  const personaFacts = manifest.entries.flatMap((entry) =>
+    entry.kind === 'persona' &&
+    (options.personas ?? []).some(
+      (persona) =>
+        persona.role === entry.name &&
+        (entry.detail === undefined || persona.id === entry.detail),
+    )
+      ? [{ kind: entry.kind, name: entry.name, ...(entry.detail ? { detail: entry.detail } : {}) }]
+      : [],
+  );
+  const actual = [...personaFacts, ...(await adapter.readFacts(manifest))];
   const actualKeys = new Set(actual.map(factKey));
   const required = manifest.entries
     .filter((entry) => entry.level === 'required')

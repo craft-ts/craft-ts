@@ -396,6 +396,7 @@ export function provideCraftDebugReplayBridge(
             const result = await runDebugSessionResumePreflight(
               manifest,
               options.resumePreflightAdapter,
+              { personas: options.resumePersonas },
             );
             send(event.origin, 'resume-preflight-result', {
               requestId,

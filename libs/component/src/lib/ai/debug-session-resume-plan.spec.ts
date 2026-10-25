@@ -232,7 +232,7 @@ describe('buildDebugSessionResumePlan', () => {
     expect(plan.problems.map((problem) => problem.code)).toContain(
       'persona-missing',
     );
-    expect(plan.expectedCalls).toEqual(['browser-fetch /account']);
+    expect(plan.expectedCalls).toEqual(['GET /account']);
   });
 
   it('refuses a provider that has no persona declaration', () => {

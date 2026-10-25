@@ -8,6 +8,10 @@ import {
   decodeNestedJson,
   readResumePathValue,
 } from './debug-session-resume-path';
+import {
+  resumeCallNameOf,
+  resumeCallNamesOf,
+} from './debug-session-resume-calls';
 
 export interface ResumeGraphArtifact {
   readonly format: 'craft-resume-graph';
@@ -86,6 +90,14 @@ export interface DebugSessionResumePlan {
     blocking: boolean;
   }>[];
   readonly expectedCalls: readonly string[];
+  /** Where declared primitives keep backend entities, read by the manifest. */
+  readonly entities?: readonly Readonly<{
+    primitive: string;
+    role: CraftResumeDeclaration['role'];
+    kind: string;
+    path: string;
+    calls?: readonly string[];
+  }>[];
   /** Declared outcomes found in the archive, including calls after the target. */
   readonly expectedOutcomes?: readonly Readonly<{
     readonly call: string;
@@ -237,6 +249,7 @@ export function combineDebugSessionResumePlans(options: {
     expectedCalls: [
       ...new Set(options.plans.flatMap(({ plan }) => plan.expectedCalls)),
     ],
+    entities: options.plans.flatMap(({ plan }) => plan.entities ?? []),
     expectedOutcomes: [
       ...new Map(
         options.plans
@@ -588,16 +601,34 @@ export function buildDebugSessionResumePlan(
     ...new Set(
       events.flatMap((event) => {
         if (event.kind !== 'http' || event.phase !== 'started') return [];
-        const payload = event.payload;
-        if (!payload || typeof payload !== 'object') return [];
-        const source = (payload as Record<string, unknown>)['source'];
-        const url = (payload as Record<string, unknown>)['url'];
+        if (!isRecord(event.payload)) return [];
+        const url = event.payload['url'];
         return typeof url === 'string'
-          ? [`${String(source ?? 'http')} ${url}`]
+          ? [
+              resumeCallNameOf(
+                archivedMethodOf(event.payload),
+                url,
+                event.payload['body'],
+                undefined,
+                isRecord(event.payload['headers'])
+                  ? (event.payload['headers'] as Record<string, string>)
+                  : undefined,
+              ),
+            ]
           : [];
       }),
     ),
   ].sort();
+  const entities = Object.entries(options.declarations).flatMap(
+    ([primitive, declaration]) =>
+      (declaration.entities ?? []).map(({ kind, path }) => ({
+        primitive,
+        role: declaration.role,
+        kind,
+        path,
+        ...(declaration.calls ? { calls: declaration.calls } : {}),
+      })),
+  );
   const expectedOutcomes = recordedExpectedOutcomesOf(
     options.archive,
     [
@@ -653,6 +684,7 @@ export function buildDebugSessionResumePlan(
     steps: planned,
     problems,
     expectedCalls,
+    ...(entities.length ? { entities } : {}),
     expectedOutcomes,
     substitutions,
   };
@@ -728,18 +760,30 @@ function recordedExpectedOutcomesOf(
   });
 }
 
-function callNamesOf(payload: unknown): ReadonlySet<string> {
-  if (!isRecord(payload)) return new Set();
-  let body = payload['body'];
-  for (let depth = 0; depth < 3 && typeof body === 'string'; depth += 1) {
-    try {
-      body = JSON.parse(body) as unknown;
-    } catch {
-      break;
-    }
-  }
-  if (!isRecord(body) || typeof body['id'] !== 'string') return new Set();
-  return new Set([body['id'], `function:${body['id']}`]);
+/** Older captures omit the method: a request with a body was a POST. */
+function archivedMethodOf(payload: Record<string, unknown>): string {
+  return typeof payload['method'] === 'string'
+    ? payload['method']
+    : payload['body'] === undefined
+      ? 'GET'
+      : 'POST';
+}
+
+/** Every name of an archived request: function id, then `METHOD /template`. */
+export function callNamesOf(payload: unknown): ReadonlySet<string> {
+  if (!isRecord(payload) || typeof payload['url'] !== 'string')
+    return new Set();
+  return new Set(
+    resumeCallNamesOf(
+      archivedMethodOf(payload),
+      payload['url'],
+      payload['body'],
+      undefined,
+      isRecord(payload['headers'])
+        ? (payload['headers'] as Record<string, string>)
+        : undefined,
+    ),
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

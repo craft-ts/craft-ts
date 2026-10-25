@@ -32,3 +32,29 @@ describe('runDebugSessionResumePreflight', () => {
     expect(readFacts).toHaveBeenCalledOnce();
   });
 });
+
+describe('persona preflight', () => {
+  const withPersona: DebugSessionResumeManifest = {
+    format: 'craft-debug-session-resume-manifest',
+    version: 1,
+    entries: [{ level: 'required', kind: 'persona', name: 'admin', detail: 'camille' }],
+    checklistMarkdown: '',
+  };
+
+  it('checks required personas locally, before the backend', async () => {
+    const readFacts = vi.fn(async () => []);
+    await expect(
+      runDebugSessionResumePreflight(withPersona, { readFacts }, {
+        personas: [{ role: 'admin', id: 'camille' }],
+      }),
+    ).resolves.toMatchObject({ status: 'passed' });
+    await expect(
+      runDebugSessionResumePreflight(withPersona, { readFacts }, {
+        personas: [{ role: 'client', id: 'leo' }],
+      }),
+    ).resolves.toMatchObject({
+      status: 'failed',
+      missing: [{ kind: 'persona', name: 'admin', detail: 'camille' }],
+    });
+  });
+});

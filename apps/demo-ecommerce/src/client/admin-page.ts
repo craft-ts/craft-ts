@@ -135,6 +135,10 @@ export const { AdminView, provideAdminView } = craftService(
           resource: 'session',
           role: 'requires',
           calls: ['ecommerce.admin.overview'],
+          entities: [
+            { kind: 'product', path: '$.products[*].id' },
+            { kind: 'category', path: '$.categories[*].id' },
+          ],
         }),
         method: (revision: number) => revision,
         loader: function* () {

@@ -1,20 +1,21 @@
 import { redactDebugSessionUrl } from './debug-session-references';
 import { decodeNestedJson, readResumePath } from './debug-session-resume-path';
 
-const SERVER_FUNCTION_PATH = '/__server-functions';
 const PLACEHOLDER_PATTERN = /craft-ref:([a-f0-9]{16})/gi;
 
 /**
  * Every name a call answers to: the server-function id for the craft
- * protocol, and always `METHOD /template`, where segments that identify a
- * resource read `:ref` (`GET /carts/:ref`). A backend without craft server
- * functions is described by the second form alone.
+ * protocol (`x-craft-function-id`, or a `{ id, input }` POST body), and
+ * always `METHOD /template`, where segments that identify a resource read
+ * `:ref` (`GET /carts/:ref`). A backend without craft server functions is
+ * described by the second form alone.
  */
 export function resumeCallNamesOf(
   method: string,
   url: string,
   body?: unknown,
   base = 'http://craft.invalid',
+  headers?: Readonly<Record<string, string>> | Headers,
 ): readonly string[] {
   const upper = method.toUpperCase();
   let pathname: string;
@@ -25,17 +26,32 @@ export function resumeCallNamesOf(
   }
   const template = redactDebugSessionUrl(pathname, '').url.split(/[?#]/)[0];
   const names = [`${upper} ${template}`];
-  if (upper === 'POST' && pathname === SERVER_FUNCTION_PATH) {
-    const decoded = decodeNestedJson(body);
-    if (
-      typeof decoded === 'object' &&
-      decoded !== null &&
-      'id' in decoded &&
-      typeof decoded.id === 'string'
-    )
-      names.unshift(decoded.id, `function:${decoded.id}`);
-  }
+  const functionId = craftFunctionIdOf(upper, body, headers);
+  if (functionId) names.unshift(functionId, `function:${functionId}`);
   return names;
+}
+
+function craftFunctionIdOf(
+  method: string,
+  body: unknown,
+  headers: Readonly<Record<string, string>> | Headers | undefined,
+): string | undefined {
+  const header =
+    headers instanceof Headers
+      ? headers.get('x-craft-function-id')
+      : Object.entries(headers ?? {}).find(
+          ([name]) => name.toLowerCase() === 'x-craft-function-id',
+        )?.[1];
+  if (header && !header.startsWith('craft-ref:')) return header;
+  if (method !== 'POST') return undefined;
+  const decoded = decodeNestedJson(body);
+  return typeof decoded === 'object' &&
+    decoded !== null &&
+    'id' in decoded &&
+    typeof decoded.id === 'string' &&
+    'input' in decoded
+    ? decoded.id
+    : undefined;
 }
 
 /** The name shown to a person: the function id when there is one. */
@@ -44,8 +60,11 @@ export function resumeCallNameOf(
   url: string,
   body?: unknown,
   base?: string,
+  headers?: Readonly<Record<string, string>> | Headers,
 ): string {
-  return resumeCallNamesOf(method, url, body, base)[0] ?? `${method} ${url}`;
+  return (
+    resumeCallNamesOf(method, url, body, base, headers)[0] ?? `${method} ${url}`
+  );
 }
 
 /** Recorded placeholders (`craft-ref:<fingerprint>`) carried by a text. */

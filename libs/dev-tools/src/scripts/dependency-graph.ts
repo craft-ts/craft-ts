@@ -5941,7 +5941,7 @@ function serverFunctionFamilyForCall(
   }
 
   // Follow project-local wrappers such as api.signIn -> rawLogin ->
-  // createServerFunctionClient(craftUnique('ecommerce.auth.login')). The
+  // createServerFunctionClient(craftUnique('auth.login')). The
   // traversal is bounded by declaration identity so recursive helpers cannot
   // make graph construction loop forever.
   const visited = new Set<Node>();

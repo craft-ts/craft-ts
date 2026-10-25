@@ -117,6 +117,7 @@ export async function executeCraftSessionResume(
       const result = await runDebugSessionResumePreflight(
         options.manifest,
         options.preflightAdapter,
+        { personas: options.personas },
       );
       return { status: result.status, missing: result.missing };
     },

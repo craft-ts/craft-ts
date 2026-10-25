@@ -25,6 +25,10 @@ export const { StorefrontView, provideStorefrontView } = craftService({ name: 's
       role: 'provides',
       persona: 'guest',
       calls: ['ecommerce.catalog'],
+      entities: [
+        { kind: 'product', path: '$.products[*].id' },
+        { kind: 'category', path: '$.categories[*].id' },
+      ],
       acquire: () => loadStore(),
     }),
     params: () => true,

@@ -20,6 +20,7 @@ export interface DebugSessionResumeDeclarationInfo {
   readonly identity?: Readonly<{ role: string; id?: string; storageKey?: string }>;
   readonly onMismatch?: CraftResumeDeclaration['onMismatch'];
   readonly refetch?: false;
+  readonly entities?: readonly Readonly<{ kind: string; path: string }>[];
   readonly hasAcquireAdapter: boolean;
   readonly hasReadAdapter: boolean;
   readonly hasWriteAdapter: boolean;
@@ -158,6 +159,14 @@ export function describeCraftSessionResume(
         ? {}
         : { onMismatch: declaration.onMismatch }),
       ...(declaration.refetch === false ? { refetch: false as const } : {}),
+      ...(declaration.entities === undefined
+        ? {}
+        : {
+            entities: declaration.entities.map(({ kind, path }) => ({
+              kind,
+              path,
+            })),
+          }),
       hasAcquireAdapter: typeof declaration.acquire === 'function',
       hasReadAdapter: typeof declaration.read === 'function',
       hasWriteAdapter: typeof declaration.write === 'function',
@@ -328,6 +337,9 @@ export function planningDeclarationsOf(
           ? {}
           : { onMismatch: declaration.onMismatch }),
         ...(declaration.refetch === false ? { refetch: false as const } : {}),
+        ...(declaration.entities === undefined
+          ? {}
+          : { entities: declaration.entities }),
         ...(declaration.hasAcquireAdapter ? { acquire: () => undefined } : {}),
         ...(declaration.hasReadAdapter ? { read: () => undefined } : {}),
         ...(declaration.hasWriteAdapter ? { write: () => undefined } : {}),
