@@ -37,6 +37,9 @@ export type DebugAppSnapshot = Readonly<{
   route: string;
   primitives: Readonly<Record<string, unknown>>;
   storage: SendContextReplaySnapshot['storage'];
+  pendingTasks?: NonNullable<SendContextReplaySnapshot['pendingTasks']>;
+  temporalNow?: number;
+  temporalDateNow?: number;
   /** Origin storage as last recorded before the chosen moment. */
   browserStorage?: BrowserStorageSnapshot;
   /** Operations in flight at that moment, relaunched once the app is up. */
@@ -258,6 +261,15 @@ export function buildDebugAppSnapshot(
     route,
     primitives,
     storage,
+    ...(checkpoint?.payload.pendingTasks
+      ? { pendingTasks: checkpoint.payload.pendingTasks }
+      : {}),
+    ...(checkpoint?.payload.temporalNow === undefined
+      ? {}
+      : { temporalNow: checkpoint.payload.temporalNow }),
+    ...(checkpoint?.payload.temporalDateNow === undefined
+      ? {}
+      : { temporalDateNow: checkpoint.payload.temporalDateNow }),
     ...(browserStorage ? { browserStorage } : {}),
     ...(inFlight.invocations.length || inFlight.reloads.length
       ? { inFlight }
@@ -275,6 +287,7 @@ function decodeURIComponentSafe(value: string): string {
 }
 
 export function isDebugAppSnapshot(value: unknown): value is DebugAppSnapshot {
+  const pendingTasks = isRecord(value) ? value['pendingTasks'] : undefined;
   return (
     isRecord(value) &&
     value['format'] === DEBUG_APP_SNAPSHOT_FORMAT &&
@@ -282,6 +295,23 @@ export function isDebugAppSnapshot(value: unknown): value is DebugAppSnapshot {
     typeof value['route'] === 'string' &&
     isRecord(value['primitives']) &&
     Array.isArray(value['storage']) &&
-    Array.isArray(value['warnings'])
+    Array.isArray(value['warnings']) &&
+    (value['temporalNow'] === undefined ||
+      (typeof value['temporalNow'] === 'number' &&
+        Number.isFinite(value['temporalNow']))) &&
+    (value['temporalDateNow'] === undefined ||
+      (typeof value['temporalDateNow'] === 'number' &&
+        Number.isFinite(value['temporalDateNow']))) &&
+    (pendingTasks === undefined ||
+      (Array.isArray(pendingTasks) &&
+        pendingTasks.every(
+          (task) =>
+            isRecord(task) &&
+            typeof task['kind'] === 'string' &&
+            typeof task['dueAt'] === 'number' &&
+            Number.isFinite(task['dueAt']) &&
+            (task['owner'] === undefined ||
+              typeof task['owner'] === 'string'),
+        )))
   );
 }

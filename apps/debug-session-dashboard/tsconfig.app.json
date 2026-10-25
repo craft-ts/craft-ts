@@ -5,7 +5,20 @@
   "include": ["src/**/*.d.ts"],
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
   "references": [
-    { "path": "../../libs/core/tsconfig.lib.json" },
-    { "path": "../../libs/component/tsconfig.lib.json" }
+    {
+      "path": "../../libs/ui"
+    },
+    {
+      "path": "../../libs/core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/component/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/style/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/dev-tools/tsconfig.lib.json"
+    }
   ]
 }

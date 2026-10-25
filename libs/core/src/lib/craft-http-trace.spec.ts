@@ -4,12 +4,36 @@ import {
   executeCraftHttpTrace,
   ɵadvanceCraftHttpReplay,
   ɵinstallCraftHttpReplay,
+  ɵinstallCraftHttpResumeBarrier,
   provideCraftHttpTrace,
 } from './craft-http-trace';
 import { provideCraftProduction } from './craft-runtime-mode';
 import { ɵsetCraftReplayMode } from './craft-replay';
 
 describe('craft http trace', () => {
+  it('routes resumed calls through live, patched, recorded, and held decisions', async () => {
+    const next = vi.fn(async () => ({ value: 2 }));
+    const releaseHeld = Promise.resolve({ value: 4 });
+    const restore = ɵinstallCraftHttpResumeBarrier({
+      decide: ({ url }) => {
+        if (url === '/live') return { kind: 'live' };
+        if (url === '/patch') return { kind: 'live+patch', patch: (value) => ({ ...(value as object), patched: true }) };
+        if (url === '/recorded') return { kind: 'recorded', response: { value: 3 } };
+        return { kind: 'held', wait: releaseHeld };
+      },
+    });
+    try {
+      const injector = Injector.create({ providers: [] });
+      await expect(executeCraftHttpTrace(injector, { method: 'GET', url: '/live' }, next)).resolves.toEqual({ value: 2 });
+      await expect(executeCraftHttpTrace(injector, { method: 'GET', url: '/patch' }, next)).resolves.toEqual({ value: 2, patched: true });
+      await expect(executeCraftHttpTrace(injector, { method: 'GET', url: '/recorded' }, next)).resolves.toEqual({ value: 3 });
+      await expect(executeCraftHttpTrace(injector, { method: 'POST', url: '/held' }, next)).resolves.toEqual({ value: 4 });
+      expect(next).toHaveBeenCalledTimes(2);
+    } finally {
+      restore();
+    }
+  });
+
   it('never sends an unmatched Craft HTTP request to the live transport during replay', async () => {
     const next = vi.fn(async () => 'live response');
     ɵsetCraftReplayMode(true);

@@ -11,7 +11,17 @@
   "include": ["src/**/*.ts"],
   "exclude": ["**/*.spec.ts", "**/*.test.ts"],
   "references": [
-    { "path": "../style/tsconfig.lib.json" },
-    { "path": "../dev-tools/tsconfig.lib.json" }
+    {
+      "path": "../style/tsconfig.lib.json"
+    },
+    {
+      "path": "../core/tsconfig.lib.json"
+    },
+    {
+      "path": "../component/tsconfig.lib.json"
+    },
+    {
+      "path": "../dev-tools/tsconfig.lib.json"
+    }
   ]
 }

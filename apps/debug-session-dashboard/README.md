@@ -108,6 +108,25 @@ until it completes or is stopped. At a detected difference it remains paused
 so the session can be inspected or recovered.
 The iframe must be permitted by the target app's `frame-ancestors` policy.
 
+## Resume assistant tools
+
+The dashboard shares the active resume plan with the local log server in
+memory. Start `npm run logs:mcp` from the workspace and register that stdio
+server with the AI host; the tool setup is documented in
+[`packages/log-mcp/README.md`](../../packages/log-mcp/README.md). After
+**Préparer la reprise**, the host can call `resume_plan` and `resume_mismatch`
+without passing a session id, then submit data-only overrides with
+`resume_propose_overrides`. `resume_apply` only asks the dashboard to surface
+that proposal.
+
+The dashboard validates proposals against the recorded response shape and
+shows **Approuver** and **Refuser** controls. Approval is manual by default; a
+saved local option can approve automatically only when the dashboard runs on a
+loopback host. Either way, approval changes the active profile in memory, and
+**Enregistrer le profil** is still required to persist it in the session
+archive. MCP tools never call the replayed application. The plan, mismatch
+context, and proposal queue are cleared when the local log server stops.
+
 For two concurrent `CraftHttpClient` requests with the same method, URL,
 parameters, and body, set distinct stable `replayKey` values in their request
 options. The key is serialized in the archive and must not contain a secret.

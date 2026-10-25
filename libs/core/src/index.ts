@@ -11,6 +11,7 @@ export * from './lib/craft-exception';
 export * from './lib/craft-gen';
 export * from './lib/craft-program-operators';
 export * from './lib/temporal-runtime';
+export * from './lib/craft-random-runtime';
 export * from './lib/craft-match';
 export * from './lib/insert-storage-persister';
 export * from './lib/craft-unique';
@@ -335,6 +336,7 @@ export {
   type ForeignYieldOutcome,
 } from './lib/craft-program-runtime';
 export * from './lib/host-tag';
+export * from './lib/craft-resume';
 export * from './lib/stream-kernel';
 export * from './lib/source$';
 export * from './lib/from-event-to-source$';

@@ -4,12 +4,8 @@ const craftMethodNameMatch = require('./craft-method-name-match.cjs');
 const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
 const craftPrimitiveNameMatch = require('./craft-primitive-name-match.cjs');
 const noCraftServiceReturn = require('./no-craft-service-return.cjs');
-const noDuplicateCraftServiceExposure = require(
-  './no-duplicate-craft-service-exposure.cjs',
-);
-const noReexposedCraftServiceUtility = require(
-  './no-reexposed-craft-service-utility.cjs',
-);
+const noDuplicateCraftServiceExposure = require('./no-duplicate-craft-service-exposure.cjs');
+const noReexposedCraftServiceUtility = require('./no-reexposed-craft-service-utility.cjs');
 const requireCraftServiceInputScope = require('./require-craft-service-input-scope.cjs');
 const preferDirectCraftServiceExposure = require('./prefer-direct-craft-service-exposure.cjs');
 const preferCraftComputedForReactiveGenerator = require('./prefer-craft-computed-for-reactive-generator.cjs');
@@ -77,6 +73,7 @@ const noImperativeStorageInCraftMethod = require('./no-imperative-storage-in-cra
 const noTransitionActions = require('./no-transition-actions.cjs');
 const requireCraftResourceTriggerYield = require('./require-craft-resource-trigger-yield.cjs');
 const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
+const noDirectRandomGlobals = require('./no-direct-random-globals.cjs');
 const requirePrimitiveDerivedProperty = require('./require-primitive-derived-property.cjs');
 const noAsyncAwait = require('./no-async-await.cjs');
 const requireLoopSleepOrStop = require('./require-loop-sleep-or-stop.cjs');
@@ -226,6 +223,7 @@ const plugin = {
     'no-transition-actions': noTransitionActions,
     'require-craft-resource-trigger-yield': requireCraftResourceTriggerYield,
     'no-direct-temporal-globals': noDirectTemporalGlobals,
+    'no-direct-random-globals': noDirectRandomGlobals,
     'require-primitive-derived-property': requirePrimitiveDerivedProperty,
     'no-async-await': noAsyncAwait,
     'require-loop-sleep-or-stop': requireLoopSleepOrStop,

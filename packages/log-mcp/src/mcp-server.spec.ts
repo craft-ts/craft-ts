@@ -114,4 +114,81 @@ describe('logs MCP server', () => {
     expect(result.structuredContent).toEqual({ result: { removedFiles: 1 } });
     expect(reader.readAll()).toEqual([]);
   });
+
+  it('exposes read-only resume context and queues proposals for approval', async () => {
+    const proposalCalls: unknown[] = [];
+    const applyCalls: string[] = [];
+    const server = createLogMcpServer(reader, {
+      async readActiveContext() {
+        return {
+          sessionId: '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5678',
+          context: {
+            phase: 'execute',
+            plan: { status: 'ready' },
+            mismatches: [{ call: 'POST /checkout' }],
+          },
+        };
+      },
+      async proposeOverrides(proposal) {
+        proposalCalls.push(proposal);
+        return { status: 'proposed' };
+      },
+      async requestApply(proposalId) {
+        applyCalls.push(proposalId);
+        return { status: 'apply-requested' };
+      },
+    });
+    const client = new Client({ name: 'resume-test-client', version: '1.0.0' });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const tools = await client.listTools();
+    expect(tools.tools.map(({ name }) => name)).toContain('resume_plan');
+    expect(tools.tools.map(({ name }) => name)).toContain('resume_mismatch');
+    expect(tools.tools.map(({ name }) => name)).toContain(
+      'resume_propose_overrides',
+    );
+    expect(tools.tools.map(({ name }) => name)).toContain('resume_apply');
+
+    const plan = await client.callTool({ name: 'resume_plan', arguments: {} });
+    expect(plan.structuredContent).toMatchObject({
+      result: { sessionId: '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5678', plan: { status: 'ready' } },
+    });
+    const mismatch = await client.callTool({
+      name: 'resume_mismatch',
+      arguments: {},
+    });
+    expect(mismatch.structuredContent).toMatchObject({
+      result: { mismatches: [{ call: 'POST /checkout' }] },
+    });
+    await client.callTool({
+      name: 'resume_propose_overrides',
+      arguments: {
+        rationale: 'Mirror the captured response.',
+        overrides: [
+          {
+            call: 'POST /checkout',
+            response: { ok: true },
+            status: 403,
+            frozen: true,
+            assistedBy: 'ai',
+          },
+        ],
+      },
+    });
+    const apply = await client.callTool({
+      name: 'resume_apply',
+      arguments: { proposalId: '6c1bbaec-8365-4971-94d9-1e0616de119a' },
+    });
+    expect(apply.structuredContent).toEqual({
+      result: { status: 'apply-requested' },
+    });
+    expect(proposalCalls).toHaveLength(1);
+    expect(applyCalls).toEqual(['6c1bbaec-8365-4971-94d9-1e0616de119a']);
+    await Promise.all([client.close(), server.close()]);
+  });
 });

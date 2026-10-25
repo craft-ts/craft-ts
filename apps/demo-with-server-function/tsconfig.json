@@ -70,6 +70,12 @@
       "path": "../../libs/component"
     },
     {
+      "path": "../../libs/review-attestation"
+    },
+    {
+      "path": "../../libs/style"
+    },
+    {
       "path": "../../libs/dev-tools"
     },
     {

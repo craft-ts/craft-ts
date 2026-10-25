@@ -20,6 +20,7 @@ module.exports = {
   'craft-ts/craft-component-name-match': 'warn',
   'craft-ts/craft-directive-name-match': 'warn',
   'craft-ts/no-direct-temporal-globals': 'error',
+  'craft-ts/no-direct-random-globals': 'error',
   'craft-ts/prefer-craft-template-blocks': 'error',
   'craft-ts/require-craft-computed-for-dynamic-template-lookup': 'error',
   'craft-ts/no-render-writes': 'error',

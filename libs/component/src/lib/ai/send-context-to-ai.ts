@@ -8,6 +8,7 @@ import {
 } from '../host-runtime';
 import {
   craftSignal,
+  ɵinjectCraftTemporalRuntime,
   createSendContextToAiBuffer,
   type SendContextToAiBuffer,
   HostTag,
@@ -50,15 +51,18 @@ import {
   type BrowserStorageSnapshot,
   connectBrowserStorageCheckpoints,
   INITIAL_BROWSER_STORAGE_EVENT,
+  redactBrowserStorageSnapshotForArchive,
 } from './debug-session-browser-storage';
 import { connectDebugSessionDialogCapture } from './debug-session-dialogs';
 import { connectDebugSessionFetchCapture } from './debug-session-fetch-capture';
+import { connectDebugSessionXhrCapture } from './debug-session-xhr-capture';
 import { connectDebugSessionFormCapture } from './debug-session-form-capture';
 import { connectDebugSessionHoverCapture } from './debug-session-hover';
 import { connectDebugSessionPerformanceCapture } from './debug-session-performance';
 import { connectDebugSessionScrollCapture } from './debug-session-scroll';
 import { connectDebugSessionViewportCapture } from './debug-session-viewport';
 import { connectReplaySnapshotCapture } from './debug-session-orchestrator';
+import type { DebugSessionResumeSourceHashRecord } from './debug-session-resume-protocol';
 import {
   CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT,
   isCraftDebugReplayLaunch,
@@ -506,6 +510,10 @@ export function provideCraftDebugSessionCapture(
     captureBrowserStorage?: boolean;
     /** EXPERIMENTAL: capture Craft and source$ arguments for local invocation replay. */
     captureReplayArguments?: boolean;
+    /** Capture the redacted source-hash baseline used by verified resume. */
+    captureResumeSourceHashes?: () => Promise<
+      readonly DebugSessionResumeSourceHashRecord[]
+    >;
     /** Capture serialized restart points after the app reaches a stable state. */
     captureReplaySnapshots?: Readonly<{
       appVersion: string;
@@ -602,12 +610,33 @@ export function provideCraftDebugSessionCapture(
       ? [
           provideAppInitializer(async () => {
             ɵinjectSendContextSession();
+            if (
+              options.captureResumeSourceHashes &&
+              !isCraftDebugReplayLaunch()
+            ) {
+              try {
+                const records = await options.captureResumeSourceHashes();
+                session?.capture('snapshot', 'emitted', {
+                  name: 'resume-source-hashes',
+                  payload: { version: 1, records },
+                });
+              } catch {
+                // Missing baselines are reported as a planner warning.
+              }
+            }
             if (startupStorageSnapshot) {
               const snapshot = await startupStorageSnapshot;
-              session?.capture('storage', 'emitted', {
-                name: INITIAL_BROWSER_STORAGE_EVENT,
-                payload: { snapshotJson: JSON.stringify(snapshot) },
-              });
+              if (session) {
+                const redacted = redactBrowserStorageSnapshotForArchive(
+                  snapshot,
+                  session,
+                );
+                session.capture('storage', 'emitted', {
+                  name: INITIAL_BROWSER_STORAGE_EVENT,
+                  payload: { snapshotJson: JSON.stringify(redacted.snapshot) },
+                  ...(redacted.refs.length > 0 ? { refs: redacted.refs } : {}),
+                });
+              }
             }
           }),
         ]
@@ -660,6 +689,12 @@ export function provideCraftDebugSessionCapture(
         options.captureReplayArguments === true &&
         isLoopbackWebSocketUrl(options.webSocketUrl)
           ? connectDebugSessionFetchCapture(createdSession)
+          : undefined;
+      const disconnectXhrCapture =
+        recording &&
+        options.captureReplayArguments === true &&
+        isLoopbackWebSocketUrl(options.webSocketUrl)
+          ? connectDebugSessionXhrCapture(createdSession)
           : undefined;
       const disconnectPrimitiveCapture =
         recording &&
@@ -719,6 +754,7 @@ export function provideCraftDebugSessionCapture(
         createdSession.startRecord('Application session');
         if (options.captureReplaySnapshots) {
           const primitiveRegistry = ɵinjectCraftPrimitiveRegistry();
+          const temporalRuntime = ɵinjectCraftTemporalRuntime();
           const storageRegistry = ɵinjectPersistedStorageSnapshotRegistry();
           const craftRouter = ɵinjectCraftRouterRuntime();
           disconnectReplaySnapshots = connectReplaySnapshotCapture({
@@ -728,17 +764,44 @@ export function provideCraftDebugSessionCapture(
             route: () => craftRouter?.url,
             primitives: () => primitiveRegistry.capture(),
             storage: () => storageRegistry.capture(),
-            isQuiescent: () =>
-              activeCraftInvocations.size === 0 &&
-              primitiveRegistry.list().every((entry) => {
-                const status = entry.status?.().toLowerCase();
-                return (
-                  status === undefined ||
-                  !/(loading|pending|running|debouncing|refreshing)/.test(
-                    status,
-                  )
-                );
-              }),
+            pendingTasks: () =>
+              temporalRuntime.pendingTasks().map(({ kind, dueAt, owner }) => ({
+                kind,
+                dueAt,
+                ...(owner === undefined ? {} : { owner }),
+              })),
+            temporalNow: () => temporalRuntime.now(),
+            temporalDateNow: () => temporalRuntime.dateNow(),
+            isQuiescent: () => {
+              const pendingTasks = temporalRuntime.pendingTasks();
+              const waitingOnOwnedSleep = pendingTasks.some(
+                (task) => task.kind === 'sleep' && task.owner !== undefined,
+              );
+              const inFlightHttp = new Set<string>();
+              for (const event of createdSession.events) {
+                if (event.kind !== 'http' || !event.operationId) continue;
+                if (event.phase === 'started')
+                  inFlightHttp.add(event.operationId);
+                if (event.phase === 'succeeded' || event.phase === 'failed')
+                  inFlightHttp.delete(event.operationId);
+              }
+              return (
+                (activeCraftInvocations.size === 0 ||
+                  (waitingOnOwnedSleep && inFlightHttp.size === 0)) &&
+                inFlightHttp.size === 0 &&
+                primitiveRegistry.list().every((entry) => {
+                  const status = entry.status?.().toLowerCase();
+                  return (
+                    status === undefined ||
+                    !/(loading|pending|running|debouncing|refreshing)/.test(
+                      status,
+                    ) ||
+                    (waitingOnOwnedSleep &&
+                      !/(reloading|refreshing)/.test(status))
+                  );
+                })
+              );
+            },
             subscribe: (onChange) => {
               const unsubscribePrimitive = primitiveRegistry.onChange(onChange);
               const eventSubscription = createdSession.events$.subscribe({
@@ -764,6 +827,7 @@ export function provideCraftDebugSessionCapture(
             disconnectHoverCapture?.();
             disconnectFormCapture?.();
             disconnectFetchCapture?.();
+            disconnectXhrCapture?.();
             disconnectPrimitiveCapture?.();
             disconnectPerformanceCapture?.();
             disconnectViewportCapture?.();
@@ -779,6 +843,7 @@ export function provideCraftDebugSessionCapture(
         disconnectHoverCapture?.();
         disconnectFormCapture?.();
         disconnectFetchCapture?.();
+        disconnectXhrCapture?.();
         disconnectPrimitiveCapture?.();
         disconnectPerformanceCapture?.();
         disconnectViewportCapture?.();

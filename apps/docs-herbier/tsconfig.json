@@ -6,5 +6,25 @@
     "erasableSyntaxOnly": false,
     "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts", "vite.config.ts", "vite.ssr.config.ts"]
+  "include": ["src/**/*.ts", "vite.config.ts", "vite.ssr.config.ts"],
+  "references": [
+    {
+      "path": "../../libs/ui"
+    },
+    {
+      "path": "../../libs/docs-ui"
+    },
+    {
+      "path": "../../libs/style"
+    },
+    {
+      "path": "../../libs/core"
+    },
+    {
+      "path": "../../libs/component"
+    },
+    {
+      "path": "../../libs/dev-tools"
+    }
+  ]
 }

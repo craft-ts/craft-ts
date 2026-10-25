@@ -12,7 +12,10 @@ import type {
   PortableDebugSession,
   StoredEnvironmentProfile,
 } from './debug-session-store.js';
-import { PORTABLE_DEBUG_SESSION_VERSION } from './debug-session-store.js';
+import {
+  PORTABLE_DEBUG_SESSION_VERSION,
+  PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION,
+} from './debug-session-store.js';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
 import type { ThumbnailManifest } from './thumbnails/thumbnail-store.js';
 
@@ -281,6 +284,148 @@ async function handleRequest(
   }
 
   const sessionMatch = /^\/sessions\/([0-9a-f-]{36})$/i.exec(url.pathname);
+  if (
+    request.method === 'GET' &&
+    url.pathname === '/resume-assistant/active'
+  ) {
+    sendJson(
+      response,
+      200,
+      options.sessionStore?.activeResumeAssistantContext() ?? null,
+    );
+    return;
+  }
+  const resumeAssistantMatch =
+    /^\/sessions\/([0-9a-f-]{36})\/resume-assistant(?:\/(context|proposals)(?:\/([0-9a-f-]{36})\/(apply|decision))?)?$/i.exec(
+      url.pathname,
+    );
+  if (resumeAssistantMatch) {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    const store = options.sessionStore;
+    const sessionId = resumeAssistantMatch[1]!;
+    if (!store?.hasSession(sessionId)) {
+      sendJson(response, 404, { error: 'Session not found.' }, headers);
+      return;
+    }
+    const resource = resumeAssistantMatch[2];
+    const proposalId = resumeAssistantMatch[3];
+    const action = resumeAssistantMatch[4];
+    if (action === 'decision' && !isAllowedOrigin(request.headers.origin, allowedOrigins)) {
+      sendJson(response, 403, { error: 'Dashboard origin is required for human approval.' }, headers);
+      return;
+    }
+    if (resource === 'context' && request.method === 'GET') {
+      sendJson(
+        response,
+        200,
+        { context: store.resumeAssistantContext(sessionId) ?? null },
+        headers,
+      );
+      return;
+    }
+    if (resource === 'context' && request.method === 'PUT') {
+      const payload = await readJsonBody(request, maxBodySize);
+      if (!isResumeAssistantContext(payload)) {
+        sendJson(response, 400, { error: 'Invalid assistant context.' }, headers);
+        return;
+      }
+      store.publishResumeAssistantContext(sessionId, payload);
+      sendJson(response, 200, { saved: true }, headers);
+      return;
+    }
+    if (resource === 'proposals' && !proposalId && request.method === 'GET') {
+      sendJson(
+        response,
+        200,
+        { proposals: store.resumeAssistantProposalsFor(sessionId) },
+        headers,
+      );
+      return;
+    }
+    if (resource === 'proposals' && !proposalId && request.method === 'POST') {
+      const payload = await readJsonBody(request, Math.min(maxBodySize, 256_000));
+      if (!isResumeAssistantProposalInput(payload)) {
+        sendJson(response, 400, { error: 'Invalid override proposal.' }, headers);
+        return;
+      }
+      const proposal = store.proposeResumeOverrides(sessionId, payload);
+      if (!proposal) {
+        sendJson(response, 429, { error: 'Too many pending proposals.' }, headers);
+        return;
+      }
+      sendJson(response, 201, { proposal }, headers);
+      return;
+    }
+    if (resource === 'proposals' && proposalId && action === 'apply' && request.method === 'POST') {
+      const proposal = store.requestResumeAssistantApply(sessionId, proposalId);
+      if (!proposal) {
+        sendJson(response, 404, { error: 'Proposal not found.' }, headers);
+        return;
+      }
+      sendJson(response, 200, { proposal }, headers);
+      return;
+    }
+    if (resource === 'proposals' && proposalId && action === 'decision' && request.method === 'POST') {
+      const payload = await readJsonBody(request, 8_000);
+      const decision = isRecord(payload) ? payload['decision'] : undefined;
+      if (decision !== 'accepted' && decision !== 'rejected') {
+        sendJson(response, 400, { error: 'Invalid proposal decision.' }, headers);
+        return;
+      }
+      const proposal = store.decideResumeAssistantProposal(
+        sessionId,
+        proposalId,
+        decision,
+      );
+      if (!proposal) {
+        sendJson(response, 404, { error: 'Proposal not found.' }, headers);
+        return;
+      }
+      sendJson(response, 200, { proposal }, headers);
+      return;
+    }
+  }
+  const resumeProfileMatch =
+    /^\/sessions\/([0-9a-f-]{36})\/resume-profile$/i.exec(url.pathname);
+  if (request.method === 'PUT' && resumeProfileMatch) {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionStore) {
+      sendJson(
+        response,
+        404,
+        { error: 'Session archive is unavailable.' },
+        headers,
+      );
+      return;
+    }
+    let profile: unknown;
+    try {
+      profile = JSON.parse(
+        await readBody(request, Math.min(maxBodySize, 256_000)),
+      );
+    } catch {
+      sendJson(
+        response,
+        400,
+        { error: 'Invalid resume profile payload.' },
+        headers,
+      );
+      return;
+    }
+    if (
+      !options.sessionStore.saveResumeProfile(resumeProfileMatch[1]!, profile)
+    ) {
+      sendJson(
+        response,
+        400,
+        { error: 'Invalid resume profile or session id.' },
+        headers,
+      );
+      return;
+    }
+    sendJson(response, 200, { saved: true }, headers);
+    return;
+  }
   if (request.method === 'GET' && sessionMatch) {
     const session = options.sessionStore?.get(sessionMatch[1]!);
     if (!session) {
@@ -560,7 +705,8 @@ function isPortableSession(value: unknown): value is PortableDebugSession {
   return (
     isRecord(value) &&
     value['format'] === 'craft-debug-session' &&
-    value['version'] === PORTABLE_DEBUG_SESSION_VERSION &&
+    (value['version'] === PORTABLE_DEBUG_SESSION_VERSION ||
+      value['version'] === PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION) &&
     (value['replayVersion'] === undefined ||
       (Number.isSafeInteger(value['replayVersion']) &&
         (value['replayVersion'] as number) >= 1)) &&
@@ -614,7 +760,7 @@ function sessionCorsHeaders(
     ...(origin && isAllowedOrigin(origin, allowedOrigins)
       ? { 'access-control-allow-origin': origin }
       : {}),
-    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'access-control-allow-headers': 'content-type',
     vary: 'Origin',
   };
@@ -628,7 +774,7 @@ function logsCorsHeaders(
     ...(origin && isAllowedOrigin(origin, allowedOrigins)
       ? { 'access-control-allow-origin': origin }
       : {}),
-    'access-control-allow-methods': 'POST, GET, DELETE, OPTIONS',
+    'access-control-allow-methods': 'POST, PUT, GET, DELETE, OPTIONS',
     'access-control-allow-headers': 'content-type',
     'access-control-max-age': '86400',
     vary: 'Origin',
@@ -665,6 +811,69 @@ function sendSocketError(socket: WebSocket, message: string): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function readJsonBody(
+  request: IncomingMessage,
+  maxBytes: number,
+): Promise<unknown> {
+  try {
+    return JSON.parse(await readBody(request, maxBytes)) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function isResumeAssistantContext(
+  value: unknown,
+): value is import('./debug-session-store.js').ResumeAssistantContext {
+  return (
+    isRecord(value) &&
+    (value['phase'] === 'prepare' || value['phase'] === 'execute') &&
+    Array.isArray(value['mismatches']) &&
+    typeof value['updatedAt'] === 'string' &&
+    (!Object.hasOwn(value, 'plan') || isRecord(value['plan']))
+  );
+}
+
+function isResumeAssistantProposalInput(
+  value: unknown,
+): value is Readonly<{
+  rationale: string;
+  overrides: readonly Readonly<Record<string, unknown>>[];
+}> {
+  if (
+    !isRecord(value) ||
+    typeof value['rationale'] !== 'string' ||
+    value['rationale'].length > 4_000 ||
+    !Array.isArray(value['overrides']) ||
+    value['overrides'].length === 0 ||
+    value['overrides'].length > 100
+  )
+    return false;
+  const calls = new Set<string>();
+  return value['overrides'].every((override) => {
+    if (
+      !isRecord(override) ||
+      Object.keys(override).some(
+        (key) =>
+          !['call', 'response', 'patch', 'status', 'frozen', 'assistedBy'].includes(key),
+      ) ||
+      typeof override['call'] !== 'string' ||
+      !override['call'] ||
+      override['frozen'] !== true ||
+      Object.hasOwn(override, 'response') === Object.hasOwn(override, 'patch') ||
+      (Object.hasOwn(override, 'status') &&
+        (!Number.isInteger(override['status']) ||
+          Number(override['status']) < 200 ||
+          Number(override['status']) > 599)) ||
+      (Object.hasOwn(override, 'assistedBy') && override['assistedBy'] !== 'ai') ||
+      calls.has(override['call'])
+    )
+      return false;
+    calls.add(override['call']);
+    return true;
+  });
 }
 
 function readBody(

@@ -415,6 +415,9 @@ async function fetchServerFunctionRequest(
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        // Keep the operation visible to network inspectors when the browser
+        // transport cannot expose a Request object's streamed body.
+        'x-craft-function-id': request.id,
         // En-tête non « simple » : il force un préflight CORS, donc un site
         // tiers ne peut pas rejouer l'appel avec les cookies de l'utilisateur.
         'x-craft-protocol': '1',

@@ -1,7 +1,7 @@
 import {
   Injector,
 } from './host/craft-compat';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 import {
@@ -12,12 +12,34 @@ import {
   fixedTemporalSchedule,
   provideCraftTemporalRuntime,
   RealCraftTemporalRuntime,
+  SuspendableCraftTemporalRuntime,
   sequenceTemporalSchedule,
   withCraftTimeout,
   VirtualCraftTemporalRuntime,
 } from './temporal-runtime';
 
 describe('VirtualCraftTemporalRuntime', () => {
+  it('freezes pending deadlines while paused and resumes with the remaining delay', async () => {
+    vi.useFakeTimers();
+    try {
+      const runtime = new SuspendableCraftTemporalRuntime();
+      let ran = false;
+      runtime.schedule(() => { ran = true; }, 100, { owner: 'resume' });
+      await vi.advanceTimersByTimeAsync(30);
+      expect(runtime.pause()).toBe(true);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(ran).toBe(false);
+      expect(runtime.pendingTasks('resume')).toHaveLength(1);
+      expect(runtime.resume()).toBe(true);
+      await vi.advanceTimersByTimeAsync(69);
+      expect(ran).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(ran).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('provides a cached real runtime when no runtime override is configured', () => {
     const injector = Injector.create({ providers: [] });
 

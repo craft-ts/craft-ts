@@ -36,5 +36,22 @@
       }
     ]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../libs/style"
+    },
+    {
+      "path": "../../libs/effect"
+    },
+    {
+      "path": "../../libs/core"
+    },
+    {
+      "path": "../../libs/component"
+    },
+    {
+      "path": "../../libs/dev-tools"
+    }
+  ]
 }

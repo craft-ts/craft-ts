@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { analyzeDependencyGraph } from './dependency-graph';
+import { resumeChainOf } from './resume-chain';
 
 const temporaryDirectories: string[] = [];
 
@@ -100,6 +101,58 @@ function edgeLabels(
 }
 
 describe('analyzeDependencyGraph reactive granularity', () => {
+  it('follows server-function wrappers through craftUnique and createServerFunctionClient', async () => {
+    const root = await fixture({
+      'resume.ts': `
+        ${CRAFT_STUBS}
+        declare function serverFunction(id: string): unknown;
+        declare function createServerFunctionClient<T>(id: T): (...args: any[]) => Generator<unknown, unknown, unknown>;
+        const login = serverFunction('ecommerce.auth.login');
+        const rawLogin = createServerFunctionClient(craftUnique('ecommerce.auth.login'));
+        function* signIn(input: unknown) { return yield* rawLogin(input); }
+        const { Session } = craftService({ name: 'Session', providedIn: 'global' }, function* () {
+          const currentSession = yield* state('currentSession', undefined as unknown, ({ set }) => ({
+            open: (value: unknown) => set(value),
+          }));
+          yield* query('signInProcess', {
+            resume: { resource: 'session', role: 'provides', persona: 'product-manager' },
+            method: (input: unknown) => input,
+            loader: function* ({ params }) {
+              const result = yield* signIn(params);
+              yield* currentSession.open(result);
+              return result;
+            },
+          });
+          yield* craftComputed('isStaff', function* () { return yield* currentSession(); });
+        });
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    const rootPrimitive = nodeByLabel(graph, 'craftComputed:isStaff')[0];
+    expect(rootPrimitive).toBeDefined();
+    const chain = resumeChainOf(graph, rootPrimitive!.id);
+    expect(chain.nodes.map((node) => node.label)).toEqual(
+      expect.arrayContaining([
+        'state:currentSession',
+        'query:signInProcess',
+        'ecommerce.auth.login',
+      ]),
+    );
+    expect(chain.edges.map((edge) => edge.kind)).toEqual(
+      expect.arrayContaining(['depends-on', 'writes', 'calls']),
+    );
+    const loginPrimitive = graph.nodes.find((node) => node.label === 'query:signInProcess');
+    expect(loginPrimitive?.details?.['resume']).toEqual({
+      resource: 'session',
+      role: 'provides',
+      persona: 'product-manager',
+    });
+  });
+
   it('reads primitives a service yields, including private ones', async () => {
     const root = await fixture({
       'todo.ts': `
@@ -654,6 +707,46 @@ describe('analyzeDependencyGraph architecture facts', () => {
 });
 
 describe('analyzeDependencyGraph insertions', () => {
+  it('links primitive loaders that write an exposed state method', async () => {
+    const root = await fixture({
+      'session.ts': `
+        ${CRAFT_STUBS}
+
+        const { Session } = craftService(
+          { name: 'Session', providedIn: 'global' },
+          function* () {
+            const currentSession = yield* state('currentSession', undefined, ({ set }) => ({
+              open: (value: unknown) => set(value),
+            }));
+            yield* query('signInProcess', {
+              loader: function* () {
+                yield* currentSession.open({ user: 'roma' });
+              },
+            });
+            yield* craftComputed('isStaff', function* () {
+              return yield* currentSession();
+            });
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    const writes = edgesFrom(graph, 'query:signInProcess', 'writes');
+
+    expect(writes).toHaveLength(1);
+    expect(graph.nodes.find((node) => node.id === writes[0]?.to)).toMatchObject({
+      label: 'state:currentSession',
+    });
+    expect(writes[0]?.details).toMatchObject({
+      operation: 'open',
+      via: 'state-method',
+    });
+  });
+
   it('links a mutation returned by another service to the consuming query', async () => {
     const root = await fixture({
       'reviews.ts': `

@@ -1,7 +1,7 @@
-import { a, article, aside, button, craftComponent, div, forNode, heading, headingSection, ifNode, li, main, p, section, span, strong, ul } from '@craft-ts/component';
-import { CraftRouter, CraftRouterLink, craftComputed, craftService, craftUse, isCraftException, query } from '@craft-ts/core';
-import { catalog, placeOrder } from './api';
-import { categoryName, categoryTone, euros, failureOf, groupRule, lineKey, productEmoji, stockLabel } from './shop-format';
+import { a, article, aside, button, craftComponent, div, forNode, heading, headingSection, ifNode, input, li, main, p, section, span, strong, ul } from '@craft-ts/component';
+import { CraftRouter, CraftRouterLink, craftComputed, craftResume, craftService, craftSleep, craftUse, isCraftException, query } from '@craft-ts/core';
+import { catalog, placeOrder, searchCatalog } from './api';
+import { categoryName, categoryTone, euros, eventValue, failureOf, groupRule, lineKey, productEmoji, stockLabel } from './shop-format';
 import { ProductIdPathParams } from './product-id-path-params';
 import { Cart, ShopUi, quantityInCart } from './shop-state';
 import type { Catalog, CartLine, Category, Product } from '../shared/model';
@@ -19,7 +19,17 @@ const isAvailable = (product: Product) => product.kind === 'formule' || product.
 
 export const { StorefrontView, provideStorefrontView } = craftService({ name: 'storefrontView', providedIn: 'toProvide' }, function* () {
   const cart = yield* Cart();
-  yield* query('storeQuery', { params: () => true, loader: loadStore }, ({ resource }) => ({
+  yield* query('storeQuery', {
+    resume: craftResume({
+      resource: 'catalog',
+      role: 'provides',
+      persona: 'guest',
+      calls: ['ecommerce.catalog'],
+      acquire: () => loadStore(),
+    }),
+    params: () => true,
+    loader: loadStore,
+  }, ({ resource }) => ({
     products: craftUse(craftComputed('storeProducts', function* () { return (yield* resource.value())?.products ?? []; })),
     simpleProducts: craftUse(craftComputed('storeSimpleProducts', function* () { return ((yield* resource.value())?.products ?? []).filter((product) => product.kind === 'simple'); })),
     featuredProducts: craftUse(craftComputed('featuredProducts', function* () {
@@ -34,6 +44,24 @@ export const { StorefrontView, provideStorefrontView } = craftService({ name: 's
       const order = yield* placeOrder({ lines });
       if (!isCraftException(order)) yield* cart.cartLines.clear();
       return order;
+    },
+  });
+});
+
+export const { SearchView, provideSearchView } = craftService({ name: 'searchView', providedIn: 'toProvide' }, function* () {
+  const shopUi = yield* ShopUi();
+  yield* query('searchQuery', {
+    resume: craftResume({
+      resource: 'catalog',
+      role: 'requires',
+      calls: ['ecommerce.catalog.search'],
+    }),
+    params: function* () { return (yield* shopUi.searchTerm()).trim(); },
+    loader: function* ({ params: search }) {
+      if (!search) return [] as Product[];
+      yield* craftSleep(300, { owner: 'catalog-search' });
+      try { return yield* searchCatalog({ query: search }); }
+      catch { return [] as Product[]; }
     },
   });
 });
@@ -161,19 +189,23 @@ const HomePage = craftComponent('EcommerceHomePage', { providers: [provideStoref
   ]);
 });
 
-const CataloguePage = craftComponent('EcommerceCataloguePage', { providers: [provideStorefrontView()] }, function* () {
+const CataloguePage = craftComponent('EcommerceCataloguePage', { providers: [provideStorefrontView(), provideSearchView()] }, function* () {
   const { storeQuery } = yield* StorefrontView();
+  const { searchQuery } = yield* SearchView();
   const cart = yield* Cart();
   const shopUi = yield* ShopUi();
   const visibleProducts = yield* craftComputed('visibleProducts', function* () {
     const filter = yield* shopUi.categoryFilter();
-    const products = (yield* storeQuery.products()).filter((product) => filter === 'all' || product.categoryId === filter);
+    const search = (yield* shopUi.searchTerm()).trim();
+    const source = search ? (yield* searchQuery.value()) ?? [] : yield* storeQuery.products();
+    const products = source.filter((product) => filter === 'all' || product.categoryId === filter);
     // Les produits épuisés restent visibles, en fin de liste, pour qu'on sache qu'ils reviendront.
     return [...products.filter(isAvailable), ...products.filter((product) => !isAvailable(product))];
   });
   return main([
     div({ class: 'page-head' }, [
       div([span({ class: 'eyebrow' }, 'Le comptoir'), heading({ class: 'page-title' }, 'La boutique'), p({ class: 'subtitle' }, 'Tout est préparé avec soin. Ajoutez, ajustez les quantités, le panier suit.')]),
+      input('catalog-search', { type: 'search', 'aria-label': 'Rechercher un produit', placeholder: 'Rechercher un produit', value: function* () { return yield* shopUi.searchTerm(); }, input(event) { const value = eventValue(event); return shopUi.searchTerm.search(value); } }),
     ]),
     div({ class: 'chips', role: 'toolbar', 'aria-label': 'Filtrer par catégorie' }, [
       button('filter-all', { type: 'button', class: 'chip', 'aria-pressed': function* () { return (yield* shopUi.categoryFilter()) === 'all' ? 'true' : 'false'; }, *click() { yield* shopUi.categoryFilter.choose('all'); } }, 'Tout'),

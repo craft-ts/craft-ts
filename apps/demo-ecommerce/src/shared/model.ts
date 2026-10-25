@@ -54,10 +54,16 @@ export interface Order {
   readonly total: number;
 }
 
+export interface ServerCart {
+  readonly id: string;
+  readonly lines: readonly CartLine[];
+}
+
 export interface StoreData {
   readonly categories: readonly Category[];
   readonly products: readonly Product[];
   readonly orders: readonly Order[];
+  readonly carts?: readonly ServerCart[];
 }
 
 /** Ce que la vitrine a le droit de lire : les commandes restent côté administration. */
@@ -78,4 +84,5 @@ export const initialStore: StoreData = {
     { kind: 'formule', id: 'pause-cafe', name: 'La pause café', description: 'Composez une pause gourmande.', categoryId: 'coffee', price: 8, groups: [{ id: 'pause-pastry', categoryId: 'pastries', min: 1, max: 2 }, { id: 'pause-drink', categoryId: 'drinks', min: 0, max: 1 }], emoji: '🧺' },
   ],
   orders: [],
+  carts: [],
 };

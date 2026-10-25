@@ -2,37 +2,109 @@ import { createServer } from '@craft-ts/core';
 import { executeEffect } from '@craft-ts/effect';
 import { createServer as createHttpServer } from 'node:http';
 import { createStoreLayer } from './database';
-import { getCatalog, login, logout, getAdminOverview, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore } from './functions';
+import {
+  getCatalog,
+  searchCatalog,
+  createCart,
+  addCartLine,
+  getCart,
+  login,
+  getCurrentUser,
+  logout,
+  getAdminOverview,
+  saveProduct,
+  deleteProduct,
+  saveCategory,
+  deleteCategory,
+  checkout,
+  resetStore,
+  getResumeFacts,
+} from './functions';
 
-export function createDemoApplication(path?: string) {
+export interface DemoApplicationOptions {
+  /** Registers the inventory probe only in the local Vite development server. */
+  readonly allowResumePreflight?: boolean;
+}
+
+export function createDemoApplication(
+  path?: string,
+  options: DemoApplicationOptions = {},
+) {
+  const baseFunctions = [
+    getCatalog,
+    searchCatalog,
+    createCart,
+    addCartLine,
+    getCart,
+    login,
+    getCurrentUser,
+    logout,
+    getAdminOverview,
+    saveProduct,
+    deleteProduct,
+    saveCategory,
+    deleteCategory,
+    checkout,
+    resetStore,
+  ] as const;
+  const functions = options.allowResumePreflight
+    ? [...baseFunctions, getResumeFacts]
+    : baseFunctions;
   const registry = createServer({
-    functions: [getCatalog, login, logout, getAdminOverview, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore],
+    functions,
     execute: executeEffect(createStoreLayer(path)).run,
-    runtimeOptions: { maxBodyBytes: 1_048_576, maxOutputBytes: 1_048_576, timeoutMs: 15_000 },
+    runtimeOptions: {
+      maxBodyBytes: 1_048_576,
+      maxOutputBytes: 1_048_576,
+      timeoutMs: 15_000,
+    },
   });
   return registry;
 }
 
-export async function handleDemoRequest(request: Request): Promise<Response> {
-  return createDemoApplication().handle(request);
+export async function handleDemoRequest(
+  request: Request,
+  options: DemoApplicationOptions = {},
+): Promise<Response> {
+  return createDemoApplication(undefined, options).handle(request);
 }
 
 export function createDemoNodeServer() {
   const registry = createDemoApplication();
   return createHttpServer((request, response) => {
     const headers = new Headers();
-    for (const [key, value] of Object.entries(request.headers)) if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(', ') : value);
+    for (const [key, value] of Object.entries(request.headers))
+      if (value !== undefined)
+        headers.set(key, Array.isArray(value) ? value.join(', ') : value);
     const method = request.method ?? 'GET';
     const hasBody = method !== 'GET' && method !== 'HEAD';
-    const webRequest = new Request(`http://${request.headers.host ?? 'localhost'}${request.url ?? '/'}`, { method, headers, ...(hasBody ? { body: request as unknown as BodyInit, duplex: 'half' } : {}) } as RequestInit);
-    void registry.handle(webRequest).then(async (webResponse) => {
-      response.statusCode = webResponse.status;
-      webResponse.headers.forEach((value, key) => response.setHeader(key, value));
-      response.end(method === 'HEAD' || !webResponse.body ? undefined : Buffer.from(await webResponse.arrayBuffer()));
-    }).catch((error: unknown) => {
-      console.error(error);
-      if (!response.headersSent) response.statusCode = 500;
-      response.end('Internal Server Error');
-    });
+    const webRequest = new Request(
+      `http://${request.headers.host ?? 'localhost'}${request.url ?? '/'}`,
+      {
+        method,
+        headers,
+        ...(hasBody
+          ? { body: request as unknown as BodyInit, duplex: 'half' }
+          : {}),
+      } as RequestInit,
+    );
+    void registry
+      .handle(webRequest)
+      .then(async (webResponse) => {
+        response.statusCode = webResponse.status;
+        webResponse.headers.forEach((value, key) =>
+          response.setHeader(key, value),
+        );
+        response.end(
+          method === 'HEAD' || !webResponse.body
+            ? undefined
+            : Buffer.from(await webResponse.arrayBuffer()),
+        );
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+        if (!response.headersSent) response.statusCode = 500;
+        response.end('Internal Server Error');
+      });
   });
 }

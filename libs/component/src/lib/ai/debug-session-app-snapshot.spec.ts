@@ -92,6 +92,40 @@ describe('buildDebugAppSnapshot', () => {
     expect(snapshot.format).toBe(DEBUG_APP_SNAPSHOT_FORMAT);
   });
 
+  it('carries pending temporal tasks and the runtime clock from the chosen checkpoint', () => {
+    const snapshot = buildDebugAppSnapshot(session([event(1, {
+      kind: 'snapshot',
+      phase: 'emitted',
+      name: 'replay-checkpoint',
+      payload: {
+        format: 'craft-debug-replay-snapshot',
+        version: 1,
+        appVersion: 'test',
+        capturedAt: 10,
+        route: { url: 'http://localhost:4200/search' },
+        primitives: {},
+        storage: [],
+        temporalNow: 75,
+        pendingTasks: [{ kind: 'debounce', owner: 'search', dueAt: 250 }],
+        capabilities: { primitives: true, storage: true, inFlightOperations: false },
+      },
+    })]));
+
+    expect(snapshot).toMatchObject({
+      temporalNow: 75,
+      pendingTasks: [{ kind: 'debounce', owner: 'search', dueAt: 250 }],
+    });
+  });
+
+  it('rejects malformed temporal state in a launch snapshot', () => {
+    const valid = buildDebugAppSnapshot(session([]));
+    expect(isDebugAppSnapshot({ ...valid, temporalNow: Number.NaN })).toBe(false);
+    expect(isDebugAppSnapshot({
+      ...valid,
+      pendingTasks: [{ kind: 'timeout', dueAt: Number.POSITIVE_INFINITY }],
+    })).toBe(false);
+  });
+
   it('falls back to the initial snapshot and says so', () => {
     const snapshot = buildDebugAppSnapshot(
       session(

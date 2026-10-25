@@ -21,6 +21,16 @@ export type CraftHttpTraceWrapper = (
   next: () => Promise<unknown>,
 ) => Promise<unknown>;
 
+export type CraftHttpResumeDecision =
+  | Readonly<{ kind: 'live' }>
+  | Readonly<{ kind: 'live+patch'; patch: (response: unknown) => unknown }>
+  | Readonly<{ kind: 'recorded'; response: unknown }>
+  | Readonly<{ kind: 'held'; wait: Promise<unknown> }>;
+
+export type CraftHttpResumeBarrier = Readonly<{
+  decide(context: CraftHttpTraceContext): CraftHttpResumeDecision | Promise<CraftHttpResumeDecision>;
+}>;
+
 export type CraftHttpReplayOutcome = Readonly<{
   context: CraftHttpTraceContext;
   elapsedMs: number;
@@ -43,6 +53,17 @@ let activeHttpReplay:
     }
   | undefined;
 let craftHttpTransportDepth = 0;
+let activeResumeBarrier: CraftHttpResumeBarrier | undefined;
+
+/** Installs the outbound-call gate for a functional-resume launch. */
+export function ɵinstallCraftHttpResumeBarrier(
+  barrier: CraftHttpResumeBarrier,
+): () => void {
+  activeResumeBarrier = barrier;
+  return () => {
+    if (activeResumeBarrier === barrier) activeResumeBarrier = undefined;
+  };
+}
 
 /** Runs only the synchronous transport-start portion of a Craft HTTP request. */
 export function ɵinvokeCraftHttpTransport<Result>(start: () => Result): Result {
@@ -203,6 +224,21 @@ export function executeCraftHttpTrace<Value>(
   context: CraftHttpTraceContext,
   next: () => Promise<Value>,
 ): Promise<Value> {
+  const barrier = activeResumeBarrier;
+  if (barrier) {
+    return Promise.resolve(barrier.decide(context)).then((decision) => {
+      switch (decision.kind) {
+        case 'live':
+          return next();
+        case 'live+patch':
+          return next().then(decision.patch) as Promise<Value>;
+        case 'recorded':
+          return decision.response as Value;
+        case 'held':
+          return decision.wait as Promise<Value>;
+      }
+    });
+  }
   // Replay safety applies independently of the app's development mode. If a
   // replay has no matching response, do not fall through to a live server.
   if (isCraftReplaying()) return replayOrNext(context, next);

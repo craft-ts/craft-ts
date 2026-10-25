@@ -20,6 +20,10 @@ export default [
     plugins: { 'craft-ts': craftRules },
     rules: {
       ...craftRules.configs.effect.rules,
+      // Effect server adapters run outside Craft's browser temporal/random
+      // runtime. Keep the replay boundary checks scoped to Craft modules.
+      'craft-ts/no-direct-temporal-globals': 'off',
+      'craft-ts/no-direct-random-globals': 'off',
       // Effect's Node adapter is the boundary where native Promise, throws, and
       // runtime-validated assertions are intentionally contained.
       'craft-ts/no-async-await': 'off',
@@ -33,7 +37,13 @@ export default [
   {
     files: ['**/src/client/**/*.ts'],
     plugins: { 'craft-ts': craftRules },
-    rules: { 'craft-ts/prefer-craft-router-link': 'error' },
+    rules: {
+      'craft-ts/prefer-craft-router-link': 'error',
+      // Le rejeu et la reprise pilotent l'horloge : la vitrine ne lit jamais le
+      // temps ni ne programme de tâche en dehors du runtime temporel.
+      'craft-ts/no-direct-temporal-globals': 'error',
+      'craft-ts/no-direct-random-globals': 'error',
+    },
   },
   {
     files: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],

@@ -71,6 +71,7 @@ export function productFromDraft(draft: ProductDraft, id: string): Product | str
 }
 
 export const { AdminDesk } = craftService({ name: 'adminDesk', providedIn: 'global' }, function* () {
+  let groupSequence = 0;
   yield* state('adminTab', 'products' as AdminTab, ({ set }) => ({
     select: (tab: AdminTab) => set(tab),
   }));
@@ -78,7 +79,7 @@ export const { AdminDesk } = craftService({ name: 'adminDesk', providedIn: 'glob
     open: (draft: ProductDraft) => set(draft),
     close: () => set(undefined),
     edit: (changes: Partial<ProductDraft>) => update((draft) => draft && { ...draft, ...changes }),
-    addGroup: (categoryId: string) => update((draft) => draft && { ...draft, groups: [...draft.groups, { id: `group-${Date.now().toString(36)}`, categoryId, min: '1', max: '1' }] }),
+    addGroup: (categoryId: string) => update((draft) => draft && { ...draft, groups: [...draft.groups, { id: `group-${++groupSequence}`, categoryId, min: '1', max: '1' }] }),
     editGroup: (groupId: string, changes: Partial<GroupDraft>) => update((draft) => draft && { ...draft, groups: draft.groups.map((group) => group.id === groupId ? { ...group, ...changes } : group) }),
     removeGroup: (groupId: string) => update((draft) => draft && { ...draft, groups: draft.groups.filter((group) => group.id !== groupId) }),
   }));

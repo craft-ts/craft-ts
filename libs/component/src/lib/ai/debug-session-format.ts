@@ -17,7 +17,7 @@ export type DebugSessionExportMigration = (
 export const DEBUG_SESSION_EXPORT_MIGRATIONS: ReadonlyMap<
   number,
   DebugSessionExportMigration
-> = new Map();
+> = new Map([[6, (value) => ({ ...value, version: 7 })]]);
 
 /** Replay versions this dashboard explicitly promises to support. */
 export const SUPPORTED_DEBUG_SESSION_REPLAY_VERSIONS: ReadonlySet<number> =
@@ -36,6 +36,16 @@ export function supportsDebugSessionExportVersion(version: unknown): boolean {
     current += 1;
   }
   return true;
+}
+
+/** Resume requires v7 reference provenance; v6 remains replayable after migration. */
+export function supportsDebugSessionResume(input: unknown): boolean {
+  return (
+    isRecord(input) &&
+    input['format'] === 'craft-debug-session' &&
+    input['version'] === DEBUG_SESSION_EXPORT_VERSION &&
+    input['referenceCaptureVersion'] === 1
+  );
 }
 
 export function supportsDebugSessionReplayVersion(version: unknown): boolean {
@@ -103,4 +113,8 @@ export function migrateDebugSessionExport(
     }
   }
   return { ok: true, value: value as unknown as SendContextReplayExport };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

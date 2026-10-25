@@ -58,6 +58,7 @@ import {
   selectedParticipantId,
   status,
 } from './replay-state';
+import { acceptResumeDescription, acceptResumePreflight } from './replay-debug';
 
 /**
  * The conversation with the replayed page. The page is another window: it
@@ -206,12 +207,7 @@ function onInteraction(
     return;
   }
   if (data['kind'] === 'hover') {
-    if (
-      action === 'enter' &&
-      data['pointerId'] === -1 &&
-      x === 0 &&
-      y === 0
-    ) {
+    if (action === 'enter' && data['pointerId'] === -1 && x === 0 && y === 0) {
       // Keyboard focus uses a synthetic pointer id and has no mouse location.
       hideClickMarker(participantId);
       return;
@@ -497,6 +493,18 @@ function handle(
       saveTextFile('craft-debug-session-v6.json', 'application/json', text);
       break;
     }
+    case 'resume-description':
+      if (typeof data['requestId'] === 'string')
+        acceptResumeDescription(
+          participantId,
+          data['requestId'],
+          data['description'],
+        );
+      break;
+    case 'resume-preflight-result':
+      if (typeof data['requestId'] === 'string')
+        acceptResumePreflight(participantId, data['requestId'], data['result']);
+      break;
   }
 }
 

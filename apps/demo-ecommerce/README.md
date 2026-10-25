@@ -20,11 +20,11 @@ La capture et le pont de replay sont actifs en développement. La capture d’en
 
 L’administration demande une session. Les comptes sont affichés sur les pages **Administration** et **Connexion**, avec un bouton de connexion en un clic :
 
-| Compte | E-mail | Mot de passe | Accès |
-| --- | --- | --- | --- |
-| Camille, gérante | `camille@atelier.demo` | `atelier-admin` | boutique + administration |
-| Inès, product manager | `ines@atelier.demo` | `atelier-produit` | boutique + administration en lecture |
-| Léo, client | `leo@atelier.demo` | `atelier-client` | boutique seule |
+| Compte                | E-mail                 | Mot de passe      | Accès                                |
+| --------------------- | ---------------------- | ----------------- | ------------------------------------ |
+| Camille, gérante      | `camille@atelier.demo` | `atelier-admin`   | boutique + administration            |
+| Inès, product manager | `ines@atelier.demo`    | `atelier-produit` | boutique + administration en lecture |
+| Léo, client           | `leo@atelier.demo`     | `atelier-client`  | boutique seule                       |
 
 Le serveur délivre un jeton de session à la connexion et le vérifie dans chaque fonction d’administration : un compte client ou un jeton inventé reçoit un refus, quoi que dise le navigateur. Seuls les admins ont le droit de modifier un produit : un product manager ouvre l’administration et l’éditeur, mais l’enregistrement lui est refusé. Les sessions vivent en mémoire ; après un redémarrage du serveur, la page d’administration revient à l’écran de connexion avec le message « Session expirée ». Les comptes sont définis dans `src/shared/accounts.ts`.
 
@@ -48,5 +48,24 @@ npx nx typecheck demo-ecommerce --skipSync
 npx nx effect-check demo-ecommerce --skipSync
 npx nx lint demo-ecommerce --skipSync
 npx nx test demo-ecommerce --skipSync
+npx nx resume-check demo-ecommerce --skipSync
 npx nx build demo-ecommerce --skipSync
 ```
+
+## Reprise de session
+
+La session et le panier sont persistés par les insertions Craft. Au démarrage,
+`ecommerce.auth.me` revalide le jeton restauré ; une session expirée ne peut
+donc pas conserver des droits affichés par le navigateur. Les personas de
+reprise sont générées localement avec `npx nx resume-personas demo-ecommerce`.
+Le fichier `.craft/resume.personas.local.json` est ignoré par Git et contient
+les identifiants de démonstration.
+Le contrôle `resume-check` régénère `.craft/resume-graph.json` et fait échouer
+les cibles `serve` et `build` si une déclaration de ressource ou un appel
+externe persistant devient incohérent. En développement, Vite expose ce graphe
+au pont de reprise sur `__craft_resume_graph`, uniquement depuis une origine
+loopback ; les empreintes source sont associées aux déclarations live quand la
+correspondance est unique.
+Les captures incluent un baseline d’empreintes dépourvu de chemins locaux ; le
+dashboard le compare aux empreintes courantes et signale son absence au lieu
+de conclure à tort que le code n’a pas changé.

@@ -77,6 +77,9 @@ export function createReplaySnapshot(
     routeUrl: string;
     primitives: Readonly<Record<string, unknown>>;
     storage: ReplaySnapshotV1['storage'];
+    pendingTasks?: NonNullable<ReplaySnapshotV1['pendingTasks']>;
+    temporalNow?: number;
+    temporalDateNow?: number;
     inFlightOperations: number;
     capturedAt?: number;
   }>,
@@ -85,14 +88,32 @@ export function createReplaySnapshot(
     throw new Error('A replay snapshot requires zero in-flight operations.');
   if (!input.appVersion.trim() || !input.routeUrl.trim())
     throw new Error('A replay snapshot requires an app version and route URL.');
+  // Authentication and other secrets are reacquired by their declared
+  // providers. Keeping the whole primitive/storage entry out of a checkpoint
+  // makes the snapshot restorable without serializing a redaction marker that
+  // would be mistaken for an unusable value.
+  const primitives = Object.fromEntries(
+    Object.entries(input.primitives)
+      .map(([key, value]) => [key, stripReplaySnapshotSecrets(value)] as const)
+      .filter(([, value]) => !containsRedactedValue(value)),
+  );
+  const storage = input.storage
+    .map((entry) => stripReplaySnapshotSecrets(entry))
+    .filter(
+      (entry): entry is (typeof input.storage)[number] =>
+        !containsRedactedValue(entry),
+    );
   return {
     format: 'craft-debug-replay-snapshot',
     version: 1,
     appVersion: input.appVersion,
     capturedAt: input.capturedAt ?? Date.now(),
     route: { url: input.routeUrl },
-    primitives: input.primitives,
-    storage: input.storage,
+    primitives,
+    storage,
+    ...(input.pendingTasks ? { pendingTasks: input.pendingTasks } : {}),
+    ...(input.temporalNow === undefined ? {} : { temporalNow: input.temporalNow }),
+    ...(input.temporalDateNow === undefined ? {} : { temporalDateNow: input.temporalDateNow }),
     capabilities: {
       primitives: true,
       storage: true,
@@ -123,6 +144,9 @@ export function connectReplaySnapshotCapture(
     route(): string | undefined;
     primitives(): Readonly<Record<string, unknown>>;
     storage(): Promise<ReplaySnapshotV1['storage']>;
+    pendingTasks?(): NonNullable<ReplaySnapshotV1['pendingTasks']>;
+    temporalNow?(): number;
+    temporalDateNow?(): number;
     isQuiescent(): boolean;
     subscribe(onChange: () => void): () => void;
     debounceMs?: number;
@@ -152,6 +176,9 @@ export function connectReplaySnapshotCapture(
     const routeUrl = options.route();
     if (!routeUrl) return;
     const primitives = options.primitives();
+    const pendingTasks = options.pendingTasks?.() ?? [];
+    const temporalNow = options.temporalNow?.();
+    const temporalDateNow = options.temporalDateNow?.();
     capturing = true;
     let storage: ReplaySnapshotV1['storage'];
     try {
@@ -166,13 +193,19 @@ export function connectReplaySnapshotCapture(
       schedule();
       return;
     }
-    const key = JSON.stringify([routeUrl, primitives, storage]);
+    // A ticking clock is checkpoint metadata, not a state change. Including
+    // it here would emit a new snapshot every debounce interval while a task
+    // waits, continuously moving the recorded cut away from stable state.
+    const key = JSON.stringify([routeUrl, primitives, storage, pendingTasks]);
     if (key === lastSnapshotKey) return;
     const snapshotInput = {
       appVersion: options.appVersion,
       routeUrl,
       primitives,
       storage,
+      pendingTasks,
+      ...(temporalNow === undefined ? {} : { temporalNow }),
+      ...(temporalDateNow === undefined ? {} : { temporalDateNow }),
       inFlightOperations: 0,
     } as const;
     const snapshot = createReplaySnapshot(snapshotInput);
@@ -759,6 +792,26 @@ function containsRedactedValue(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(containsRedactedValue);
   if (isRecord(value)) return Object.values(value).some(containsRedactedValue);
   return false;
+}
+
+/** Removes the same secret-key families as the portable session redactor. */
+function stripReplaySnapshotSecrets(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripReplaySnapshotSecrets);
+  if (!isRecord(value)) return value;
+  if (
+    Object.keys(value).some((key) =>
+      /password|passwd|secret|token|authorization|cookie|api[-_]?key|private[-_]?key/i.test(
+        key,
+      ),
+    )
+  )
+    return '[REDACTED]';
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      stripReplaySnapshotSecrets(entry),
+    ]),
+  );
 }
 
 export type ReplayCommandExecutor = (

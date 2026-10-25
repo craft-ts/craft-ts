@@ -6,6 +6,7 @@ import {
 } from './host/craft-compat';
 import { ɵcraftValueService } from './craft-service';
 import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
+import type { CraftResumeDeclaration } from './craft-resume';
 
 export type PrimitiveResourceRuntimeKind =
   | 'query'
@@ -35,6 +36,7 @@ export type PrimitiveResourceRuntimeContext<
   restoreError?(error: unknown, id?: string): unknown;
   status?(id?: string): string;
   error?(id?: string): unknown;
+  resume?: CraftResumeDeclaration;
 }>;
 
 export type PrimitiveResourceRuntimeObserver = (
@@ -93,6 +95,7 @@ export function providePrimitiveResourceRuntimeObserver(
 export function ɵobservePrimitiveResourceRuntimeContext(
   context: PrimitiveResourceRuntimeContext,
   name?: string,
+  resume?: CraftResumeDeclaration,
 ): void {
   // A primitive is created inside whatever computation is running the
   // function that declares it (a component, a function-scoped service). An
@@ -112,6 +115,7 @@ export function ɵobservePrimitiveResourceRuntimeContext(
     ɵregisterCraftPrimitive({
       kind: context.kind,
       name,
+      ...(resume ? { resume } : {}),
       read: () => context.get(),
       // A registry write puts a value BACK; it is not an application deciding
       // to override one, so it must not detach the resource from its loader.
