@@ -169,7 +169,12 @@ export function describeCraftSessionResume(
           }),
       hasAcquireAdapter: typeof declaration.acquire === 'function',
       hasReadAdapter: typeof declaration.read === 'function',
-      hasWriteAdapter: typeof declaration.write === 'function',
+      // A holder or a restored state is written through the primitive itself
+      // when it declares no writer.
+      hasWriteAdapter:
+        typeof declaration.write === 'function' ||
+        declaration.role === 'holds' ||
+        declaration.role === 'restores',
     };
   }
   const edges: ResumeGraphArtifact['edges'][number][] = [];

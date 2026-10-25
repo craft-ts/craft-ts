@@ -41,7 +41,6 @@ export interface ResumeGraphArtifact {
 export interface ResumeGraphDiagnostic {
   readonly code:
     | 'resume-unresolved'
-    | 'resume-held-without-substitution'
     | 'resume-requires-without-provider'
     | 'resume-dynamic-endpoint'
     | 'resume-computed-calls-boundary';
@@ -63,13 +62,6 @@ export function checkResumeGraph(
   for (const { node, resume } of declarations) {
     const resource = typeof resume['resource'] === 'string' ? resume['resource'] : '';
     const role = resume['role'];
-    if (role === 'holds' && resume['hasWrite'] !== true) {
-      diagnostics.push({
-        code: 'resume-held-without-substitution',
-        nodeId: node.id,
-        message: `Primitive '${node.label}' holds '${resource}' without a substitution writer.`,
-      });
-    }
     if (
       role === 'requires' &&
       !declarations.some((candidate) =>

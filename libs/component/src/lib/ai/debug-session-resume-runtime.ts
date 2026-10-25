@@ -251,8 +251,6 @@ export async function executeCraftSessionResume(
         };
       }
       case 'substitute': {
-        if (!declaration.write)
-          throw new Error(`Aucun adaptateur de substitution pour ${step.id}.`);
         const value = step.resource
           ? (resourceValues.get(step.resource) ??
             readResourceProvider(step.resource))
@@ -261,7 +259,7 @@ export async function executeCraftSessionResume(
           throw new Error(
             `La ressource '${step.resource}' n’a pas été acquise.`,
           );
-        await runCallback(() => declaration.write!(value));
+        await writeDeclared(entry, value);
         return {
           id: step.id,
           status: 'conformant',
@@ -269,8 +267,6 @@ export async function executeCraftSessionResume(
         };
       }
       case 'restore': {
-        if (!declaration.write)
-          throw new Error(`Aucun adaptateur de restauration pour ${step.id}.`);
         if (
           !step.primitive ||
           (!hasOwn(options.snapshot.primitives, step.primitive) &&
@@ -280,7 +276,7 @@ export async function executeCraftSessionResume(
         const value = hasOwn(options.snapshot.primitives, step.primitive)
           ? options.snapshot.primitives[step.primitive]
           : declaration.value;
-        await runCallback(() => declaration.write!(value));
+        await writeDeclared(entry, value);
         return {
           id: step.id,
           status: 'conformant',
@@ -337,6 +333,13 @@ export async function executeCraftSessionResume(
         };
       }
     }
+  }
+
+  /** The declared writer, or the primitive itself when there is none. */
+  async function writeDeclared(entry: CraftPrimitiveEntry, value: unknown) {
+    const write = entry.resume?.write;
+    if (write) await runCallback(() => write(value));
+    else entry.write(value);
   }
 
   function readResourceProvider(resource: string): unknown {

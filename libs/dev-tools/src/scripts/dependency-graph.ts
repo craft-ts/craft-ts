@@ -2769,21 +2769,19 @@ function analyzePrimitiveResumeDeclarations(
       if (!primitive || !['state', 'query', 'mutation'].includes(primitive)) continue;
       const configIndex = 1;
       const config = call.getArguments()[configIndex]?.asKind(SyntaxKind.ObjectLiteralExpression);
-      const stateOptions = primitive === 'state'
-        ? call.getArguments().at(-1)?.asKind(SyntaxKind.ObjectLiteralExpression)
+      // A state takes `withResume(...)` as its last insertion; queries and
+      // mutations a `resume` property of their config.
+      const withResume = primitive === 'state'
+        ? call.getArguments().at(-1)?.asKind(SyntaxKind.CallExpression)
         : undefined;
-      const resumeOwner = stateOptions?.getProperty('resume')
-        ? stateOptions
-        : config;
-      const resumeInitializer = resumeOwner
-        ?.getProperty('resume')
-        ?.asKind(SyntaxKind.PropertyAssignment)
-        ?.getInitializer();
-      const resumeCall = resumeInitializer?.asKind(SyntaxKind.CallExpression);
-      const resume = resumeInitializer?.asKind(SyntaxKind.ObjectLiteralExpression) ??
-        (resumeCall?.getExpression().getText() === 'craftResume'
-          ? resumeCall.getArguments()[0]?.asKind(SyntaxKind.ObjectLiteralExpression)
-          : undefined);
+      const resumeInitializer =
+        withResume?.getExpression().getText() === 'withResume'
+          ? withResume.getArguments()[0]
+          : config
+              ?.getProperty('resume')
+              ?.asKind(SyntaxKind.PropertyAssignment)
+              ?.getInitializer();
+      const resume = resumeDeclarationLiteral(resumeInitializer);
       if (!resume) continue;
       const primitiveNode = builder.nodes.get(stablePrimitiveId(call, primitive));
       if (!primitiveNode) continue;
@@ -2800,7 +2798,10 @@ function analyzePrimitiveResumeDeclarations(
           details['hasWrite'] = true;
           continue;
         }
-        const value = staticLiteralValue(assignment.getInitializer());
+        const value =
+          name === 'resource'
+            ? resumeResourceName(assignment.getInitializer())
+            : staticLiteralValue(assignment.getInitializer());
         if (value !== undefined) details[name] = value;
       }
       if (Object.keys(details).length > 0) {
@@ -2811,6 +2812,49 @@ function analyzePrimitiveResumeDeclarations(
       }
     }
   }
+}
+
+/** `'session'`, or the name a `craftResumeResource('session')` constant carries. */
+function resumeResourceName(node: Node | undefined): string | undefined {
+  const literal = node && staticLiteralValue(node);
+  if (typeof literal === 'string') return literal;
+  const identifier = node?.asKind(SyntaxKind.Identifier);
+  const symbol = identifier?.getSymbol();
+  const declaration = (symbol?.getAliasedSymbol() ?? symbol)
+    ?.getDeclarations()
+    .find(Node.isVariableDeclaration);
+  const call = declaration?.getInitializer()?.asKind(SyntaxKind.CallExpression);
+  if (call?.getExpression().getText() !== 'craftResumeResource') return undefined;
+  const name = staticLiteralValue(call.getArguments()[0]);
+  return typeof name === 'string' ? name : undefined;
+}
+
+/**
+ * The object literal a resume declaration is written as: inline, in
+ * `craftResume({...})`, or returned by `craftResume((self) => ({...}))`.
+ */
+function resumeDeclarationLiteral(
+  node: Node | undefined,
+): import('ts-morph').ObjectLiteralExpression | undefined {
+  if (!node) return undefined;
+  const literal = node.asKind(SyntaxKind.ObjectLiteralExpression);
+  if (literal) return literal;
+  const call = node.asKind(SyntaxKind.CallExpression);
+  if (call?.getExpression().getText() !== 'craftResume') return undefined;
+  const argument = call.getArguments()[0];
+  const direct = argument?.asKind(SyntaxKind.ObjectLiteralExpression);
+  if (direct) return direct;
+  if (Node.isArrowFunction(argument) || Node.isFunctionExpression(argument)) {
+    const body = argument.getBody();
+    const returned = Node.isBlock(body)
+      ? body.getDescendantsOfKind(SyntaxKind.ReturnStatement)[0]?.getExpression()
+      : body;
+    let expression: Node | undefined = returned;
+    while (expression && Node.isParenthesizedExpression(expression))
+      expression = expression.getExpression();
+    return expression?.asKind(SyntaxKind.ObjectLiteralExpression);
+  }
+  return undefined;
 }
 
 /**

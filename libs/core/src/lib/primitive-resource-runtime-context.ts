@@ -6,7 +6,7 @@ import {
 } from './host/craft-compat';
 import { ɵcraftValueService } from './craft-service';
 import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
-import type { CraftResumeDeclaration } from './craft-resume';
+import type { CraftResumeSpec } from './craft-resume';
 
 export type PrimitiveResourceRuntimeKind =
   | 'query'
@@ -36,7 +36,7 @@ export type PrimitiveResourceRuntimeContext<
   restoreError?(error: unknown, id?: string): unknown;
   status?(id?: string): string;
   error?(id?: string): unknown;
-  resume?: CraftResumeDeclaration;
+  resume?: CraftResumeSpec;
 }>;
 
 export type PrimitiveResourceRuntimeObserver = (
@@ -95,7 +95,7 @@ export function providePrimitiveResourceRuntimeObserver(
 export function ɵobservePrimitiveResourceRuntimeContext(
   context: PrimitiveResourceRuntimeContext,
   name?: string,
-  resume?: CraftResumeDeclaration,
+  resume?: CraftResumeSpec,
 ): void {
   // A primitive is created inside whatever computation is running the
   // function that declares it (a component, a function-scoped service). An

@@ -52,7 +52,11 @@ import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
 import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
-import type { CraftResumeDeclaration } from './craft-resume';
+import {
+  ɵwithResumeSpecOf,
+  type CraftResumeSpec,
+  type CraftWithResume,
+} from './craft-resume';
 import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
   createYieldableInsertionMethod,
@@ -483,6 +487,21 @@ export function state<
     Name
   >
 >;
+export function state<Name extends string, StateInput>(
+  name: Name,
+  stateConfig: StateInput,
+  resume: CraftWithResume,
+): NamedCraftPrimitiveGen<
+  Name,
+  StateOutput<
+    ResolvedStateType<StateInput>,
+    {},
+    StateTrackedDependencies<StateInput>,
+    false,
+    false,
+    Name
+  >
+>;
 export function state<
   Name extends string,
   StateInput,
@@ -497,7 +516,7 @@ export function state<
     {},
     Insertion1Yielded
   >,
-  options: Readonly<{ resume: CraftResumeDeclaration }>,
+  resume: CraftWithResume,
 ): NamedCraftPrimitiveGen<
   Name,
   StateOutput<
@@ -521,18 +540,9 @@ export function state(
     typeof nameOrStateConfig === 'string' && arguments.length >= 2;
   const name = isNamed ? nameOrStateConfig : 'state';
   const config = isNamed ? stateConfig : nameOrStateConfig;
-  const resumeOptions = insertions.at(-1);
-  const hasResumeOptions =
-    isNamed &&
-    typeof resumeOptions === 'object' &&
-    resumeOptions !== null &&
-    'resume' in resumeOptions;
-  const resume = hasResumeOptions
-    ? (resumeOptions as { resume?: CraftResumeDeclaration }).resume
-    : undefined;
-  const stateInsertions = hasResumeOptions
-    ? insertions.slice(0, -1)
-    : insertions;
+  // `withResume(...)` is the last insertion, whatever their number.
+  const resume = isNamed ? ɵwithResumeSpecOf(insertions.at(-1)) : undefined;
+  const stateInsertions = resume ? insertions.slice(0, -1) : insertions;
   const ref = createStateRef(
     name,
     config,
@@ -546,7 +556,7 @@ function createStateRef<StateType>(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stateConfig: any,
-  resume?: CraftResumeDeclaration,
+  resume?: CraftResumeSpec,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...insertions: any[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

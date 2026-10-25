@@ -189,7 +189,7 @@ type QueryConfig<
   LoaderYielded = never,
   StreamYielded = never,
 > = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
-  { readonly resume?: import('./craft-resume').CraftResumeDeclaration } &
+  { readonly resume?: import('./craft-resume').CraftResumeSpec } &
   (
     | {
         /**

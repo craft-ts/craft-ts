@@ -9,7 +9,11 @@ import { ɵcraftValueService } from './craft-service';
 import { ɵHOST_TAG_LIST } from './craft-service';
 import { ɵcurrentInjector, ɵloopGuardPrimitiveCreated } from './loop-guard';
 import { ɵwithCraftReplay } from './craft-replay';
-import type { CraftResumeDeclaration } from './craft-resume';
+import {
+  ɵresolveCraftResume,
+  type CraftResumeDeclaration,
+  type CraftResumeSpec,
+} from './craft-resume';
 
 /**
  * Primitives that hold a value the registry can read back and write into.
@@ -355,7 +359,7 @@ export function ɵcraftPrimitiveAddress(
 type RegisterOptions = Readonly<{
   kind: CraftPrimitiveKind;
   name: string;
-  resume?: CraftResumeDeclaration;
+  resume?: CraftResumeSpec;
   read(): unknown;
   write(value: unknown): void;
   restoreError?(error: unknown): void;
@@ -414,6 +418,13 @@ export function ɵregisterCraftPrimitive(
     injector: options.injector ?? ɵcurrentInjector(),
   });
 
+  // A factory declaration receives the primitive it is attached to.
+  const resume = ɵresolveCraftResume(
+    options.resume,
+    Object.assign(() => options.read(), {
+      set: (value: unknown) => options.write(value),
+    }),
+  );
   const { address, release } = registry.register(
     ɵcraftPrimitiveAddress(hostTags, options.kind, options.name),
     {
@@ -426,7 +437,7 @@ export function ɵregisterCraftPrimitive(
       ...(options.reload ? { reload: options.reload } : {}),
       ...(options.status ? { status: options.status } : {}),
       ...(options.error ? { error: options.error } : {}),
-      ...(options.resume ? { resume: options.resume } : {}),
+      ...(resume ? { resume } : {}),
       // Aucun défaut ici : le transfert d'une primitive est une décision de
       // la politique de sécurité de l'application, pas du framework.
       ...(options.transfer === undefined ? {} : { transfer: options.transfer }),

@@ -101,6 +101,36 @@ function edgeLabels(
 }
 
 describe('analyzeDependencyGraph reactive granularity', () => {
+  it('reads resume declarations written with withResume and a craftResume factory', async () => {
+    const root = await fixture({
+      'resume.ts': `
+        ${CRAFT_STUBS}
+        declare function craftResume(value: unknown): unknown;
+        declare function withResume(value: unknown): unknown;
+        const { Session } = craftService({ name: 'Session', providedIn: 'global' }, function* () {
+          yield* state('currentSession', undefined as unknown, ({ set }) => ({ open: (value: unknown) => set(value) }),
+            withResume(craftResume((self: unknown) => ({ resource: 'session', role: 'holds', path: '$.token' }))));
+          yield* query('currentUser', {
+            resume: craftResume({ resource: 'session', role: 'requires', calls: ['auth.me'] }),
+            params: () => true,
+            loader: function* () { return true; },
+          });
+        });
+      `,
+    });
+    const graph = analyzeDependencyGraph({ rootDir: root, tsConfigFilePath: 'tsconfig.json' });
+    expect(nodeByLabel(graph, 'state:currentSession')[0]?.details?.['resume']).toEqual({
+      resource: 'session',
+      role: 'holds',
+      path: '$.token',
+    });
+    expect(nodeByLabel(graph, 'query:currentUser')[0]?.details?.['resume']).toEqual({
+      resource: 'session',
+      role: 'requires',
+      calls: ['auth.me'],
+    });
+  });
+
   it('treats reading a primitive as a dependency, not a call of its methods', async () => {
     const root = await fixture({
       'cart.ts': `

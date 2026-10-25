@@ -1,15 +1,16 @@
 import {
   craftComputed,
   craftResume,
+  craftResumeResource,
   craftService,
   craftUnique,
-  insertQueryPipe,
   insertReactOnMutation,
   insertStoragePersister,
   isCraftException,
   mutation,
   query,
   state,
+  withResume,
 } from '@craft-ts/core';
 import {
   addCartLine,
@@ -24,6 +25,12 @@ import { lineKey } from './shop-format';
 import type { CraftResumePersona } from '@craft-ts/core';
 import type { AccountSession } from '../shared/accounts';
 import type { CartLine, ChoiceGroup, ServerCart } from '../shared/model';
+
+/** Les ressources que la reprise réacquiert, typées par leur valeur. */
+const sessionResource = craftResumeResource<'session', AccountSession | undefined>(
+  'session',
+);
+const cartResource = craftResumeResource<'cart', ServerCart | undefined>('cart');
 
 // Ces services sont globaux : l'en-tête, la vitrine et le panier lisent le même
 // état, et un état déclaré dans le corps d'un composant repartirait de zéro à
@@ -75,10 +82,6 @@ function cartDeltas(
 export const { Cart } = craftService(
   { name: 'cart', providedIn: 'global' },
   function* () {
-    let writeCartLines: (lines: readonly CartLine[]) => unknown = () =>
-      undefined;
-    let writeServerCart: (cart: ServerCart | undefined) => unknown = () =>
-      undefined;
     // Les méthodes d'un state tournent avec le pilote synchrone : elles
     // changent les lignes locales et confient le serveur à `syncServerCart`.
     const cartLines = yield* state(
@@ -89,9 +92,6 @@ export const { Cart } = craftService(
         const persistence = yield* insertStoragePersister(
           craftUnique({ storeName: 'atelier', key: 'cart.v1' }),
         )(context);
-        writeCartLines = function* (lines) {
-          yield* context.set(lines);
-        };
         const changed = function* () {
           yield* syncServerCart.mutate(yield* context.state());
         };
@@ -118,18 +118,14 @@ export const { Cart } = craftService(
           },
         };
       },
-      {
-        resume: craftResume({
+      withResume(
+        craftResume({
           resource: 'cart',
           role: 'restores',
           value: [] as readonly CartLine[],
           entities: [{ kind: 'product', path: '$[*].productId' }],
-          write: (value) =>
-            Array.isArray(value)
-              ? writeCartLines(value as readonly CartLine[])
-              : undefined,
         }),
-      },
+      ),
     );
     const cartState = yield* state(
       'serverCart',
@@ -139,30 +135,14 @@ export const { Cart } = craftService(
         const persistence = yield* insertStoragePersister(
           craftUnique({ storeName: 'atelier', key: 'cart.server.v1' }),
         )(context);
-        writeServerCart = function* (cart) {
-          yield* context.set(cart);
-        };
         return {
           ...persistence,
           replace: (cart: ServerCart | undefined) => context.set(cart),
         };
       },
-      {
-        resume: craftResume({
-          resource: 'cart',
-          role: 'holds',
-          path: '$.id',
-          write: (value) =>
-            typeof value === 'object' &&
-            value !== null &&
-            'id' in value &&
-            typeof value.id === 'string' &&
-            'lines' in value &&
-            Array.isArray(value.lines)
-              ? writeServerCart(value as ServerCart)
-              : undefined,
-        }),
-      },
+      withResume(
+        craftResume({ resource: cartResource, role: 'holds', path: '$.id' }),
+      ),
     );
     /** Aligne le panier serveur sur ces lignes, en le créant s'il le faut. */
     const syncLines = function* (
@@ -193,7 +173,7 @@ export const { Cart } = craftService(
     };
     const syncServerCart = yield* mutation('syncServerCart', {
       resume: craftResume({
-        resource: 'cart',
+        resource: cartResource,
         role: 'provides',
         persona: 'guest',
         calls: [
@@ -229,16 +209,16 @@ export const quantityInCart = (lines: readonly CartLine[], productId: string) =>
     .filter((line) => line.productId === productId)
     .reduce((sum, line) => sum + line.quantity, 0);
 
+function credentialsOf(persona: CraftResumePersona) {
+  const { email, password } = persona.params;
+  if (typeof email !== 'string' || typeof password !== 'string')
+    throw new Error(`La persona '${persona.role}' n’a pas d’identifiants locaux.`);
+  return { email, password };
+}
+
 export const { Session } = craftService(
   { name: 'session', providedIn: 'global' },
   function* () {
-    let writeSession: (value: unknown) => unknown = () => undefined;
-    let reloadCurrentUser: () => Generator<unknown, boolean, unknown> =
-      function* () {
-        return false;
-      };
-    let reacquireSession: (persona: CraftResumePersona) => unknown = () =>
-      undefined;
     const currentSession = yield* state(
       'currentSession',
       undefined as AccountSession | undefined,
@@ -247,28 +227,20 @@ export const { Session } = craftService(
         const persistence = yield* insertStoragePersister(
           craftUnique({ storeName: 'atelier', key: 'session.v1' }),
         )(context);
-        writeSession = function* (value) {
-          yield* context.set(value as AccountSession | undefined);
-        };
         return {
           ...persistence,
           open: (session: AccountSession) => context.set(session),
           close: () => context.set(undefined),
         };
       },
-      {
-        resume: craftResume({
-          resource: 'session',
+      withResume(
+        craftResume({
+          resource: sessionResource,
           role: 'holds',
           path: '$.token',
-          identity: {
-            role: '$.user.role',
-            id: '$.user.id',
-            storageKey: 'session.v1',
-          },
-          write: (value) => writeSession(value),
+          identity: { role: '$.user.role', id: '$.user.id', storageKey: 'session.v1' },
         }),
-      },
+      ),
     );
     const sessionNotice = yield* state(
       'sessionNotice',
@@ -279,18 +251,18 @@ export const { Session } = craftService(
     );
     const signInProcess = yield* mutation('signInProcess', {
       resume: craftResume({
-        resource: 'session',
+        resource: sessionResource,
         role: 'provides',
-        calls: [
-          'ecommerce.auth.login',
-          'ecommerce.auth.me',
-          'ecommerce.auth.logout',
-        ],
-        acquire: (persona) => reacquireSession(persona),
+        calls: ['ecommerce.auth.login', 'ecommerce.auth.me', 'ecommerce.auth.logout'],
+        acquire: function* (persona) {
+          const session = yield* signIn(credentialsOf(persona));
+          if (isCraftException(session)) throw new Error('Connexion refusée.');
+          yield* currentSession.open(session);
+          return session;
+        },
         cleanup: function* () {
           const current = yield* currentSession();
-          if (!current) return;
-          yield* signOut({ token: current.token });
+          if (current) yield* signOut({ token: current.token });
           yield* currentSession.close();
         },
       }),
@@ -307,25 +279,11 @@ export const { Session } = craftService(
         return result;
       },
     });
-    reacquireSession = function* (persona) {
-      const email = persona.params['email'];
-      const password = persona.params['password'];
-      if (typeof email !== 'string' || typeof password !== 'string')
-        throw new Error(
-          `La persona '${persona.role}' n’a pas d’identifiants locaux valides.`,
-        );
-      const session = yield* signIn({ email, password });
-      if (isCraftException(session))
-        throw new Error('La réacquisition de la session a échoué.');
-      yield* currentSession.open(session);
-      yield* reloadCurrentUser();
-      return session;
-    };
     yield* query(
       'currentUser',
       {
         resume: craftResume({
-          resource: 'session',
+          resource: sessionResource,
           role: 'requires',
           identity: { role: '$.user.role', id: '$.user.id' },
           calls: ['ecommerce.auth.me'],
@@ -338,16 +296,10 @@ export const { Session } = craftService(
           return yield* currentUser({ token });
         },
       },
-      insertQueryPipe(
-        insertReactOnMutation(signInProcess, {}),
-        ({ reload }) => {
-          reloadCurrentUser = () => reload();
-          return {};
-        },
-      ),
+      insertReactOnMutation(signInProcess, {}),
     );
     yield* query('signOutProcess', {
-      resume: craftResume({ resource: 'session', role: 'revokes' }),
+      resume: craftResume({ resource: sessionResource, role: 'revokes' }),
       method: (token: string) => token,
       // Le serveur d'abord : fermer la session avant l'appel l'interrompait,
       // et le jeton restait valide côté serveur.

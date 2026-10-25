@@ -126,7 +126,7 @@ describe('resumeChainOf', () => {
 });
 
 describe('checkResumeGraph', () => {
-  it('finds missing resource providers and substitutions', () => {
+  it('finds a required resource that nothing provides', () => {
     const graph: DependencyGraph = {
       version: 1,
       rootDir: '/project',
@@ -138,12 +138,10 @@ describe('checkResumeGraph', () => {
       edges: [],
     };
 
-    expect(checkResumeGraph(graph).map((diagnostic) => diagnostic.code)).toEqual(
-      expect.arrayContaining([
-        'resume-requires-without-provider',
-        'resume-held-without-substitution',
-      ]),
-    );
+    // A holder without a writer is written through the primitive itself.
+    expect(checkResumeGraph(graph).map((diagnostic) => diagnostic.code)).toEqual([
+      'resume-requires-without-provider',
+    ]);
   });
 });
 
