@@ -10,6 +10,8 @@ import type { Injector } from '../host-runtime';
 import type { DebugAppSnapshot } from './debug-session-app-snapshot';
 import {
   executeDebugSessionResumePlan,
+  isTechnicalFailure,
+  ResumeTechnicalError,
   type DebugSessionResumeExecutionAdapter,
   type ResumeFidelityReport,
   type ResumeStepResult,
@@ -18,7 +20,9 @@ import type { DebugSessionResumeManifest } from './debug-session-resume-manifest
 import type {
   DebugSessionResumePlan,
   DebugSessionResumeStep,
+  RecordedResumeIdentity,
 } from './debug-session-resume-plan';
+import { readResumePathValue } from './debug-session-resume-path';
 import {
   runDebugSessionResumePreflight,
   type ResumePreflightAdapter,
@@ -39,7 +43,12 @@ export interface ExecuteCraftSessionResumeOptions {
   /** In-memory values acquired by the leader tab earlier in this run. */
   readonly sharedResources?: Map<string, unknown>;
   readonly onResourceAcquired?: (resource: string, value: unknown) => void;
+  /** Whether the app already sent these calls again with a reacquired resource. */
+  readonly callsWereReread?: (calls: readonly string[]) => boolean;
 }
+
+export type CraftSessionResumeExecution = ResumeFidelityReport &
+  Readonly<{ release(): Promise<void> }>;
 
 /**
  * Executes declared adapters in the target app's injector. The serialized plan
@@ -47,7 +56,7 @@ export interface ExecuteCraftSessionResumeOptions {
  */
 export async function executeCraftSessionResume(
   options: ExecuteCraftSessionResumeOptions,
-): Promise<ResumeFidelityReport> {
+): Promise<CraftSessionResumeExecution> {
   const registry = options.registry ?? ɵinjectCraftPrimitiveRegistry();
   const resourceValues = options.sharedResources ?? new Map<string, unknown>();
   const normalizeAddress = (address: string) =>
@@ -75,9 +84,33 @@ export async function executeCraftSessionResume(
       appStartNotSupportedErrorMessage:
         'Craft resume adapters cannot start a second app initializer.',
     });
-    if (settled.kind === 'shortCircuit')
-      throw new Error(String(settled.exception));
+    if (settled.kind === 'shortCircuit') {
+      const failure = new Error(String(settled.exception));
+      throw isTechnicalFailure(settled.exception)
+        ? new ResumeTechnicalError(failure.message)
+        : failure;
+    }
     return settled.value;
+  };
+  const withCalls = async <T>(
+    calls: readonly string[] | undefined,
+    run: () => Promise<T>,
+  ): Promise<T> => {
+    options.setAllowedCalls?.(new Set(calls ?? []));
+    try {
+      return await run();
+    } finally {
+      options.setAllowedCalls?.(new Set());
+    }
+  };
+  /** Runs a successful acquisition's declared cleanup (sign out, delete). */
+  const releaseStep = async (step: DebugSessionResumeStep) => {
+    const declaration = byAddress(step.primitive)?.resume;
+    if (!declaration?.cleanup) return;
+    await withCalls(step.allowedCalls, () =>
+      runCallback(() => declaration.cleanup!()),
+    );
+    if (step.resource) resourceValues.delete(step.resource);
   };
   const adapter: DebugSessionResumeExecutionAdapter = {
     preflight: async () => {
@@ -88,16 +121,39 @@ export async function executeCraftSessionResume(
       return { status: result.status, missing: result.missing };
     },
     executeStep: async (step) => {
-      options.setAllowedCalls?.(new Set(step.allowedCalls ?? []));
-      try {
-        return await executeStep(step);
-      } finally {
-        options.setAllowedCalls?.(new Set());
-      }
+      if (step.unneeded)
+        return {
+          id: step.id,
+          status: 'conformant',
+          detail: step.reason ?? 'Non nécessaire au point ciblé.',
+        };
+      return withCalls(step.allowedCalls, () => executeStep(step));
     },
+    releaseStep,
+    cleanup: () => options.setAllowedCalls?.(new Set()),
+    sleep: (delayMs) =>
+      ɵinjectCraftTemporalRuntime().sleep(delayMs, { owner: 'resume-retry' }),
     onStep: options.onStep,
   };
-  return executeDebugSessionResumePlan(options.plan, adapter);
+  const report = await executeDebugSessionResumePlan(options.plan, adapter);
+  return {
+    ...report,
+    // An expectation that fails after the user took over (`abort`) undoes
+    // the acquisitions too, in reverse order.
+    release: async () => {
+      const done = new Set(
+        report.steps
+          .filter(
+            (result) =>
+              result.status === 'conformant' || result.status === 'overridden',
+          )
+          .map((result) => result.id),
+      );
+      for (const step of [...options.plan.steps].reverse())
+        if (step.kind === 'acquire' && !step.unneeded && done.has(step.id))
+          await releaseStep(step);
+    },
+  };
 
   async function executeStep(
     step: DebugSessionResumeStep,
@@ -114,7 +170,7 @@ export async function executeCraftSessionResume(
         };
       return {
         id: step.id,
-        status: step.blocking ? 'blocked' : 'tolerated',
+        status: step.blocking ? 'blocked' : 'skipped',
         detail:
           step.reason ??
           'La tâche n’a pas été recréée au démarrage par son propriétaire.',
@@ -135,9 +191,16 @@ export async function executeCraftSessionResume(
           };
         if (!declaration.acquire || !step.persona)
           throw new Error(`Aucun adaptateur local pour ${step.id}.`);
-        const persona = options.personas.find(
-          (candidate) => candidate.role === step.persona,
-        );
+        const persona =
+          options.personas.find(
+            (candidate) =>
+              candidate.role === step.persona &&
+              (step.personaId === undefined || candidate.id === step.personaId),
+          ) ??
+          options.personas.find(
+            (candidate) =>
+              candidate.role === step.persona && candidate.id === undefined,
+          );
         if (!persona)
           throw new Error(`Persona '${step.persona}' indisponible.`);
         const result = await runCallback(() => declaration.acquire!(persona));
@@ -146,14 +209,44 @@ export async function executeCraftSessionResume(
         const value = result === undefined ? safeRead(entry) : result;
         if (value === undefined)
           throw new Error(`L’acquisition '${step.resource}' n’a fourni aucune ressource.`);
+        // The acquired value already says who it belongs to when a holder
+        // declares identity paths; the server's answer is checked again by
+        // the refetch of the `requires` primitive.
+        const holder = registry
+          .list()
+          .find(
+            (candidate) =>
+              candidate.resume?.resource === step.resource &&
+              candidate.resume?.role === 'holds' &&
+              candidate.resume?.identity !== undefined,
+          );
+        const mismatch =
+          step.expectedIdentity && holder?.resume
+            ? identityMismatchOf(
+                { ...holder, read: () => value },
+                holder.resume,
+                step.expectedIdentity,
+              )
+            : undefined;
+        if (mismatch)
+          return {
+            id: step.id,
+            status: 'blocked',
+            code: 'identity-mismatch',
+            expected: step.expectedIdentity,
+            actual: mismatch.actual,
+            detail: mismatch.detail,
+          };
         if (step.resource) {
           resourceValues.set(step.resource, value);
           options.onResourceAcquired?.(step.resource, value);
         }
         return {
           id: step.id,
-          status: 'conformant',
-          detail: 'Ressource acquise dans l’application cible.',
+          status: step.assisted ? 'overridden' : 'conformant',
+          detail: step.assisted
+            ? `Ressource acquise avec une autre persona (${step.persona}) : reprise assistée.`
+            : 'Ressource acquise dans l’application cible.',
         };
       }
       case 'substitute': {
@@ -196,22 +289,50 @@ export async function executeCraftSessionResume(
       case 'refetch': {
         const previousStatus = entry.status?.();
         const previousError = entry.error?.();
-        if (!entry.reload?.())
+        // A load already running (held, then sent with the new resource)
+        // is the re-read: waiting for it avoids a second request.
+        const running =
+          previousStatus === 'loading' || previousStatus === 'reloading';
+        const reread =
+          !running &&
+          previousStatus !== 'exception' &&
+          options.callsWereReread?.(step.allowedCalls ?? []) === true;
+        if (!running && !reread && !entry.reload?.())
           throw new Error(
             `La primitive '${entry.address}' ne peut pas être relue.`,
           );
-        await waitForSettled(
-          registry,
-          entry.address,
-          previousStatus,
-          previousError,
-        );
-        if (entry.status?.() === 'exception')
-          throw new Error(`La relecture '${entry.name}' a échoué.`);
+        if (!reread)
+          await waitForSettled(
+            registry,
+            entry.address,
+            previousStatus,
+            previousError,
+            running,
+          );
+        if (entry.status?.() === 'exception') {
+          const message = `La relecture '${entry.name}' a échoué.`;
+          throw isTechnicalFailure(entry.error?.())
+            ? new ResumeTechnicalError(message)
+            : new Error(message);
+        }
+        const mismatch = step.expectedIdentity
+          ? identityMismatchOf(entry, declaration, step.expectedIdentity)
+          : undefined;
+        if (mismatch)
+          return {
+            id: step.id,
+            status: 'blocked',
+            code: 'identity-mismatch',
+            expected: step.expectedIdentity,
+            actual: mismatch.actual,
+            detail: mismatch.detail,
+          };
         return {
           id: step.id,
           status: 'conformant',
-          detail: 'Donnée relue depuis le serveur.',
+          detail: step.expectedIdentity
+            ? `Donnée relue depuis le serveur · identité ${step.expectedIdentity.role}${step.expectedIdentity.id ? ` · ${step.expectedIdentity.id}` : ''} confirmée.`
+            : 'Donnée relue depuis le serveur.',
         };
       }
     }
@@ -229,15 +350,43 @@ export async function executeCraftSessionResume(
   }
 }
 
+/** Compares the identity the server now reports with the recorded one. */
+function identityMismatchOf(
+  entry: CraftPrimitiveEntry,
+  declaration: NonNullable<CraftPrimitiveEntry['resume']>,
+  expected: RecordedResumeIdentity,
+): Readonly<{ actual: unknown; detail: string }> | undefined {
+  const identity = declaration.identity;
+  if (!identity) return undefined;
+  const value = safeRead(entry);
+  const role = readResumePathValue(value, identity.role);
+  const id =
+    identity.id === undefined ? undefined : readResumePathValue(value, identity.id);
+  const actual = {
+    role: typeof role === 'string' ? role : undefined,
+    ...(id === undefined ? {} : { id: String(id) }),
+  };
+  if (
+    actual.role === expected.role &&
+    (expected.id === undefined || actual.id === expected.id)
+  )
+    return undefined;
+  return {
+    actual,
+    detail: `Identité différente de l’enregistrement : attendu ${expected.role}${expected.id ? ` · ${expected.id}` : ''}, obtenu ${actual.role ?? 'aucune'}${actual.id ? ` · ${actual.id}` : ''}.`,
+  };
+}
+
 async function waitForSettled(
   registry: NonNullable<ExecuteCraftSessionResumeOptions['registry']>,
   address: string,
   previousStatus?: string,
   previousError?: unknown,
+  alreadyRunning = false,
 ): Promise<void> {
   const runtime = ɵinjectCraftTemporalRuntime();
   const deadline = runtime.now() + 15_000;
-  let observedRunning = false;
+  let observedRunning = alreadyRunning;
   while (runtime.now() < deadline) {
     const entry = registry.get(address);
     const status = entry?.status?.();

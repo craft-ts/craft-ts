@@ -202,6 +202,11 @@ export function buildDebugAppSnapshot(
     )
       continue;
     primitives = { ...primitives, ...event.state };
+    // JSON drops an undefined value: a change whose address is missing from
+    // its state set the primitive back to undefined (a closed session).
+    const changed = isRecord(event.payload) ? event.payload['address'] : undefined;
+    if (typeof changed === 'string' && !Object.hasOwn(event.state, changed))
+      primitives[changed] = undefined;
     changes += 1;
   }
 

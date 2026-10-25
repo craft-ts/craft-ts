@@ -19,6 +19,18 @@ export type CraftResumeRole =
   | 'identity';
 export type CraftResumeMismatchPolicy = 'abort' | 'recorded' | 'degraded';
 
+/**
+ * Where the recorded identity is read, as paths into the primitive's value
+ * (`$.user.role`). Declared on a `holds` or `requires` primitive; the
+ * dashboard resolves it from the archive, so it stays data.
+ */
+export interface CraftResumeIdentity {
+  readonly role: string;
+  readonly id?: string;
+  /** Persistence key of a `holds` primitive, to read the identity from restored storage. */
+  readonly storageKey?: string;
+}
+
 export interface CraftResumeExpectation<Value = unknown> {
   readonly outcome: 'recorded';
   readonly match?: readonly (readonly (string | number)[])[];
@@ -31,11 +43,12 @@ export interface CraftResumeDeclaration<Resource extends string = string> {
   readonly role: CraftResumeRole;
   /** Event-reference path used to associate recorded values with this resource. */
   readonly path?: string;
+  /** Default persona role, for a resource that carries no identity (a guest cart). */
   readonly persona?: string;
   /** Exact operation ids this adapter may call; transports use `websocket:<absolute URL>`, `worker:<absolute URL>`, or `shared-worker:<absolute URL>`. */
   readonly calls?: readonly string[];
   readonly value?: unknown;
-  readonly identity?: boolean;
+  readonly identity?: CraftResumeIdentity;
   /** Locally executed adapter that reacquires the resource for a persona. */
   readonly acquire?: (
     persona: CraftResumePersona,
@@ -43,8 +56,12 @@ export interface CraftResumeDeclaration<Resource extends string = string> {
   readonly read?: () => unknown;
   readonly write?: (value: unknown) => unknown;
   readonly expect?: CraftResumeExpectation;
+  /** What to do when the live outcome differs from `expect` (default `degraded`). */
   readonly onMismatch?: CraftResumeMismatchPolicy;
-  readonly cleanup?: () => void;
+  /** `false` on a `requires` action (a method-triggered query): it is never re-run by the resume. */
+  readonly refetch?: false;
+  /** Undoes a successful `acquire` when the resume is abandoned (sign out, delete). */
+  readonly cleanup?: () => unknown;
 }
 
 export function craftResume<const Resource extends string>(

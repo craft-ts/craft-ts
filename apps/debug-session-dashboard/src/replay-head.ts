@@ -15,6 +15,8 @@ import {
   ul,
   isDebugSessionResumeOverrideList,
   validateDebugSessionResumeOverrides,
+  RESUME_FIDELITY_LABELS,
+  type ResumeStepStatus,
 } from '@craft-ts/component';
 import {
   craftComputed,
@@ -37,6 +39,15 @@ import {
 } from './replay-debug';
 import { isLoopbackResumeAssistantOrigin } from './resume-assistant-policy';
 import { sessionDate } from './replay-labels';
+
+const resumeStepIcons: Readonly<Record<ResumeStepStatus, string>> = {
+  conformant: '✓',
+  drifted: '≈',
+  skipped: '↷',
+  overridden: '✎',
+  recorded: '⚠',
+  blocked: '✗',
+};
 import { AiChatBridge } from './replay-ai-bridge.service';
 import {
   isRecord,
@@ -204,7 +215,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       const aiOverrides =
         report.overrides?.filter((override) => override.assistedBy === 'ai')
           .length ?? 0;
-      return `Fidélité ${report.classification} · ${report.steps.length} étape(s) · ${report.blocked.length} blocage(s) · ${aiOverrides} surcharge(s) assistée(s) par IA.`;
+      return `Fidélité ${RESUME_FIDELITY_LABELS[report.classification ?? 'refused']} · ${report.steps.length} étape(s) · ${report.blocked.length} blocage(s) · ${report.warnings?.length ?? 0} avertissement(s) · ${aiOverrides} surcharge(s) assistée(s) par IA.`;
     },
   );
   const resumePlanSummary = yield* craftComputed('resumePlanSummary', () => {
@@ -728,12 +739,32 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
                   li({ class: ui.event, 'data-entry': 'resume-result-step' }, [
                     span({ class: ui.eventName }, function* () {
                       const item = yield* step();
-                      return `${item.status === 'conformant' ? '✓' : item.status === 'tolerated' ? '≈' : item.status === 'recorded' ? '⚠' : '✗'} ${item.id}`;
+                      return `${resumeStepIcons[item.status]} ${item.id}`;
                     }),
                     span({ class: ui.eventMeta }, function* () {
                       return (yield* step()).detail ?? '';
                     }),
                   ]),
+              ),
+            ),
+            ul(
+              {
+                class: ui.events,
+                'data-lab': 'resume-warnings',
+                hidden: function* () {
+                  return (resumeExecution()?.warnings?.length ?? 0) === 0;
+                },
+              },
+              forNode(
+                () => resumeExecution()?.warnings ?? [],
+                { track: (warning) => warning },
+                (warning) =>
+                  li(
+                    { class: ui.event, 'data-entry': 'resume-warning' },
+                    function* () {
+                      return `Avertissement · ${yield* warning()}`;
+                    },
+                  ),
               ),
             ),
             ul(

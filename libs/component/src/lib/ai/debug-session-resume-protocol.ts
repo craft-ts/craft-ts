@@ -17,11 +17,20 @@ export interface DebugSessionResumeDeclarationInfo {
     outcome: NonNullable<CraftResumeDeclaration['expect']>['outcome'];
     match?: NonNullable<CraftResumeDeclaration['expect']>['match'];
   }>;
-  readonly identity?: boolean;
+  readonly identity?: Readonly<{ role: string; id?: string; storageKey?: string }>;
   readonly onMismatch?: CraftResumeDeclaration['onMismatch'];
+  readonly refetch?: false;
   readonly hasAcquireAdapter: boolean;
   readonly hasReadAdapter: boolean;
   readonly hasWriteAdapter: boolean;
+}
+
+export interface DebugSessionResumeExpectationInfo {
+  readonly label: string;
+  readonly resource: string;
+  readonly calls: readonly string[];
+  readonly expect: NonNullable<DebugSessionResumeDeclarationInfo['expect']>;
+  readonly onMismatch?: CraftResumeDeclaration['onMismatch'];
 }
 
 export interface DebugSessionResumeDescription {
@@ -31,6 +40,11 @@ export interface DebugSessionResumeDescription {
   readonly declarations: Readonly<
     Record<string, DebugSessionResumeDeclarationInfo>
   >;
+  /**
+   * Expected outcomes declared in code by primitives that are not mounted at
+   * the target (an admin action): data from the static graph, no adapters.
+   */
+  readonly expectations?: readonly DebugSessionResumeExpectationInfo[];
   /** Persona identifiers only; credentials stay in the target application. */
   readonly personas: readonly Readonly<{
     role: string;
@@ -110,6 +124,7 @@ export function describeCraftSessionResume(
   entries: readonly CraftPrimitiveEntry[],
   personas: readonly Pick<CraftResumePersona, 'role' | 'id'>[] = [],
   sourceHashes: Readonly<Record<string, string>> = {},
+  staticGraph?: ResumeGraphArtifact,
 ): DebugSessionResumeDescription {
   const resumable = entries.filter((entry) => entry.resume !== undefined);
   const declarations: Record<string, DebugSessionResumeDeclarationInfo> = {};
@@ -138,10 +153,11 @@ export function describeCraftSessionResume(
           }),
       ...(declaration.identity === undefined
         ? {}
-        : { identity: declaration.identity }),
+        : { identity: identityInfoOf(declaration.identity) }),
       ...(declaration.onMismatch === undefined
         ? {}
         : { onMismatch: declaration.onMismatch }),
+      ...(declaration.refetch === false ? { refetch: false as const } : {}),
       hasAcquireAdapter: typeof declaration.acquire === 'function',
       hasReadAdapter: typeof declaration.read === 'function',
       hasWriteAdapter: typeof declaration.write === 'function',
@@ -218,12 +234,64 @@ export function describeCraftSessionResume(
       edges,
     },
     declarations,
+    ...(staticGraph
+      ? {
+          expectations: staticExpectationsOf(
+            staticGraph,
+            new Set(resumable.map((entry) => `${entry.kind}:${entry.name}`)),
+          ),
+        }
+      : {}),
     personas: personas.map(({ role, id }) => ({
       role,
       ...(id === undefined ? {} : { id }),
       params: {},
     })),
   };
+}
+
+/** Static declarations with an expectation whose primitive is not live. */
+function staticExpectationsOf(
+  graph: ResumeGraphArtifact,
+  liveLabels: ReadonlySet<string>,
+): readonly DebugSessionResumeExpectationInfo[] {
+  return graph.nodes.flatMap((node) => {
+    const resume = node.details?.['resume'];
+    if (!isRecord(resume) || liveLabels.has(node.label)) return [];
+    const expect = resume['expect'];
+    const calls = resume['calls'];
+    if (
+      !isRecord(expect) ||
+      expect['outcome'] !== 'recorded' ||
+      typeof resume['resource'] !== 'string' ||
+      !Array.isArray(calls) ||
+      !calls.every((call) => typeof call === 'string')
+    )
+      return [];
+    const match = Array.isArray(expect['match'])
+      ? (expect['match'] as unknown[]).filter(
+          (path): path is (string | number)[] =>
+            Array.isArray(path) &&
+            path.every(
+              (key) => typeof key === 'string' || typeof key === 'number',
+            ),
+        )
+      : undefined;
+    const onMismatch = resume['onMismatch'];
+    return [
+      {
+        label: node.label,
+        resource: resume['resource'],
+        calls,
+        expect: { outcome: 'recorded', ...(match ? { match } : {}) },
+        ...(onMismatch === 'abort' ||
+        onMismatch === 'recorded' ||
+        onMismatch === 'degraded'
+          ? { onMismatch }
+          : {}),
+      },
+    ];
+  });
 }
 
 /** Rehydrates adapter-presence flags for the pure planning function only. */
@@ -255,16 +323,30 @@ export function planningDeclarationsOf(
             }),
         ...(declaration.identity === undefined
           ? {}
-          : { identity: declaration.identity }),
+          : { identity: identityInfoOf(declaration.identity) }),
         ...(declaration.onMismatch === undefined
           ? {}
           : { onMismatch: declaration.onMismatch }),
+        ...(declaration.refetch === false ? { refetch: false as const } : {}),
         ...(declaration.hasAcquireAdapter ? { acquire: () => undefined } : {}),
         ...(declaration.hasReadAdapter ? { read: () => undefined } : {}),
         ...(declaration.hasWriteAdapter ? { write: () => undefined } : {}),
       },
     ]),
   );
+}
+
+/** Identity paths are data; anything else a declaration carries stays local. */
+function identityInfoOf(
+  identity: NonNullable<CraftResumeDeclaration['identity']>,
+): NonNullable<DebugSessionResumeDeclarationInfo['identity']> {
+  return {
+    role: identity.role,
+    ...(identity.id === undefined ? {} : { id: identity.id }),
+    ...(identity.storageKey === undefined
+      ? {}
+      : { storageKey: identity.storageKey }),
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

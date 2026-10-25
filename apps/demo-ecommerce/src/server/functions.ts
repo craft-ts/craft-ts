@@ -54,6 +54,12 @@ export const getCart = serverFunction('ecommerce.cart.get', Schema.toStandardSch
   return JSON.stringify(yield* repository.getCart(input.cartId));
 })).exposeErrors(storeErrors);
 
+export const deleteCart = serverFunction('ecommerce.cart.delete', Schema.toStandardSchemaV1(Schema.Struct({ cartId: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
+  const repository = yield* StoreRepository;
+  yield* repository.deleteCart(input.cartId);
+  return JSON.stringify(true);
+})).exposeErrors(storeErrors);
+
 export const login = serverFunction('ecommerce.auth.login', Schema.toStandardSchemaV1(Schema.Struct({ email: Schema.String, password: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   return JSON.stringify(yield* signIn(input.email, input.password));
 })).exposeErrors(authErrors);

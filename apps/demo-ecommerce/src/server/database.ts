@@ -149,11 +149,22 @@ export function createStoreLayer(path = defaultStorePath()) {
       carts[index] = updated;
       return { data: { ...data, carts }, value: updated };
     });
+  // Supprimer un panier déjà absent n'est pas une erreur : le nettoyage d'une
+  // reprise peut passer après une suppression faite par l'utilisateur.
+  const deleteCart = (cartId: string) =>
+    update((data) => ({
+      data: {
+        ...data,
+        carts: (data.carts ?? []).filter((item) => item.id !== cartId),
+      },
+      value: undefined,
+    }));
   const service: StoreRepository['Service'] = {
     read,
     createCart,
     addCartLine,
     getCart,
+    deleteCart,
     reset: () =>
       update(() => ({ data: cloneInitial(), value: cloneInitial() })),
     saveProduct: (product) =>

@@ -22,7 +22,11 @@ import {
   environmentDifferences,
   getReplaySteps,
 } from '@craft-ts/component';
-import type { DebugSessionResumePlan } from '@craft-ts/component';
+import type {
+  DebugSessionResumePlan,
+  ResumeFidelityClass,
+  ResumeStepStatus,
+} from '@craft-ts/component';
 import type { ResumePreflightResult } from '@craft-ts/component';
 import { currentHash } from './replay-browser';
 import type { ThumbnailManifest } from './thumbnail-archive.service';
@@ -209,12 +213,14 @@ const resumePreflightBridge = createStateBridge<
 export const resumePreflight = resumePreflightBridge.value;
 export type ResumeExecutionDisplay = Readonly<{
   status: 'running' | 'completed' | 'failed';
-  classification?: 'real' | 'assisted' | 'partially-simulated' | 'refused';
+  classification?: ResumeFidelityClass;
   steps: readonly Readonly<{
     id: string;
-    status: 'conformant' | 'tolerated' | 'recorded' | 'blocked';
+    status: ResumeStepStatus;
     detail?: string;
   }>[];
+  /** Tolerated drifts and skipped steps, listed without lowering the class. */
+  warnings?: readonly string[];
   overrides?: readonly Readonly<{
     participantId: string;
     call: string;

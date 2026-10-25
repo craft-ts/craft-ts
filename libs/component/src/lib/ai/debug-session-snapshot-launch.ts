@@ -23,7 +23,19 @@ import type {
   ResumeOverride,
   ResumeStepResult,
 } from './debug-session-resume-executor';
-import { createResumeFidelityReport } from './debug-session-resume-executor';
+import {
+  createResumeFidelityReport,
+  decideResumeCall,
+} from './debug-session-resume-executor';
+import {
+  compareResumeOutcome,
+  jsonStringContent,
+  resumeCallNameOf,
+  resumeCallNamesOf,
+  resumePlaceholdersOf,
+  substituteResumePlaceholders,
+} from './debug-session-resume-calls';
+import { readResumePathValue } from './debug-session-resume-path';
 import {
   applyDebugSessionResumeOverride,
   isDebugSessionResumeOverrideList,
@@ -41,7 +53,16 @@ type ResumeLaunch = Readonly<{
   plan: DebugSessionResumePlan;
   manifest: DebugSessionResumeManifest;
   overrides: readonly ResumeOverride[];
+  /** Nobody watches the dashboard: a held call is refused at once. */
+  unattended: boolean;
 }>;
+
+/** Expected outcomes are still compared this long after the user takes over. */
+export const RESUME_OBSERVATION_MS = 5 * 60_000;
+/** A held call nobody decides on is refused after this delay (frozen with the clock). */
+const HELD_CALL_EXPIRY_MS = 120_000;
+/** How long a request carrying a placeholder may wait for its substitution. */
+const SUBSTITUTION_WAIT_MS = 15_000;
 
 /** Set once origin storage is restored and the page reloaded, to avoid a loop. */
 const STORAGE_RESTORED_MARKER = 'craft-debug-snapshot-storage-run';
@@ -74,8 +95,11 @@ type LaunchOptions = Readonly<{
       taskWasScheduled: (index: number) => boolean,
       sharedResources: Map<string, unknown>,
       onResourceAcquired: (resource: string, value: unknown) => void,
-    ): Promise<ResumeFidelityReport>;
+      callsWereReread: (calls: readonly string[]) => boolean,
+    ): Promise<ResumeFidelityReport & Readonly<{ release?(): Promise<void> }>>;
     isReadOnlyRequest?(request: Request): boolean | Promise<boolean>;
+    /** Origins whose GET and HEAD requests are reads, besides the app's own. */
+    readOrigins?: readonly string[];
   }>;
 }>;
 
@@ -171,6 +195,22 @@ export function startDebugSnapshotLaunch(
   const opener: Window | null = window.opener;
   if (!requestedLaunchId || !opener || opener === window) return undefined;
   const launchId: string = requestedLaunchId;
+  // Global services start loading before the snapshot arrives (a session
+  // query with the stored token). Nothing leaves the tab until the launch is
+  // decided: then the resume barrier, or the network, takes every request.
+  const launchNativeFetch = globalThis.fetch;
+  let releaseEarlyRequests: ((target: typeof fetch) => void) | undefined;
+  const earlyTarget = new Promise<typeof fetch>((resolveTarget) => {
+    releaseEarlyRequests = resolveTarget;
+  });
+  const earlyFetch: typeof fetch = async (input, init) =>
+    (await earlyTarget)(input, init);
+  globalThis.fetch = earlyFetch;
+  const releaseEarly = (target: typeof fetch) => {
+    if (globalThis.fetch === earlyFetch) globalThis.fetch = target;
+    releaseEarlyRequests?.(target);
+    releaseEarlyRequests = undefined;
+  };
 
   return new Promise<void>((resolve) => {
     let settled = false;
@@ -198,6 +238,21 @@ export function startDebugSnapshotLaunch(
     let resumeStartRequested = false;
     let resumeAbortRequested = false;
     let resumeAbortReported = false;
+    let resumeCompleted = false;
+    /** Until the user takes over, undeclared calls are held. */
+    let barrierActive = false;
+    let observeUntil = Number.POSITIVE_INFINITY;
+    let releaseAcquisitions: (() => Promise<void>) | undefined;
+    let acquisitionsReleased = false;
+    const outcomeResults: ResumeStepResult[] = [];
+    /** Calls already sent again with a reacquired resource. */
+    const rereadCalls = new Set<string>();
+    let substitutionSettled = false;
+    const substitutionListeners = new Set<() => void>();
+    const notifySubstitutions = () => {
+      for (const listener of [...substitutionListeners]) listener();
+    };
+    const clockNow = () => activeResumeTemporal?.now() ?? performance.now();
 
     const send = (type: string, payload: Record<string, unknown> = {}) => {
       for (const origin of options.allowedOrigins) {
@@ -215,6 +270,7 @@ export function startDebugSnapshotLaunch(
     const finish = () => {
       if (settled) return;
       settled = true;
+      releaseEarly(launchNativeFetch);
       clearTimeout(timeout);
       if (!resumeLaunch) window.removeEventListener('message', onMessage);
       try {
@@ -276,6 +332,104 @@ export function startDebugSnapshotLaunch(
       });
     };
 
+    /** The new value that replaces a recorded placeholder, once its resource is reacquired. */
+    const placeholderValue = (fingerprint: string): string | undefined => {
+      const substitution = resumeLaunch?.plan.substitutions.find(
+        (item) => item.fingerprint === fingerprint,
+      );
+      if (!substitution) return undefined;
+      const resource = sharedResumeResources.get(substitution.resource);
+      if (resource === undefined) return undefined;
+      const value = readResumePathValue(resource, substitution.valuePath);
+      return typeof value === 'string' || typeof value === 'number'
+        ? String(value)
+        : undefined;
+    };
+    const placeholderKnown = (fingerprint: string) =>
+      resumeLaunch?.plan.substitutions.some(
+        (item) => item.fingerprint === fingerprint,
+      ) ?? false;
+    /**
+     * Holds a request carrying placeholders until every one of them can be
+     * replaced. Returns those that never will: unknown to the plan, or still
+     * missing once the resume ended or the wait expired.
+     */
+    const waitForPlaceholders = async (
+      fingerprints: readonly string[],
+    ): Promise<readonly string[]> => {
+      const deadline = clockNow() + SUBSTITUTION_WAIT_MS;
+      for (;;) {
+        const unresolved = fingerprints.filter(
+          (fingerprint) => placeholderValue(fingerprint) === undefined,
+        );
+        if (
+          unresolved.length === 0 ||
+          unresolved.some((fingerprint) => !placeholderKnown(fingerprint)) ||
+          substitutionSettled ||
+          clockNow() >= deadline
+        )
+          return unresolved;
+        await new Promise<void>((wake) => {
+          const done = () => {
+            substitutionListeners.delete(done);
+            clearTimeout(timer);
+            wake();
+          };
+          const timer = setTimeout(done, 200);
+          substitutionListeners.add(done);
+        });
+      }
+    };
+    /** Calls declared for the resources a request was just rewritten with. */
+    const callsOfResources = (resources: ReadonlySet<string>) =>
+      new Set(
+        (resumeLaunch?.plan.steps ?? [])
+          .filter((step) => step.resource && resources.has(step.resource))
+          .flatMap((step) => step.allowedCalls ?? []),
+      );
+    const resourcesOfPlaceholders = (fingerprints: readonly string[]) =>
+      new Set(
+        fingerprints.flatMap(
+          (fingerprint) =>
+            resumeLaunch?.plan.substitutions
+              .filter((item) => item.fingerprint === fingerprint)
+              .map((item) => item.resource) ?? [],
+        ),
+      );
+    const reportOutcome = (result: ResumeStepResult) => {
+      if (!resumeCompleted) {
+        outcomeResults.push(result);
+        return;
+      }
+      send('resume-outcome', {
+        id: result.id,
+        status: result.status,
+        ...(result.code ? { code: result.code } : {}),
+        ...(result.detail ? { detail: result.detail } : {}),
+      });
+      if (result.status === 'blocked') void releaseOnce();
+    };
+    const releaseOnce = async () => {
+      if (acquisitionsReleased || !releaseAcquisitions) return;
+      acquisitionsReleased = true;
+      try {
+        await releaseAcquisitions();
+      } catch {
+        // The dashboard already reports the resume as refused.
+      }
+    };
+    const refusePlaceholders = (call: string, missing: readonly string[]) => {
+      reportOutcome({
+        id: `substitution:${call}`,
+        status: 'blocked',
+        code: 'placeholder-unresolved',
+        detail: `Requête refusée : ${missing.length} référence(s) enregistrée(s) sans valeur reprise (${missing.map((fingerprint) => `craft-ref:${fingerprint}`).join(', ')}).`,
+      });
+      return new Error(
+        `Reprise refusée : la requête ${call} porte une référence enregistrée sans correspondance.`,
+      );
+    };
+
     const installResumeBarrier = () => {
       if (!options.resume || restoreResumeBarrier) return;
       if (resumeLaunch && !restoreResumeTemporal) {
@@ -299,19 +453,23 @@ export function startDebugSnapshotLaunch(
           once: true,
         });
       }
-      const nativeFetch = globalThis.fetch;
+      barrierActive = true;
+      const nativeFetch = launchNativeFetch;
       const requestDecision = (
         call: string,
       ): Promise<'live' | 'abort' | 'override'> => {
         const holdId = `${launchId}:${++heldCallSequence}`;
         send('resume-hold', { holdId, call });
         return new Promise<'live' | 'abort' | 'override'>((resolveDecision) => {
+          // The expiry runs on the resume clock: it freezes with a paused replay.
+          const expiry = new AbortController();
           heldCalls.set(holdId, {
             call,
             resolve: (decision) => {
+              expiry.abort();
               heldCallResults.push({
                 id: `held:${call}`,
-                status: decision === 'abort' ? 'blocked' : 'tolerated',
+                status: decision === 'abort' ? 'blocked' : 'overridden',
                 detail:
                   decision === 'live'
                     ? 'Appel autorisé manuellement hors du plan.'
@@ -322,16 +480,158 @@ export function startDebugSnapshotLaunch(
               resolveDecision(decision);
             },
           });
-          setTimeout(() => {
-            const pending = heldCalls.get(holdId);
-            if (!pending) return;
-            heldCalls.delete(holdId);
-            pending.resolve('abort');
-          }, 120_000);
+          const timer = activeResumeTemporal
+            ? activeResumeTemporal.sleep(HELD_CALL_EXPIRY_MS, {
+                owner: 'resume-held-call',
+                signal: expiry.signal,
+              })
+            : sleep(HELD_CALL_EXPIRY_MS);
+          void timer
+            .then(() => {
+              const pending = heldCalls.get(holdId);
+              if (!pending) return;
+              heldCalls.delete(holdId);
+              pending.resolve('abort');
+            })
+            .catch(() => undefined);
         });
       };
+      const expectationFor = (names: readonly string[]) =>
+        resumeLaunch?.plan.expectedOutcomes?.find((outcome) =>
+          names.includes(outcome.call),
+        );
+      /** Compares a declared outcome with the live answer and applies its policy. */
+      const observe = async (
+        names: readonly string[],
+        perform: () => Promise<Response>,
+      ): Promise<Response> => {
+        const expectation = expectationFor(names);
+        if (!expectation || (!barrierActive && clockNow() > observeUntil))
+          return perform();
+        const response = await perform();
+        const body = await response
+          .clone()
+          .text()
+          .catch(() => '');
+        const comparison = compareResumeOutcome(expectation, {
+          status: response.status,
+          body,
+        });
+        const id = `outcome:${expectation.call}`;
+        if (comparison.matched) {
+          reportOutcome({ id, status: 'conformant', detail: comparison.detail });
+          return response;
+        }
+        const policy = expectation.onMismatch ?? 'degraded';
+        if (policy === 'abort') {
+          reportOutcome({
+            id,
+            status: 'blocked',
+            code: 'outcome-mismatch',
+            detail: comparison.detail,
+          });
+          return response;
+        }
+        if (
+          policy === 'recorded' &&
+          barrierActive &&
+          expectation.recordedBody !== undefined
+        ) {
+          reportOutcome({
+            id,
+            status: 'recorded',
+            detail: `${comparison.detail} · réponse enregistrée servie`,
+          });
+          return new Response(
+            typeof expectation.recordedBody === 'string'
+              ? expectation.recordedBody
+              : JSON.stringify(expectation.recordedBody),
+            {
+              status: expectation.status ?? 200,
+              headers: { 'content-type': 'application/json' },
+            },
+          );
+        }
+        reportOutcome({
+          id,
+          status: 'drifted',
+          detail:
+            policy === 'recorded'
+              ? `${comparison.detail} · réponse enregistrée non servie après la prise en main`
+              : comparison.detail,
+        });
+        return response;
+      };
+      const isDefaultRead = (request: Request) => {
+        if (request.method !== 'GET' && request.method !== 'HEAD') return false;
+        const origin = new URL(request.url, location.href).origin;
+        return (
+          origin === location.origin ||
+          (options.resume?.readOrigins ?? []).some(
+            (allowed) => new URL(allowed).origin === origin,
+          )
+        );
+      };
       const guardedFetch: typeof fetch = async (input, init) => {
-        const request = new Request(input, init);
+        let request = new Request(input, init);
+        const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+        let bodyText = hasBody
+          ? await request
+              .clone()
+              .text()
+              .catch(() => '')
+          : '';
+        const headers = [...request.headers.entries()];
+        const placeholders = resumePlaceholdersOf(
+          [request.url, bodyText, ...headers.map(([, value]) => value)].join(
+            '\n',
+          ),
+        );
+        let substitutedCalls = new Set<string>();
+        if (placeholders.length) {
+          const call = resumeCallNameOf(request.method, request.url, bodyText, location.href);
+          const missing = await waitForPlaceholders(placeholders);
+          if (missing.length) throw refusePlaceholders(call, missing);
+          const url = substituteResumePlaceholders(request.url, (fingerprint) => {
+            const value = placeholderValue(fingerprint);
+            return value === undefined ? undefined : encodeURIComponent(value);
+          }).text;
+          bodyText = substituteResumePlaceholders(bodyText, (fingerprint) => {
+            const value = placeholderValue(fingerprint);
+            return value === undefined ? undefined : jsonStringContent(value);
+          }).text;
+          const rewrittenHeaders = new Headers();
+          for (const [name, value] of headers)
+            rewrittenHeaders.set(
+              name,
+              substituteResumePlaceholders(value, placeholderValue).text,
+            );
+          request = new Request(url, {
+            method: request.method,
+            headers: rewrittenHeaders,
+            ...(hasBody ? { body: bodyText } : {}),
+            credentials: request.credentials,
+            cache: request.cache,
+            redirect: request.redirect,
+            referrer: request.referrer,
+            signal: request.signal,
+          });
+          substitutedCalls = callsOfResources(
+            resourcesOfPlaceholders(placeholders),
+          );
+        }
+        const names = resumeCallNamesOf(
+          request.method,
+          request.url,
+          bodyText,
+          location.href,
+        );
+        const live = () => nativeFetch.call(globalThis, request);
+        if (!barrierActive) {
+          if (clockNow() > observeUntil && globalThis.fetch === guardedFetch)
+            globalThis.fetch = nativeFetch;
+          return observe(names, live);
+        }
         const overridden = await applyDebugSessionResumeOverride(
           request,
           nativeFetch,
@@ -341,30 +641,45 @@ export function startDebugSnapshotLaunch(
           if (overridden.override) appliedOverrides.push(overridden.override);
           return overridden.response;
         }
-        const readOnly = await options.resume?.isReadOnlyRequest?.(request);
-        if (readOnly) return nativeFetch.call(globalThis, request);
-        if (
-          request.method === 'POST' &&
-          new URL(request.url).origin === location.origin &&
-          new URL(request.url).pathname === '/__server-functions'
-        ) {
-          try {
-            const body: unknown = await request.clone().json();
-            if (
-              typeof body === 'object' &&
-              body !== null &&
-              'id' in body &&
-              typeof body.id === 'string' &&
-              allowedCalls.has(body.id)
-            )
-              return nativeFetch.call(globalThis, request);
-          } catch {
-            // Malformed requests remain blocked.
-          }
+        // Once a resource is reacquired, its declared readers may read it:
+        // the substitution itself makes them load again.
+        const readCalls = (resumeLaunch?.plan.steps ?? []).flatMap((step) =>
+          step.kind === 'refetch' &&
+          !step.unneeded &&
+          step.resource &&
+          sharedResumeResources.has(step.resource)
+            ? (step.allowedCalls ?? [])
+            : [],
+        );
+        const permitted = new Set([
+          ...allowedCalls,
+          ...substitutedCalls,
+          ...readCalls,
+        ]);
+        const call =
+          names.find((name) => permitted.has(name)) ??
+          names[0] ??
+          `${request.method} ${request.url}`;
+        if (substitutedCalls.has(call) || readCalls.includes(call))
+          for (const name of names) rereadCalls.add(name);
+        const decision = decideResumeCall(call, {
+          allowedCalls: permitted,
+          readOnly:
+            isDefaultRead(request) ||
+            (await options.resume?.isReadOnlyRequest?.(request.clone())) === true,
+          unattended: resumeLaunch?.unattended ?? false,
+        });
+        if (decision === 'live') return observe(names, live);
+        if (decision === 'blocked') {
+          heldCallResults.push({
+            id: `held:${call}`,
+            status: 'blocked',
+            detail: 'Appel non déclaré refusé : personne ne peut le valider.',
+          });
+          throw new Error(`Reprise refusée : appel non déclaré (${call}).`);
         }
-        const call = `${request.method} ${new URL(request.url).pathname}`;
-        const decision = await requestDecision(call);
-        if (decision === 'override') {
+        const held = await requestDecision(call);
+        if (held === 'override') {
           const lateOverride = await applyDebugSessionResumeOverride(
             request,
             nativeFetch,
@@ -379,10 +694,11 @@ export function startDebugSnapshotLaunch(
             `Reprise refusée : aucune surcharge approuvée pour ${call}.`,
           );
         }
-        if (decision === 'live') return nativeFetch.call(globalThis, request);
+        if (held === 'live') return observe(names, live);
         throw new Error(`Reprise refusée : appel retenu (${call}).`);
       };
       globalThis.fetch = guardedFetch;
+      releaseEarly(guardedFetch);
       const xhrPrototype = XMLHttpRequest.prototype;
       const nativeOpen = xhrPrototype.open;
       const nativeSend = xhrPrototype.send;
@@ -411,18 +727,46 @@ export function startDebugSnapshotLaunch(
         const request = resumeXhrMetadata.get(this);
         if (!request)
           throw new Error('Reprise bloquée : requête XHR inconnue.');
-        if (
-          resumeXhrCallAllowed(request.method, request.url, body, allowedCalls)
-        ) {
-          nativeSend.call(this, body);
-          return;
-        }
-        if (!request.async)
+        const text = typeof body === 'string' ? body : '';
+        const names = resumeCallNamesOf(
+          request.method,
+          request.url,
+          text,
+          location.href,
+        );
+        const call = names.find((name) => allowedCalls.has(name)) ?? names[0] ?? request.url;
+        const placeholders = resumePlaceholdersOf(`${request.url}\n${text}`);
+        const decision = decideResumeCall(call, {
+          allowedCalls,
+          readOnly:
+            (request.method === 'GET' || request.method === 'HEAD') &&
+            new URL(request.url, location.href).origin === location.origin,
+          unattended: resumeLaunch?.unattended ?? false,
+        });
+        if (!request.async && (placeholders.length || decision !== 'live'))
           throw new Error('Reprise bloquée : requête XHR non déclarée.');
-        const call = `${request.method} ${new URL(request.url, location.href).pathname}`;
-        void requestDecision(call).then((decision) => {
-          if (decision === 'live') nativeSend.call(this, body);
-          else this.abort();
+        const sendWith = (payload: typeof body) => {
+          if (decision === 'live') return nativeSend.call(this, payload);
+          if (decision === 'blocked') return this.abort();
+          void requestDecision(call).then((held) => {
+            if (held === 'live') nativeSend.call(this, payload);
+            else this.abort();
+          });
+        };
+        if (!placeholders.length) return sendWith(body);
+        // The URL was given to open(): only the body can still be rewritten.
+        void waitForPlaceholders(placeholders).then((missing) => {
+          if (missing.length || resumePlaceholdersOf(request.url).length) {
+            refusePlaceholders(call, missing);
+            this.abort();
+            return;
+          }
+          sendWith(
+            substituteResumePlaceholders(text, (fingerprint) => {
+              const value = placeholderValue(fingerprint);
+              return value === undefined ? undefined : jsonStringContent(value);
+            }).text,
+          );
         });
       };
       xhrPrototype.open = guardedOpen;
@@ -454,8 +798,11 @@ export function startDebugSnapshotLaunch(
       globalThis.WebSocket = GuardedWebSocket;
       globalThis.Worker = GuardedWorker;
       globalThis.SharedWorker = GuardedSharedWorker;
+      // Taking over lifts the holds; fetch keeps substituting placeholders
+      // and comparing declared outcomes for RESUME_OBSERVATION_MS.
       restoreResumeBarrier = () => {
-        if (globalThis.fetch === guardedFetch) globalThis.fetch = nativeFetch;
+        barrierActive = false;
+        observeUntil = clockNow() + RESUME_OBSERVATION_MS;
         if (xhrPrototype.open === guardedOpen) xhrPrototype.open = nativeOpen;
         if (xhrPrototype.send === guardedSend) xhrPrototype.send = nativeSend;
         if (globalThis.WebSocket === GuardedWebSocket)
@@ -503,24 +850,39 @@ export function startDebugSnapshotLaunch(
             });
             if (!normalized) return;
             sharedResumeResources.set(resource, normalized.value);
+            notifySubstitutions();
             send('resume-resource', normalized);
           },
+          (calls) => calls.some((call) => rereadCalls.has(call)),
         );
+        releaseAcquisitions = report.release;
+        substitutionSettled = true;
+        notifySubstitutions();
+        resumeCompleted = true;
         const finalReport = createResumeFidelityReport(
-          [...report.steps, ...heldCallResults],
+          [...report.steps, ...heldCallResults, ...outcomeResults],
           [...report.overrides, ...appliedOverrides],
         );
+        // An outcome that aborted the run while it was executing: the
+        // executor only released for its own blocked steps.
+        if (
+          finalReport.classification === 'refused' &&
+          !report.steps.some((step) => step.status === 'blocked')
+        )
+          void releaseOnce();
         send('resume-completed', {
           classification: finalReport.classification,
           overrides: finalReport.overrides,
-          steps: finalReport.steps.map(({ id, status, detail }) => ({
+          steps: finalReport.steps.map(({ id, status, detail, code }) => ({
             id,
             status,
             detail,
+            ...(code ? { code } : {}),
           })),
           blocked: finalReport.steps
             .filter((step) => step.status === 'blocked')
             .map((step) => step.id),
+          warnings: finalReport.warnings,
         });
       } catch {
         send('resume-error', {
@@ -529,6 +891,9 @@ export function startDebugSnapshotLaunch(
         });
       } finally {
         resumeRunning = false;
+        resumeCompleted = true;
+        substitutionSettled = true;
+        notifySubstitutions();
         allowedCalls = new Set();
         activeResumeTemporal?.clearRestoredTaskTracking();
         if (userInteracted) releaseResumeBarrier();
@@ -584,8 +949,10 @@ export function startDebugSnapshotLaunch(
       }
       if (data['type'] === 'resume-resource') {
         const resource = normalizeDebugSessionResumeResource(data);
-        if (resource)
+        if (resource) {
           sharedResumeResources.set(resource.resource, resource.value);
+          notifySubstitutions();
+        }
         return;
       }
       if (data['type'] === 'resume-start') {
@@ -627,6 +994,7 @@ export function startDebugSnapshotLaunch(
           plan: rawPlan,
           manifest: rawManifest,
           overrides: rawOverrides,
+          unattended: data['resumeUnattended'] === true,
         };
         resumeSnapshot = snapshot;
         resumeShouldDefer = data['deferResume'] === true;
@@ -677,31 +1045,4 @@ export function startDebugSnapshotLaunch(
     }, SNAPSHOT_WAIT_MS);
     send('snapshot-request');
   });
-}
-
-function resumeXhrCallAllowed(
-  method: string,
-  href: string,
-  body: Document | XMLHttpRequestBodyInit | null | undefined,
-  allowedCalls: ReadonlySet<string>,
-): boolean {
-  if (method !== 'POST' || typeof body !== 'string') return false;
-  try {
-    const url = new URL(href, location.href);
-    if (
-      url.origin !== location.origin ||
-      url.pathname !== '/__server-functions'
-    )
-      return false;
-    const parsed: unknown = JSON.parse(body);
-    return (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      'id' in parsed &&
-      typeof parsed.id === 'string' &&
-      allowedCalls.has(parsed.id)
-    );
-  } catch {
-    return false;
-  }
 }

@@ -10,12 +10,12 @@ import {
   mutation,
   query,
   state,
-  ɵRAW_REACTIVE_VALUE,
 } from '@craft-ts/core';
 import {
   addCartLine,
   createCart,
   currentUser,
+  deleteCart,
   getCart,
   signIn,
   signOut,
@@ -54,36 +54,33 @@ function shiftQuantity(
   });
 }
 
+/**
+ * Ce qu'il faut ajouter au panier serveur pour qu'il ait ces lignes : une
+ * quantité négative retire.
+ */
+function cartDeltas(
+  current: readonly CartLine[],
+  wanted: readonly CartLine[],
+): readonly CartLine[] {
+  const keys = new Set([...current, ...wanted].map(lineKey));
+  return [...keys].flatMap((key) => {
+    const before = current.find((line) => lineKey(line) === key);
+    const after = wanted.find((line) => lineKey(line) === key);
+    const delta = (after?.quantity ?? 0) - (before?.quantity ?? 0);
+    const line = after ?? before;
+    return line && delta !== 0 ? [{ ...line, quantity: delta }] : [];
+  });
+}
+
 export const { Cart } = craftService(
   { name: 'cart', providedIn: 'global' },
   function* () {
-    let ensureServerCart: () => Generator<
-      unknown,
-      ServerCart | undefined,
-      unknown
-    > = function* () {
-      return undefined;
-    };
-    let readCartLines: () => readonly CartLine[] = () => [];
-    let writeCartLines: (lines: readonly CartLine[]) => unknown = () => undefined;
-    let storedServerCart: ServerCart | undefined;
-    let reacquireServerCart: () => unknown = () => undefined;
-    let readServerCart: () => ServerCart | undefined = () => storedServerCart;
-    let writeServerCart: (cart: ServerCart) => unknown = () => undefined;
-    const acquireServerCart = yield* mutation('acquireServerCart', {
-      resume: craftResume({
-        resource: 'cart',
-        role: 'provides',
-        persona: 'guest',
-        calls: ['ecommerce.cart.create', 'ecommerce.cart.addLine'],
-        acquire: () => reacquireServerCart(),
-      }),
-      method: () => true,
-      loader: function* () {
-        return yield* createCart({});
-      },
-    });
-    reacquireServerCart = () => acquireServerCart.mutate(true);
+    let writeCartLines: (lines: readonly CartLine[]) => unknown = () =>
+      undefined;
+    let writeServerCart: (cart: ServerCart | undefined) => unknown = () =>
+      undefined;
+    // Les méthodes d'un state tournent avec le pilote synchrone : elles
+    // changent les lignes locales et confient le serveur à `syncServerCart`.
     const cartLines = yield* state(
       'cartLines',
       [] as readonly CartLine[],
@@ -92,83 +89,32 @@ export const { Cart } = craftService(
         const persistence = yield* insertStoragePersister(
           craftUnique({ storeName: 'atelier', key: 'cart.v1' }),
         )(context);
-        const rawState = context.state[
-          ɵRAW_REACTIVE_VALUE
-        ] as unknown as (() => readonly CartLine[]) & {
-          set(value: readonly CartLine[]): void;
-        };
-        readCartLines = rawState;
         writeCartLines = function* (lines) {
           yield* context.set(lines);
+        };
+        const changed = function* () {
+          yield* syncServerCart.mutate(yield* context.state());
         };
         return {
           ...persistence,
           add: function* (line: CartLine) {
-            const cart = yield* ensureServerCart();
-            if (cart) {
-              const updated = yield* addCartLine({ cartId: cart.id, line });
-              if (!isCraftException(updated)) {
-                yield* cartState.replace(updated);
-                yield* context.set(updated.lines);
-                return;
-              }
-            }
             yield* context.update((lines) => mergeLine(lines, line));
+            yield* changed();
           },
           shift: function* (key: string, delta: number) {
-            const current = yield* context.state();
-            const line = current.find((item) => lineKey(item) === key);
-            if (!line || delta === 0) return;
-            const cart = yield* ensureServerCart();
-            if (cart) {
-              const updated = yield* addCartLine({
-                cartId: cart.id,
-                line: { ...line, quantity: delta },
-              });
-              if (!isCraftException(updated)) {
-                yield* cartState.replace(updated);
-                yield* context.set(updated.lines);
-                return;
-              }
-            }
+            if (delta === 0) return;
             yield* context.update((lines) => shiftQuantity(lines, key, delta));
+            yield* changed();
           },
           remove: function* (key: string) {
-            const current = yield* context.state();
-            const line = current.find((item) => lineKey(item) === key);
-            if (!line) return;
-            const cart = yield* ensureServerCart();
-            if (cart) {
-              const updated = yield* addCartLine({
-                cartId: cart.id,
-                line: { ...line, quantity: -line.quantity },
-              });
-              if (!isCraftException(updated)) {
-                yield* cartState.replace(updated);
-                yield* context.set(updated.lines);
-                return;
-              }
-            }
             yield* context.update((lines) =>
               lines.filter((item) => lineKey(item) !== key),
             );
+            yield* changed();
           },
-          replaceLines: (lines: readonly CartLine[]) => context.set(lines),
           clear: function* () {
-            const current = yield* context.state();
-            const cart = yield* ensureServerCart();
-            if (cart) {
-              let updated: ServerCart = cart;
-              for (const line of current) {
-                const result = yield* addCartLine({
-                  cartId: cart.id,
-                  line: { ...line, quantity: -line.quantity },
-                });
-                if (!isCraftException(result)) updated = result;
-              }
-              yield* cartState.replace(updated);
-            }
             yield* context.set([]);
+            yield* changed();
           },
         };
       },
@@ -177,7 +123,6 @@ export const { Cart } = craftService(
           resource: 'cart',
           role: 'restores',
           value: [] as readonly CartLine[],
-          read: () => readCartLines(),
           write: (value) =>
             Array.isArray(value)
               ? writeCartLines(value as readonly CartLine[])
@@ -193,22 +138,12 @@ export const { Cart } = craftService(
         const persistence = yield* insertStoragePersister(
           craftUnique({ storeName: 'atelier', key: 'cart.server.v1' }),
         )(context);
-        const rawState = context.state[
-          ɵRAW_REACTIVE_VALUE
-        ] as unknown as (() => ServerCart | undefined) & {
-          set(value: ServerCart | undefined): void;
-        };
-        readServerCart = rawState;
         writeServerCart = function* (cart) {
-          storedServerCart = cart;
           yield* context.set(cart);
         };
         return {
           ...persistence,
-          replace: (cart: ServerCart) => {
-            storedServerCart = cart;
-            return context.set(cart);
-          },
+          replace: (cart: ServerCart | undefined) => context.set(cart),
         };
       },
       {
@@ -216,61 +151,71 @@ export const { Cart } = craftService(
           resource: 'cart',
           role: 'holds',
           path: '$.id',
-          read: () => readServerCart()?.id,
-          write: (value) => {
-            if (
-              typeof value === 'object' &&
-              value !== null &&
-              'id' in value &&
-              typeof value.id === 'string' &&
-              'lines' in value &&
-              Array.isArray(value.lines)
-            )
-              writeServerCart(value as ServerCart);
-            else if (typeof value === 'string')
-              writeServerCart({
-                id: value,
-                lines: readServerCart()?.lines ?? [],
-              });
-          },
+          write: (value) =>
+            typeof value === 'object' &&
+            value !== null &&
+            'id' in value &&
+            typeof value.id === 'string' &&
+            'lines' in value &&
+            Array.isArray(value.lines)
+              ? writeServerCart(value as ServerCart)
+              : undefined,
         }),
       },
     );
-    reacquireServerCart = function* () {
-      const created = yield* createCart({});
-      if (!created || isCraftException(created)) return created;
-      let restored: ServerCart = created;
-      for (const line of readCartLines()) {
-        const result = yield* addCartLine({ cartId: created.id, line });
-        if (isCraftException(result)) return result;
-        restored = result;
+    /** Aligne le panier serveur sur ces lignes, en le créant s'il le faut. */
+    const syncLines = function* (
+      lines: readonly CartLine[],
+      fresh: boolean,
+    ): Generator<unknown, ServerCart | undefined, unknown> {
+      let cart = fresh ? undefined : yield* cartState();
+      if (cart) {
+        const remote = yield* getCart({ cartId: cart.id });
+        cart = isCraftException(remote) ? undefined : remote;
       }
-      yield* cartState.replace(restored);
-      return restored;
-    };
-    ensureServerCart = function* () {
-      const stored = storedServerCart ?? (yield* cartState());
-      if (stored) {
-        const remote = yield* getCart({ cartId: stored.id });
-        if (!isCraftException(remote)) {
-          yield* cartState.replace(remote);
-          yield* cartLines.replaceLines(remote.lines);
-          return remote;
-        }
+      if (!cart) {
+        const created = yield* createCart({});
+        if (isCraftException(created)) return undefined;
+        cart = created;
       }
-      yield* acquireServerCart.mutate(true);
-      const created = yield* acquireServerCart.value();
-      if (!created || isCraftException(created)) return undefined;
-      yield* cartState.replace(created);
-      const current = yield* cartLines();
-      let synced = created;
-      for (const line of current) {
-        const result = yield* addCartLine({ cartId: created.id, line });
-        if (!isCraftException(result)) synced = result;
+      let synced: ServerCart = cart;
+      for (const delta of cartDeltas(synced.lines, lines)) {
+        const updated: ServerCart = yield* addCartLine({
+          cartId: synced.id,
+          line: delta,
+        });
+        if (isCraftException(updated)) return undefined;
+        synced = updated;
       }
       yield* cartState.replace(synced);
       return synced;
     };
+    const syncServerCart = yield* mutation('syncServerCart', {
+      resume: craftResume({
+        resource: 'cart',
+        role: 'provides',
+        persona: 'guest',
+        calls: [
+          'ecommerce.cart.create',
+          'ecommerce.cart.addLine',
+          'ecommerce.cart.get',
+          'ecommerce.cart.delete',
+        ],
+        // Un nouveau panier, avec les lignes de l'instant repris.
+        acquire: function* () {
+          return yield* syncLines(yield* cartLines(), true);
+        },
+        cleanup: function* () {
+          const cart = yield* cartState();
+          if (cart) yield* deleteCart({ cartId: cart.id });
+          yield* cartState.replace(undefined);
+        },
+      }),
+      method: (lines: readonly CartLine[]) => lines,
+      loader: function* ({ params: lines }) {
+        return yield* syncLines(lines, false);
+      },
+    });
     yield* craftComputed('cartCount', function* () {
       return (yield* cartLines()).reduce((sum, line) => sum + line.quantity, 0);
     });
@@ -287,7 +232,6 @@ export const { Session } = craftService(
   { name: 'session', providedIn: 'global' },
   function* () {
     let writeSession: (value: unknown) => unknown = () => undefined;
-    let reacquiredSession: AccountSession | undefined;
     let reloadCurrentUser: () => Generator<unknown, boolean, unknown> =
       function* () {
         return false;
@@ -303,12 +247,7 @@ export const { Session } = craftService(
           craftUnique({ storeName: 'atelier', key: 'session.v1' }),
         )(context);
         writeSession = function* (value) {
-          // L’acquisition produit un nouveau jeton serveur. La substitution de
-          // l’état archivé intervient ensuite : conserver ce jeton évite de
-          // réinstaller celui qui appartenait à l’ancienne session.
-          const session = value as AccountSession | undefined;
-          if (session) reacquiredSession = session;
-          yield* context.set(session);
+          yield* context.set(value as AccountSession | undefined);
         };
         return {
           ...persistence,
@@ -321,8 +260,11 @@ export const { Session } = craftService(
           resource: 'session',
           role: 'holds',
           path: '$.token',
-          calls: ['ecommerce.product.save'],
-          expect: { outcome: 'recorded' },
+          identity: {
+            role: '$.user.role',
+            id: '$.user.id',
+            storageKey: 'session.v1',
+          },
           write: (value) => writeSession(value),
         }),
       },
@@ -338,9 +280,18 @@ export const { Session } = craftService(
       resume: craftResume({
         resource: 'session',
         role: 'provides',
-        persona: 'product-manager',
-        calls: ['ecommerce.auth.login', 'ecommerce.auth.me'],
+        calls: [
+          'ecommerce.auth.login',
+          'ecommerce.auth.me',
+          'ecommerce.auth.logout',
+        ],
         acquire: (persona) => reacquireSession(persona),
+        cleanup: function* () {
+          const current = yield* currentSession();
+          if (!current) return;
+          yield* signOut({ token: current.token });
+          yield* currentSession.close();
+        },
       }),
       method: (credentials: {
         readonly email: string;
@@ -365,7 +316,6 @@ export const { Session } = craftService(
       const session = yield* signIn({ email, password });
       if (isCraftException(session))
         throw new Error('La réacquisition de la session a échoué.');
-      reacquiredSession = session;
       yield* currentSession.open(session);
       yield* reloadCurrentUser();
       return session;
@@ -376,7 +326,7 @@ export const { Session } = craftService(
         resume: craftResume({
           resource: 'session',
           role: 'requires',
-          identity: true,
+          identity: { role: '$.user.role', id: '$.user.id' },
           calls: ['ecommerce.auth.me'],
         }),
         params: function* () {
@@ -384,10 +334,7 @@ export const { Session } = craftService(
         },
         loader: function* ({ params: token }) {
           if (!token) return undefined;
-          const session = reacquiredSession;
-          const result = yield* currentUser({ token: session?.token ?? token });
-          if (session && !isCraftException(result)) reacquiredSession = undefined;
-          return result;
+          return yield* currentUser({ token });
         },
       },
       insertQueryPipe(
@@ -401,9 +348,12 @@ export const { Session } = craftService(
     yield* query('signOutProcess', {
       resume: craftResume({ resource: 'session', role: 'revokes' }),
       method: (token: string) => token,
+      // Le serveur d'abord : fermer la session avant l'appel l'interrompait,
+      // et le jeton restait valide côté serveur.
       loader: function* ({ params: token }) {
+        const result = yield* signOut({ token });
         yield* currentSession.close();
-        return yield* signOut({ token });
+        return result;
       },
     });
     // Ce que l'interface laisse ouvrir ; le serveur décide action par action.

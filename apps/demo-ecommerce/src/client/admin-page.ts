@@ -134,7 +134,6 @@ export const { AdminView, provideAdminView } = craftService(
         resume: craftResume({
           resource: 'session',
           role: 'requires',
-          identity: true,
           calls: ['ecommerce.admin.overview'],
         }),
         method: (revision: number) => revision,
@@ -202,6 +201,21 @@ export const { AdminView, provideAdminView } = craftService(
       };
     });
     yield* query('adminAction', {
+      // Une action n'est jamais rejouée par la reprise ; son résultat est
+      // comparé à celui de l'enregistrement (le 403 d'Inès, par exemple).
+      resume: craftResume({
+        resource: 'session',
+        role: 'requires',
+        refetch: false,
+        calls: [
+          'ecommerce.product.save',
+          'ecommerce.product.delete',
+          'ecommerce.category.save',
+          'ecommerce.category.delete',
+        ],
+        expect: { outcome: 'recorded' },
+        onMismatch: 'degraded',
+      }),
       method: (action: AdminAction) => action,
       loader: function* ({ params: action }) {
         const token = yield* tokenOf();

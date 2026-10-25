@@ -69,6 +69,8 @@ export type CraftDebugReplayBridgeOptions = Readonly<{
   resumeSourceHashes?: Readonly<Record<string, string>>;
   /** Optional read-only backend inventory used before a functional resume. */
   resumePreflightAdapter?: ResumePreflightAdapter;
+  /** Other origins whose GET and HEAD requests pass the resume barrier as reads. */
+  resumeReadOrigins?: readonly string[];
   /** Optional local static graph used to verify the live primitive sources. */
   resumeGraphAdapter?: Readonly<{
     read(): Promise<ResumeGraphArtifact>;
@@ -182,6 +184,9 @@ export function provideCraftDebugReplayBridge(
                   },
                   isReadOnlyRequest:
                     options.resumePreflightAdapter.isReadOnlyRequest,
+                  ...(options.resumeReadOrigins
+                    ? { readOrigins: options.resumeReadOrigins }
+                    : {}),
                   execute: (
                     plan,
                     manifest,
@@ -191,6 +196,7 @@ export function provideCraftDebugReplayBridge(
                     taskWasScheduled,
                     sharedResources,
                     onResourceAcquired,
+                    callsWereReread,
                   ) =>
                     executeCraftSessionResume({
                       plan,
@@ -205,6 +211,7 @@ export function provideCraftDebugReplayBridge(
                       taskWasScheduled,
                       sharedResources,
                       onResourceAcquired,
+                      callsWereReread,
                     }),
                 },
               }
@@ -326,11 +333,12 @@ export function provideCraftDebugReplayBridge(
             return;
           }
           let sourceHashes = options.resumeSourceHashes;
+          let artifact: ResumeGraphArtifact | undefined;
           if (options.resumeGraphAdapter) {
             try {
               isAllowedResumeReadRequest =
                 options.resumeGraphAdapter.isReadOnlyRequest;
-              const artifact = await readResumeGraphWithinTimeout(
+              artifact = await readResumeGraphWithinTimeout(
                 () => options.resumeGraphAdapter!.read(),
                 4_000,
               );
@@ -350,6 +358,7 @@ export function provideCraftDebugReplayBridge(
               registry.list(),
               options.resumePersonas,
               sourceHashes,
+              artifact,
             ),
           });
           return;

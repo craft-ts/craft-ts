@@ -13,6 +13,10 @@ import {
   type DebugSessionResumeSourceHashRecord,
   type DebugAppSnapshot,
   type ResumeOverride,
+  type ResumeStepStatus,
+  classifyResumeFidelity,
+  RESUME_FIDELITY_LABELS,
+  RESUME_STEP_STATUSES,
   debugSessionResumeResourcesRecord,
   normalizeDebugSessionResumeResource,
 } from '@craft-ts/component';
@@ -527,6 +531,7 @@ export function acceptResumeDescription(
     graph: value.graph,
     declarations: planningDeclarationsOf(value.declarations),
     personas: value.personas,
+    ...(value.expectations ? { expectations: value.expectations } : {}),
     sourceHashes: archivedResumeSourceHashes(
       pending.archive,
       pending.targetElapsedMs,
@@ -740,6 +745,8 @@ type ResumeLaunchGroup = {
 };
 
 const launches = new Map<string, DebugLaunch>();
+/** Completed resumes whose declared outcomes are still being observed. */
+const resumeOutcomeOrigins = new Map<string, DebugLaunch>();
 const resumeLaunchGroups = new Map<string, ResumeLaunchGroup>();
 const sharedResumeResources = new Map<string, unknown>();
 let listening = false;
@@ -752,7 +759,11 @@ function listenToDebugTabs(): void {
     if (!isRecord(data) || data['channel'] !== REPLAY_CHANNEL) return;
     const launchId = data['launchId'];
     if (typeof launchId !== 'string') return;
-    const launch = launches.get(launchId);
+    const launch =
+      launches.get(launchId) ??
+      (data['type'] === 'resume-outcome'
+        ? resumeOutcomeOrigins.get(launchId)
+        : undefined);
     if (
       !launch ||
       message.source !== launch.tab ||
@@ -760,6 +771,43 @@ function listenToDebugTabs(): void {
     )
       return;
     switch (data['type']) {
+      case 'resume-outcome': {
+        if (typeof data['id'] !== 'string' || !isResumeStepStatus(data['status']))
+          return;
+        const report = resumeExecution();
+        if (!report) return;
+        const step = {
+          id: `${launch.participantId} · ${data['id']}`,
+          status: data['status'],
+          ...(typeof data['detail'] === 'string' ? { detail: data['detail'] } : {}),
+        };
+        const steps = [...report.steps, step];
+        const classOrder = ['real', 'assisted', 'partially-simulated', 'refused'] as const;
+        const stepClass = classifyResumeFidelity([step]);
+        const classification =
+          classOrder.indexOf(stepClass) >
+          classOrder.indexOf(report.classification ?? 'real')
+            ? stepClass
+            : (report.classification ?? 'real');
+        resumeExecution.set({
+          ...report,
+          classification,
+          steps,
+          ...(step.status === 'blocked'
+            ? { blocked: [...report.blocked, step.id] }
+            : {}),
+          ...(step.status === 'drifted' || step.status === 'skipped'
+            ? {
+                warnings: [
+                  ...(report.warnings ?? []),
+                  `${step.id} · ${step.detail ?? step.status}`,
+                ],
+              }
+            : {}),
+        });
+        status.set(`Résultat observé · ${step.id} · ${step.detail ?? step.status}`);
+        return;
+      }
       case 'snapshot-request':
         launch.tab.postMessage(
           {
@@ -863,12 +911,7 @@ function listenToDebugTabs(): void {
         }
         return;
       case 'resume-step':
-        if (
-          typeof data['id'] === 'string' &&
-          ['conformant', 'tolerated', 'recorded', 'blocked'].includes(
-            String(data['status']),
-          )
-        ) {
+        if (typeof data['id'] === 'string' && isResumeStepStatus(data['status'])) {
           const previous = resumeExecution();
           resumeExecution.set({
             status: 'running',
@@ -876,11 +919,7 @@ function listenToDebugTabs(): void {
               ...(previous?.steps ?? []),
               {
                 id: `${launch.participantId} · ${data['id']}`,
-                status: data['status'] as
-                  | 'conformant'
-                  | 'tolerated'
-                  | 'recorded'
-                  | 'blocked',
+                status: data['status'],
                 ...(typeof data['detail'] === 'string'
                   ? { detail: data['detail'] }
                   : {}),
@@ -895,6 +934,7 @@ function listenToDebugTabs(): void {
         return;
       case 'resume-completed': {
         launches.delete(launchId);
+        resumeOutcomeOrigins.delete(launchId);
         resumeHeldCall.set(undefined);
         const classification = String(data['classification'] ?? 'refused');
         const steps = Array.isArray(data['steps']) ? data['steps'] : [];
@@ -913,22 +953,16 @@ function listenToDebugTabs(): void {
             step,
           ): {
             id: string;
-            status: 'conformant' | 'tolerated' | 'recorded' | 'blocked';
+            status: ResumeStepStatus;
             detail?: string;
           }[] =>
             isRecord(step) &&
             typeof step['id'] === 'string' &&
-            ['conformant', 'tolerated', 'recorded', 'blocked'].includes(
-              String(step['status']),
-            )
+            isResumeStepStatus(step['status'])
               ? [
                   {
                     id: `${launch.participantId} · ${step['id']}`,
-                    status: step['status'] as
-                      | 'conformant'
-                      | 'tolerated'
-                      | 'recorded'
-                      | 'blocked',
+                    status: step['status'],
                     ...(typeof step['detail'] === 'string'
                       ? { detail: step['detail'] }
                       : {}),
@@ -992,12 +1026,23 @@ function listenToDebugTabs(): void {
         const previousOverrides = (previousReport?.overrides ?? []).filter(
           (override) => override.participantId !== launch.participantId,
         );
+        const safeWarnings = (
+          Array.isArray(data['warnings']) ? data['warnings'] : []
+        )
+          .filter((item): item is string => typeof item === 'string')
+          .map((item) => `${launch.participantId} · ${item}`);
         resumeExecution.set({
           status: 'completed',
           classification: combinedClassification,
           steps: [...previousSteps, ...safeSteps],
           overrides: [...previousOverrides, ...safeOverrides],
           blocked: [...(previousReport?.blocked ?? []), ...safeBlocked],
+          warnings: [
+            ...(previousReport?.warnings ?? []).filter(
+              (warning) => !warning.startsWith(currentParticipantPrefix),
+            ),
+            ...safeWarnings,
+          ],
         });
         publishResumeAssistantContext('execute', safeBlocked);
         updateResumeLaunchGroup(
@@ -1006,8 +1051,10 @@ function listenToDebugTabs(): void {
           safeClassification !== 'refused',
         );
         status.set(
-          `Reprise ${launch.participantId} terminée · fidélité ${safeClassification} · ${safeSteps.length} étape(s) · ${safeBlocked.length} blocage(s).`,
+          `Reprise ${launch.participantId} terminée · fidélité ${RESUME_FIDELITY_LABELS[safeClassification]} · ${safeSteps.length} étape(s) · ${safeBlocked.length} blocage(s).`,
         );
+        // Declared outcomes are still compared after the user takes over.
+        resumeOutcomeOrigins.set(launchId, launch);
         return;
       }
       case 'resume-error':
@@ -1052,6 +1099,10 @@ function listenToDebugTabs(): void {
         return;
     }
   });
+}
+
+function isResumeStepStatus(value: unknown): value is ResumeStepStatus {
+  return RESUME_STEP_STATUSES.includes(value as ResumeStepStatus);
 }
 
 function updateResumeLaunchGroup(
@@ -1231,6 +1282,13 @@ export function launchResumeAtReplay(): void {
   }
 
   sharedResumeResources.clear();
+  const sharedSubstitutions = [
+    ...new Map(
+      [...currentResumePlans.values()]
+        .flatMap(({ plan }) => plan.substitutions)
+        .map((item) => [`${item.resource}:${item.fingerprint}`, item] as const),
+    ).values(),
+  ];
   const groupId = newUuid();
   const group: ResumeLaunchGroup = { childLaunchIds: [] };
   resumeLaunchGroups.set(groupId, group);
@@ -1244,13 +1302,19 @@ export function launchResumeAtReplay(): void {
       (event) =>
         (event.globalElapsedMs ?? event.elapsedMs ?? 0) >= targetElapsedMs,
     )?.sequence;
+    // Origin storage is shared by the tabs: a tab may restore a value that
+    // another tab recorded, so every tab knows every placeholder.
+    const plan = {
+      ...participantPlan.plan,
+      substitutions: sharedSubstitutions,
+    };
     const launchId = launchDebugApp(
       beforeSequence,
       participantId,
       {
-        plan: participantPlan.plan,
+        plan,
         manifest: buildDebugSessionResumeManifest(
-          participantPlan.plan,
+          plan,
           participantPlan.archive,
         ),
         overrides: acceptedOverrides,
