@@ -13,8 +13,12 @@ export function createDemoApplication(path?: string) {
   return registry;
 }
 
+// Les e2e donnent leur propre magasin, remis à zéro à chaque run : le fichier
+// versionné `data/store.json` ne change pas et chaque run part du même état.
+const storePath = process.env['CRAFT_DEMO_ECOMMERCE_STORE'] || undefined;
+
 export async function handleDemoRequest(request: Request): Promise<Response> {
-  return createDemoApplication().handle(request);
+  return createDemoApplication(storePath).handle(request);
 }
 
 export function createDemoNodeServer() {
