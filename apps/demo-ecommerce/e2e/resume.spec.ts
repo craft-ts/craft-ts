@@ -284,11 +284,16 @@ test('S2 reacquires a server cart with a new id without placing the archived ord
   const recording = await browser.newContext();
   const demo = await recording.newPage();
   let originalCartId: string | undefined;
+  let syncedLines = 0;
   if (process.env['RESUME_E2E_DEBUG'])
     demo.on('console', (message) => console.log('[recording]', message.text()));
   demo.on('response', async (response) => {
     if (!response.url().includes('/__server-functions')) return;
-    originalCartId ??= cartIdFromPayload(await response.json().catch(() => undefined));
+    const payload = await response.json().catch(() => undefined);
+    originalCartId ??= cartIdFromPayload(payload);
+    const cart = decodeJson(typeof payload === 'string' ? payload : JSON.stringify(payload));
+    if (cart && typeof cart === 'object' && 'lines' in cart && Array.isArray(cart.lines))
+      syncedLines = Math.max(syncedLines, cart.lines.length);
   });
   await demo.goto(`${DEMO_ORIGIN}/connexion`);
   await demo.getByRole('button', { name: 'Se connecter en tant que Léo' }).click();
@@ -297,6 +302,10 @@ test('S2 reacquires a server cart with a new id without placing the archived ord
   await demo.getByRole('button', { name: '+ Ajouter' }).first().click();
   await expect.poll(() => originalCartId).not.toBeUndefined();
   await expect(demo.locator('body')).toContainText(/Panier\s*1/);
+  // Quitter la page avant la fin de la synchronisation laisserait le panier
+  // serveur hors de l'état enregistré.
+  await expect.poll(() => syncedLines).toBe(1);
+  await demo.waitForTimeout(300);
   await demo.goto(`${DEMO_ORIGIN}/panier`);
   await expect(demo.locator('body')).toContainText('Espresso');
   await expect(demo.locator('body')).toContainText('1 article(s)');
@@ -505,5 +514,65 @@ test('S5 skips the session acquisition when Léo signed out before the target', 
   await expectFidelity(dashboard, 'real');
   expect(tabs.calls).not.toContain('ecommerce.auth.login');
   expect(tabs.identities).toEqual([]);
+  expect(tabs.placeholderRequests).toEqual([]);
+});
+
+/** Appelle une fonction serveur de la démo comme le ferait l'app. */
+async function callDemoFunction(
+  request: APIRequestContext,
+  id: string,
+  input: unknown,
+): Promise<unknown> {
+  const response = await request.post(`${DEMO_ORIGIN}/__server-functions`, {
+    headers: { 'content-type': 'application/json', 'x-craft-protocol': '1', 'x-craft-function-id': id },
+    data: { id, input },
+  });
+  expect(response.ok(), `${id} : HTTP ${response.status()}`).toBe(true);
+  return decodeJson(await response.text());
+}
+
+test('S6 refuses a resume whose cart product was deleted after the recording', async ({
+  browser,
+  page: dashboard,
+  request,
+}) => {
+  const previousIds = await sessionIds(request);
+  const recording = await browser.newContext();
+  const demo = await recording.newPage();
+  await demo.goto(`${DEMO_ORIGIN}/connexion`);
+  await demo.getByRole('button', { name: 'Se connecter en tant que Léo' }).click();
+  await expect(demo.getByText('Bonjour Léo !')).toBeVisible();
+  await demo.goto(`${DEMO_ORIGIN}/catalogue`);
+  await demo.getByRole('button', { name: '+ Ajouter' }).first().click();
+  await expect(demo.locator('body')).toContainText(/Panier\s*1/);
+  await demo.goto(`${DEMO_ORIGIN}/panier`);
+  await expect(demo.locator('body')).toContainText('Espresso');
+  await demo.getByRole('link', { name: /Passer commande/ }).click();
+  await expect(demo.getByRole('button', { name: 'Confirmer la commande' })).toBeEnabled();
+  const sessionId = await newSessionId(request, previousIds);
+  await demo.getByRole('button', { name: 'Confirmer la commande' }).click();
+  await expect(demo.getByText('Merci pour votre commande')).toBeVisible();
+  await recording.close();
+  await completedArchive(request, sessionId);
+
+  await openJournal(dashboard, sessionId);
+  await revokeAllSessions(request);
+  await planResumeBefore(dashboard, 'EcommerceCheckoutPage:button:confirm-order:click');
+  // Le backend change entre le pré-vol du dashboard et la reprise.
+  const admin = (await callDemoFunction(request, 'ecommerce.auth.login', {
+    email: 'camille@atelier.demo',
+    password: 'atelier-admin',
+  })) as { token: string };
+  await callDemoFunction(request, 'ecommerce.product.delete', {
+    token: admin.token,
+    id: 'espresso',
+  });
+  const tabs = watchResumedTabs(dashboard);
+  await dashboard.locator('[data-lab="launch-resume"]').click();
+  await expectFidelity(dashboard, 'refused');
+  await expect(dashboard.locator('[data-lab="resume-execution-report"]')).toContainText(
+    'espresso',
+  );
+  expect(tabs.calls).not.toContain('ecommerce.checkout');
   expect(tabs.placeholderRequests).toEqual([]);
 });

@@ -77,7 +77,7 @@ vide) n’est pas réacquise. Le panier serveur est synchronisé par la mutation
 `syncServerCart` : les méthodes d’un `state` tournent avec le pilote synchrone
 et ne peuvent pas attendre le réseau.
 
-Les e2e de reprise (S1 à S5) tournent avec
+Les e2e de reprise (S1 à S6) tournent avec
 `npx nx e2e-resume demo-ecommerce`. Ils révoquent toutes les sessions avant de
 reprendre (`POST /__dev/auth/revoke-all`, actif seulement si `CRAFT_E2E=1`),
 vérifient l’identité que le serveur renvoie et échouent si une requête porte

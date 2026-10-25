@@ -6,7 +6,9 @@ entre ce que la reprise annonce et ce qu'elle fait. Ce plan les corrige, sur
 la même branche.
 
 > **Statut (2026-10-25).** C1 à C9 faits sur
-> `claude/reprise-fonctionnelle-corrections` ; S1 à S5 verts. Écarts :
+> `claude/reprise-fonctionnelle-corrections` ; S1 à S5 verts, plus S6
+> (produit du panier supprimé avant la reprise : pré-vol refusé, fidélité
+> « refusée »). Écarts :
 > C2, C3 et C4 sont un seul commit (mêmes fonctions, commits séparés non
 > compilables) ; la vivacité compte aussi la valeur gardée par le fournisseur
 > lui-même (un catalogue chargé) ; `state` n'acceptant qu'une insertion,
