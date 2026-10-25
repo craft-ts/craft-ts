@@ -109,11 +109,14 @@ export const E2eComparisonPage = craftComponent(
     const replayFrames = yield* craftComputed('replayFrames', () => replayFramesOf(report()));
     const findings = yield* craftComputed('findings', () => {
       const current = comparison();
-      return (current?.findings ?? []).map((finding) => ({
+      // Decoded from JSON, the first divergence is a copy of one finding, not the same object.
+      const first = current?.firstDivergence ? JSON.stringify(current.firstDivergence) : undefined;
+      const firstIndex = (current?.findings ?? []).findIndex((finding) => JSON.stringify(finding) === first);
+      return (current?.findings ?? []).map((finding, index) => ({
         finding,
         label: sessionTraceFindingLabel(finding),
         text: ` · ${describeSessionTraceFinding(finding)}`,
-        first: finding === current?.firstDivergence ? 'true' : 'false',
+        first: index === firstIndex ? 'true' : 'false',
       }));
     });
     const hiddenFirstDivergence = yield* craftComputed('hiddenFirstDivergence', () => comparison() === undefined);
