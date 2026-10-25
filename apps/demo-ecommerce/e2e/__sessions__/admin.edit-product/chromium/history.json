@@ -6,23 +6,23 @@
   "runs": [
     {
       "dirty": false,
-      "durationMs": 1520,
+      "durationMs": 1541,
       "environment": {
         "browser": "chromium",
         "browserVersion": "153.0.8010.12",
         "platform": "darwin"
       },
-      "file": "2026-10-25T15-58-00-652Z-24d1a5.session.json.gz",
-      "gitSha": "8d0a57f6c",
+      "file": "2026-10-25T16-11-51-171Z-24d1a5.session.json.gz",
+      "gitSha": "a91ba84ac",
       "markers": [
         {
-          "at": 1792943880395,
+          "at": 1792944710919,
           "label": "modifier le stock"
         }
       ],
-      "recordedAt": "2026-10-25T15:58:00.652Z",
+      "recordedAt": "2026-10-25T16:11:51.171Z",
       "retry": 0,
-      "sizeBytes": 7997,
+      "sizeBytes": 7925,
       "specFile": "apps/demo-ecommerce/e2e/admin.spec.ts",
       "title": "se connecter et modifier un produit dans l’administration",
       "traceHash": "f21642ea5690d9955a4f06f65cb9b7a117255e71502ffbd4e4f184801ae085ab",

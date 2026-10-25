@@ -6,21 +6,21 @@
   "runs": [
     {
       "dirty": false,
-      "durationMs": 1271,
+      "durationMs": 1111,
       "environment": {
         "browser": "chromium",
         "browserVersion": "153.0.8010.12",
         "platform": "darwin"
       },
-      "file": "2026-10-25T15-58-02-780Z-66a881.session.json.gz",
-      "gitSha": "8d0a57f6c",
+      "file": "2026-10-25T16-11-53-213Z-d0c61f.session.json.gz",
+      "gitSha": "a91ba84ac",
       "markers": [],
-      "recordedAt": "2026-10-25T15:58:02.780Z",
+      "recordedAt": "2026-10-25T16:11:53.213Z",
       "retry": 0,
-      "sizeBytes": 6651,
+      "sizeBytes": 6538,
       "specFile": "apps/demo-ecommerce/e2e/multicontext.spec.ts",
       "title": "rattache les contextes boutique et administration à une session",
-      "traceHash": "abf7e2c26023a328cd3065588f8cb3b7e4d14c2a0126353c6d736b2489343ec4",
+      "traceHash": "1c06719ba762a115695b099ae1210940bf65ad98e6c53fbd0820023453299f46",
       "traceSchemaVersion": 2
     }
   ],
