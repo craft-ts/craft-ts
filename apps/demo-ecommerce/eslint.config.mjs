@@ -40,7 +40,7 @@ export default [
     files: ['e2e/**/*.spec.ts'],
     rules: {
       ...craftRules.configs.e2e.rules,
-      'craft-ts/e2e-session-contract': ['error', { fixtureModules: ['./fixtures'] }],
+      'craft-ts/e2e-session-contract': ['error', { fixtureFiles: [`${import.meta.dirname}/e2e/fixtures.ts`] }],
     },
   },
   {
