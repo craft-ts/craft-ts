@@ -2,6 +2,14 @@
 
 ## État de mise en œuvre
 
+> **25 octobre 2026** : la revue de ces lots a trouvé des trous (normaliseur qui
+> ignorait les appels craft et l'état des primitives, réponses HTTP sans
+> identité, copie divergente dans le MCP, repli sur un autre run…). Ils sont
+> corrigés selon [2026-10-25-e2e-session-history-corrections.md](2026-10-25-e2e-session-history-corrections.md),
+> qui fait foi là où les deux plans diffèrent. Le module de trace vit désormais
+> dans le package publié `@craft-ts/session-trace`, plus dans le sous-chemin
+> `@craft-ts/component/session-trace` mentionné ci-dessous.
+
 Lot 0 vérifié le 24 octobre 2026 : Playwright 1.64.1 inclut les annotations
 dans `suites[].specs[].tests[].annotations`, y compris pour les cas générés en
 boucle (fixture de démonstration du package). Deux contextes qui reçoivent le
