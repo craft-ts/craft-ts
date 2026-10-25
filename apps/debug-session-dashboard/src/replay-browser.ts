@@ -126,10 +126,13 @@ export function goToHash(hash: string): void {
   platform.navigate(hash);
 }
 
-/** Seek one comparison iframe without making the outer dashboard browser-aware. */
+/**
+ * Places one comparison iframe's replay on a recorded event, without making the
+ * outer dashboard browser-aware.
+ */
 export function seekE2eComparisonFrame(
   side: 'baseline' | 'observed',
-  progress: number,
+  eventId: string,
 ): void {
   const frame = host?.root.querySelector<HTMLIFrameElement>(
     `[data-lab="e2e-replay-${side}"]`,
@@ -137,7 +140,7 @@ export function seekE2eComparisonFrame(
   if (!frame?.contentWindow || !frame.src) return;
   try {
     frame.contentWindow.postMessage(
-      { protocol: 'craft-e2e-replay', progress: Math.max(0, Math.min(1, progress)) },
+      { protocol: 'craft-e2e-replay', eventId },
       new URL(frame.src).origin,
     );
   } catch {

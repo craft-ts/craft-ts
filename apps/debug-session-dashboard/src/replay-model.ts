@@ -1,3 +1,7 @@
+import {
+  parseSessionTraceComparison,
+  type SessionTraceComparison,
+} from '@craft-ts/session-trace';
 import type {
   SendContextEvent,
   SendContextReplayExport,
@@ -779,4 +783,59 @@ export function clockLabel(ms: number): string {
   return hours > 0
     ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}`
     : `${minutes}:${rest}`;
+}
+
+/* ── the E2E comparison ─────────────────────────────────────────────────── */
+
+export type E2eComparisonResponse = Readonly<{
+  testId: string;
+  project: string;
+  sessionId: string;
+  observed: Readonly<Record<string, unknown>>;
+  observedSource?: string;
+  baselines: readonly Readonly<{ source: string; session: Readonly<Record<string, unknown>> }>[];
+  /** Computed by the log server with the shared module; absent from older servers. */
+  comparison?: SessionTraceComparison;
+}>;
+
+/** The answer of `/e2e-sessions/compare`, rebuilt field by field. */
+export function parseE2eComparisonResponse(
+  value: unknown,
+): E2eComparisonResponse | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value['testId'] !== 'string' ||
+    typeof value['project'] !== 'string' ||
+    typeof value['sessionId'] !== 'string' ||
+    !isRecord(value['observed']) ||
+    !Array.isArray(value['baselines'])
+  )
+    return undefined;
+  const baselines = value['baselines'].flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const { source, session } = item;
+    return typeof source === 'string' && isRecord(session)
+      ? [{ source, session }]
+      : [];
+  });
+  const comparison = parseSessionTraceComparison(value['comparison']);
+  return {
+    testId: value['testId'],
+    project: value['project'],
+    sessionId: value['sessionId'],
+    observed: value['observed'],
+    ...(typeof value['observedSource'] === 'string'
+      ? { observedSource: value['observedSource'] }
+      : {}),
+    baselines,
+    ...(comparison ? { comparison } : {}),
+  };
+}
+
+/** The portable session's events, in the shape the trace normalizer reads. */
+export function portableEvents(
+  session: Readonly<Record<string, unknown>>,
+): { events: Readonly<Record<string, unknown>>[] } {
+  const events = session['events'];
+  return { events: Array.isArray(events) ? events.filter(isRecord) : [] };
 }

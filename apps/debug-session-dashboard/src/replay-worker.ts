@@ -42,6 +42,10 @@ export type ReplayWorkerSnapshot = Readonly<{
   seeking: boolean;
   /** The replay stopped on a gap with the recording. */
   difference: boolean;
+  /** That gap, for a reader that reports it (the e2e baseline replay). */
+  differenceDetail:
+    | Readonly<{ eventId?: string; expected: unknown; actual: unknown }>
+    | undefined;
   /** How much the page is shrunk to fit its frame; 1 is its recorded size. */
   scale: number;
   activeParticipantId: string | undefined;
@@ -78,9 +82,20 @@ function snapshot(): ReplayWorkerSnapshot {
     total: replayableEvents().length,
     seeking: seekTarget() !== undefined || registers.seekStepping,
     difference: difference() !== undefined,
+    differenceDetail: differenceDetail(),
     scale: replayViewportScale(),
     activeParticipantId: activeReplayParticipantId(),
     viewport: replayViewport() ?? session()?.viewport,
+  };
+}
+
+function differenceDetail(): ReplayWorkerSnapshot['differenceDetail'] {
+  const current = difference();
+  if (!current) return undefined;
+  return {
+    ...(current.eventId ? { eventId: current.eventId } : {}),
+    expected: current.expected,
+    actual: current.actual,
   };
 }
 

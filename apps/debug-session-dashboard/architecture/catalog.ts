@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "50d0545e59431e22",
+  "graphHash": "c81f0b0c76934970",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -104,7 +104,6 @@ export const architectureCatalog = {
     "closeRemovedSession",
     "closed",
     "comparison",
-    "comparisonSummary",
     "connected",
     "continuationsState",
     "copied",
@@ -134,10 +133,13 @@ export const architectureCatalog = {
     "expiredSessions",
     "failArchivedSession",
     "findings",
+    "firstDivergenceLabel",
+    "firstDivergenceText",
     "fullscreenDisabled",
     "hasDifferenceState",
     "hasReplayErrorNote",
     "hidden",
+    "hiddenFirstDivergence",
     "hiddenSrcReplayNotices",
     "hiddenSrcReplayNotices10",
     "hiddenSrcReplayNotices11",
@@ -255,6 +257,7 @@ export const architectureCatalog = {
     "storageBytes",
     "summary",
     "summaryHidden",
+    "summaryText",
     "targetUrl",
     "thumbnailManifest",
     "timeProgress",

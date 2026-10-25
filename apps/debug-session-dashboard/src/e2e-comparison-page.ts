@@ -1,6 +1,7 @@
 import {
   button,
   craftComponent,
+  details,
   div,
   forNode,
   heading,
@@ -8,13 +9,27 @@ import {
   li,
   p,
   pre,
+  safeResourceUrl,
+  span,
+  strong,
+  summary,
   ul,
 } from '@craft-ts/component';
 import {
   craftComputed,
   rawReactiveValue,
 } from '@craft-ts/core';
-import { E2eComparison } from './e2e-comparison.service';
+import {
+  describeSessionTraceFinding,
+  sessionTraceFindingAnchors,
+  sessionTraceFindingLabel,
+  type SessionTraceFinding,
+} from '@craft-ts/session-trace';
+import {
+  E2eComparison,
+  type E2eComparisonError,
+  type E2eComparisonReport,
+} from './e2e-comparison.service';
 import { ui } from './dashboard.style';
 import {
   goToHash,
@@ -27,12 +42,37 @@ const DASHBOARD_URL =
   import.meta.env['VITE_CRAFT_SESSION_DASHBOARD_URL'] ??
   'http://localhost:4210/';
 
-type E2eFinding = Readonly<{
-  kind: string;
-  expected?: Readonly<{ key: string; elapsedMs: number }>;
-  observed?: Readonly<{ key: string; elapsedMs: number }>;
-  step?: Readonly<{ key: string; elapsedMs: number }>;
-}>;
+function comparisonSummary(result: E2eComparisonReport | E2eComparisonError | undefined, exception: unknown): string {
+  if (result && 'error' in result) return `Chargement impossible · ${result.error}`;
+  if (!result && exception !== undefined)
+    return `Chargement impossible · ${typeof exception === 'string' ? exception : JSON.stringify(exception)}`;
+  if (!result) return 'Chargement des runs et de leur historique…';
+  const references = result.baselineCount > 1 ? `${result.baselineCount} références vertes` : `${result.baselineCount} référence verte`;
+  const single = result.baselineCount === 1 ? ' · une seule référence : les variations normales ne sont pas connues' : '';
+  return `${result.comparison.findings.length} trouvailles · ${references}${single}.`;
+}
+
+/** The two replay frames: the latest green reference and the observed run. */
+function replayFramesOf(result: E2eComparisonReport | E2eComparisonError | undefined) {
+  if (!result || 'error' in result || !result.baselineSource || !result.observedSource) return [];
+  const dashboard = new URL(result.dashboardUrl || DASHBOARD_URL);
+  const replayUrl = (source: string) => {
+    const url = new URL(dashboard);
+    url.hash = `#/e2e-replay?${new URLSearchParams({ source }).toString()}`;
+    return url.toString();
+  };
+  return [
+    { side: 'baseline', label: 'Référence verte', src: replayUrl(result.baselineSource), origin: dashboard.origin },
+    { side: 'observed', label: 'Run observé', src: replayUrl(result.observedSource), origin: dashboard.origin },
+  ];
+}
+
+/** Places both replays on the steps a finding is about. */
+function seekFinding(finding: SessionTraceFinding): void {
+  const anchors = sessionTraceFindingAnchors(finding);
+  if (anchors.baseline?.eventId) seekE2eComparisonFrame('baseline', anchors.baseline.eventId);
+  if (anchors.observed?.eventId) seekE2eComparisonFrame('observed', anchors.observed.eventId);
+}
 
 /** Read-only report view for a failed Playwright run and its green history. */
 export const E2eComparisonPage = craftComponent(
@@ -44,71 +84,59 @@ export const E2eComparisonPage = craftComponent(
     const queryException = rawReactiveValue(service.comparison.exception);
     const hidden = yield* craftComputed('hidden', () => page() !== 'compare');
     const title = yield* craftComputed('title', () => {
-      const result = report() as
-        | { testId?: string; project?: string; sessionId?: string }
-        | undefined;
-      return result?.testId
-        ? `Comparaison · ${result.testId} · ${result.project ?? ''}`
+      const result = report();
+      return result && !('error' in result)
+        ? `Comparaison · ${result.testId} · ${result.project}`
         : 'Comparaison de session E2E';
     });
-    const summary = yield* craftComputed('comparisonSummary', () => {
-      const result = report() as
-        | {
-            baselineCount?: number;
-            comparison?: { findings?: readonly unknown[]; firstDivergence?: unknown };
-          }
-        | undefined;
-      if (!result) {
-        const exception = queryException();
-        if (exception !== undefined)
-          return `Chargement impossible · ${typeof exception === 'string' ? exception : JSON.stringify(exception)}`;
-        return 'Chargement des runs et de leur historique…';
-      }
-      const divergence = result.comparison?.firstDivergence
-        ? 'Une divergence stable a été détectée.'
-        : 'Aucune divergence stable détectée.';
-      return `${divergence} · ${result.baselineCount ?? 0} références vertes · ${result.comparison?.findings?.length ?? 0} trouvailles.`;
+    const summaryText = yield* craftComputed('summaryText', () => comparisonSummary(report(), queryException()));
+    const comparison = () => {
+      const result = report();
+      return result && !('error' in result) ? result.comparison : undefined;
+    };
+    const firstDivergenceLabel = yield* craftComputed('firstDivergenceLabel', () => {
+      const first = comparison()?.firstDivergence;
+      return first ? `Première divergence · ${sessionTraceFindingLabel(first)}` : 'Aucune divergence bloquante';
+    });
+    const firstDivergenceText = yield* craftComputed('firstDivergenceText', () => {
+      const first = comparison()?.firstDivergence;
+      return first ? describeSessionTraceFinding(first) : 'Les pas stables des runs verts se retrouvent dans le run observé.';
     });
     const reportText = yield* craftComputed('reportText', () => {
-      const result = report();
-      return result ? JSON.stringify(result, null, 2) : 'En attente du serveur local…';
+      const current = comparison();
+      return current ? JSON.stringify(current, null, 2) : 'En attente du serveur local…';
     });
-    const replayFrames = yield* craftComputed('replayFrames', () => {
-      const result = report() as
-        | { baselineSource?: string; observedSource?: string; dashboardUrl?: string }
-        | undefined;
-      if (!result?.baselineSource || !result.observedSource) return [];
-      const replayUrl = (source: string) => {
-        const url = new URL(result.dashboardUrl ?? DASHBOARD_URL);
-        url.hash = `#/e2e-replay?${new URLSearchParams({ source }).toString()}`;
-        return url.toString();
-      };
-      return [
-        { label: 'Référence verte', src: replayUrl(result.baselineSource) },
-        { label: 'Run observé', src: replayUrl(result.observedSource) },
-      ];
-    });
+    const replayFrames = yield* craftComputed('replayFrames', () => replayFramesOf(report()));
     const findings = yield* craftComputed('findings', () => {
-      const result = report() as
-        | {
-            comparison?: { findings?: readonly E2eFinding[] };
-          }
-        | undefined;
-      return result?.comparison?.findings ?? [];
+      const current = comparison();
+      return (current?.findings ?? []).map((finding) => ({
+        finding,
+        label: sessionTraceFindingLabel(finding),
+        text: ` · ${describeSessionTraceFinding(finding)}`,
+        first: finding === current?.firstDivergence ? 'true' : 'false',
+      }));
     });
+    const hiddenFirstDivergence = yield* craftComputed('hiddenFirstDivergence', () => comparison() === undefined);
     return div(
       { class: ui.page, hidden, 'data-lab': 'e2e-comparison-page' },
       [
         div({ class: ui.listHead }, [
           div([
             heading({ class: ui.title }, title),
-            p({ class: ui.lede, role: 'status' }, summary),
+            p({ class: ui.lede, role: 'status' }, summaryText),
           ]),
         ]),
         div({ class: ui.gap }, [
-          p(
-            {},
-            'Le rapport aligne les événements stables de tous les runs verts avec le run observé. Les événements variables entre références sont conservés comme bruit.',
+          div(
+            {
+              class: ui.e2eFirstDivergence,
+              'data-lab': 'e2e-first-divergence',
+              hidden: hiddenFirstDivergence,
+            },
+            [
+              strong({}, firstDivergenceLabel),
+              p({}, firstDivergenceText),
+            ],
           ),
           div({ class: ui.e2eComparisonLayout }, [
             div(
@@ -116,8 +144,8 @@ export const E2eComparisonPage = craftComponent(
               forNode(
                 replayFrames,
                 { track: (frame) => frame.label },
-                (frame, index) =>
-                  div({ class: ui.e2eComparisonFrame, 'data-replay-side': index === 0 ? 'baseline' : 'observed' }, [
+                (frame) =>
+                  div({ class: ui.e2eComparisonFrame, 'data-replay-side': function* () { return (yield* frame()).side; } }, [
                     p(function* () {
                       return (yield* frame()).label;
                     }),
@@ -126,10 +154,13 @@ export const E2eComparisonPage = craftComponent(
                         return (yield* frame()).label;
                       },
                       src: function* () {
-                        return (yield* frame()).src;
+                        const item = yield* frame();
+                        return safeResourceUrl(item.src, { allowedOrigins: [item.origin] });
                       },
                       loading: 'lazy',
-                      'data-lab': `e2e-replay-${index === 0 ? 'baseline' : 'observed'}`,
+                      'data-lab': function* () {
+                        return `e2e-replay-${(yield* frame()).side}`;
+                      },
                       class: ui.e2eComparisonIframe,
                       sandbox: 'allow-scripts allow-same-origin',
                     }),
@@ -149,8 +180,8 @@ export const E2eComparisonPage = craftComponent(
                   { class: ui.sessions, 'data-lab': 'e2e-comparison-findings' },
                   forNode(
                     findings,
-                    { track: (_finding, index) => index },
-                    (finding, index) =>
+                    { track: (_item, index) => index },
+                    (item) =>
                       li({ class: ui.row }, [
                         button(
                           'seekComparisonFinding',
@@ -158,29 +189,21 @@ export const E2eComparisonPage = craftComponent(
                             type: 'button',
                             class: ui.rowOpen,
                             'data-lab': 'e2e-comparison-finding',
+                            'data-first': function* () {
+                              return (yield* item()).first;
+                            },
                             click: function* () {
-                              const item = yield* finding();
-                              const result = report() as {
-                                baselineDurationMs?: number;
-                                observedDurationMs?: number;
-                              } | undefined;
-                              const findingStep = item.step;
-                              const baselineMs = item.expected?.elapsedMs ?? findingStep?.elapsedMs ?? 0;
-                              const observedMs = item.observed?.elapsedMs ?? findingStep?.elapsedMs ?? baselineMs;
-                              seekE2eComparisonFrame(
-                                'baseline',
-                                (baselineMs / Math.max(1, result?.baselineDurationMs ?? 1)),
-                              );
-                              seekE2eComparisonFrame(
-                                'observed',
-                                (observedMs / Math.max(1, result?.observedDurationMs ?? 1)),
-                              );
+                              seekFinding((yield* item()).finding);
                             },
                           },
-                          function* () {
-                            const item = yield* finding();
-                            return `${index + 1}. ${item.kind} · ${item.expected?.key ?? item.observed?.key ?? item.step?.key ?? 'étape'}`;
-                          },
+                          [
+                            strong({}, function* () {
+                              return (yield* item()).label;
+                            }),
+                            span({}, function* () {
+                              return (yield* item()).text;
+                            }),
+                          ],
                         ),
                       ]),
                   ),
@@ -188,7 +211,10 @@ export const E2eComparisonPage = craftComponent(
               ],
             ),
           ]),
-          pre({ class: ui.code, 'data-lab': 'e2e-comparison-json' }, reportText),
+          details({ 'data-lab': 'e2e-comparison-raw' }, [
+            summary('Comparaison brute (JSON)'),
+            pre({ class: ui.code, 'data-lab': 'e2e-comparison-json' }, reportText),
+          ]),
           div({ class: ui.listHeadActions }, [
             button(
               'backToSessions',

@@ -11,7 +11,7 @@ import { isRecord } from './replay-model';
 import {
   importJson,
   scheduleReplayPreparation,
-  seekReplayToShare,
+  seekReplayToRecordedEvent,
 } from './replay-session';
 
 const rawDecoder = { decode: (input: unknown) => input };
@@ -44,8 +44,8 @@ export const { E2eReplayRoute: E2eReplayRouteService } = craftService(
       const data = message.data;
       if (message.origin !== dashboardOrigin) return;
       if (!isRecord(data) || data['protocol'] !== 'craft-e2e-replay') return;
-      if (typeof data['progress'] === 'number')
-        seekReplayToShare(Math.max(0, Math.min(1, data['progress'])));
+      if (typeof data['eventId'] === 'string' && data['eventId'])
+        seekReplayToRecordedEvent(data['eventId']);
     });
   },
 );

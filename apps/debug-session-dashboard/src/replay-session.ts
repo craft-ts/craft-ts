@@ -470,6 +470,19 @@ export function seekReplayToEvent(
 }
 
 /**
+ * Brings the replay to any recorded event, an action or not: every action up
+ * to it, itself included, has run. An unknown event leaves it in place.
+ */
+export function seekReplayToRecordedEvent(eventId: string): void {
+  const target = events().find((event) => event.id === eventId);
+  if (!target) return;
+  seekReplayToIndex(
+    replayableEvents().filter((event) => event.sequence <= target.sequence)
+      .length,
+  );
+}
+
+/**
  * Brings the replay to a point of its timeline, `share` of the way through the
  * recording (0 to 1): the state it had once every action recorded by then had
  * run. The very start is the app as it opens, before any action.

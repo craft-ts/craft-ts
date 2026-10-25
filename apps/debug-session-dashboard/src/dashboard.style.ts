@@ -512,6 +512,11 @@ export const ui = craftStyles('dashboard', {
     flexDirection.column,
     minInlineSize(space(0)),
   ],
+  e2eFirstDivergence: [
+    display.flex,
+    flexDirection.column,
+    gap(space(1)),
+  ],
   e2eComparisonIframe: [
     display.block,
     inlineSize(unit.pct(100)),
