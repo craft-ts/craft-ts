@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createDebugSessionReferenceRedactor,
   extractReferenceCandidates,
+  getDebugSessionReferenceSalt,
   fingerprintDebugSessionReference,
   redactDebugSessionHeaders,
   redactDebugSessionReferences,
@@ -82,5 +84,95 @@ describe('debug session reference handling', () => {
     expect(result.value).toContain('page=2');
     expect(result.value).not.toContain(token);
     expect(result.refs).toHaveLength(1);
+  });
+});
+
+describe('reference provenance', () => {
+  const jwt =
+    'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJsZW8ifQ.Qm9uam91ciBMw6lvLCBjZWNpIGVzdCB1bmUgc2lnbmF0dXJl';
+
+  it('traces tokens in snake_case and camelCase fields', () => {
+    const { refs } = redactDebugSessionReferences(
+      { access_token: jwt, accessToken: 'short', clientSecret: 'x', client_secret: 'y' },
+      'salt',
+      'response.body',
+      'in',
+    );
+    expect(refs.map(({ path }) => path)).toEqual([
+      'response.body.access_token',
+      'response.body.accessToken',
+      'response.body.clientSecret',
+      'response.body.client_secret',
+    ]);
+  });
+
+  it('follows JSON encoded twice and encodes it back the same way', () => {
+    const body = JSON.stringify(
+      JSON.stringify({
+        token: '1f7c6a2e-9b1d-4c3e-8f5a-2d4b6c8e0a1f',
+        user: { id: 'leo', role: 'client' },
+      }),
+    );
+    const redacted = redactDebugSessionReferences(
+      JSON.parse(body),
+      'salt',
+      'response.body',
+      'in',
+    );
+    expect(redacted.refs).toEqual([
+      expect.objectContaining({ path: 'response.body.token', direction: 'in' }),
+    ]);
+    const decoded = JSON.parse(redacted.value as string) as Record<string, unknown>;
+    expect(decoded['token']).toBe(`craft-ref:${redacted.refs[0]?.fingerprint}`);
+    expect(decoded['user']).toEqual({ id: 'leo', role: 'client' });
+  });
+
+  it('traces a numeric id only at a declared key', () => {
+    const declared = redactDebugSessionReferences(
+      { cartId: 4242, count: 4242 },
+      'salt',
+      '$',
+      'in',
+      { tracedKeys: new Set(['cartId']) },
+    );
+    expect(declared.refs.map(({ path }) => path)).toEqual(['$.cartId']);
+    expect(declared.value).toEqual({
+      cartId: `craft-ref:${fingerprintDebugSessionReference('4242', 'salt')}`,
+      count: 4242,
+    });
+  });
+
+  it('never takes prose, slugs or code names for references outside identifier fields', () => {
+    const { refs } = redactDebugSessionReferences(
+      {
+        description: 'Double espresso, grains du jour et lait velouté maison',
+        owner: 'admin-overview-poll-with-a-long-slug',
+        component: 'EcommerceCataloguePageWithLongName',
+        id: 'flat-white',
+        productId: 'croissant-pur-beurre-aop',
+      },
+      'salt',
+      'response.body',
+      'in',
+    );
+    expect(refs.map(({ path }) => path)).toEqual(['response.body.productId']);
+  });
+});
+
+describe('reference redactor', () => {
+  it('turns sensitive fields into session placeholders before the fallback runs', () => {
+    const session = {};
+    const { redactor, bind } = createDebugSessionReferenceRedactor(
+      (value: unknown) => value,
+    );
+    const before = redactor({ token: 'abc' }, undefined);
+    bind(session);
+    const after = redactor({ token: 'abc', user: { id: 'leo' } }, undefined);
+
+    expect(before).toEqual({ token: 'abc' });
+    expect(after).toEqual({
+      token: `craft-ref:${fingerprintDebugSessionReference('abc', getDebugSessionReferenceSalt(session))}`,
+      user: { id: 'leo' },
+    });
   });
 });

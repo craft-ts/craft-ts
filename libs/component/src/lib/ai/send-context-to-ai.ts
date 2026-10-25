@@ -22,6 +22,8 @@ import {
   provideSendContextEventEnricher,
   provideSendContextEventSource,
   provideSendContextSession,
+  provideSendContextRedactor,
+  defaultSendContextRedactor,
   getCurrentStartCorrelationId,
   ɵcaptureCraftReplayTarget,
   ɵinjectAppSnapshotRegistry,
@@ -55,6 +57,10 @@ import {
 } from './debug-session-browser-storage';
 import { connectDebugSessionDialogCapture } from './debug-session-dialogs';
 import { connectDebugSessionFetchCapture } from './debug-session-fetch-capture';
+import {
+  createDebugSessionReferenceRedactor,
+  lastPathKey,
+} from './debug-session-references';
 import { connectDebugSessionXhrCapture } from './debug-session-xhr-capture';
 import { connectDebugSessionFormCapture } from './debug-session-form-capture';
 import { connectDebugSessionHoverCapture } from './debug-session-hover';
@@ -577,10 +583,17 @@ export function provideCraftDebugSessionCapture(
         /^(method|query|mutation|asyncProcess|queryParams):.+/.test(tag),
       );
   };
+  const referenceRedactor = createDebugSessionReferenceRedactor(
+    defaultSendContextRedactor,
+  );
   return [
     ...provideSendContextSession({
       captureInputValues: options.captureInputValues,
       captureSensitiveInputValues: options.captureSensitiveInputValues,
+    }),
+    provideSendContextRedactor(referenceRedactor.redactor),
+    provideSendContextEventSource((createdSession) => {
+      referenceRedactor.bind(createdSession);
     }),
     ...(options.captureReplayArguments === true &&
     isLoopbackWebSocketUrl(options.webSocketUrl)
@@ -684,17 +697,28 @@ export function provideCraftDebugSessionCapture(
             captureSensitiveInputValues: options.captureSensitiveInputValues,
           })
         : undefined;
+      // Declared resume paths are traced even when their value is a number.
+      const resumeRegistry = ɵinjectCraftPrimitiveRegistry();
+      const resumeTracedKeys = () =>
+        new Set(
+          resumeRegistry.list().flatMap((entry) => {
+            const key = entry.resume?.path
+              ? lastPathKey(entry.resume.path)
+              : undefined;
+            return key ? [key] : [];
+          }),
+        );
       const disconnectFetchCapture =
         recording &&
         options.captureReplayArguments === true &&
         isLoopbackWebSocketUrl(options.webSocketUrl)
-          ? connectDebugSessionFetchCapture(createdSession)
+          ? connectDebugSessionFetchCapture(createdSession, resumeTracedKeys)
           : undefined;
       const disconnectXhrCapture =
         recording &&
         options.captureReplayArguments === true &&
         isLoopbackWebSocketUrl(options.webSocketUrl)
-          ? connectDebugSessionXhrCapture(createdSession)
+          ? connectDebugSessionXhrCapture(createdSession, resumeTracedKeys)
           : undefined;
       const disconnectPrimitiveCapture =
         recording &&

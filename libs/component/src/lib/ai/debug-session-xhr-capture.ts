@@ -11,6 +11,8 @@ import {
 /** Captures XMLHttpRequest traffic in the same archive shape as fetch. */
 export function connectDebugSessionXhrCapture(
   session: SendContextSession,
+  /** Last keys of declared resume paths, traced even when numeric. */
+  tracedKeys: () => ReadonlySet<string> = () => new Set(),
 ): () => void {
   if (typeof window === 'undefined' || typeof XMLHttpRequest === 'undefined') {
     return () => undefined;
@@ -84,6 +86,7 @@ export function connectDebugSessionXhrCapture(
       sessionSalt,
       'request.body',
       'out',
+      { tracedKeys: tracedKeys() },
     );
     session.capture('http', 'started', {
       name: metadata.method,
@@ -111,6 +114,7 @@ export function connectDebugSessionXhrCapture(
           sessionSalt,
           operationId,
           correlationId,
+          tracedKeys(),
         );
       },
       { once: true },
@@ -142,6 +146,7 @@ async function captureXhrResponse(
   sessionSalt: string,
   operationId: string,
   correlationId: string | undefined,
+  tracedKeys: ReadonlySet<string>,
 ): Promise<void> {
   let body: unknown;
   try {
@@ -186,6 +191,7 @@ async function captureXhrResponse(
           sessionSalt,
           'response.body',
           'in',
+          { tracedKeys },
         );
   session.capture('http', xhr.status === 0 ? 'failed' : 'succeeded', {
     name: xhrMetadata.get(xhr)?.method ?? 'XHR',

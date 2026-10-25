@@ -14,6 +14,8 @@ import {
 /** Captures raw fetch outcomes for deterministic replay in local sessions. */
 export function connectDebugSessionFetchCapture(
   session: SendContextSession,
+  /** Last keys of declared resume paths, traced even when numeric. */
+  tracedKeys: () => ReadonlySet<string> = () => new Set(),
 ): () => void {
   if (typeof window === 'undefined') return () => undefined;
   const originalFetch = window.fetch;
@@ -57,6 +59,7 @@ export function connectDebugSessionFetchCapture(
           sessionSalt,
           'request.body',
           'out',
+          { tracedKeys: tracedKeys() },
         );
     const serializedRequestBody = isFormBody
       ? redactedRequestBody.value
@@ -115,6 +118,7 @@ export function connectDebugSessionFetchCapture(
               sessionSalt,
               'response.body',
               'in',
+              { tracedKeys: tracedKeys() },
             );
       const serializedResponseBody = isFormResponse
         ? redactedResponseBody.value
