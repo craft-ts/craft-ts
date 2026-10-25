@@ -126,6 +126,25 @@ export function goToHash(hash: string): void {
   platform.navigate(hash);
 }
 
+/** Seek one comparison iframe without making the outer dashboard browser-aware. */
+export function seekE2eComparisonFrame(
+  side: 'baseline' | 'observed',
+  progress: number,
+): void {
+  const frame = host?.root.querySelector<HTMLIFrameElement>(
+    `[data-lab="e2e-replay-${side}"]`,
+  );
+  if (!frame?.contentWindow || !frame.src) return;
+  try {
+    frame.contentWindow.postMessage(
+      { protocol: 'craft-e2e-replay', progress: Math.max(0, Math.min(1, progress)) },
+      new URL(frame.src).origin,
+    );
+  } catch {
+    // A frame can be between navigation and the replay listener being ready.
+  }
+}
+
 const hashListeners: Array<() => void> = [];
 
 export function onHashChange(run: () => void): void {

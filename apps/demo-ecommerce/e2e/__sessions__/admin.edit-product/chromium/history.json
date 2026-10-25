@@ -1,0 +1,26 @@
+{
+  "format": "craft-e2e-session-history",
+  "id": "admin.edit-product",
+  "keep": 1,
+  "project": "chromium",
+  "runs": [
+    {
+      "dirty": true,
+      "durationMs": 1506,
+      "environment": {
+        "browser": "chromium",
+        "browserVersion": "156.0.8078.4",
+        "platform": "darwin"
+      },
+      "file": "2026-10-24T16-29-52-860Z-e12b74.session.json.gz",
+      "gitSha": "f40a123cb",
+      "recordedAt": "2026-10-24T16:29:52.860Z",
+      "retry": 0,
+      "sizeBytes": 7518,
+      "specFile": "admin.spec.ts",
+      "title": "se connecter et modifier un produit dans l’administration",
+      "traceHash": "5abda34ea16a11a4265e1966326018ca0e79f64038e83b67cf99e192f1df5085"
+    }
+  ],
+  "schemaVersion": 1
+}

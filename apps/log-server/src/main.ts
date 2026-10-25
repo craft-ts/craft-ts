@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve } from 'node:path';
+import { delimiter, resolve } from 'node:path';
 import { createLogHttpServer } from './http-server.js';
 import { LogStore } from './log-store.js';
 import { DebugSessionStore } from './debug-session-store.js';
@@ -30,6 +30,8 @@ const sessionMaxSessions = Number(
 const sessionRetentionDays = Number(
   process.env['DEBUG_SESSION_RETENTION_DAYS'] ?? '30',
 );
+const e2eSessionRoots = process.env['CRAFT_E2E_SESSION_STORE']
+  ?.split(delimiter).map((path) => path.trim()).filter(Boolean).map((path) => resolve(path));
 
 const store = new LogStore({ directory, maxFileSize, maxFiles });
 const sessionStore = new DebugSessionStore(sessionDirectory, {
@@ -53,6 +55,7 @@ const thumbnails = new ThumbnailService({
 const server = createLogHttpServer({
   store,
   sessionStore,
+  ...(e2eSessionRoots ? { e2eSessionRoots } : {}),
   thumbnails,
   ...(allowedOrigins ? { allowedOrigins } : {}),
   onIngest: (count) => {

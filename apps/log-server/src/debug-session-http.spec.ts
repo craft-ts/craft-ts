@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { WebSocket } from 'ws';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLogHttpServer } from './http-server.js';
@@ -23,6 +24,7 @@ describe('debug session local archive API', () => {
     server = createLogHttpServer({
       store: new LogStore({ directory: join(directory, 'logs') }),
       sessionStore,
+      e2eSessionRoots: [join(directory, 'e2e-sessions')],
     });
     await new Promise<void>((resolve) =>
       server.listen(0, '127.0.0.1', resolve),
@@ -53,6 +55,7 @@ describe('debug session local archive API', () => {
         type: 'session:sync',
         id,
         participantId: 'tab-profile',
+        test: { id: 'cart.checkout', title: 'checkout', specFile: 'e2e/cart.spec.ts', project: 'chromium', retry: 0, gitSha: 'f40a123cb' },
         createdAt: '2026-10-15T08:00:00.000Z',
         participant: {
           title: 'Demo tab',
@@ -145,13 +148,16 @@ describe('debug session local archive API', () => {
       response.json(),
     );
     expect(list.sessions).toMatchObject([
-      { id, status: 'recording', eventCount: 3 },
+      { id, status: 'recording', eventCount: 3, test: { id: 'cart.checkout', project: 'chromium' } },
     ]);
+    const filtered = await fetch(`${baseUrl}/sessions?testId=cart.checkout`).then((response) => response.json());
+    expect(filtered.sessions).toHaveLength(1);
     const loaded = await fetch(`${baseUrl}/sessions/${id}`).then((response) =>
       response.json(),
     );
     expect(loaded).toMatchObject({
       format: 'craft-debug-session',
+      test: { id: 'cart.checkout', retry: 0 },
       initialSnapshot: { count: 0 },
       participants: [
         {
@@ -225,6 +231,27 @@ describe('debug session local archive API', () => {
     expect(archived.clips).toContainEqual(
       expect.objectContaining({ id: 'clip-final', participantId }),
     );
+  });
+
+  it('serves only referenced gzip history files from configured E2E roots', async () => {
+    const root = join(directory, 'e2e-sessions');
+    const historyDir = join(root, 'cart.checkout', 'chromium');
+    mkdirSync(historyDir, { recursive: true });
+    const file = '2026-10-24T15-02-11Z-ab1234.session.json.gz';
+    const compressed = gzipSync('{"format":"craft-debug-session","version":6}');
+    writeFileSync(join(historyDir, file), compressed);
+    writeFileSync(join(historyDir, 'history.json'), JSON.stringify({
+      format: 'craft-e2e-session-history', schemaVersion: 1, id: 'cart.checkout', project: 'chromium', keep: 1,
+      runs: [{ file, traceHash: 'abc123', recordedAt: '2026-10-24T15:02:11.000Z', durationMs: 12, retry: 0, gitSha: 'f40a123cb', dirty: false, title: 'checkout', specFile: 'e2e/cart.spec.ts', environment: {}, sizeBytes: compressed.byteLength }],
+    }));
+
+    const list = await fetch(`${baseUrl}/e2e-sessions?root=0`).then((response) => response.json());
+    expect(list.sessions).toMatchObject([{ id: 'cart.checkout', project: 'chromium', runs: [{ file }] }]);
+    const downloaded = await fetch(`${baseUrl}/e2e-sessions/cart.checkout/chromium/${file}?root=0`);
+    expect(downloaded.status).toBe(200);
+    expect(Buffer.from(await downloaded.arrayBuffer())).toEqual(compressed);
+    expect((await fetch(`${baseUrl}/e2e-sessions/cart.checkout/chromium/unlisted.session.json.gz?root=0`)).status).toBe(404);
+    expect((await fetch(`${baseUrl}/e2e-sessions/cart.checkout/chromium/${file}?root=../`)).status).toBe(404);
   });
 
   it('merges same-session participants and finishes only after the last tab leaves', async () => {

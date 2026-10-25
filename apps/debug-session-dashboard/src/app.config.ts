@@ -17,7 +17,13 @@ export const appConfig = craftAppConfig({
   providers: [
     // The thumbnails are pictures served by the local archive, not by this page.
     provideCraftSecurityPolicy({
-      dom: { allowedResourceOrigins: [THUMBNAIL_ORIGIN] },
+      dom: {
+        allowedResourceOrigins: [
+          THUMBNAIL_ORIGIN,
+          'http://localhost:4210',
+          'http://localhost:4211',
+        ],
+      },
     }),
     // The chat UI needs the session service even when the dashboard itself
     // must not record a second session. `recording: false` provides the

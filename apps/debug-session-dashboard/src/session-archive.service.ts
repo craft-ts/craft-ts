@@ -5,6 +5,7 @@ import {
   craftExpose,
   craftService,
   insertReactOnMutation,
+  insertQueryPipe,
   mutation,
   query,
   source$,
@@ -163,9 +164,17 @@ export const { SessionArchive } = craftService(
           }));
         },
       },
-      insertReactOnMutation(deleteSession, {
-        reload: { onMutationResolved: true },
-      }),
+      insertQueryPipe(
+        insertReactOnMutation(deleteSession, {
+          reload: { onMutationResolved: true },
+        }),
+        insertReactOnMutation(pruneSessions, {
+          reload: { onMutationResolved: true },
+        }),
+        insertReactOnMutation(deleteSessions, {
+          reload: { onMutationResolved: true },
+        }),
+      ),
     );
 
     yield* query(
@@ -205,13 +214,11 @@ export const { SessionArchive } = craftService(
 
     yield* craftExpose('pruneExpired', function* () {
       yield* pruneSessions.mutate(true);
-      refreshRequested$.emit(++refreshCount);
     });
     yield* craftExpose(
       'deleteArchivedSessions',
       function* (ids: readonly string[]) {
         yield* deleteSessions.mutate(ids);
-        refreshRequested$.emit(++refreshCount);
       },
     );
   },

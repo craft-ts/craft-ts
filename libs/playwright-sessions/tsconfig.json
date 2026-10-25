@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "types": ["node", "@playwright/test"],
+    "paths": { "@craft-ts/component/session-trace": ["../component/src/lib/ai/session-trace.ts"] }
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -40,6 +40,10 @@
     "./testing": {
       "types": "./testing/public-api.d.ts",
       "default": "./testing/public-api.js"
+    },
+    "./session-trace": {
+      "types": "./src/lib/ai/session-trace.d.ts",
+      "default": "./src/lib/ai/session-trace.js"
     }
   }
 }

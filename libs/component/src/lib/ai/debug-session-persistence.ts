@@ -5,6 +5,13 @@ import { captureDebugSessionEnvironment } from './debug-session-environment';
 const SHARED_SESSION_ID_KEY = 'craft-debug-session-id';
 const PARTICIPANT_ID_KEY = 'craft-debug-session-participant-id';
 
+type E2ESessionMarker = Readonly<{ id: string; test: Readonly<Record<string, unknown>> }>;
+type CraftDebugSessionApi = Readonly<{
+  id(): string;
+  finish(): Promise<'acknowledged' | 'timeout' | 'offline'>;
+  mark(label: string): void;
+}>;
+
 /** Streams redacted session snapshots and subsequent events to a local archive. */
 export function connectDebugSessionPersistence(
   session: SendContextSession,
@@ -12,6 +19,8 @@ export function connectDebugSessionPersistence(
 ): () => void {
   if (typeof window === 'undefined' || typeof WebSocket === 'undefined')
     return () => undefined;
+
+  const marker = (globalThis as typeof globalThis & { __CRAFT_E2E_SESSION__?: E2ESessionMarker }).__CRAFT_E2E_SESSION__;
 
   const storageKey = `${SHARED_SESSION_ID_KEY}:${location.origin}`;
   const participantStorageKey = `${PARTICIPANT_ID_KEY}:${location.origin}`;
@@ -25,6 +34,8 @@ export function connectDebugSessionPersistence(
   let socket: WebSocket | undefined;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let finishAckTimer: ReturnType<typeof setTimeout> | undefined;
+  let finishResult: ((value: 'acknowledged' | 'timeout' | 'offline') => void) | undefined;
+  let finishPromise: Promise<'acknowledged' | 'timeout' | 'offline'> | undefined;
   let lastSequence = 0;
   let closed = false;
   let persistencePaused = false;
@@ -45,6 +56,10 @@ export function connectDebugSessionPersistence(
 
   const readOrCreateSharedId = (): string => {
     try {
+      if (marker?.id && isUuid(marker.id)) {
+        localStorage.setItem(storageKey, marker.id);
+        return marker.id;
+      }
       const existing = localStorage.getItem(storageKey);
       if (existing && isUuid(existing)) return existing;
       const created = crypto.randomUUID();
@@ -111,6 +126,7 @@ export function connectDebugSessionPersistence(
       type: 'session:sync',
       id,
       participantId,
+      ...(marker ? { test: marker.test } : {}),
       createdAt,
       participant: {
         title: document.title.trim() || `Onglet ${participantId.slice(0, 6)}`,
@@ -239,6 +255,8 @@ export function connectDebugSessionPersistence(
           ) {
             if (finishAckTimer !== undefined) clearTimeout(finishAckTimer);
             finishAckTimer = undefined;
+            finishResult?.('acknowledged');
+            finishResult = undefined;
             connection.close(1000, 'session finish acknowledged');
             return;
           }
@@ -290,8 +308,10 @@ export function connectDebugSessionPersistence(
     }, 1000);
   }
 
-  const finish = (): void => {
-    if (closed) return;
+  const finish = (): Promise<'acknowledged' | 'timeout' | 'offline'> => {
+    if (finishPromise) return finishPromise;
+    finishPromise = new Promise((resolve) => { finishResult = resolve; });
+    if (closed) { finishResult?.('offline'); return finishPromise; }
     closed = true;
     if (retryTimer !== undefined) clearTimeout(retryTimer);
     id ??= readOrCreateSharedId();
@@ -310,15 +330,29 @@ export function connectDebugSessionPersistence(
       if (canReceiveAcknowledgement) {
         finishAckTimer = setTimeout(() => {
           finishAckTimer = undefined;
+          finishResult?.('timeout');
+          finishResult = undefined;
           socket?.close(1000, 'session finish acknowledgement timeout');
         }, 750);
       } else {
+        finishResult?.('offline');
+        finishResult = undefined;
         socket?.close(1000, 'session finished without an open connection');
       }
     }
     subscribe.unsubscribe();
     releaseParticipantLock();
+    return finishPromise;
   };
+
+  if (marker) {
+    const api: CraftDebugSessionApi = {
+      id: () => id ?? marker.id,
+      finish,
+      mark: (label) => session.capture('custom', 'emitted', { name: 'test-marker', payload: { label: label.slice(0, 512) } }),
+    };
+    (globalThis as typeof globalThis & { __craftDebugSession?: CraftDebugSessionApi }).__craftDebugSession = api;
+  }
 
   function persistFinishWithKeepalive(sessionId: string): void {
     try {

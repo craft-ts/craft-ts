@@ -25,6 +25,9 @@ npm run logs:server
 | `GET`    | `/sessions/:id/thumbnails/:file` | One thumbnail, WebP.                      |
 | `DELETE` | `/sessions/:id/thumbnails` | Cancel the preparation, drop the pictures.      |
 | `WS`     | `/sessions/ws`  | Stream session start, events, and finish.       |
+| `GET`    | `/e2e-sessions` | List histories under explicitly configured roots (`?root=0` selects one). |
+| `GET`    | `/e2e-sessions/:testId/:project/:file` | Read a referenced gzip history session (`?decompress=1` returns JSON). |
+| `GET`    | `/e2e-sessions/compare?test=<id>&project=<project>&run=<sessionId>` | Return the observed session and its green references for the dashboard. |
 
 `POST /logs` accepts three body shapes: a `{ clientId, entries: [...] }`
 envelope (what the demo sends), a bare array of entries, or a single entry.
@@ -87,6 +90,17 @@ limits.
 
 The session WebSocket accepts only configured origins. The HTTP server binds to
 loopback by default. Set `DEBUG_SESSION_DIR` to choose another archive folder.
+
+## Playwright session histories
+
+When `CRAFT_E2E_SESSION_STORE` is set, its path-delimited directories are the
+only roots exposed by `/e2e-sessions`; clients select a numeric root index and
+never supply a filesystem path. The file endpoint serves only gzip session
+files referenced by a valid `history.json`, and rejects traversal and symlinks.
+Both endpoints are read-only. The Playwright fixture adds a `test` object to
+`session:sync` and portable exports; `GET /sessions?testId=<stable-id>` filters
+the archived-session listing by that metadata. The configured browser origins
+also apply to these endpoints.
 
 ## Replay thumbnails
 

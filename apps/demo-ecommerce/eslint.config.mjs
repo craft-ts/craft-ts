@@ -36,6 +36,14 @@ export default [
     rules: { 'craft-ts/prefer-craft-router-link': 'error' },
   },
   {
+    ...craftRules.configs.e2e,
+    files: ['e2e/**/*.spec.ts'],
+    rules: {
+      ...craftRules.configs.e2e.rules,
+      'craft-ts/e2e-session-contract': ['error', { fixtureModules: ['./fixtures'] }],
+    },
+  },
+  {
     files: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
     rules: {
       'craft-ts/prefer-craft-template-blocks': 'off',

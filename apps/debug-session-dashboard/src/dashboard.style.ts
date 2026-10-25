@@ -472,6 +472,56 @@ export const ui = craftStyles('dashboard', {
     minBlockSize(space(0)),
     position.relative,
   ],
+  e2eComparisonFrames: [
+    display.grid,
+    gap(space(3)),
+    minBlockSize(space(0)),
+    gridTemplateColumns(tracks.list(tracks.minmax(space(0), tracks.fr(1)))),
+    when(bp.medium, [
+      gridTemplateColumns(
+        tracks.list(
+          tracks.minmax(space(0), tracks.fr(1)),
+          tracks.minmax(space(0), tracks.fr(1)),
+        ),
+      ),
+    ]),
+  ],
+  e2eComparisonLayout: [
+    display.grid,
+    gap(space(3)),
+    minBlockSize(space(0)),
+    gridTemplateColumns(tracks.list(tracks.minmax(space(0), tracks.fr(1)))),
+    when(bp.medium, [
+      gridTemplateColumns(
+        tracks.list(
+          tracks.minmax(space(0), tracks.fr(3)),
+          tracks.minmax(unit.rem(16), tracks.fr(1)),
+        ),
+      ),
+    ]),
+  ],
+  e2eComparisonFindings: [
+    display.flex,
+    flexDirection.column,
+    gap(space(2)),
+    maxBlockSize(unit.vh(70)),
+    provides(scrollPort.block),
+  ],
+  e2eComparisonFrame: [
+    display.flex,
+    flexDirection.column,
+    minInlineSize(space(0)),
+  ],
+  e2eComparisonIframe: [
+    display.block,
+    inlineSize(unit.pct(100)),
+    blockSize(unit.rem(36)),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.line),
+    borderRadius(radii.md),
+    bg(theme.raised),
+  ],
   main: [
     display.flex,
     flexDirection.column,
