@@ -5982,6 +5982,21 @@ function serverFunctionFamilyForCall(
         visited.add(declaration);
         if (Node.isVariableDeclaration(declaration)) {
           const initializer = declaration.getInitializer();
+          // Reading a primitive (`yield* cartLines()`) does not call the
+          // server functions its methods use; `cartLines.add(...)` calls
+          // only what `add` does.
+          const primitive = initializer && primitiveFactoryOf(initializer);
+          if (primitive) {
+            const member = firstMemberName(expression);
+            const definition = member
+              ? primitiveMemberDefinition(primitive, member)
+              : undefined;
+            if (definition) {
+              const found = visit(definition);
+              if (found) return found;
+            }
+            continue;
+          }
           if (initializer) {
             const found = visit(initializer);
             if (found) return found;
@@ -6580,6 +6595,43 @@ function findServiceForCall(
   if (bySymbol) return bySymbol;
   const byName = builder.servicesByHelperName.get(helperName) ?? [];
   return byName.length === 1 ? byName[0] : undefined;
+}
+
+/** The primitive factory call an initializer evaluates to, through `yield*`, `await` and parentheses. */
+function primitiveFactoryOf(node: Node): CallExpression | undefined {
+  let current: Node = node;
+  for (;;) {
+    if (Node.isYieldExpression(current) || Node.isAwaitExpression(current) || Node.isParenthesizedExpression(current)) {
+      const inner = current.getExpression();
+      if (!inner) return undefined;
+      current = inner;
+      continue;
+    }
+    break;
+  }
+  return Node.isCallExpression(current) && primitiveFactoryName(current) ? current : undefined;
+}
+
+/** `add` for `cartLines.add(...)`; undefined for `cartLines()`. */
+function firstMemberName(expression: Node): string | undefined {
+  let current = expression;
+  let member: string | undefined;
+  while (Node.isPropertyAccessExpression(current)) {
+    member = current.getName();
+    current = current.getExpression();
+  }
+  return member;
+}
+
+/** The body of a method a primitive exposes (`add: function* (...) {}`), searched in its factory. */
+function primitiveMemberDefinition(primitive: CallExpression, member: string): Node | undefined {
+  for (const candidate of primitive.getDescendants()) {
+    if (Node.isMethodDeclaration(candidate) && candidate.getName() === member) return candidate;
+    if (Node.isPropertyAssignment(candidate) && candidate.getName() === member) {
+      return candidate.getInitializer();
+    }
+  }
+  return undefined;
 }
 
 function rootIdentifier(node: Node): import('ts-morph').Identifier | undefined {

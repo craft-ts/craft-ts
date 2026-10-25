@@ -146,3 +146,29 @@ describe('checkResumeGraph', () => {
     );
   });
 });
+
+describe('checkResumeGraph derived values', () => {
+  it('reports a craftComputed that calls a server function', () => {
+    const graph: DependencyGraph = {
+      version: 1,
+      rootDir: '/project',
+      tsConfigFilePath: '/project/tsconfig.json',
+      nodes: [
+        { id: 'cartCount', kind: 'primitive', label: 'craftComputed:cartCount' },
+        { id: 'cartLines', kind: 'primitive', label: 'state:cartLines' },
+        { id: 'addLine', kind: 'server-function-family', label: 'cart.addLine' },
+      ],
+      edges: [
+        { from: 'cartCount', to: 'cartLines', kind: 'depends-on', evidence: 'ast' },
+        { from: 'cartCount', to: 'addLine', kind: 'calls', evidence: 'type' },
+        { from: 'cartLines', to: 'addLine', kind: 'calls', evidence: 'type' },
+      ],
+    };
+    expect(checkResumeGraph(graph)).toEqual([
+      expect.objectContaining({
+        code: 'resume-computed-calls-boundary',
+        nodeId: 'cartCount',
+      }),
+    ]);
+  });
+});

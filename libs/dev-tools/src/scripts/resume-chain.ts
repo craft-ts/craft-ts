@@ -43,7 +43,8 @@ export interface ResumeGraphDiagnostic {
     | 'resume-unresolved'
     | 'resume-held-without-substitution'
     | 'resume-requires-without-provider'
-    | 'resume-dynamic-endpoint';
+    | 'resume-dynamic-endpoint'
+    | 'resume-computed-calls-boundary';
   readonly nodeId: string;
   readonly message: string;
 }
@@ -112,6 +113,25 @@ export function checkResumeGraph(
         nodeId: endpoint.id,
         message: `Dynamic endpoint '${endpoint.label}' needs an explicit HTTP contract.`,
       });
+    }
+  }
+  // A derived value only reads: a `calls` edge from a craftComputed to a
+  // server function would make every reader of it look like a writer.
+  for (const computed of graph.nodes.filter(
+    (node) => node.kind === 'primitive' && node.label.startsWith('craftComputed:'),
+  )) {
+    for (const edge of graph.edges) {
+      if (edge.from !== computed.id || edge.kind !== 'calls') continue;
+      const target = graph.nodes.find((node) => node.id === edge.to);
+      if (
+        target?.kind === 'server-function-family' ||
+        target?.kind === 'http-endpoint'
+      )
+        diagnostics.push({
+          code: 'resume-computed-calls-boundary',
+          nodeId: computed.id,
+          message: `Derived value '${computed.label}' calls external boundary '${target.label}'.`,
+        });
     }
   }
   return diagnostics.sort((left, right) =>

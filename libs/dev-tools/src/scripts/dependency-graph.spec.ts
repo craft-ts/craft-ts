@@ -101,6 +101,44 @@ function edgeLabels(
 }
 
 describe('analyzeDependencyGraph reactive granularity', () => {
+  it('treats reading a primitive as a dependency, not a call of its methods', async () => {
+    const root = await fixture({
+      'cart.ts': `
+        ${CRAFT_STUBS}
+        declare function serverFunction(id: string): unknown;
+        declare function createServerFunctionClient<T>(id: T): (...args: any[]) => Generator<unknown, unknown, unknown>;
+        const addLineFunction = serverFunction('ecommerce.cart.addLine');
+        const removeLineFunction = serverFunction('ecommerce.cart.removeLine');
+        const rawAddLine = createServerFunctionClient(craftUnique('ecommerce.cart.addLine'));
+        const rawRemoveLine = createServerFunctionClient(craftUnique('ecommerce.cart.removeLine'));
+        const { Cart } = craftService({ name: 'Cart', providedIn: 'global' }, function* () {
+          const cartLines = yield* state('cartLines', [] as number[], ({ set }) => ({
+            add: function* (line: number) { yield* rawAddLine({ line }); yield* set([line]); },
+            remove: function* (line: number) { yield* rawRemoveLine({ line }); },
+          }));
+          yield* craftComputed('cartCount', function* () {
+            return (yield* cartLines()).length;
+          });
+          yield* craftEffect('addOnStart', function* () {
+            yield* cartLines.add(1);
+          });
+        });
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    expect(edgeLabels(graph, 'craftComputed:cartCount', 'calls')).toEqual([]);
+    expect(edgeLabels(graph, 'craftComputed:cartCount', 'depends-on')).toContain(
+      'depends-on->state:cartLines',
+    );
+    // A real member call reaches that member's server function only.
+    const effectCalls = edgeLabels(graph, 'craftEffect:addOnStart', 'calls');
+    expect(effectCalls).not.toContain('calls->ecommerce.cart.removeLine');
+  });
+
   it('follows server-function wrappers through craftUnique and createServerFunctionClient', async () => {
     const root = await fixture({
       'resume.ts': `
