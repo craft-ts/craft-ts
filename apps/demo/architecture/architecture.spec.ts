@@ -35,27 +35,20 @@ describe('demo architecture', () => {
     graph = await loadDemoArchitectureGraph();
   }, 180_000);
 
-  it('indexes demo routes and provided feature services', () => {
+  it('indexes current demo routes', () => {
     expect(
       graph.route(
-        'craft/query/:userId',
+        'query/:userId',
         'apps/demo/src/app/app.routes.ts',
       )
         .kind,
     ).toBe('route');
     expect(
       graph.route(
-        'craft/mutation/:userId',
+        'craft/lazy-layout/:teamId',
         'apps/demo/src/app/app.routes.ts',
-      )
-        .kind,
+      ).kind,
     ).toBe('route');
-    expect(graph.providedOn('UserList').map((node) => node.label)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/ListWithPagination/)]),
-    );
-    expect(graph.providedOn('UserMutation').map((node) => node.label)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/Mutation/)]),
-    );
   });
 
   it('uses pathParams for route-scoped same-route parameter updates', () => {
@@ -160,19 +153,11 @@ describe('demo architecture', () => {
     });
   });
 
-  it('keeps query params route-owned outside legacy primitive examples', () => {
+  it('keeps query params route-owned outside the primitive examples', () => {
     assertQueryParamsRouteOwnership(graph.graph, {
       // These pages demonstrate the primitive directly before route ownership
       // is introduced in the route-focused example.
       allow: [
-        {
-          name: 'pagination',
-          file: 'apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts',
-        },
-        {
-          name: 'pagination',
-          file: 'apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts',
-        },
         {
           name: 'pagination',
           file: 'apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts',

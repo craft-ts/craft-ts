@@ -3,9 +3,8 @@
 Every example below is a real route of one of the demo applications. Each
 opens in StackBlitz on the relevant file, already navigated to the page.
 
-The demo groups them the way you would meet them: **components** first, then the
-**primitives** on their own, then the same features **behind services**, then
-**routing** and the rest.
+The demo groups them the way you would meet them: **components** first, then
+**primitives**, **services**, **routing** and the rest.
 
 ::: tip Just want to poke at something?
 The [Playground](https://stackblitz.com/fork/github/craft-ts/craft-ts-demo/tree/main?file=src%2Fapp%2Fexamples%2Fplayground%2Fplayground.ts&initialpath=%2Fplayground)
@@ -54,15 +53,10 @@ State machines for explicit transitions, history and collection-oriented UI.
 
 ## Services
 
-The same features, packaged behind `craftService`.
+Focused examples of `craftService` composition and service-scoped behavior.
 
 | Example                                                                                                                                                                                                   | What it shows                                                                          |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [Craft Query](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft/query/query.ts&initialpath=/craft/query/1)                                                      | A reusable query service with configured storage persistence (localStorage by default) |
-| [Craft Mutation](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft/mutation/mutation.ts&initialpath=/craft/mutation/1)                                          | Create / update / delete with reactive cache synchronisation                           |
-| [Craft List Pagination](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft/list-with-pagination/list-with-pagination.ts&initialpath=/craft/list-with-pagination) | `queryParams` + `insertPaginationPlaceholderData` in a service                         |
-| [Craft Granular Mutation](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft/granular-mutation/granular-mutation.ts&initialpath=/craft/granular-mutation)        | `insertReactOnMutation` updating cached data without a reload                          |
-| [Craft Full Demo](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft/full-demo/full-demo.ts&initialpath=/craft/full-demo)                                        | Queries, mutations, async work, URL state and persistence together                     |
 | [craftService Counter](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft-service/craft-service-counter.ts&initialpath=/craft-service/counter)                   | The smallest possible service — scopes and composition                                 |
 | [craftService User Detail](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft-service/craft-service-user-detail.ts&initialpath=/craft-service/user-detail)       | Service inputs, and exposing only part of a dependency                                 |
 | [craftRegisterFor](https://stackblitz.com/github/craft-ts/craft-ts-demo/tree/main/?file=src/app/examples/craft-service/register-for.ts&initialpath=/craft-service/register-for)                           | A parent driving live children through a typed registry                                |

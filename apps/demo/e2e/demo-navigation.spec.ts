@@ -1,28 +1,5 @@
 import { expect, test } from '@playwright/test';
 
-test('navigates to Craft Full Demo from the navbar without freezing', async ({
-  page,
-}) => {
-  test.setTimeout(10_000);
-  const pageErrors: string[] = [];
-  page.on('pageerror', (error) => pageErrors.push(error.message));
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Browse examples' }).click();
-
-  const link = page.getByRole('link', {
-    name: 'Craft Full Demo',
-    exact: true,
-  });
-  await expect(link).toHaveCount(1);
-  await link.click({ timeout: 2_000 });
-
-  await expect(page).toHaveURL(/\/craft\/full-demo$/, { timeout: 2_000 });
-  await expect(page.locator('input[placeholder="New todo"]')).toBeVisible({
-    timeout: 3_000,
-  });
-  expect(pageErrors).toEqual([]);
-});
-
 test('closes the examples navbar when clicking outside the panel', async ({
   page,
 }) => {

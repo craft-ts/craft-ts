@@ -82,8 +82,6 @@ export default [
     // These teaching examples deliberately show the adapter boundary where
     // route/input values are narrowed before calling the demo API.
     files: [
-      '**/src/app/examples/craft/mutation/mutation.ts',
-      '**/src/app/examples/craft/query/query.ts',
       '**/src/app/examples/primitives/exceptions/exceptions.ts',
       '**/src/app/examples/primitives/mutation/mutation.ts',
       '**/src/app/examples/primitives/query/query.ts',

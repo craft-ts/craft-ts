@@ -82,7 +82,7 @@ path-param update:
 yield* craftMethod('navigate', function* (offset: number) {
   const currentUserId = yield* userId();
   void router.navigate({
-    to: 'craft/query/:userId',
+    to: 'query/:userId',
     params: {
       userId: String(Number(currentUserId ?? '0') + offset),
     },
@@ -454,7 +454,7 @@ A missing name throws `Unknown service '…'`. Two nodes sharing a name throw
 until you pass a relative file path.
 
 ```typescript
-graph.route('craft/query/:userId');
+graph.route('query/:userId');
 graph.service('UsersApiOnError');
 graph.service('ApiService', 'users/api.service.ts'); // homonym
 graph.component('ListWithPagination');
@@ -1116,14 +1116,11 @@ Start from a node you care about and assert what should be true of its
 neighbourhood. The demo suite does this for routes and HTTP; the same pattern
 covers any invariant you can see on the graph.
 
-### A route provides the feature service
+### Looking up a route by path
 
 ```typescript
-it('indexes demo routes and provided feature services', () => {
-  expect(graph.route('craft/query/:userId').kind).toBe('route');
-  expect(graph.providedOn('UserList').map((node) => node.label)).toEqual(
-    expect.arrayContaining([expect.stringMatching(/ListWithPagination/)]),
-  );
+it('indexes demo routes', () => {
+  expect(graph.route('query/:userId').kind).toBe('route');
 });
 ```
 

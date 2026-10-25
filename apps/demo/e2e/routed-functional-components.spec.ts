@@ -42,16 +42,6 @@ test('navigates to the reactive component composition demo', async ({
   expect(pageErrors).toEqual([]);
 });
 
-test('runs a routed functional component method after its factory has settled', async ({
-  page,
-}) => {
-  await page.goto('/craft/mutation/1');
-
-  await page.getByRole('button', { name: 'Next user' }).click();
-
-  await expect(page).toHaveURL(/\/craft\/mutation\/2$/);
-});
-
 test('updates routed functional component inputs when Angular reuses the route', async ({
   page,
 }) => {

@@ -311,68 +311,6 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
     ),
   },
 
-  /* demo-route-end */ /* demo-route: craft-query */
-  {
-    path: 'craft/query/:userId',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/craft/query/query')).then(
-        ({ default: component }) => component,
-      ),
-    ),
-    pathParams: { userId: userIdPathParam },
-    providersFn: ({ UserIdPathParams }) => [
-      provideUserIdPathParams(function* () {
-        return yield* UserIdPathParams();
-      }),
-    ],
-  },
-
-  /* demo-route-end */ /* demo-route: craft-mutation */
-  {
-    path: 'craft/mutation/:userId',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/craft/mutation/mutation')).then(
-        ({ default: component }) => component,
-      ),
-    ),
-    pathParams: { userId: userIdPathParam },
-    providersFn: ({ UserIdPathParams }) => [
-      provideUserIdPathParams(function* () {
-        return yield* UserIdPathParams();
-      }),
-    ],
-  },
-
-  /* demo-route-end */ /* demo-route: craft-list-with-pagination */
-  {
-    path: 'craft/list-with-pagination',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(
-        import('./examples/craft/list-with-pagination/list-with-pagination'),
-      ).then(({ default: component }) => component),
-    ),
-  },
-
-  /* demo-route-end */ /* demo-route: craft-granular-mutation */
-  {
-    path: 'craft/granular-mutation',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(
-        import('./examples/craft/granular-mutation/granular-mutation'),
-      ).then(({ default: component }) => component),
-    ),
-  },
-
-  /* demo-route-end */ /* demo-route: craft-full-demo */
-  {
-    path: 'craft/full-demo',
-    ...loadCraftComponent(({ withRetry }) =>
-      withRetry(import('./examples/craft/full-demo/full-demo')).then(
-        ({ default: component }) => component,
-      ),
-    ),
-  },
-
   /* demo-route-end */ /* demo-route: craft-lazy-layout */
   {
     path: 'craft/lazy-layout/:teamId',
@@ -581,11 +519,6 @@ type DemoRoutePath =
   | 'pixel-art-matrix'
   | 'exceptions'
   | 'exception-query-params'
-  | 'craft/query/:userId'
-  | 'craft/mutation/:userId'
-  | 'craft/list-with-pagination'
-  | 'craft/granular-mutation'
-  | 'craft/full-demo'
   | 'craft/lazy-layout/:teamId/users/:userId'
   | 'login-form'
   | 'state-machine'
@@ -902,53 +835,6 @@ type _CanRunExceptionQueryParams = CanRun<
     (typeof import('./examples/primitives/exceptions/exception-query-params'))['default'],
     never,
     'path: "exception-query-params"'
-  >
->;
-/* demo-check-end */
-/* demo-check: craft-query */
-type _CanRunCraftQuery = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/craft/query/query'))['default'],
-    'userId',
-    'path: "craft/query/:userId"',
-    'UserIdPathParams'
-  >
->;
-/* demo-check-end */
-/* demo-check: craft-mutation */
-type _CanRunCraftMutation = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/craft/mutation/mutation'))['default'],
-    'userId',
-    'path: "craft/mutation/:userId"',
-    'UserIdPathParams'
-  >
->;
-/* demo-check-end */
-/* demo-check: craft-list-with-pagination */
-type _CanRunCraftListWithPagination = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/craft/list-with-pagination/list-with-pagination'))['default'],
-    never,
-    'path: "craft/list-with-pagination"'
-  >
->;
-/* demo-check-end */
-/* demo-check: craft-granular-mutation */
-type _CanRunCraftGranularMutation = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/craft/granular-mutation/granular-mutation'))['default'],
-    never,
-    'path: "craft/granular-mutation"'
-  >
->;
-/* demo-check-end */
-/* demo-check: craft-full-demo */
-type _CanRunCraftFullDemo = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/craft/full-demo/full-demo'))['default'],
-    never,
-    'path: "craft/full-demo"'
   >
 >;
 /* demo-check-end */

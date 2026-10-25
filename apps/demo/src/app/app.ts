@@ -92,14 +92,6 @@ const NAV_GROUPS = [
   {
     label: 'Craft',
     links: [
-      ['Craft Query', { to: 'craft/query/:userId', params: { userId: '1' } }],
-      [
-        'Craft Mutation',
-        { to: 'craft/mutation/:userId', params: { userId: '1' } },
-      ],
-      ['Craft List Pagination', { to: 'craft/list-with-pagination' }],
-      ['Craft Granular Mutation', { to: 'craft/granular-mutation' }],
-      ['Craft Full Demo', { to: 'craft/full-demo' }],
       [
         'Craft Lazy Layout',
         {
