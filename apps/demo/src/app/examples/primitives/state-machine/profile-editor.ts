@@ -70,7 +70,7 @@ export const {
     const permissions = yield* ProfilePermissions();
 
     yield* craftStateMachine(
-      'machineStateMachineProfileEditor',
+      'machine',
 
       // 1. The machine's context: every primitive its steps and workflows use.
       function* () {

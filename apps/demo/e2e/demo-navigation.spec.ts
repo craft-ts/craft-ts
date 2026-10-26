@@ -75,33 +75,40 @@ test('applies the user detail component styles after navigation', async ({
   await page.goto('/craft-service/user-detail');
 
   const root = page.locator(
-    '[data-craft-root="CraftServiceUserDetailComponent"]',
+    '[data-craft-root~="CraftServiceUserDetailComponent"]',
   );
   await expect(root).toBeVisible({ timeout: 3_000 });
   await expect(root).toHaveCSS('display', 'flex');
-  await expect(root).toHaveCSS('padding', '32px');
+  await expect(root).toHaveCSS('padding', '40px');
   await expect(root.locator('[data-testid="user-controls"]')).toBeVisible();
-  await expect(root.locator('[data-testid="user-card"]')).toHaveCSS('border-top-width', '1px');
+  await expect(root.locator('[data-testid="user-card"]')).toHaveCSS(
+    'display',
+    'grid',
+  );
+  await expect(root.locator('[data-testid="user-card"]')).toHaveCSS(
+    'padding',
+    '16px',
+  );
 });
 
 test('applies the mutation component styles', async ({ page }) => {
   test.setTimeout(10_000);
   await page.goto('/mutation/1');
 
-  const root = page.locator('[data-craft-root="MutationDemoComponent"]');
+  const root = page.locator('[data-craft-root~="MutationDemoComponent"]');
   await expect(root).toBeVisible({ timeout: 3_000 });
-  await expect(root).toHaveCSS('background-color', 'rgb(35, 35, 35)');
-  await expect(root.getByRole('button', { name: /Update name/ })).toHaveCSS(
-    'background-color',
-    'rgb(68, 68, 68)',
-  );
+  await expect(root).toHaveAttribute('data-examplecard', 'dark');
+  await expect(root).toHaveCSS('display', 'grid');
+  const updateButton = root.getByRole('button', { name: /Update name/ });
+  await expect(updateButton).toHaveCSS('height', '42px');
+  await expect(updateButton).toHaveCSS('font-weight', '600');
 });
 
 test('applies the list with pagination styles', async ({ page }) => {
   test.setTimeout(10_000);
   await page.goto('/list-with-pagination');
 
-  const root = page.locator('[data-craft-root="ListWithPagination"]');
+  const root = page.locator('[data-craft-root~="ListWithPagination"]');
   await expect(root).toBeVisible({ timeout: 3_000 });
   await expect(root.locator('table')).toHaveCSS('border-collapse', 'collapse');
   await expect(root.locator('td').first()).toHaveCSS('padding', '16px');
@@ -125,7 +132,7 @@ test('exposes the query params demo in the navbar and applies its styles', async
   await expect(page).toHaveURL(/\/query-params(?:\?.*)?$/, {
     timeout: 3_000,
   });
-  const root = page.locator('[data-craft-root="QpListWithPagination"]');
+  const root = page.locator('[data-craft-root~="QpListWithPagination"]');
   await expect(root).toBeVisible({ timeout: 3_000 });
   await expect(root.locator('table')).toHaveCSS('border-collapse', 'collapse');
   await expect(root.locator('td').first()).toHaveCSS('padding', '16px');

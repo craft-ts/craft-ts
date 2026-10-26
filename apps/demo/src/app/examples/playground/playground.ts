@@ -56,7 +56,7 @@ const TODOS: Todo[] = [
 
 // -- ApiService: global craftService with CRUD endpoints --
 
-const { ApiService } = craftService(
+const { ApiServicePlaygroundPlayground: ApiService } = craftService(
   { name: 'ApiServicePlaygroundPlayground', providedIn: 'global' },
   function* () {
     const nextId = yield* craftPrivate(state('nextIdPlaygroundPlayground', 4, ({ state, update }) => ({
@@ -123,7 +123,7 @@ const { Playground } = craftService(
   { name: 'Playground', providedIn: 'function' },
   function* () {
     const api = yield* ApiService();
-    const addTodo = yield* mutation('addTodoPlaygroundPlayground', {
+    const addTodo = yield* mutation('addTodo', {
       method: (title: string) => title,
       loader: function* ({ params: title }) {
         return yield* api.addTodo(title);
@@ -145,7 +145,7 @@ const { Playground } = craftService(
     });
 
     yield* query(
-      'todosPlaygroundPlayground',
+      'todos',
       {
         params: () => 'all',
         loader: function* () {
@@ -178,7 +178,7 @@ export const { PlaygroundView, providePlaygroundView } = craftService(
       setTitle: (value: string) => set(value),
       clearTitle: () => set(''),
     }));
-    yield* craftMethod('addPlaygroundPlayground', function* () {
+    yield* craftMethod('add', function* () {
       const title = (yield* titleInput()).trim();
       if (!title) return;
       yield* pg.addTodo.mutate(title);
@@ -189,7 +189,7 @@ export const { PlaygroundView, providePlaygroundView } = craftService(
       const _pgaddTodoisLoading = yield* pg.addTodo.isLoading();
       return _pgaddTodoisLoading;
     });
-    yield* craftComputed('todosPlaygroundPlayground2', function* () {
+    yield* craftComputed('todos', function* () {
       const _pgtodosvalue = yield* pg.todos.value();
       return _pgtodosvalue ?? [];
     });

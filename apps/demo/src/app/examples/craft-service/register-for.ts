@@ -19,10 +19,13 @@ import {
 import { example } from '../shared/example.style';
 import { buttonUi } from '@craft-ts/ui/style';
 
-const { Counter, provideCounter } = craftService(
+const {
+  CounterCraftServiceRegisterFor: Counter,
+  provideCounterCraftServiceRegisterFor: provideCounter,
+} = craftService(
   { name: 'CounterCraftServiceRegisterFor', providedIn: 'toProvide' },
   function* () {
-    yield* state('counterCraftServiceRegisterFor', 0, ({ update }) => ({
+    yield* state('counter', 0, ({ update }) => ({
       increment: () => update((v) => v + 1),
       decrement: () => update((v) => v - 1),
     }));
@@ -58,10 +61,13 @@ const { RegisterForCounterChild, provideRegisterForCounterChild } =
     total: craftUse(craftComputed('total', () => CounterChild()?.length ?? 0)),
   }));
 
-const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
-  'Counter',
+const {
+  RegisterForCounterCraftServiceRegisterFor: RegisterForCounter,
+  provideRegisterForCounterCraftServiceRegisterFor: provideRegisterForCounter,
+} = craftRegisterFor(
+  'CounterCraftServiceRegisterFor',
   Counter,
-  ({ Counter }) => ({
+  ({ CounterCraftServiceRegisterFor: Counter }) => ({
     total: craftUse(craftComputed('total', () => Counter()?.length ?? 0)),
     incrementAllChildCounter: () =>
       Counter()?.forEach(({ ref }) => ref.counter.increment()),

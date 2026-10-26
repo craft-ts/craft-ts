@@ -27,13 +27,13 @@ export const { ExceptionsView, provideExceptionsView } = craftService(
   { name: 'exceptionsView', providedIn: 'toProvide' },
   function* () {
     yield* state(
-      'lastHandledExceptionExceptionsExceptions',
+      'lastHandledException',
       '',
       ({ set }) => ({ record: (tag: string) => set(tag) }),
     );
 
     const userQuery = yield* query(
-      'userQueryExceptionsExceptions',
+      'userQuery',
       {
         method: (scenario: Scenario) => scenario,
         loader: craftGen(function* ({ params }) {
@@ -61,7 +61,7 @@ export const { ExceptionsView, provideExceptionsView } = craftService(
       },
       function* ({ resource, exceptions }) {
         return {
-          hasUser: yield* craftComputed('hasUserExceptionsExceptions', () => resource.hasValue()),
+          hasUser: yield* craftComputed('hasUser', () => resource.hasValue()),
           userExceptionLoader: yield* craftComputed(
             'userExceptionLoader',
             function* () {
@@ -75,13 +75,13 @@ export const { ExceptionsView, provideExceptionsView } = craftService(
           userStatusLabel: yield* craftComputed('userStatusLabel', function* () {
             return yield* resource.status();
           }),
-          userId: yield* craftComputed('userIdExceptionsExceptions', function* () {
+          userId: yield* craftComputed('userId', function* () {
             return (yield* resource.value())?.id ?? '';
           }),
-          userName: yield* craftComputed('userNameExceptionsExceptions', function* () {
+          userName: yield* craftComputed('userName', function* () {
             return (yield* resource.value())?.name ?? '';
           }),
-          userEmail: yield* craftComputed('userEmailExceptionsExceptions', function* () {
+          userEmail: yield* craftComputed('userEmail', function* () {
             return (yield* resource.value())?.email ?? '';
           }),
           typedUserExceptionLoader: yield* craftComputed(
@@ -168,13 +168,7 @@ const ExceptionsComponent = craftComponent(
           ),
         ),
         ifNode(
-          ExceptionsView.userQuery.hasUser,
-          () =>
-            div([
-              p([strong('ID: '), ExceptionsView.userQuery.userId]),
-              p([strong('Name: '), ExceptionsView.userQuery.userName]),
-              p([strong('Email: '), ExceptionsView.userQuery.userEmail]),
-            ]),
+          ExceptionsView.userQuery.hasException,
           () => [
             matchNode.exhaustive(ExceptionsView.userQuery.typedUserExceptionLoader, '_tag', {
               UserNotFoundException: () =>
@@ -186,14 +180,22 @@ const ExceptionsComponent = craftComponent(
               UserAccessForbiddenException: () =>
                 p('⚠️ Access forbidden (rendered by matchNode.exhaustive)'),
             }),
+            p({ class: example.hint, role: 'status' }, [
+              'Handled ',
+              ExceptionsView.lastHandledException,
+              ' and rendered the matching message below.',
+            ]),
           ],
-        ),
-        ifNode(ExceptionsView.userQuery.hasException, () =>
-          p({ class: example.hint, role: 'status' }, [
-            'Handled ',
-            ExceptionsView.lastHandledException,
-            ' and rendered the matching message below.',
-          ]),
+          () => ifNode(
+            ExceptionsView.userQuery.hasUser,
+            () =>
+              div([
+                p([strong('ID: '), ExceptionsView.userQuery.userId]),
+                p([strong('Name: '), ExceptionsView.userQuery.userName]),
+                p([strong('Email: '), ExceptionsView.userQuery.userEmail]),
+              ]),
+            () => null,
+          ),
         ),
       ]),
 ).pipe(

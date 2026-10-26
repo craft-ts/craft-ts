@@ -57,6 +57,7 @@ test('goes to the login form through page act then fills it without reloading', 
       >;
       if (message['type'] === 'hello' && message['clientId'] === clientId) {
         appSocket = socket;
+        socket.send(JSON.stringify({ type: 'hello/ok', clientId }));
         return;
       }
       if (

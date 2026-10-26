@@ -60,7 +60,7 @@ export const { TaskRowView, provideTaskRowView } = craftService(
 
     const { id, title } = yield* task();
     yield* craftStateMachine(
-      'machineStateMachineListTaskBoard',
+      'machine',
 
       function* () {
         const note = yield* state('note', '', ({ set }) => ({

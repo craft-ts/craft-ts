@@ -37,7 +37,7 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
   }) {
     const { userId } = inputs.$provided;
 
-    const updateUserName = yield* mutation('updateUserNameMutationMutation2', {
+    const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
         name: payload.userName,
@@ -46,11 +46,13 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
         return yield* ApiService.updateItem(user);
       },
     });
-    yield* state('nameInputMutationMutation2', '', ({ set }) => ({
-      setName: (value: string) => set(value.trim()),
+    yield* state('nameInput', '', ({ set }) => ({
+      setName: (value: string) => {
+        return set(value.trim());
+      },
     }));
     const userQuery = yield* query(
-      'userQueryMutationMutation',
+      'userQuery',
       {
         params: userId,
         loader: function* ({ params }) {
@@ -73,8 +75,8 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
         }),
       ),
     );
-    yield* craftComputed('hasUserMutationMutation2', () => userQuery.hasValue());
-    yield* craftComputed('userValueJsonMutationMutation2', function* () {
+    yield* craftComputed('hasUser', () => userQuery.hasValue());
+    yield* craftComputed('userValueJson', function* () {
       return JSON.stringify(yield* userQuery.value(), null, 2);
     });
     const userIdPathParams = yield* UserIdPathParams();
@@ -134,12 +136,9 @@ const MutationDemoComponent = craftComponent(
           class: example.input,
           type: 'text',
           placeholder: 'New name',
-          value: function* () {
-            const { nameInput } = yield* MutationDemoView();
-            return yield* nameInput();
-          },
           *input(event) {
-            yield* (yield* MutationDemoView()).nameInput.setName(eventValue(event));
+            const value = eventValue(event);
+            yield* (yield* MutationDemoView()).nameInput.setName(value);
           },
         }),
         button(

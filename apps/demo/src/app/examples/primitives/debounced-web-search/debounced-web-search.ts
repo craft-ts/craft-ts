@@ -1,7 +1,6 @@
 import {
   a,
   article,
-  catchTag,
   craftComponent,
   div,
   forNode,
@@ -20,6 +19,7 @@ import {
 import {
   craftService,
   asyncProcess,
+  afterRecomputation,
   CraftHttpClient,
   craftComputed,
   craftException,
@@ -147,13 +147,14 @@ const searchBooks = craftGen(function* (term: string) {
   }));
 });
 
-export const { DebouncedWebSearchView, provideDebouncedWebSearchView } =
+export const { DebouncedWebSearchView } =
   craftService(
-    { name: 'debouncedWebSearchView', providedIn: 'toProvide' },
+    { name: 'debouncedWebSearchView', providedIn: 'global' },
     function* () {
-      const searchFailure = yield* state('searchFailure', '', ({ set }) => ({
-        show: (message: string) => set(message),
-      }));
+      const searchFailure = yield* state(
+        'searchFailure',
+        'The search could not be completed. Try again later.',
+      );
 
       const searchInput = yield* state('searchInput', '', ({ state, set }) => ({
         setSearchInput: (value: string) => set(value),
@@ -166,10 +167,7 @@ export const { DebouncedWebSearchView, provideDebouncedWebSearchView } =
       const debouncedSearch = yield* asyncProcess(
         'debouncedSearch',
         {
-          params: function* () {
-            const _searchInput = yield* searchInput();
-            return _searchInput.trim();
-          },
+          method: afterRecomputation(searchInput.currentTerm, (term) => term),
           loader: function* ({ params }) {
             if (!params) return { term: '' };
 
@@ -255,9 +253,7 @@ export const { DebouncedWebSearchView, provideDebouncedWebSearchView } =
 
 const DebouncedWebSearch = craftComponent(
   'DebouncedWebSearch',
-  {
-    providers: [provideDebouncedWebSearchView()],
-  },
+  {},
   () =>
     section({ class: example.card }, [
       heading({ class: example.title }, 'Debounced web search'),
@@ -273,9 +269,8 @@ const DebouncedWebSearch = craftComponent(
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
         'aria-label': 'Search books',
         *input(event) {
-          yield* DebouncedWebSearchView.searchInput.setSearchInput(
-            eventValue(event),
-          );
+          const value = eventValue(event);
+          yield* DebouncedWebSearchView.searchInput.setSearchInput(value);
         },
       }),
       div({ class: example.row }, [
@@ -370,29 +365,6 @@ const DebouncedWebSearch = craftComponent(
         () => p({ class: example.hint }, 'No books found.'),
       ),
     ]),
-).pipe(
-  catchTag.exhaustive({
-    TransientHttpError: function* () {
-      yield* DebouncedWebSearchView.searchFailure.show(
-        'The search is still unavailable after three retries. Check your connection and try again.',
-      );
-    },
-    HttpError: function* () {
-      yield* DebouncedWebSearchView.searchFailure.show(
-        'The HTTP request failed before the search service returned a response. Try again shortly.',
-      );
-    },
-    HttpResponseDecodeError: function* () {
-      yield* DebouncedWebSearchView.searchFailure.show(
-        'The search service returned data we could not read. Try again later.',
-      );
-    },
-    SearchHttpError: function* () {
-      yield* DebouncedWebSearchView.searchFailure.show(
-        'The search service rejected this request. Check the search term and try again.',
-      );
-    },
-  }),
 );
 
 export default DebouncedWebSearch;

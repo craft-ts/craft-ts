@@ -66,7 +66,7 @@ export const { ComponentDemoView, provideComponentDemoView } = craftService(
   { name: 'componentDemoView', providedIn: 'toProvide' },
   function* () {
     const users = yield* state(
-      'usersComponentComponentDemo',
+      'users',
       [
         { id: 1, name: 'Ada Lovelace' },
         { id: 2, name: 'Grace Hopper' },

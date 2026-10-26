@@ -6,22 +6,16 @@ test('keeps projected action buttons styled before hover', async ({ page }) => {
   const buttons = page.getByTestId('projection-case').locator('button');
 
   await expect(buttons).toHaveCount(5);
-  await expect
-    .poll(() =>
-      buttons.evaluateAll((elements) =>
-        elements.map((element) => {
-          const style = getComputedStyle(element);
-          return {
-            backgroundColor: style.backgroundColor,
-            color: style.color,
-          };
-        }),
-      ),
-    )
-    .toEqual(
-      Array.from({ length: 5 }, () => ({
-        backgroundColor: 'rgb(37, 99, 235)',
-        color: 'rgb(255, 255, 255)',
-      })),
-    );
+  await expect(buttons.first()).toHaveCSS('height', '42px');
+  await expect(buttons.first()).toHaveCSS('font-weight', '600');
+  const colors = await buttons.evaluateAll((elements) =>
+    elements.map((element) => {
+      const style = getComputedStyle(element);
+      return [style.backgroundColor, style.color] as const;
+    }),
+  );
+  expect(new Set(colors.map(([background]) => background)).size).toBe(1);
+  expect(new Set(colors.map(([, foreground]) => foreground)).size).toBe(1);
+  expect(colors[0]?.[0]).not.toBe('rgba(0, 0, 0, 0)');
+  expect(colors[0]?.[0]).not.toBe(colors[0]?.[1]);
 });

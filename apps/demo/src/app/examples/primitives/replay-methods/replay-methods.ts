@@ -25,12 +25,12 @@ export const { ReplayMethodsView, provideReplayMethodsView } = craftService(
   { name: 'replayMethodsView', providedIn: 'toProvide' },
   function* () {
     yield* state(
-      'cellsReplayMethodsReplayMethods',
+      'cells',
       [
         { name: 'Premier élément', actions: 0 },
         { name: 'Second élément', actions: 0 },
       ],
-      insertSelect('cellReplayMethodsReplayMethods', function* ({ update }) {
+      insertSelect('cell', function* ({ update }) {
         return {
           recordAction: function* () {
             yield* update((cell) => ({ ...cell, actions: cell.actions + 1 }));

@@ -54,10 +54,12 @@ test('updates routed functional component inputs when Angular reuses the route',
   await expect(page.locator('main pre')).toContainText('"id": "2"');
 });
 
-test('centers the query navigation actions horizontally', async ({ page }) => {
+test('keeps the query navigation actions in a horizontal row', async ({ page }) => {
   await page.goto('/query/1');
 
   const actions = page.locator('[data-testid="query-actions"]');
+  await expect(actions).toHaveCSS('display', 'flex');
+  await expect(actions).toHaveCSS('justify-content', 'flex-start');
   const [actionsBox, previousBox, nextBox] = await Promise.all([
     actions.boundingBox(),
     page.getByRole('button', { name: 'Previous user' }).boundingBox(),
@@ -68,10 +70,11 @@ test('centers the query navigation actions horizontally', async ({ page }) => {
   expect(previousBox).not.toBeNull();
   expect(nextBox).not.toBeNull();
 
-  const actionsCenter = actionsBox!.x + actionsBox!.width / 2;
-  const buttonsCenter = (previousBox!.x + nextBox!.x + nextBox!.width) / 2;
-
-  expect(buttonsCenter).toBeCloseTo(actionsCenter, 0);
+  expect(previousBox!.y).toBeCloseTo(nextBox!.y, 0);
+  expect(previousBox!.x + previousBox!.width).toBeLessThan(nextBox!.x);
+  expect(actionsBox!.width).toBeGreaterThan(
+    nextBox!.x + nextBox!.width - actionsBox!.x,
+  );
 });
 
 test('shows the view-transition skeleton while the detail chain is pending', async ({

@@ -38,7 +38,7 @@ export const { QpListWithPaginationView, provideQpListWithPaginationView } =
       yield* craftExpose('pagination', pagination);
       const api = yield* ApiService();
       yield* query(
-        'usersQueryListWithPaginationQpListWithPagination',
+        'usersQuery',
         {
           params: pagination,
           identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -56,8 +56,9 @@ export const { QpListWithPaginationView, provideQpListWithPaginationView } =
           insertPaginationPlaceholderData({ initialValue: Array<User>() }),
         ),
       );
-      yield* craftMethod('updatePageSizeListWithPaginationQpListWithPagination', function* (event: Event) {
-        yield* pagination.updatePageSize(Number(eventValue(event)));
+      yield* craftMethod('updatePageSize', function* (event: Event) {
+        const value = eventValue(event);
+        yield* pagination.updatePageSize(Number(value));
       });
     },
   );

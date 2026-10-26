@@ -42,7 +42,7 @@ export const { GranularMutationView, provideGranularMutationView } =
     { name: 'granularMutationView', providedIn: 'toProvide' },
     function* () {
       const pagination = yield* queryParams(
-        'paginationGranularMutationGranularMutation2',
+        'pagination',
         paginationQueryParams(),
         ({ patch, state }) => ({
           nextPage: function* () {
@@ -59,7 +59,7 @@ export const { GranularMutationView, provideGranularMutationView } =
         }),
       );
 
-      const updateUserName = yield* mutation('updateUserNameGranularMutationGranularMutation2', {
+      const updateUserName = yield* mutation('updateUserName', {
         method: (user: User) => ({ ...user, name: `${user.name}-` }),
         identifier: ({ id }) => id,
         loader: function* ({ params }) {
@@ -67,7 +67,7 @@ export const { GranularMutationView, provideGranularMutationView } =
         },
       });
       yield* query(
-        'usersQueryGranularMutationGranularMutation',
+        'usersQuery',
         {
           params: pagination,
           identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -103,42 +103,20 @@ export const { GranularMutationView, provideGranularMutationView } =
         const pending = updateUserName.select(user.id);
         if (!pending) return false;
 
-        const isLoading = (pending as unknown as Record<string, unknown>)[
-          'isLoading'
-        ];
-        let read: unknown;
-        try {
-          read = Reflect.apply(isLoading as (...args: never[]) => unknown, pending, []);
-        } catch (error) {
-          yield* Console.error('[DEBUG-granular-select]', {
-            selectedType: typeof pending,
-            selectedName: pending.constructor?.name,
-            selectedKeys: Object.keys(pending),
-            isLoadingType: typeof isLoading,
-            error,
-          });
-          throw error;
-        }
-
-        const isIterator =
+        const read = pending.isLoading();
+        if (
           read !== null &&
           (typeof read === 'object' || typeof read === 'function') &&
-          typeof (read as { next?: unknown }).next === 'function';
-        if (!isIterator) {
-          yield* Console.error('[DEBUG-granular-select]', {
-            selectedType: typeof pending,
-            selectedName: pending.constructor?.name,
-            selectedKeys: Object.keys(pending),
-            isLoadingType: typeof isLoading,
-            readType: typeof read,
-            readIsIterator: isIterator,
-          });
+          typeof (read as { next?: unknown }).next === 'function'
+        ) {
+          return yield* (read as Generator<unknown, boolean, unknown>);
         }
-        return yield* (read as Generator<unknown, boolean, unknown>);
+        return read;
       }
       yield* craftExpose('isUpdatePending', isUpdatePending);
-      yield* craftMethod('updatePageSizeGranularMutationGranularMutation2', function* (event: Event) {
-        yield* pagination.updatePageSize(Number(eventValue(event)));
+      yield* craftMethod('updatePageSize', function* (event: Event) {
+        const value = eventValue(event);
+        yield* pagination.updatePageSize(Number(value));
       });
     },
   );

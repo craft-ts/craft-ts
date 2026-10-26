@@ -160,7 +160,7 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
     browser,
     config: visualAppConfig(),
     baseURL: new URL(page.url()).origin,
-    rootDir: resolve('.'),
+    rootDir: resolve('../..'),
     tsconfigPath: 'apps/demo/tsconfig.graph.json',
     reportPath: publishedReportPath,
     additionalCaptures: captures.map((capture) => ({

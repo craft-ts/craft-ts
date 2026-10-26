@@ -60,7 +60,7 @@ const { User } = craftService(
   { name: 'User', providedIn: 'function' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
     const api = yield* UsersApi();
-    yield* query('userCraftServiceCraftServiceUserDetail', {
+    yield* query('user', {
       params: function* () {
         return yield* inputs.userId();
       },
@@ -76,7 +76,7 @@ export const { CraftServiceUserDetailView, provideCraftServiceUserDetailView } =
   craftService(
     { name: 'craftServiceUserDetailView', providedIn: 'toProvide' },
     function* () {
-      const userId = yield* state('userIdCraftServiceCraftServiceUserDetail', '1', ({ set }) => ({
+      const userId = yield* state('userId', '1', ({ set }) => ({
         selectUser: (value: string) => set(value),
       }));
       const { user } = yield* craftPrivate(User({ userId }));
@@ -87,10 +87,10 @@ export const { CraftServiceUserDetailView, provideCraftServiceUserDetailView } =
       yield* craftComputed('userIdValue', function* () {
         return (yield* user.value())?.id ?? '';
       });
-      yield* craftComputed('userNameCraftServiceCraftServiceUserDetail', function* () {
+      yield* craftComputed('userName', function* () {
         return (yield* user.value())?.name ?? '';
       });
-      yield* craftComputed('userEmailCraftServiceCraftServiceUserDetail', function* () {
+      yield* craftComputed('userEmail', function* () {
         return (yield* user.value())?.email ?? '';
       });
     },
@@ -112,9 +112,8 @@ const CraftServiceUserDetailComponent = craftComponent(
             'aria-label': 'User',
             value: CraftServiceUserDetailView.userId,
             *change(event: Event) {
-              yield* CraftServiceUserDetailView.userId.selectUser(
-                eventValue(event),
-              );
+              const value = eventValue(event);
+              yield* CraftServiceUserDetailView.userId.selectUser(value);
             },
           },
           USER_IDS.map((id) => option({ value: id }, `User ${id}`)),

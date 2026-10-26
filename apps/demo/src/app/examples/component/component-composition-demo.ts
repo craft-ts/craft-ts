@@ -60,7 +60,7 @@ export const {
       return (yield* canReadRestrictedData()) ? 'accessible' : noAccess;
     });
 
-    yield* state('lastHandledExceptionComponentComponentCompositionDemo', '', ({ set }) => ({
+    yield* state('lastHandledException', '', ({ set }) => ({
       showNoAccessText: () =>
         set(
           'NO_ACCESS handled by catchTag (the boundary renders no template).',

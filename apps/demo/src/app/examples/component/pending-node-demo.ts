@@ -66,7 +66,7 @@ export const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
         .sort()
         .join(' · ');
     });
-    yield* craftComputed('totalComponentPendingNodeDemo', function* () {
+    yield* craftComputed('total', function* () {
       const list = yield* settled(users);
       return `${list.items.length} people`;
     });

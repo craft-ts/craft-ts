@@ -54,7 +54,7 @@ export const { FullDemoView, provideFullDemoView } = craftService(
           update((current) => current.filter((todo) => todo.id !== id)),
       }),
     ));
-    const todos = yield* query('todosFullDemoFullDemo2', {
+    const todos = yield* query('todos', {
       method: (_: undefined) => undefined,
       loader: function* () {
         const _records = yield* records();
@@ -62,7 +62,7 @@ export const { FullDemoView, provideFullDemoView } = craftService(
       },
     });
     yield* todos.call(undefined); // trigger first call
-    const addTodo = yield* mutation('addTodoFullDemoFullDemo', {
+    const addTodo = yield* mutation('addTodo', {
       method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
         const todo = { id: yield* nextId.take(), title };
@@ -80,7 +80,7 @@ export const { FullDemoView, provideFullDemoView } = craftService(
       },
     });
     yield* state(
-      'titleFormFullDemoFullDemo2',
+      'titleForm',
       '',
       insertForm(
         insertFormAttributes(() => ({ validators: [cRequired()] })),

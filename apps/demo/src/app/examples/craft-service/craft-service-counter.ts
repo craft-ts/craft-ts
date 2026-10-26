@@ -3,10 +3,13 @@ import { craftService, state, craftExpose } from '@craft-ts/core';
 import { example } from '../shared/example.style';
 import { buttonUi } from '@craft-ts/ui/style';
 
-const { Counter, provideCounter } = craftService(
+const {
+  CounterCraftServiceCraftServiceCounter: Counter,
+  provideCounterCraftServiceCraftServiceCounter: provideCounter,
+} = craftService(
   { name: 'CounterCraftServiceCraftServiceCounter', providedIn: 'toProvide' },
   function* () {
-    yield* state('counterCraftServiceCraftServiceCounter', 0, ({ update, set }) => ({
+    yield* state('counter', 0, ({ update, set }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
       reset: () => set(0),

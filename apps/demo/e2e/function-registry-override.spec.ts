@@ -53,6 +53,7 @@ test('overrides a state method without reloading the page', async ({
       >;
       if (message['type'] === 'hello' && message['clientId'] === clientId) {
         appSocket = socket;
+        socket.send(JSON.stringify({ type: 'hello/ok', clientId }));
         return;
       }
       if (
@@ -101,7 +102,7 @@ test('overrides a state method without reloading the page', async ({
 
     await increment.click();
     await expect(
-      page.locator('[data-craft-root="CraftServiceCounterComponent"]'),
+      page.locator('[data-craft-root~="CraftServiceCounterComponent"]'),
     ).toContainText('1');
     const key = entries.find(
       (entry) =>
@@ -121,15 +122,30 @@ test('overrides a state method without reloading the page', async ({
           entries.find((entry) => entry.key === key)?.overrideActive ?? false,
       )
       .toBe(true);
+    await expect(
+      page.locator('[data-craft-root~="CraftServiceCounterComponent"]'),
+    ).toContainText('1');
+    const existingLogs = (await request('registry/logs', {
+      sinceId: 0,
+    })) as Array<{ id: number }>;
+    const previousLogId = existingLogs.at(-1)?.id ?? 0;
     await increment.click();
     await expect(
-      page.locator('[data-craft-root="CraftServiceCounterComponent"]'),
+      page.locator('[data-craft-root~="CraftServiceCounterComponent"]'),
     ).toContainText('11');
+    const interactionLogs = (await request('registry/logs', {
+      sinceId: previousLogId,
+    })) as Array<{ event: string; key?: string }>;
+    expect(
+      interactionLogs.filter(
+        (log) => log.event === 'override-succeeded' && log.key === key,
+      ),
+    ).toHaveLength(1);
 
     await request('registry/restore', { key });
     await increment.click();
     await expect(
-      page.locator('[data-craft-root="CraftServiceCounterComponent"]'),
+      page.locator('[data-craft-root~="CraftServiceCounterComponent"]'),
     ).toContainText('12');
   } finally {
     for (const socket of server.clients) socket.close();
@@ -175,6 +191,10 @@ test('removes the previous page entries after internal navigation', async ({
         string,
         unknown
       >;
+      if (message['type'] === 'hello' && message['clientId'] === clientId) {
+        socket.send(JSON.stringify({ type: 'hello/ok', clientId }));
+        return;
+      }
       if (
         message['type'] === 'registry/snapshot' &&
         message['clientId'] === clientId

@@ -13,7 +13,7 @@ export type User = {
   name: string;
 };
 
-export const { ApiService } = craftService(
+export const { ApiServiceMutationApiService2: ApiService } = craftService(
   { name: 'ApiServiceMutationApiService2', providedIn: 'global' },
   function* () {
     const dataList = yield* craftPrivate(state(

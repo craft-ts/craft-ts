@@ -6,7 +6,7 @@ import {
   query,
   craftExpose,
 } from '@craft-ts/core';
-import type { User } from '../query/api.service';
+import type { User } from '../../primitives/query/api.service';
 import { OtherService, provideOtherService } from './to-provide.service';
 
 const { UsersApiOnError } = craftService(
