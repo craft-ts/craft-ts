@@ -45,6 +45,7 @@ describe('registry MCP server', () => {
       'app.launch',
       'app.diff',
       'app.replay',
+      'app.handoff',
       'app.writes',
     ]);
 
@@ -193,5 +194,29 @@ describe('registry MCP server', () => {
 
     await client.close();
     await server.close();
+  });
+  it('gives the person five minutes by default when handing off', async () => {
+    const request = vi.fn(async () => ({ outcome: 'condition', waitedMs: 10 }));
+    const server = createRegistryMcpServer({ request });
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+    await client.callTool({
+      name: 'app.handoff',
+      arguments: {
+        message: 'Connecte-toi en product-manager.',
+        field: 'sign-in-password',
+        until: { address: 'service:session / query:currentUser', path: 'role', equals: 'product-manager' },
+      },
+    });
+
+    expect(request).toHaveBeenCalledWith('app/handoff', {
+      message: 'Connecte-toi en product-manager.',
+      field: 'sign-in-password',
+      until: { address: 'service:session / query:currentUser', path: 'role', equals: 'product-manager' },
+      timeoutMs: 300_000,
+    });
+    await client.close();
   });
 });

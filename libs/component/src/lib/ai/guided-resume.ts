@@ -12,6 +12,7 @@ import {
   type DebugAppSnapshot,
 } from './debug-session-app-snapshot';
 import { validateDebugSessionExport } from './debug-session-replay';
+import { handOff, parseHandoffRequest } from './guided-resume-handoff';
 import { ɵreviveReplayArgument } from './debug-session-replay-bridge';
 import {
   restoreDebugAppSnapshot,
@@ -24,7 +25,7 @@ import {
  * from the local log server itself, so nothing but ids crosses the bridge.
  *
  * Methods added to the bridge: `app/launch`, `app/diff`, `app/replay`,
- * `app/writes`. Once a launch has happened the tab is in guided mode for the
+ * `app/writes`, `app/handoff`. Once a launch has happened the tab is in guided mode for the
  * rest of its session: writes to another origin are held, the others journaled.
  */
 export type CraftGuidedResumeOptions = Readonly<{
@@ -90,6 +91,9 @@ export function provideCraftGuidedResume(
       );
       ɵregisterCraftMcpBridgeMethod('app/replay', (params) =>
         replayMethod(params, restoreOptions),
+      );
+      ɵregisterCraftMcpBridgeMethod('app/handoff', (params) =>
+        handOff(parseHandoffRequest(params), restoreOptions.registry),
       );
       ɵregisterCraftMcpBridgeMethod('app/writes', () => ({
         active: readMode(),

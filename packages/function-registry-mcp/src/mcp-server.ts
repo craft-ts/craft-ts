@@ -179,6 +179,38 @@ function registerGuidedResumeTools(
     },
     true,
   );
+  const condition = z.union([
+    z.object({
+      address: z.string().min(1).describe('Primitive address, ordinal-free'),
+      path: z.string().min(1).optional().describe('Dot path in the value, e.g. user.role'),
+      equals: z.unknown().optional(),
+      notEquals: z.unknown().optional(),
+      exists: z.boolean().optional(),
+    }),
+    z.object({ route: z.string().min(1).describe('Route prefix to reach') }),
+  ]);
+  server.registerTool(
+    'app.handoff',
+    {
+      description:
+        'Hand the tab to the person for what you must not or cannot do (credentials, codes, choices only they can make): shows an « À vous » banner with the message, highlights the field, and waits until the condition holds in the live state, the person confirms or declines, or the time is up (5 minutes by default). Never ask for the secret itself.',
+      inputSchema: {
+        clientId: z.string().min(1).optional(),
+        message: z.string().min(1).max(500),
+        field: z.string().min(1).optional().describe('Control id to highlight (page controls)'),
+        until: condition.optional(),
+        timeoutMs: z.number().int().positive().max(15 * 60_000).optional(),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async (params) =>
+      toolResult(
+        await bridge.request('app/handoff', {
+          ...params,
+          timeoutMs: params.timeoutMs ?? 5 * 60_000,
+        }),
+      ),
+  );
   registerTool(
     server,
     bridge,
