@@ -137,6 +137,18 @@ export default [
     },
   },
   {
+    // Development tooling outside the app's Craft state: the registry stamps
+    // its own log entries, and the type-check indicator polls the Vite server.
+    // Neither is recorded nor replayed.
+    files: [
+      '**/src/app/function-registry.ts',
+      '**/src/demo-typecheck-indicator.ts',
+    ],
+    rules: {
+      'craft-ts/no-direct-temporal-globals': 'off',
+    },
+  },
+  {
     // Vite/Vitest config files are Node tooling boundaries and intentionally
     // import the shared workspace plugin through a relative path.
     files: ['**/vite.config.ts', '**/vitest.config.ts'],

@@ -51,7 +51,16 @@ export function draftFromProduct(product: Product): ProductDraft {
   };
 }
 
-export const emptyProductDraft = (categoryId: string): ProductDraft => ({ isNew: true, id: '', kind: 'simple', name: '', description: '', emoji: '', categoryId, price: '', stock: '10', groups: [] });
+// L'identifiant ne dépend que des groupes déjà présents : le même brouillon
+// donne le même identifiant, en direct comme au rejeu d'une session.
+function nextGroupId(groups: readonly GroupDraft[]): string {
+  const taken = new Set(groups.map((group) => group.id));
+  let index = groups.length + 1;
+  while (taken.has(`group-${index}`)) index += 1;
+  return `group-${index}`;
+}
+
+export const emptyProductDraft =(categoryId: string): ProductDraft => ({ isNew: true, id: '', kind: 'simple', name: '', description: '', emoji: '', categoryId, price: '', stock: '10', groups: [] });
 
 /** Brouillon → produit, ou le message qui explique pourquoi ce n'est pas encore possible. */
 export function productFromDraft(draft: ProductDraft, id: string): Product | string {
@@ -78,7 +87,7 @@ export const { AdminDesk } = craftService({ name: 'adminDesk', providedIn: 'glob
     open: (draft: ProductDraft) => set(draft),
     close: () => set(undefined),
     edit: (changes: Partial<ProductDraft>) => update((draft) => draft && { ...draft, ...changes }),
-    addGroup: (categoryId: string) => update((draft) => draft && { ...draft, groups: [...draft.groups, { id: `group-${Date.now().toString(36)}`, categoryId, min: '1', max: '1' }] }),
+    addGroup: (categoryId: string) => update((draft) => draft && { ...draft, groups: [...draft.groups, { id: nextGroupId(draft.groups), categoryId, min: '1', max: '1' }] }),
     editGroup: (groupId: string, changes: Partial<GroupDraft>) => update((draft) => draft && { ...draft, groups: draft.groups.map((group) => group.id === groupId ? { ...group, ...changes } : group) }),
     removeGroup: (groupId: string) => update((draft) => draft && { ...draft, groups: draft.groups.filter((group) => group.id !== groupId) }),
   }));

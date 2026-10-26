@@ -33,7 +33,12 @@ export default [
   {
     files: ['**/src/client/**/*.ts'],
     plugins: { 'craft-ts': craftRules },
-    rules: { 'craft-ts/prefer-craft-router-link': 'error' },
+    rules: {
+      'craft-ts/prefer-craft-router-link': 'error',
+      // Le rejeu et la reprise pilotent l'horloge : la vitrine ne lit jamais le
+      // temps ni ne programme de tâche en dehors du runtime temporel.
+      'craft-ts/no-direct-temporal-globals': 'error',
+    },
   },
   {
     ...craftRules.configs.e2e,

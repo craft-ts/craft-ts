@@ -15,6 +15,7 @@ import {
 import {
   DEBUG_SESSION_EXPORT_VERSION,
   DEBUG_SESSION_REPLAY_VERSION,
+  CraftTemporalRuntime,
   craftComputed,
   rawReactiveValue,
 } from '@craft-ts/core';
@@ -52,8 +53,10 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const retentionDays = rawReactiveValue(archive.retentionDays);
   const storageBytes = rawReactiveValue(archive.storageBytes);
   const reachable = rawReactiveValue(archive.reachable);
+  const temporal = yield* CraftTemporalRuntime();
   const expiredSessions = yield* craftComputed('expiredSessions', () => {
-    const cutoff = Date.now() - retentionDays() * 24 * 60 * 60 * 1000;
+    const cutoff =
+      temporal.dateNow() - retentionDays() * 24 * 60 * 60 * 1000;
     return savedSessions().filter(
       (item) =>
         item.status !== 'recording' && Date.parse(item.createdAt) < cutoff,

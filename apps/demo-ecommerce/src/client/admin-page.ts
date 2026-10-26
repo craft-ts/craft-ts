@@ -75,7 +75,8 @@ export const { AdminView, provideAdminView } = craftService({ name: 'adminView',
       yield* desk.deskNotice.show({ tone: 'success', text: successText(action) });
       if (action.type === 'product-save' && !action.quiet) yield* desk.productDraft.close();
       if (action.type === 'category-save') yield* desk.categoryDraft.close();
-      yield* adminStore.call(Date.now());
+      // Chaque appel relance le chargement, même avec la même révision.
+      yield* adminStore.call(0);
       return result;
     },
   });

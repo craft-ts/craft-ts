@@ -100,6 +100,42 @@ describe('App navbar', () => {
     mounted.destroy();
   });
 
+  it('opens the panel from the keyboard, focuses its first link and closes on Escape', async () => {
+    CraftTestBed.configureTestingModule({
+      providers: [provideCraftRouter(demoRoutes.toRoutes())],
+    });
+
+    const element = document.createElement('div');
+    document.body.append(element);
+    const mounted = mountCraftComponent(App, element, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
+
+    element
+      .querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')
+      ?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+      );
+    CraftTestBed.tick();
+
+    await vi.waitFor(() => {
+      const first = element.querySelector<HTMLAnchorElement>(
+        '[data-testid="nav-panel"] [data-testid="nav-link"]',
+      );
+      expect(first).not.toBeNull();
+      expect(document.activeElement).toBe(first);
+    });
+
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    CraftTestBed.tick();
+    await vi.waitFor(() =>
+      expect(element.querySelector('[data-testid="nav-panel"]')).toBeNull(),
+    );
+
+    mounted.destroy();
+  });
+
   it('lists Craft Lazy Layout when the parent lazy-layout route is enabled', async () => {
     CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter(demoRoutes.toRoutes())],

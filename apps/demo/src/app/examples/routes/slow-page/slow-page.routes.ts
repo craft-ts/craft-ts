@@ -10,6 +10,7 @@ import {
   query,
   craftRoute,
   craftSleep,
+  CraftTemporalRuntime,
   retry,
   craftUntilSettled,
   type CanRun,
@@ -48,8 +49,9 @@ const { SlowReport } = craftService(
       params: () => true,
       loader: function* () {
         yield* craftSleep(1500);
+        const temporal = yield* CraftTemporalRuntime();
         return {
-          generatedAt: new Date().toLocaleTimeString(),
+          generatedAt: new Date(temporal.dateNow()).toLocaleTimeString(),
           totalUsers: 1234,
         };
       },

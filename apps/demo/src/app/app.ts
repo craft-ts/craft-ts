@@ -20,6 +20,7 @@ import {
   craftComputed,
   craftMethod,
   CraftRouterLink,
+  CraftTemporalRuntime,
   GlobalPersisterHandlerService,
   fromEventToSource$,
   type CraftRouterLinkInput,
@@ -86,6 +87,7 @@ const NAV_GROUPS = [
       ['State Machine — text editor', { to: 'state-machine-text' }],
       ['State Machine — list', { to: 'state-machine-list' }],
       ['Replay method coverage', { to: 'replay-methods' }],
+      ['Temporal stream replay', { to: 'temporal-stream-replay' }],
       ['Exception QueryParams', { to: 'exception-query-params' }],
     ],
   },
@@ -147,21 +149,22 @@ function focusExampleLink(
   links[nextIndex]?.focus();
 }
 
-function handleNavLinkKeydown(event: KeyboardEvent): void {
+function* handleNavLinkKeydown(event: KeyboardEvent) {
   if (event.key === 'ArrowDown') focusExampleLink(event, 'next');
   if (event.key === 'ArrowUp') focusExampleLink(event, 'previous');
   if (event.key === 'Home') focusExampleLink(event, 'first');
   if (event.key === 'End') focusExampleLink(event, 'last');
   if (event.key === 'Escape') {
     event.preventDefault();
-    AppView.navOpen.close();
+    yield* AppView.navOpen.close();
     document
       .querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')
       ?.focus();
   }
 }
 
-function handleNavToggleKeydown(event: KeyboardEvent): void {
+function* handleNavToggleKeydown(event: KeyboardEvent) {
+  const temporal = yield* CraftTemporalRuntime();
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     const panel = document.querySelector<HTMLElement>(
       '[data-testid="nav-panel"]',
@@ -173,20 +176,21 @@ function handleNavToggleKeydown(event: KeyboardEvent): void {
       links[event.key === 'ArrowDown' ? 0 : links.length - 1]?.focus();
     } else {
       event.preventDefault();
-      AppView.navOpen.toggle();
-      requestAnimationFrame(() => {
+      yield* AppView.navOpen.toggle();
+      // The panel renders once the toggle has settled: focus it on the next task.
+      temporal.schedule(() => {
         const links = document.querySelectorAll<HTMLAnchorElement>(
           '[data-testid="nav-panel"] [data-testid="nav-link"]',
         );
         links[event.key === 'ArrowDown' ? 0 : links.length - 1]?.focus();
-      });
+      }, 0);
     }
   } else if (
     event.key === 'Escape' &&
     document.querySelector('[data-testid="nav-panel"]')
   ) {
     event.preventDefault();
-    AppView.navOpen.close();
+    yield* AppView.navOpen.close();
   }
 }
 
