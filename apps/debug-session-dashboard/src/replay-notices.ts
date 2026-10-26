@@ -273,7 +273,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
         caption: lit('Reprise demandée'),
         body: content(() => [
           p(
-            'Le point est publié pour l’IA. Colle cette phrase dans ton hôte IA (Claude Code, Codex…) connecté aux MCP de reprise, puis suis la reprise dans Journal › Reprise :',
+            'Le point publié est la position actuelle du replay : avance-le jusqu’au moment voulu avant de cliquer. Colle cette phrase dans ton hôte IA (Claude Code, Codex…) connecté aux MCP de reprise, puis suis la reprise dans Journal › Reprise :',
           ),
           pre({ class: ui.code, 'data-lab': 'resume-prompt' }, resumePromptText),
           div({ class: ui.gapActions }, [

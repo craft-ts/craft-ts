@@ -71,6 +71,12 @@ describe('resume tools', () => {
     await expect(call('resume.request')).resolves.toMatchObject({
       request: { sessionId: SESSION, beforeSequence: 40 },
       session: { events: archive.events.length },
+      // Reading the request is enough to know what comes next.
+      method: expect.arrayContaining([
+        expect.stringContaining('app.launch'),
+        expect.stringContaining('app.handoff'),
+        expect.stringContaining('checkpoint.save'),
+      ]),
     });
   });
 

@@ -72,6 +72,7 @@ export function registerResumeTools(server: McpServer): void {
             events: archive.events.length,
             participants: archive.participants?.length ?? 0,
           },
+          method: RESUME_METHOD,
         };
       }),
   );
@@ -200,6 +201,22 @@ export function registerResumeTools(server: McpServer): void {
       }),
   );
 }
+
+/**
+ * The steps a resume goes through, returned with the request: an AI that
+ * only read the request still knows which tools come next. Hosts that defer
+ * MCP tools must load them first: their absence from the first tool list
+ * does not mean they are unavailable.
+ */
+export const RESUME_METHOD: readonly string[] = [
+  'Les outils app.*, checkpoint.* et page viennent du serveur MCP du registre (function-registry-mcp) ; resume.* et session.* de celui des logs. Si ton hôte diffère le chargement des outils MCP, charge-les avant de conclure qu’ils manquent.',
+  'Lire : checkpoint.list (sessionId, beforeSequence) — un point non expiré se rouvre avec checkpoint.restore puis checkpoint.validate. Sinon session.story, session.target, session.prerequisites.',
+  'Écrire chaque étape dans le fil du dashboard avec resume.say.',
+  'Conduire : app.launch (sessionId, beforeSequence) recharge l’onglet de l’app relié au pont sur l’état enregistré, puis app.diff dit ce qui manque ; combler avec page, app.replay, registry.*.',
+  'Rendre la main pour un secret : app.handoff avec until = session.prerequisites.session.signedInWhen ; ne jamais taper un mot de passe.',
+  'Vérifier : app.diff sans écart non assumé, app.writes pour ce que la reprise a écrit.',
+  'Figer : checkpoint.save (ttlMs et ttlReason choisis, probes, created, deviations), puis checkpoint.validate, et resume.say kind done.',
+];
 
 type ResumeMessage = Readonly<{
   id: number;
