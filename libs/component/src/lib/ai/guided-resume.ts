@@ -58,6 +58,14 @@ export type GuidedResumeWrite = Readonly<{
   at: string;
   method: string;
   url: string;
+  /** The server function, when the request calls one. */
+  call?: string;
+  /**
+   * Server functions all go out as POST: one whose name reads like a write
+   * (save, create, login…) is a write, the others only read.
+   */
+  effect: 'read' | 'write';
+  transport: 'fetch' | 'xhr';
   status: 'allowed' | 'held';
 }>;
 
@@ -110,7 +118,13 @@ export function provideCraftGuidedResume(
       );
       ɵregisterCraftMcpBridgeMethod('app/writes', () => ({
         active: readMode(),
-        writes: readJournal(),
+        // Reads are counted, not listed: a poll would bury the writes.
+        writes: readJournal().filter(
+          (entry) => entry.effect === 'write' || entry.status === 'held',
+        ),
+        reads: readJournal().filter(
+          (entry) => entry.effect === 'read' && entry.status === 'allowed',
+        ).length,
         lastLaunch: readJson(LAST_LAUNCH_KEY),
         lastCheckpoint: readLastCheckpointValidity(),
       }));
@@ -438,39 +452,151 @@ async function replayMethod(
 
 let barrierInstalled = false;
 
+const WRITE_CALL =
+  /(?:save|create|add|update|delete|remove|checkout|order|reset|login|logout|sign.?in|sign.?out|register|submit|send|pay)/i;
+const SERVER_FUNCTION_HEADER = 'x-craft-function-id';
+
+type OutgoingRequest = Readonly<{
+  method: string;
+  url: URL;
+  header: (name: string) => string | null;
+  body: unknown;
+  transport: GuidedResumeWrite['transport'];
+}>;
+
 /**
  * Writes the resume must not make for real elsewhere are held: a request with
  * a body to another origin than the app's never leaves. Same-origin and
  * loopback writes go through — the app's own backend and the dev tools — and
- * are journaled, so `app/writes` tells what the resume created.
+ * are journaled, so `app/writes` tells what the resume created. Both `fetch`
+ * and `XMLHttpRequest` go through the barrier.
  */
 export function ɵinstallGuidedResumeWriteBarrier(logServerUrl: string): void {
-  if (barrierInstalled || typeof globalThis.fetch !== 'function') return;
+  if (barrierInstalled) return;
   barrierInstalled = true;
-  const nativeFetch = globalThis.fetch.bind(globalThis);
   const quiet = new URL(logServerUrl).origin;
+  if (typeof globalThis.fetch === 'function') guardFetch(quiet);
+  if (typeof XMLHttpRequest === 'function') guardXhr(quiet);
+}
+
+/** `true` when the request must not leave; journals what is not a plain read. */
+function holdsRequest(request: OutgoingRequest, quiet: string): boolean {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return false;
+  if (request.url.origin === quiet) return false;
+  const held =
+    request.url.origin !== location.origin && !isLoopback(request.url.hostname);
+  const call = request.header(SERVER_FUNCTION_HEADER) ?? serverFunctionIn(request.body);
+  appendJournal({
+    at: new Date().toISOString(),
+    method: request.method,
+    url: `${request.url.origin}${request.url.pathname}`,
+    ...(call ? { call } : {}),
+    effect: call && !WRITE_CALL.test(call) ? 'read' : 'write',
+    transport: request.transport,
+    status: held ? 'held' : 'allowed',
+  });
+  if (held)
+    console.warn(
+      `[craft guided resume] write held: ${request.method} ${request.url.origin}${request.url.pathname}`,
+    );
+  return held;
+}
+
+/** A server function call carries its id in the body: `{ id, input }`. */
+function serverFunctionIn(body: unknown): string | undefined {
+  if (typeof body !== 'string') return undefined;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return isRecord(parsed) && typeof parsed['id'] === 'string' && 'input' in parsed
+      ? parsed['id']
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function heldError(method: string, url: URL): TypeError {
+  return new TypeError(
+    `Écriture retenue par la reprise guidée : ${method} ${url.origin}${url.pathname}`,
+  );
+}
+
+function guardFetch(quiet: string): void {
+  const nativeFetch = globalThis.fetch.bind(globalThis);
   globalThis.fetch = (input, init) => {
     const isRequest = typeof Request !== 'undefined' && input instanceof Request;
     const method = (init?.method ?? (isRequest ? input.method : 'GET')).toUpperCase();
-    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS')
-      return nativeFetch(input, init);
-    const target = new URL(
+    const url = new URL(
       isRequest ? input.url : input instanceof URL ? input.href : String(input),
       location.href,
     );
-    if (target.origin === quiet) return nativeFetch(input, init);
-    const held = target.origin !== location.origin && !isLoopback(target.hostname);
-    appendJournal({
-      at: new Date().toISOString(),
-      method,
-      url: `${target.origin}${target.pathname}`,
-      status: held ? 'held' : 'allowed',
-    });
-    if (!held) return nativeFetch(input, init);
-    console.warn(`[craft guided resume] write held: ${method} ${target.origin}${target.pathname}`);
-    return Promise.reject(
-      new TypeError(`Écriture retenue par la reprise guidée : ${method} ${target.origin}${target.pathname}`),
+    const headers = new Headers(init?.headers ?? (isRequest ? input.headers : undefined));
+    const held = holdsRequest(
+      {
+        method,
+        url,
+        header: (name) => headers.get(name),
+        body: init?.body,
+        transport: 'fetch',
+      },
+      quiet,
     );
+    return held ? Promise.reject(heldError(method, url)) : nativeFetch(input, init);
+  };
+}
+
+function guardXhr(quiet: string): void {
+  const prototype = XMLHttpRequest.prototype;
+  const nativeOpen = prototype.open;
+  const nativeSetRequestHeader = prototype.setRequestHeader;
+  const nativeSend = prototype.send;
+  const pending = new WeakMap<
+    XMLHttpRequest,
+    { method: string; url: URL; headers: Map<string, string> }
+  >();
+  prototype.open = function (
+    this: XMLHttpRequest,
+    method: string,
+    url: string | URL,
+    ...rest: unknown[]
+  ) {
+    pending.set(this, {
+      method: method.toUpperCase(),
+      url: new URL(String(url), location.href),
+      headers: new Map(),
+    });
+    return (nativeOpen as (...args: unknown[]) => void).call(this, method, url, ...rest);
+  } as typeof prototype.open;
+  prototype.setRequestHeader = function (this: XMLHttpRequest, name: string, value: string) {
+    pending.get(this)?.headers.set(name.toLowerCase(), value);
+    return nativeSetRequestHeader.call(this, name, value);
+  };
+  prototype.send = function (
+    this: XMLHttpRequest,
+    body?: Document | XMLHttpRequestBodyInit | null,
+  ) {
+    const request = pending.get(this);
+    if (
+      request &&
+      holdsRequest(
+        {
+          method: request.method,
+          url: request.url,
+          header: (name) => request.headers.get(name.toLowerCase()) ?? null,
+          body,
+          transport: 'xhr',
+        },
+        quiet,
+      )
+    ) {
+      // Like a network failure: the request never leaves.
+      setTimeout(() => {
+        this.dispatchEvent(new ProgressEvent('error'));
+        this.dispatchEvent(new ProgressEvent('loadend'));
+      });
+      return;
+    }
+    return nativeSend.call(this, body);
   };
 }
 

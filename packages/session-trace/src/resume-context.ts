@@ -102,6 +102,13 @@ export function resumeStory(
   const events = eventsUntil(archive, options);
   const calls = callsOf(events);
   const steps: ResumeStoryStep[] = [];
+  // Calls already told since the last gesture or route change: a poll that
+  // answers the same way again is counted on its first step, not repeated.
+  let sinceLastGesture = new Map<string, number>();
+  const push = (step: ResumeStoryStep): void => {
+    if (step.kind !== 'call') sinceLastGesture = new Map();
+    steps.push(step);
+  };
   for (const event of events) {
     const base = {
       sequence: num(event['sequence']),
@@ -115,7 +122,7 @@ export function resumeStory(
     const payload = record(event['payload']);
     if (kind === 'dom') {
       const value = payload['value'];
-      steps.push({
+      push({
         ...base,
         kind: 'interaction',
         label: name,
@@ -124,7 +131,7 @@ export function resumeStory(
     } else if (kind === 'craft' && event['phase'] === 'started') {
       const invocation = record(payload['replayInvocation']);
       if (typeof invocation['address'] !== 'string') continue;
-      steps.push({
+      push({
         ...base,
         kind: 'invocation',
         label: invocation['address'],
@@ -133,16 +140,28 @@ export function resumeStory(
     } else if (kind === 'http' && event['phase'] === 'started') {
       const call = calls.get(event);
       if (!call) continue;
-      steps.push({
+      const key = `${call.name} ${call.status ?? ''}`;
+      const told = sinceLastGesture.get(key);
+      const first = told === undefined ? undefined : steps[told];
+      if (told !== undefined && first) {
+        const repeated = Number(first.detail?.['repeated'] ?? 1) + 1;
+        steps[told] = {
+          ...first,
+          detail: { ...first.detail, repeated, lastSequence: base.sequence },
+        };
+        continue;
+      }
+      sinceLastGesture.set(key, steps.length);
+      push({
         ...base,
         kind: 'call',
         label: call.name,
         ...(call.status === undefined ? {} : { detail: { status: call.status } }),
       });
     } else if (kind === 'route-activation' && event['phase'] === 'succeeded') {
-      steps.push({ ...base, kind: 'route', label: `/${name}` });
+      push({ ...base, kind: 'route', label: `/${name}` });
     } else if (kind === 'error' || (kind === 'exception' && name)) {
-      steps.push({ ...base, kind: 'error', label: name || String(payload['message'] ?? 'error') });
+      push({ ...base, kind: 'error', label: name || String(payload['message'] ?? 'error') });
     }
   }
   const limit = options.limit ?? 200;
@@ -253,10 +272,11 @@ export function resumePrerequisites(
     .find((event) => event['kind'] === 'route-activation' && event['phase'] === 'succeeded');
   if (routeEvent && target.route) {
     const pattern = String(routeEvent['name'] ?? '').split('/');
-    const actual = target.route.replace(/^\//, '').split(/[?#]/)[0]!.split('/');
+    const actual = (target.route.replace(/^\//, '').split(/[?#]/)[0] ?? '').split('/');
     pattern.forEach((segment, index) => {
-      if (segment.startsWith(':') && actual[index])
-        entities.push({ kind: segment.slice(1), id: decodeURIComponent(actual[index]!), source: 'route' });
+      const value = actual[index];
+      if (segment.startsWith(':') && value)
+        entities.push({ kind: segment.slice(1), id: decodeURIComponent(value), source: 'route' });
     });
   }
   for (const [address, entry] of values)
@@ -429,11 +449,13 @@ function identitiesIn(value: unknown, depth = 0): Omit<ResumeIdentityHint, 'sour
     const text = (key: string) =>
       typeof object[key] === 'string' || typeof object[key] === 'number' ? String(object[key]) : undefined;
     const id = text('id') ?? text('userId') ?? text('username');
+    const name = text('name');
+    const email = text('email');
     found.push({
       role: object['role'],
       ...(id === undefined ? {} : { id }),
-      ...(text('name') === undefined ? {} : { name: text('name')! }),
-      ...(text('email') === undefined ? {} : { email: text('email')! }),
+      ...(name === undefined ? {} : { name }),
+      ...(email === undefined ? {} : { email }),
     });
   }
   for (const [key, child] of Object.entries(object))

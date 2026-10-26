@@ -103,18 +103,30 @@ describe('guided resume', () => {
 
   describe('write barrier', () => {
     const nativeFetch = globalThis.fetch;
+    const nativeSend = XMLHttpRequest.prototype.send;
     const sent: string[] = [];
     afterAll(() => {
       globalThis.fetch = nativeFetch;
+      XMLHttpRequest.prototype.send = nativeSend;
     });
 
-    it('holds writes to another origin and journals the others', async () => {
+    it('holds writes to another origin, by fetch or XHR, and tells reads from writes', async () => {
       globalThis.fetch = async (input, init) => {
-        sent.push(`${init?.method ?? 'GET'} ${new URL(String(input), location.href).href}`);
+        sent.push(`fetch ${init?.method ?? 'GET'} ${new URL(String(input), location.href).href}`);
         return new Response('{}');
       };
+      XMLHttpRequest.prototype.send = function () {
+        sent.push('xhr sent');
+      };
       ɵinstallGuidedResumeWriteBarrier('http://127.0.0.1:4319');
+      const serverFunction = (id: string) => ({
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-craft-function-id': id },
+        body: JSON.stringify({ id, input: {} }),
+      });
 
+      await fetch('/__server-functions', serverFunction('shop.admin.overview'));
+      await fetch('/__server-functions', serverFunction('shop.product.save'));
       await fetch('/api/products', { method: 'POST', body: '{}' });
       await fetch('https://payments.example.com/charges');
       await expect(
@@ -122,14 +134,30 @@ describe('guided resume', () => {
       ).rejects.toThrow('retenue');
       await fetch('http://127.0.0.1:4319/logs', { method: 'POST', body: '{}' });
 
+      const allowed = new XMLHttpRequest();
+      allowed.open('POST', '/__server-functions');
+      allowed.send(JSON.stringify({ id: 'shop.auth.login', input: {} }));
+      const held = new XMLHttpRequest();
+      const failed = new Promise<string>((resolve) => held.addEventListener('error', () => resolve('error')));
+      held.open('PUT', 'https://mail.example.com/messages');
+      held.send('{}');
+      await expect(failed).resolves.toBe('error');
+
       expect(sent).toEqual([
-        `POST ${location.origin}/api/products`,
-        'GET https://payments.example.com/charges',
-        'POST http://127.0.0.1:4319/logs',
+        `fetch POST ${location.origin}/__server-functions`,
+        `fetch POST ${location.origin}/__server-functions`,
+        `fetch POST ${location.origin}/api/products`,
+        'fetch GET https://payments.example.com/charges',
+        'fetch POST http://127.0.0.1:4319/logs',
+        'xhr sent',
       ]);
-      expect(ɵreadGuidedResumeWrites()).toEqual([
-        expect.objectContaining({ method: 'POST', url: `${location.origin}/api/products`, status: 'allowed' }),
-        expect.objectContaining({ method: 'POST', url: 'https://payments.example.com/charges', status: 'held' }),
+      expect(ɵreadGuidedResumeWrites().map((write) => [write.transport, write.call ?? write.url, write.effect, write.status])).toEqual([
+        ['fetch', 'shop.admin.overview', 'read', 'allowed'],
+        ['fetch', 'shop.product.save', 'write', 'allowed'],
+        ['fetch', `${location.origin}/api/products`, 'write', 'allowed'],
+        ['fetch', 'https://payments.example.com/charges', 'write', 'held'],
+        ['xhr', 'shop.auth.login', 'write', 'allowed'],
+        ['xhr', 'https://mail.example.com/messages', 'write', 'held'],
       ]);
     });
   });

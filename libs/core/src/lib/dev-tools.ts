@@ -6,12 +6,8 @@ import {
   type ServiceRuntimeOverride,
 } from './craft-service';
 import type { ConsoleServiceApi } from './browser-boundaries';
-import { ɵcraftMcpBridgeMethod } from './dev-tools-bridge-methods';
-import {
-  applyCraftPageActions,
-  collectCraftPageControls,
-  isCraftPageAction,
-} from './dev-tools-page-actor';
+import { ɵanswerCraftBridgeRequest } from './dev-tools-bridge-methods';
+import { collectCraftPageControls } from './dev-tools-page-actor';
 import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
 import {
   DestroyRef,
@@ -206,16 +202,9 @@ function startMcpPageBridge(
     method: string,
     params: Readonly<Record<string, unknown>>,
   ): Promise<unknown> => {
-    if (method === 'page') {
-      const act = Array.isArray(params['act']) ? params['act'] : [];
-      if (!act.every(isCraftPageAction)) throw new Error('page act has an invalid action');
-      const outcome = await applyCraftPageActions(globalThis.document, act, navigate);
-      publish();
-      return { ...pageInfo(), status: 'ready', controls: controls(), ...outcome };
-    }
-    const registered = ɵcraftMcpBridgeMethod(method);
-    if (!registered) throw new Error(`This app does not answer ${method}.`);
-    return registered(params);
+    const result = await ɵanswerCraftBridgeRequest(method, params, navigate);
+    if (method === 'page') publish();
+    return result;
   };
   const connect = () => {
     if (stopped) return;

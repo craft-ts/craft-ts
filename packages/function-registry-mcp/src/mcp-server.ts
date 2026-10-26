@@ -235,7 +235,7 @@ function registerGuidedResumeTools(
     bridge,
     'app.writes',
     'app/writes',
-    'List the writes the tab made since the guided resume started: allowed (same origin, journaled) and held (another origin, never sent).',
+    'List the writes the tab made since the guided resume started, by fetch or XHR: allowed (same origin, journaled) and held (another origin, never sent). A server function named like a read (overview, get…) is counted in `reads`, not listed.',
     { clientId: z.string().min(1).optional() },
   );
 }

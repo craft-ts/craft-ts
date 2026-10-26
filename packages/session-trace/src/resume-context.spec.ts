@@ -41,6 +41,39 @@ describe('resumeStory', () => {
   });
 });
 
+describe('resumeStory polling', () => {
+  it('tells a poll once until the next gesture, with how often it repeated', () => {
+    let sequence = 0;
+    const poll = (status: number) => {
+      const operationId = `poll-${++sequence}`;
+      return [
+        { sequence: ++sequence, kind: 'http', phase: 'started', operationId, payload: { method: 'POST', url: '/__server-functions', body: JSON.stringify({ id: 'shop.admin.overview', input: {} }) } },
+        { sequence: ++sequence, kind: 'http', phase: 'succeeded', operationId, response: { status, body: '"{}"' } },
+      ];
+    };
+    const archive: ResumeArchive = {
+      events: [
+        ...poll(200),
+        ...poll(200),
+        ...poll(200),
+        { sequence: ++sequence, kind: 'dom', name: 'Admin:button:edit-product:click', payload: {} },
+        ...poll(200),
+        ...poll(500),
+      ],
+    };
+
+    const story = resumeStory(archive);
+
+    expect(story.steps.map((step) => [step.kind, step.label, step.detail?.['repeated'] ?? 1, step.detail?.['status']])).toEqual([
+      ['call', 'shop.admin.overview', 3, 200],
+      ['interaction', 'Admin:button:edit-product:click', 1, undefined],
+      ['call', 'shop.admin.overview', 1, 200],
+      ['call', 'shop.admin.overview', 1, 500],
+    ]);
+    expect(story.steps[0]?.detail?.['lastSequence']).toBeGreaterThan(story.steps[0]!.sequence);
+  });
+});
+
 describe('resumePrerequisites', () => {
   it('finds who was signed in from the recorded answers and the state', () => {
     const prerequisites = resumePrerequisites(adminEdit);
