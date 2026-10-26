@@ -1529,17 +1529,10 @@ export function createReplayController(
       isRecord(candidate.payload) &&
       typeof candidate.payload['targetUrl'] === 'string' &&
       destinationMatches(candidate.payload['targetUrl'], interactionHref);
-    const plannedNavigationHref =
-      plannedCommand?.kind === 'navigate' &&
-      typeof plannedCommand.payload['url'] === 'string'
-        ? plannedCommand.payload['url']
-        : '';
     const navigationForInteraction = (candidate: SendContextEvent): boolean =>
-      navigationMatchesHref(candidate, href) ||
-      navigationMatchesHref(candidate, plannedNavigationHref);
+      navigationMatchesHref(candidate, href);
     const routeLoadForInteraction = (candidate: SendContextEvent): boolean =>
-      routeLoadMatchesHref(candidate, href) ||
-      routeLoadMatchesHref(candidate, plannedNavigationHref);
+      routeLoadMatchesHref(candidate, href);
     const followingInteraction = interactions.find(
       (candidate) => candidate.sequence > event.sequence,
     );
@@ -1982,20 +1975,18 @@ export function createReplayController(
       target.dispatchEvent(native);
     } else if (useInvocationReplay) {
       const navigation =
-        plannedCommand?.kind === 'navigate'
-          ? (intervalEvents.find(
-              (candidate) =>
-                candidate.kind === 'navigation' &&
-                candidate.phase === 'started' &&
-                typeof candidate.payload === 'object' &&
-                candidate.payload !== null &&
-                typeof (candidate.payload as Record<string, unknown>)['url'] ===
-                  'string',
-            ) ??
-            session.events.find((candidate) =>
-              navigationMatchesHref(candidate, href),
-            ))
-          : undefined;
+        intervalEvents.find(
+          (candidate) =>
+            candidate.kind === 'navigation' &&
+            candidate.phase === 'started' &&
+            typeof candidate.payload === 'object' &&
+            candidate.payload !== null &&
+            typeof (candidate.payload as Record<string, unknown>)['url'] ===
+              'string',
+        ) ??
+        session.events.find((candidate) =>
+          navigationMatchesHref(candidate, href),
+        );
       if (navigation) {
         const payload = navigation.payload as Record<string, unknown>;
         const recordedOptions = isRecord(payload['navigationOptions'])
