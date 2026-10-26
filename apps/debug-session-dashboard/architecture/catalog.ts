@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "5a18501bc4d7af05",
+  "graphHash": "4f3eed0c70724c51",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -204,11 +204,9 @@ export const architectureCatalog = {
     "replayDifferences",
     "replayFrames",
     "replayIndex",
-    "replayJson",
     "replayPlanState",
     "replaySkeletonVisible",
     "replayState",
-    "replayStatus",
     "replayViewport",
     "replayViewportScale",
     "replayWarnings",
@@ -243,7 +241,6 @@ export const architectureCatalog = {
     "setCopied",
     "setError",
     "setPanelOffset",
-    "setReplayStatus",
     "setStatus",
     "showAllEvents",
     "showPreparedThumbnails",
@@ -323,7 +320,7 @@ export const architectureCatalog = {
     },
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:271>"
+      "url": "<unresolved:ai-send-context-chat.ts:242>"
     }
   ],
   "uniques": [],
