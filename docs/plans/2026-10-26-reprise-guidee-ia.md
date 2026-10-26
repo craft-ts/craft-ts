@@ -12,7 +12,15 @@ qu'il soit rechargé sans elle tant qu'il reste valide.
 > log-server (`POST /sessions/resume-requests`, `GET …/latest`, en mémoire,
 > sous les règles d'origine des routes de sessions), outils log-mcp
 > (`packages/log-mcp/src/resume-tools.ts`) et bouton **Reprendre ici** du
-> dashboard (publie le point, copie l'invite). G2 à G5 restent à construire. Le code retiré reste lisible sur
+> dashboard (publie le point, copie l'invite).
+> G2 fait (2026-10-26) : le pont MCP du noyau répond à `page act` (goto par
+> le routeur ; un champ sensible ne montre jamais sa valeur et refuse `fill`)
+> et à des méthodes ajoutées par d'autres libs (`ɵregisterCraftMcpBridgeMethod`) ;
+> le broker relaie `app/*` avec leur propre délai ; `provideCraftGuidedResume`
+> (libs/component) répond à `app/launch`, `app/diff`, `app/replay`,
+> `app/writes`, lit l'archive au log-server et pose la barrière d'écriture
+> (autre origine non loopback retenue, le reste journalisé, `fetch` seulement).
+> G3 à G5 restent à construire. Le code retiré reste lisible sur
 > `claude/reprise-fonctionnelle-corrections` (`56e08a48c`) : G1 y reprend
 > les heuristiques d'identité et de vivacité (`debug-session-resume-plan.ts`),
 > G2 la barrière et la retenue des requêtes au démarrage
@@ -219,7 +227,7 @@ de reprise).
 |---|---|---|
 | **G0** ✓ | Retirer l'approche déclarative (« Ce qui part »), garder « Ce qui reste » | build, specs et e2e d'historique verts ; `libs/` sans `craftResume` |
 | **G1** ✓ | Lecture : `resume.request`, `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | sur les archives S1-S6, le récit et les prérequis sont corrects (tests sur archives figées) |
-| **G2** | Conduite : `app.launch` sans ouvreur, `app.replay`, `app.diff`, barrière en mode IA, refus des champs sensibles dans `page act fill` | un script de test (sans modèle) mène S1 jusqu'au point et `app.diff` est vide |
+| **G2** ✓ | Conduite : `app.launch` sans ouvreur, `app.replay`, `app.diff`, barrière en mode IA, refus des champs sensibles dans `page act fill` | un script de test (sans modèle) mène S1 jusqu'au point et `app.diff` est vide |
 | **G3** | Passage de main : `app.handoff` (bandeau, champ, condition, expiration) | le script attend une connexion humaine simulée et reprend seul |
 | **G4** | Points de reprise : `checkpoint.*`, sondes, validité, nettoyage ; **Reprendre ici** rouvre un point valide | un point S2 se rouvre sans IA ; une sonde rouge (produit supprimé) le déclare invalide |
 | **G5** | Invite et méthode pour l'IA : prompt de reprise (lire, proposer, conduire, rendre la main, vérifier, figer, choisir la durée), skill pour l'hôte | une IA réelle mène S1 et S2 de bout en bout avec une seule intervention humaine (la connexion) |

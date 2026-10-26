@@ -42,6 +42,10 @@ describe('registry MCP server', () => {
       'registry.override',
       'registry.restore',
       'registry.logs',
+      'app.launch',
+      'app.diff',
+      'app.replay',
+      'app.writes',
     ]);
 
     await client.callTool({

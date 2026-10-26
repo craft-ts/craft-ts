@@ -12,9 +12,13 @@ export type RegistryMethod =
 
 export type PageMethod = 'page';
 
+/** Methods a tab adds through `ɵregisterCraftMcpBridgeMethod` (guided resume). */
+export type AppMethod = `app/${string}`;
+
 export type RegistryBrokerMethod =
   | RegistryMethod
   | PageMethod
+  | AppMethod
   | 'registry/clients';
 
 export type RegistryEntry = Readonly<{
@@ -84,7 +88,7 @@ export type HelloOk = Readonly<{
 export type RegistryRequest = Readonly<{
   type: 'request';
   callId: string;
-  method: RegistryMethod | PageMethod;
+  method: RegistryMethod | PageMethod | AppMethod;
   params?: Readonly<Record<string, unknown>>;
 }>;
 

@@ -122,7 +122,71 @@ export function createRegistryMcpServer(bridge: RegistryRequester): McpServer {
     },
   );
 
+  registerGuidedResumeTools(server, bridge);
+
   return server;
+}
+
+/**
+ * Driving a tab towards a recorded point. The tab answers them when the app
+ * installs the guided resume (`provideCraftGuidedResume`); the archive is read
+ * by the tab itself from the log server.
+ */
+function registerGuidedResumeTools(
+  server: McpServer,
+  bridge: RegistryRequester,
+): void {
+  const point = {
+    clientId: z.string().min(1).optional(),
+    sessionId: z.string().uuid(),
+    beforeSequence: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe('The point is just before this event; the end of the session when omitted'),
+    participantId: z.string().min(1).optional().describe('The recorded tab to follow'),
+    timeoutMs: z.number().int().positive().max(120_000).optional(),
+  };
+  registerTool(
+    server,
+    bridge,
+    'app.launch',
+    'app/launch',
+    'Reload the connected tab on the recorded state of a session point (route, primitives, storage), with the write barrier on: writes to other origins are held, the others journaled (app.writes). Without sessionId, reload the app fresh in the same mode. Then call app.diff.',
+    { ...point, sessionId: point.sessionId.optional() },
+    true,
+  );
+  registerTool(
+    server,
+    bridge,
+    'app.diff',
+    'app/diff',
+    'Compare the live tab with the recorded point: route and primitive values by address (ordinal-free), each equal, different, missing (recorded, not live) or extra. An empty `differences` means the app is at the point.',
+    point,
+  );
+  registerTool(
+    server,
+    bridge,
+    'app.replay',
+    'app/replay',
+    'Invoke a replayable method of the live tab by its address (as session.story shows it), with arguments adapted to the live data. Waits for the call to settle and returns its outcome.',
+    {
+      clientId: z.string().min(1).optional(),
+      address: z.string().min(1),
+      args: z.array(z.unknown()).optional(),
+      timeoutMs: z.number().int().positive().max(120_000).optional(),
+    },
+    true,
+  );
+  registerTool(
+    server,
+    bridge,
+    'app.writes',
+    'app/writes',
+    'List the writes the tab made since the guided resume started: allowed (same origin, journaled) and held (another origin, never sent).',
+    { clientId: z.string().min(1).optional() },
+  );
 }
 
 function registerPrimitiveValueTools(

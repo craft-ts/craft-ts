@@ -6,6 +6,7 @@ import {
   type ServerOptions,
 } from 'ws';
 import type {
+  AppMethod,
   HelloOk,
   PageMethod,
   PageSurface,
@@ -130,6 +131,9 @@ export class RegistryBridgeBroker {
     if (method === 'page') {
       return this.#requestPage(params);
     }
+    if (isAppMethod(method)) {
+      return this.#requestPage(params, method);
+    }
 
     const { clientId, forwardedParams } = splitTargetParams(params);
     const client = this.#resolveRegistryClient(clientId);
@@ -156,8 +160,13 @@ export class RegistryBridgeBroker {
     });
   }
 
+  /**
+   * Page and app methods wait for the tab to be ready, and survive the reload
+   * an action causes: the call is sent again to the same card once it is back.
+   */
   async #requestPage(
     params?: Readonly<Record<string, unknown>>,
+    method: PageMethod | AppMethod = 'page',
   ): Promise<unknown> {
     const timeoutMs = pageTimeoutMs(params);
     const { clientId, forwardedParams } = splitTargetParams(params, [
@@ -176,11 +185,13 @@ export class RegistryBridgeBroker {
       try {
         const result = await this.#forward(
           current,
-          'page',
+          method,
           forwardedParams,
           Math.max(1, deadline - Date.now()),
         );
-        return this.#mergeForwardedPageResult(current, result);
+        return method === 'page'
+          ? this.#mergeForwardedPageResult(current, result)
+          : result;
       } catch (error) {
         if (!isDisconnectError(error) || Date.now() >= deadline) {
           throw error;
@@ -250,7 +261,7 @@ export class RegistryBridgeBroker {
 
   #forward(
     client: ClientConnection,
-    method: RegistryMethod | PageMethod,
+    method: RegistryMethod | PageMethod | AppMethod,
     forwardedParams: Readonly<Record<string, unknown>> | undefined,
     timeoutMs: number,
   ): Promise<unknown> {
@@ -262,7 +273,7 @@ export class RegistryBridgeBroker {
     const message: RegistryRequest = {
       type: 'request',
       callId,
-      method: method === 'page' ? 'page' : method,
+      method,
       ...(forwardedParams === undefined ? {} : { params: forwardedParams }),
     };
 
@@ -685,6 +696,10 @@ function isResponse(
 
 function isSocketOpen(socket: WebSocket | undefined): socket is WebSocket {
   return socket !== undefined && socket.readyState === WebSocket.OPEN;
+}
+
+function isAppMethod(method: RegistryBrokerMethod): method is AppMethod {
+  return method.startsWith('app/');
 }
 
 function pageTimeoutMs(params?: Readonly<Record<string, unknown>>): number {

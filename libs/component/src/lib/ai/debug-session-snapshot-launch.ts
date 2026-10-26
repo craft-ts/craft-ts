@@ -6,6 +6,7 @@ import {
 } from '@craft-ts/core';
 import {
   isDebugAppSnapshot,
+  type DebugAppSnapshot,
   type DebugInFlightWork,
 } from './debug-session-app-snapshot';
 import { restoreBrowserStorageSnapshot } from './debug-session-browser-storage';
@@ -23,14 +24,76 @@ const SNAPSHOT_RELEASE_MS = 20_000;
 const RELAUNCH_WAIT_MS = 10_000;
 const RELAUNCH_POLL_MS = 100;
 
-type LaunchOptions = Readonly<{
-  allowedOrigins: ReadonlySet<string>;
+export type DebugSnapshotRestoreOptions = Readonly<{
   registry: ReturnType<typeof ɵinjectCraftPrimitiveRegistry>;
   storageRegistry: ReturnType<typeof ɵinjectPersistedStorageSnapshotRegistry>;
   methods: ReturnType<typeof ɵinjectCraftMethodReplayRegistry>;
   /** Turns a recorded argument back into a value (dates, events, bigints…). */
   reviveArgument: (value: unknown) => unknown;
 }>;
+
+type LaunchOptions = DebugSnapshotRestoreOptions &
+  Readonly<{ allowedOrigins: ReadonlySet<string> }>;
+
+export type DebugSnapshotRestoreResult = Readonly<{
+  warnings: readonly string[];
+  /** Settles once the work that was in flight has been relaunched. */
+  inFlight?: Promise<
+    Readonly<{ relaunched: readonly string[]; failed: readonly string[] }>
+  >;
+}>;
+
+/**
+ * Puts a snapshot into the starting app. Origin storage comes first and needs
+ * a reload, since frameworks read it while bootstrapping: `'reloading'` then
+ * means the page is starting over, and the same call on the next load (same
+ * `runId`) goes on with the rest.
+ */
+export async function restoreDebugAppSnapshot(
+  snapshot: DebugAppSnapshot,
+  runId: string,
+  options: DebugSnapshotRestoreOptions,
+): Promise<DebugSnapshotRestoreResult | 'reloading'> {
+  if (snapshot.browserStorage && !storageAlreadyRestored(runId)) {
+    await restoreBrowserStorageSnapshot(snapshot.browserStorage);
+    window.sessionStorage.setItem(STORAGE_RESTORED_MARKER, runId);
+    location.reload();
+    return 'reloading';
+  }
+  clearStorageRestoredMarker();
+  await options.storageRegistry.restore(snapshot.storage);
+  options.registry.restore(snapshot.primitives);
+  const releaseRestoredValues = () => {
+    ɵclearCraftPrimitiveReplaySnapshots(options.registry);
+    window.removeEventListener('pointerdown', releaseRestoredValues, true);
+    window.removeEventListener('keydown', releaseRestoredValues, true);
+  };
+  window.addEventListener('pointerdown', releaseRestoredValues, true);
+  window.addEventListener('keydown', releaseRestoredValues, true);
+  setTimeout(releaseRestoredValues, SNAPSHOT_RELEASE_MS);
+  return {
+    warnings: snapshot.warnings,
+    ...(snapshot.inFlight
+      ? { inFlight: relaunchInFlightWork(snapshot.inFlight, options) }
+      : {}),
+  };
+}
+
+function storageAlreadyRestored(runId: string): boolean {
+  try {
+    return window.sessionStorage.getItem(STORAGE_RESTORED_MARKER) === runId;
+  } catch {
+    return false;
+  }
+}
+
+function clearStorageRestoredMarker(): void {
+  try {
+    window.sessionStorage.removeItem(STORAGE_RESTORED_MARKER);
+  } catch {
+    // Marker cleanup is best effort.
+  }
+}
 
 function ordinalFree(address: string): string {
   return address
@@ -49,7 +112,7 @@ const sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
  */
 async function relaunchInFlightWork(
   work: DebugInFlightWork,
-  options: LaunchOptions,
+  options: DebugSnapshotRestoreOptions,
 ): Promise<Readonly<{ relaunched: readonly string[]; failed: readonly string[] }>> {
   const relaunched: string[] = [];
   const failed: string[] = [];
@@ -127,11 +190,7 @@ export function startDebugSnapshotLaunch(
       settled = true;
       clearTimeout(timeout);
       window.removeEventListener('message', onMessage);
-      try {
-        window.sessionStorage.removeItem(STORAGE_RESTORED_MARKER);
-      } catch {
-        // Marker cleanup is best effort.
-      }
+      clearStorageRestoredMarker();
       // The launch id must not become router state.
       const url = new URL(location.href);
       url.searchParams.delete(CRAFT_DEBUG_SNAPSHOT_QUERY_PARAM);
@@ -141,20 +200,6 @@ export function startDebugSnapshotLaunch(
         `${url.pathname}${url.search}${url.hash}`,
       );
       resolve();
-    };
-
-    const releaseRestoredValues = () => {
-      ɵclearCraftPrimitiveReplaySnapshots(options.registry);
-      window.removeEventListener('pointerdown', releaseRestoredValues, true);
-      window.removeEventListener('keydown', releaseRestoredValues, true);
-    };
-
-    const storageAlreadyRestored = (): boolean => {
-      try {
-        return window.sessionStorage.getItem(STORAGE_RESTORED_MARKER) === launchId;
-      } catch {
-        return false;
-      }
     };
 
     async function onMessage(event: MessageEvent<unknown>): Promise<void> {
@@ -174,23 +219,10 @@ export function startDebugSnapshotLaunch(
         return finish();
       }
       try {
-        if (snapshot.browserStorage && !storageAlreadyRestored()) {
-          await restoreBrowserStorageSnapshot(snapshot.browserStorage);
-          window.sessionStorage.setItem(STORAGE_RESTORED_MARKER, launchId);
-          // Frameworks read origin storage while bootstrapping: start over.
-          location.reload();
-          return;
-        }
-        await options.storageRegistry.restore(snapshot.storage);
-        options.registry.restore(snapshot.primitives);
-        window.addEventListener('pointerdown', releaseRestoredValues, true);
-        window.addEventListener('keydown', releaseRestoredValues, true);
-        setTimeout(releaseRestoredValues, SNAPSHOT_RELEASE_MS);
-        send('snapshot-restored', { warnings: snapshot.warnings });
-        if (snapshot.inFlight)
-          void relaunchInFlightWork(snapshot.inFlight, options).then((result) =>
-            send('snapshot-inflight', result),
-          );
+        const restored = await restoreDebugAppSnapshot(snapshot, launchId, options);
+        if (restored === 'reloading') return;
+        send('snapshot-restored', { warnings: restored.warnings });
+        void restored.inFlight?.then((result) => send('snapshot-inflight', result));
       } catch (error) {
         send('snapshot-error', {
           message: error instanceof Error ? error.message : String(error),
