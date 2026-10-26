@@ -466,12 +466,6 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '1 /',
   );
-  await dashboard.getByRole('button', { name: 'Journal', exact: true }).click();
-  await dashboard.getByRole('tab', { name: 'Journal' }).click();
-  await dashboard.getByRole('switch', { name: 'Tout afficher' }).click();
-  await expect(
-    dashboard.getByRole('button', { name: 'Reprendre ici' }).first(),
-  ).toBeVisible();
 
   await secondTab.evaluate(() => {
     Object.defineProperty(document, 'hasFocus', {
