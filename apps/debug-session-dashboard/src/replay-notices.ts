@@ -12,10 +12,12 @@ import {
   summary,
   ul,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { DocCallout } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
+import { copyResumePrompt } from './resume-prompt';
+import { SessionArchive } from './session-archive.service';
 import {
   forceReplayRecovery,
   seekReplayToWarning,
@@ -36,6 +38,7 @@ import {
   rememberAutoSkipDifferences,
   replayState,
   replayWarnings,
+  routeSessionId,
   status,
   dismissAllWarnings,
   dismissedWarnings,
@@ -248,6 +251,58 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     ],
   );
 
+  // After « Reprendre ici »: the request is out, and what to give the AI.
+  const archive = yield* SessionArchive();
+  const resumeNotice = rawReactiveValue(archive.resumeNotice);
+  const resumePromptText = yield* craftComputed(
+    'resumePromptText',
+    () => resumeNotice()?.prompt ?? '',
+  );
+  const resumed = div(
+    {
+      class: ui.gap,
+      'data-lab': 'resume-requested',
+      hidden: yield* craftComputed('resumeNoticeHidden', () => {
+        const notice = resumeNotice();
+        return notice === undefined || notice.sessionId !== routeSessionId();
+      }),
+    },
+    [
+      DocCallout({
+        tone: lit('tip'),
+        caption: lit('Reprise demandée'),
+        body: content(() => [
+          p(
+            'Le point est publié pour l’IA. Colle cette phrase dans ton hôte IA (Claude Code, Codex…) connecté aux MCP de reprise, puis suis la reprise dans Journal › Reprise :',
+          ),
+          pre({ class: ui.code, 'data-lab': 'resume-prompt' }, resumePromptText),
+          div({ class: ui.gapActions }, [
+            button(
+              'copyResumePromptAgain',
+              {
+                type: 'button',
+                class: buttonUi.root,
+                'data-variant': 'primary',
+                click: () => copyResumePrompt(resumeNotice()?.prompt ?? ''),
+              },
+              'Copier la phrase',
+            ),
+            button(
+              'dismissResumeNotice',
+              {
+                type: 'button',
+                class: buttonUi.root,
+                'data-variant': 'link',
+                click: () => archive.resumeNotice.dismiss(),
+              },
+              'Fermer',
+            ),
+          ]),
+        ]),
+      }),
+    ],
+  );
+
   // Notes float over the page: one line each, put away one by one or all at
   // once. Nothing here takes room from the replay; the history keeps them all.
   const visibleWarnings = yield* craftComputed('visibleWarnings', () =>
@@ -425,6 +480,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     diff,
     differenceHistory,
     partial,
+    resumed,
     problem,
     toasts,
     history,

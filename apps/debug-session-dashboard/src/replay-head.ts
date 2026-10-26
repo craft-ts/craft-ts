@@ -42,6 +42,7 @@ import {
   sidePanelOpen,
   targetUrl,
 } from './replay-state';
+import { copyResumePrompt, resumePrompt } from './resume-prompt';
 import {
   SessionArchive,
   type ResumeCheckpointSummary,
@@ -49,18 +50,6 @@ import {
 import { eventValue } from './view-helpers';
 
 /** What to tell the AI host once the point is published. */
-function resumePrompt(sessionId: string, beforeSequence?: number): string {
-  return beforeSequence === undefined
-    ? `Reprends la session de debug ${sessionId} à la fin de l’enregistrement (outil resume.request).`
-    : `Reprends la session de debug ${sessionId} juste avant l’événement ${beforeSequence} (outil resume.request).`;
-}
-
-function copyResumePrompt(text: string): void {
-  const clipboard =
-    typeof navigator === 'undefined' ? undefined : navigator.clipboard;
-  if (clipboard) void clipboard.writeText(text).catch(() => undefined);
-}
-
 /** A point frozen for this very event, on the app the dashboard drives. */
 function readyCheckpointFor(
   checkpoints: readonly ResumeCheckpointSummary[],
@@ -265,8 +254,9 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
         const sessionId = routeSessionId();
         if (sessionId === undefined) return;
         const point = replayPoint();
-        copyResumePrompt(resumePrompt(sessionId, point.beforeSequence));
-        yield* archive.requestResume({ sessionId, ...point });
+        const prompt = resumePrompt(sessionId, point.beforeSequence);
+        copyResumePrompt(prompt);
+        yield* archive.requestResume({ sessionId, ...point }, prompt);
       },
     },
     yield* craftComputed('resumeLabel', function* () {

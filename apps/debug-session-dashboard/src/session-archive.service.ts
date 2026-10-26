@@ -9,6 +9,7 @@ import {
   mutation,
   query,
   source$,
+  state,
 } from '@craft-ts/core';
 import { isRecord } from './replay-model';
 
@@ -145,6 +146,8 @@ const checkpointListDecoder = {
       : [];
   },
 };
+
+export type ResumeNotice = Readonly<{ sessionId: string; prompt: string }>;
 
 /** Why a request to the archive failed, in a few words. */
 export function httpFailureReason(exception: unknown): string {
@@ -304,8 +307,21 @@ export const { SessionArchive } = craftService(
     };
     refreshAgain();
 
-    yield* craftExpose('requestResume', function* (point: ResumePoint) {
+    // What the dashboard tells after « Reprendre ici »: the request is out,
+    // and the sentence to give the AI, shown in case the copy failed.
+    const resumeNotice = yield* state(
+      'resumeNotice',
+      undefined as ResumeNotice | undefined,
+      ({ set }) => ({
+        show: (notice: ResumeNotice) => set(notice),
+        dismiss: () => set(undefined),
+      }),
+    );
+    yield* craftExpose('requestResume', function* (point: ResumePoint, prompt: string) {
+      resumeNotice.dismiss();
       yield* resumeRequest.mutate(point);
+      if (!(yield* resumeRequest.hasException()))
+        resumeNotice.show({ sessionId: point.sessionId, prompt });
     });
     yield* craftExpose('pruneExpired', function* () {
       yield* pruneSessions.mutate(true);

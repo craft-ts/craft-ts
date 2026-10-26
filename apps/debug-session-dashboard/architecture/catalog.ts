@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "611bd59a8f2e19a0",
+  "graphHash": "854864c33aa9ecb1",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -227,6 +227,9 @@ export const architectureCatalog = {
     "resumeEmptyText",
     "resumeLabel",
     "resumeMessages",
+    "resumeNotice",
+    "resumeNoticeHidden",
+    "resumePromptText",
     "resumeRequest",
     "resumeRequestFailed",
     "resumeRequestSending",
