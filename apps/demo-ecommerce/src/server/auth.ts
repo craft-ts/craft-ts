@@ -31,13 +31,6 @@ export function signIn(email: string, password: string): Effect.Effect<AccountSe
   });
 }
 
-/** Outil de test : déconnecte tout le monde, comme un redémarrage du serveur. */
-export function revokeAllSessions(): number {
-  const count = sessions.size;
-  sessions.clear();
-  return count;
-}
-
 export function signOut(token: string): Effect.Effect<void> {
   return Effect.sync(() => { sessions.delete(token); });
 }

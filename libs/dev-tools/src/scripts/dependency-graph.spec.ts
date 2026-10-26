@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { analyzeDependencyGraph } from './dependency-graph';
-import { resumeChainOf } from './resume-chain';
 
 const temporaryDirectories: string[] = [];
 
@@ -101,36 +100,6 @@ function edgeLabels(
 }
 
 describe('analyzeDependencyGraph reactive granularity', () => {
-  it('reads resume declarations written with withResume and a craftResume factory', async () => {
-    const root = await fixture({
-      'resume.ts': `
-        ${CRAFT_STUBS}
-        declare function craftResume(value: unknown): unknown;
-        declare function withResume(value: unknown): unknown;
-        const { Session } = craftService({ name: 'Session', providedIn: 'global' }, function* () {
-          yield* state('currentSession', undefined as unknown, ({ set }) => ({ open: (value: unknown) => set(value) }),
-            withResume(craftResume((self: unknown) => ({ resource: 'session', role: 'holds', path: '$.token' }))));
-          yield* query('currentUser', {
-            resume: craftResume({ resource: 'session', role: 'requires', calls: ['auth.me'] }),
-            params: () => true,
-            loader: function* () { return true; },
-          });
-        });
-      `,
-    });
-    const graph = analyzeDependencyGraph({ rootDir: root, tsConfigFilePath: 'tsconfig.json' });
-    expect(nodeByLabel(graph, 'state:currentSession')[0]?.details?.['resume']).toEqual({
-      resource: 'session',
-      role: 'holds',
-      path: '$.token',
-    });
-    expect(nodeByLabel(graph, 'query:currentUser')[0]?.details?.['resume']).toEqual({
-      resource: 'session',
-      role: 'requires',
-      calls: ['auth.me'],
-    });
-  });
-
   it('treats reading a primitive as a dependency, not a call of its methods', async () => {
     const root = await fixture({
       'cart.ts': `
@@ -171,7 +140,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
 
   it('follows server-function wrappers through craftUnique and createServerFunctionClient', async () => {
     const root = await fixture({
-      'resume.ts': `
+      'session.ts': `
         ${CRAFT_STUBS}
         declare function serverFunction(id: string): unknown;
         declare function createServerFunctionClient<T>(id: T): (...args: any[]) => Generator<unknown, unknown, unknown>;
@@ -183,7 +152,6 @@ describe('analyzeDependencyGraph reactive granularity', () => {
             open: (value: unknown) => set(value),
           }));
           yield* query('signInProcess', {
-            resume: { resource: 'session', role: 'provides', persona: 'product-manager' },
             method: (input: unknown) => input,
             loader: function* ({ params }) {
               const result = yield* signIn(params);
@@ -200,25 +168,15 @@ describe('analyzeDependencyGraph reactive granularity', () => {
       rootDir: root,
       tsConfigFilePath: 'tsconfig.json',
     });
-    const rootPrimitive = nodeByLabel(graph, 'craftComputed:isStaff')[0];
-    expect(rootPrimitive).toBeDefined();
-    const chain = resumeChainOf(graph, rootPrimitive!.id);
-    expect(chain.nodes.map((node) => node.label)).toEqual(
-      expect.arrayContaining([
-        'state:currentSession',
-        'query:signInProcess',
-        'ecommerce.auth.login',
-      ]),
+    expect(edgeLabels(graph, 'craftComputed:isStaff', 'depends-on')).toContain(
+      'depends-on->state:currentSession',
     );
-    expect(chain.edges.map((edge) => edge.kind)).toEqual(
-      expect.arrayContaining(['depends-on', 'writes', 'calls']),
+    expect(edgeLabels(graph, 'query:signInProcess', 'writes')).toContain(
+      'writes->state:currentSession',
     );
-    const loginPrimitive = graph.nodes.find((node) => node.label === 'query:signInProcess');
-    expect(loginPrimitive?.details?.['resume']).toEqual({
-      resource: 'session',
-      role: 'provides',
-      persona: 'product-manager',
-    });
+    expect(edgeLabels(graph, 'query:signInProcess', 'calls')).toContain(
+      'calls->ecommerce.auth.login',
+    );
   });
 
   it('reads primitives a service yields, including private ones', async () => {

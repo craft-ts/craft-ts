@@ -16,7 +16,7 @@ import { ui } from './dashboard.style';
 import { eventElapsedLabel, journalSummary } from './replay-labels';
 import { eventDiagnosticLabel, eventSeverity } from './replay-model';
 import { ReplayOrchestration } from './replay-orchestration';
-import { launchDebugApp, planResumeBeforeEvent } from './replay-debug';
+import { launchDebugApp } from './replay-debug';
 import { setShowAllEvents } from './replay-session';
 import {
   activeReplayEventId,
@@ -94,22 +94,6 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           },
           DocIcon({ name: lit('external'), size: lit('sm') }),
         );
-        const resumeButton = button(
-          'resumeFromEvent',
-          {
-            type: 'button',
-            class: [iconButtonUi.root, ui.eventAction],
-            'data-lab': 'resume-from-event',
-            'aria-label': 'Reprendre ici',
-            'aria-describedby': tipId,
-            click: function* () {
-              const item = yield* event();
-              if (item.participantId)
-                planResumeBeforeEvent(item.sequence, item.participantId);
-            },
-          },
-          DocIcon({ name: lit('next'), size: lit('sm') }),
-        );
 
         return li(
           {
@@ -137,15 +121,12 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
                 }),
               ]),
             ]),
-            div({ class: ui.headTools }, [
-              DocTooltip({
-                tip: lit('Ouvre l’application à l’état d’avant cet événement.'),
-                tipId,
-                placement: lit('left'),
-                body: content(() => debugButton),
-              }),
-              resumeButton,
-            ]),
+            DocTooltip({
+              tip: lit('Ouvre l’application à l’état d’avant cet événement.'),
+              tipId,
+              placement: lit('left'),
+              body: content(() => debugButton),
+            }),
           ],
         );
       }),

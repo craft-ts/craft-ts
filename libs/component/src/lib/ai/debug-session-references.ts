@@ -81,34 +81,22 @@ const MAX_NESTED_JSON_DEPTH = 3;
 /**
  * Replaces recognized references recursively, preserving repeated identity.
  * A string that holds JSON (a server function answers a JSON string) is
- * decoded, traversed at the same path, then encoded back. `tracedKeys` are
- * the last keys of declared resume paths: a number there is traced too (a
- * numeric `cartId`), and a slug there may be a reference.
+ * decoded, traversed at the same path, then encoded back.
  */
 export function redactDebugSessionReferences(
   value: unknown,
   sessionSalt: string,
   path = '$',
   direction: 'out' | 'in' = 'out',
-  options: Readonly<{ tracedKeys?: ReadonlySet<string> }> = {},
 ): Readonly<{ value: unknown; refs: readonly DebugSessionReference[] }> {
   const refs: DebugSessionReference[] = [];
-  const traced = (currentPath: string) => {
-    const key = lastPathKey(currentPath);
-    return key !== undefined && options.tracedKeys?.has(key) === true;
-  };
-  const replace = (current: string | number, currentPath: string) => {
-    const fingerprint = fingerprintDebugSessionReference(
-      String(current),
-      sessionSalt,
-    );
+  const replace = (current: string, currentPath: string) => {
+    const fingerprint = fingerprintDebugSessionReference(current, sessionSalt);
     refs.push({ path: currentPath, fingerprint, direction });
     return `craft-ref:${fingerprint}`;
   };
   let nesting = 0;
   const visit = (current: unknown, currentPath: string): unknown => {
-    if (typeof current === 'number' && Number.isFinite(current) && traced(currentPath))
-      return replace(current, currentPath);
     if (typeof current === 'string') {
       if (PLACEHOLDER_VALUE.test(current)) return current;
       if (nesting < MAX_NESTED_JSON_DEPTH) {
@@ -123,7 +111,7 @@ export function redactDebugSessionReferences(
         }
       }
       if (
-        isReferenceValue(current, currentPath, traced(currentPath)) ||
+        isReferenceValue(current, currentPath) ||
         isSensitivePath(currentPath)
       )
         return replace(current, currentPath);
@@ -306,7 +294,7 @@ export function redactDebugSessionUrlEncoded(
   return { value: params.toString(), refs };
 }
 
-function isReferenceValue(value: string, path = '', declared = false): boolean {
+function isReferenceValue(value: string, path = ''): boolean {
   if (UUID_PATTERN.test(value)) return true;
   if (isSensitivePath(path)) return true;
   if (value.length > 512) return false;
@@ -316,7 +304,6 @@ function isReferenceValue(value: string, path = '', declared = false): boolean {
   if (/\s/.test(value.replace(/^bearer\s+/i, ''))) return false;
   if (
     (SLUG_PATTERN.test(value) || CODE_NAME_PATTERN.test(value)) &&
-    !declared &&
     !IDENTIFIER_FIELD_PATTERN.test(field)
   )
     return false;
@@ -387,7 +374,7 @@ function isSensitivePath(path: string): boolean {
 }
 
 /** The last property name of a reference path (`token` for `$.session.token`). */
-export function lastPathKey(path: string): string | undefined {
+function lastPathKey(path: string): string | undefined {
   const match = /(?:\.([^.[\]]+)|\[("(?:[^"\\]|\\.)*")\])$/.exec(path);
   if (!match) return undefined;
   if (match[1] !== undefined) return match[1];

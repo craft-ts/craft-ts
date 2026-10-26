@@ -1,8 +1,8 @@
 # Logs MCP server
 
 Exposes the JSONL files written by [`@craft-ts/log-server`](../../apps/log-server/README.md)
-to an AI model over MCP stdio. Resume tools use the local log server's
-short-lived assistant bridge; they do not connect to replayed application tabs.
+to an AI model over MCP stdio. It only reads the files — it never talks to the
+browser or to the ingestion server.
 
 ```sh
 npm run logs:mcp
@@ -16,8 +16,7 @@ claude mcp add craft-ts-logs -- node /absolute/path/to/craft-ts/packages/log-mcp
 
 Run `npm run build --workspace @craft-ts/log-mcp` once beforehand, and set
 `LOG_SERVER_DIR` in the MCP entry if the log server does not write to
-`<cwd>/.logs`. Set `DEBUG_SESSION_ARCHIVE_URL` if the session archive does not
-listen at `http://127.0.0.1:4319`.
+`<cwd>/.logs`.
 
 ## Tools
 
@@ -27,19 +26,6 @@ listen at `http://127.0.0.1:4319`.
 | `logs.search` | Filters on `text`, `level`, `from`, `correlationId`, `clientId`, `since`, `until`, `limit`. Newest first, ANDed together. |
 | `logs.tail`   | The `count` most recent entries, oldest first.                                                                            |
 | `logs.clear`  | Delete every log file, including rotated ones, for a clean reproduction.                                                  |
-| `resume_plan` | Read the latest plan published by the active dashboard session. |
-| `resume_mismatch` | Read the plan gaps or execution mismatches published by the dashboard. |
-| `resume_propose_overrides` | Queue JSON overrides with a rationale. The dashboard validates them against the recording. |
-| `resume_apply` | Ask the dashboard to surface a proposal for approval. It never applies the override itself. |
-
-Resume tools take no session id: the dashboard publishes its currently active
-plan and mismatch context in memory. They require the local log server and a
-prepared plan; it is discarded when the server stops. MCP proposals are also
-temporary. The dashboard requires **Approuver** by default; an explicit local
-option can approve automatically on loopback hosts. Approval adds the validated
-proposal to the in-memory resume profile; **Enregistrer le profil** is a
-separate action that freezes it in the session archive. No MCP tool sends a
-request to the replayed application.
 
 Because the entries come from the craft `Console.*` boundary, the useful filters
 are craft-shaped:

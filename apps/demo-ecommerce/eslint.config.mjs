@@ -48,8 +48,6 @@ export default [
   {
     ...craftRules.configs.e2e,
     files: ['e2e/**/*.spec.ts'],
-    // La reprise fonctionnelle pilote le dashboard elle-même, sans historique.
-    ignores: ['e2e/resume.spec.ts'],
     rules: {
       ...craftRules.configs.e2e.rules,
       'craft-ts/e2e-session-contract': ['error', { fixtureFiles: [`${import.meta.dirname}/e2e/fixtures.ts`] }],

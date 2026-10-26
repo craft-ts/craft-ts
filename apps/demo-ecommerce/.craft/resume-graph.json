@@ -1,0 +1,1754 @@
+{
+  "format": "craft-resume-graph",
+  "version": 1,
+  "sourceHashes": {
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts#craftService()/state:adminTab/0": "6c3e30a4fc548463",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts#craftService()/state:categoryDraft/0": "38d51b402ea4f8e1",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts#craftService()/state:deskNotice/0": "7c288d31a8870ea2",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts#craftService()/state:productDraft/0": "5d09c59bdf5a2e07",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query:adminStore/0": "ba00123fa2df240a",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query(adminStore)/categories/craftUse()/craftComputed:adminCategories/0": "99ba8f08b0cf0b3c",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query(adminStore)/orders/craftUse()/craftComputed:adminOrders/0": "41a1bc52aa3498ea",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query(adminStore)/products/craftUse()/craftComputed:adminProducts/0": "38e48d8e147f9c09",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/craftEffect:adminOverviewPoll/0": "7f119b4a02c70e4f",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/query:adminAction/0": "c47fea70a70337ac",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/cartLines/state:cartLines/0": "5295bc6acccf30d0",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/cartState/state:serverCart/0": "15614bbaf508bd0d",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/craftComputed:cartCount/0": "368f043ec959a5ec",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/craftComputed:isStaff/0": "0fc0d074f44a4c48",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/currentSession/state:currentSession/0": "0b165e0dc4c3b3e7",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:currentUser/0": "b00a610293f77c0b",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:signOutProcess/0": "742835b7bf0e6053",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/sessionNotice/state:sessionNotice/0": "1fabf51b99dff748",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/signInProcess/mutation:signInProcess/0": "8ed9d74a9c33c8d6",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/state:categoryFilter/0": "95695337d0671643",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/state:formulaPicks/0": "1601633d51285eee",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/state:searchTerm/0": "0b1cbea44841dbc7",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/syncServerCart/mutation:syncServerCart/0": "1a558d0c9062f9ff",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CataloguePage/craftComponent(EcommerceCataloguePage)/visibleProducts/craftComputed:visibleProducts/0": "5bea1daf98858955",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CheckoutPage/craftComponent(EcommerceCheckoutPage)/placedOrder/craftComputed:placedOrder/0": "06f378d6065efd26",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/craftComputed:relatedProducts/0": "1f617015dd42dd1f",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/currentProduct/craftComputed:currentProduct/0": "b05e5ad162e589fd",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:placeOrderProcess/0": "612954cc2ebd4dbe",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:searchQuery/0": "7defce319e80b947",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:storeQuery/0": "d1cb949c578dd5e0",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/categories/craftUse()/craftComputed:storeCategories/0": "96ebf6f0f072b41b",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/featuredProducts/craftUse()/craftComputed:featuredProducts/0": "2d0804b40452fb0d",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/products/craftUse()/craftComputed:storeProducts/0": "0cbae0dc30b6cf9b",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/simpleProducts/craftUse()/craftComputed:storeSimpleProducts/0": "c5628f678dcf1659",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/busy/craftPrivate()/state:busy/0": "78f0bf8e73a75556",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/error/craftPrivate()/state:error/0": "6a6c839245a44e2f",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/instruction/craftPrivate()/state:sendContextInstruction/0": "aac913f6b3ae468a",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/panelOffset/craftPrivate()/state:panelOffset/0": "da92ed34b703b4b9",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/promptOptions/craftPrivate()/state:sendContextPromptOptions/0": "5afff922de59d5bc",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/replayStatusValue/craftPrivate()/state:replayStatus/0": "ca5caea4de196d7c",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/replayText/craftPrivate()/state:replayJson/0": "93deae0454a78049",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/sendMutation/mutation:sendContextToAi/0": "964328e9270cf9c6",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setBusy/craftPrivate()/craftMethod:setBusy/0": "ca97841548153dd2",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setError/craftPrivate()/craftMethod:setError/0": "fbf6b22ba35e9b40",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setPanelOffset/craftPrivate()/craftMethod:setPanelOffset/0": "f6ec91a551740253",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setReplayStatus/craftPrivate()/craftMethod:setReplayStatus/0": "e94f455fa476849f",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setStatus/craftPrivate()/craftMethod:setStatus/0": "d1c1bd2cd82d2e09",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/status/craftPrivate()/state:status/0": "cba5bacd6480127e",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/captureError/craftPrivate()/state:captureError/0": "bc9ac279e63fce43",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/captureInProgress/craftPrivate()/state:captureInProgress/0": "695d12d44ddef2d8",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/copied/craftPrivate()/state:sendDialogCopied/0": "77daed18c0316aef",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/instruction/craftPrivate()/state:sendDialogInstruction/0": "ec0fe4b20735ae73",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/promptOptions/craftPrivate()/state:sendDialogPromptOptions/0": "32df43ed0a751f68",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCaptureError/craftPrivate()/craftMethod:setCaptureError/0": "d55b4a646c4744f1",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCaptureInProgress/craftPrivate()/craftMethod:setCaptureInProgress/0": "5389a5ba8b734792",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCopied/craftPrivate()/craftMethod:setCopied/0": "51979a35c6a37348",
+    "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/global-persister-handler.service.ts#globalPersisterHandlerService/craftService()/craftMethod:clearAllCache/0": "3cf93ea96b411a1c",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.admin.overview": "571e550973359b99",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.login": "f73671e11be20547",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.logout": "28030dc345fbe236",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.me": "4a047f110eada808",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.addLine": "01d7e0c9244e61af",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.create": "7031f8cec0c1d4e5",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.delete": "b2ab46c5a006e209",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.get": "5c0c381556665ece",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.catalog": "31861bcad48b575a",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.catalog.search": "fe509f5819ad5ba3",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.category.delete": "31dd1f05f32eddb0",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.category.save": "f2f6154920be8dc7",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.checkout": "e87f6d4e4bc666b3",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.product.delete": "d123bcec5e2e95ca",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.product.save": "e88a0c6b9858278f",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.reset": "8d859c4eff3c1cc6",
+    "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.resume.facts": "36b0fec9a20dc785",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts:adminDesk": "49ac70d93aecfb7b",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView": "f3d4b73a783916c8",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/product-id-path-params.ts:ProductIdPathParams": "4715fa34dae88235",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart": "37c426dd55dac079",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session": "098054a0bf3d6cdb",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:shopUi": "573ed5c457619a90",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:productView": "3985c8ac585129c2",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:searchView": "13c3e0ec79b63a07",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView": "7e63a06b7ad62fe2",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-context-menu.ts:aiContextMenuDismissal": "6f8637c0d35c8c9c",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState": "74f47a39a0e5bbd4",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState": "0b45c3c155a4cf3c",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/craft-router-outlet.ts:craftRouterOutletState": "d3b89011d894ab3e",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/browser-boundaries.ts:StorageService": "738420bb336298a6",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/dev-tools.ts:CraftLogServerUrl": "acac8076abeaa5ae",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/form/craft-field.directive.ts:CraftFieldCheckboxControl": "c2f214c1498b4a6a",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/form/craft-field.directive.ts:CraftFieldValueControl": "e2d97d8229ff7b4c",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/global-persister-handler.service.ts:GlobalPersisterHandlerService": "eb29028e4b737fa7",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/server-function-client.ts:ServerFunctionTransport": "7ba338a3d1e822bb",
+    "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/storage-persister.service.ts:StoragePersister": "3805336f6983b1fe"
+  },
+  "nodes": [
+    {
+      "id": "http-endpoint:POST:<unresolved:ai-send-context-chat.ts:271>",
+      "kind": "http-endpoint",
+      "label": "POST <unresolved:ai-send-context-chat.ts:271>",
+      "details": {
+        "method": "POST",
+        "url": "<unresolved:ai-send-context-chat.ts:271>"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts#craftService()/state:adminTab/0",
+      "kind": "primitive",
+      "label": "state:adminTab",
+      "sourceHash": "6c3e30a4fc548463",
+      "details": {
+        "primitive": "state",
+        "name": "adminTab",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts:adminDesk",
+        "exposedMethods": [
+          "select"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts#craftService()/state:categoryDraft/0",
+      "kind": "primitive",
+      "label": "state:categoryDraft",
+      "sourceHash": "38d51b402ea4f8e1",
+      "details": {
+        "primitive": "state",
+        "name": "categoryDraft",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts:adminDesk",
+        "exposedMethods": [
+          "open",
+          "close",
+          "edit"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts#craftService()/state:deskNotice/0",
+      "kind": "primitive",
+      "label": "state:deskNotice",
+      "sourceHash": "7c288d31a8870ea2",
+      "details": {
+        "primitive": "state",
+        "name": "deskNotice",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts:adminDesk",
+        "exposedMethods": [
+          "show"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts#craftService()/state:productDraft/0",
+      "kind": "primitive",
+      "label": "state:productDraft",
+      "sourceHash": "5d09c59bdf5a2e07",
+      "details": {
+        "primitive": "state",
+        "name": "productDraft",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts:adminDesk",
+        "exposedMethods": [
+          "open",
+          "close",
+          "edit",
+          "addGroup",
+          "editGroup",
+          "removeGroup"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query:adminStore/0",
+      "kind": "primitive",
+      "label": "query:adminStore",
+      "sourceHash": "ba00123fa2df240a",
+      "details": {
+        "primitive": "query",
+        "name": "adminStore",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView",
+        "usage": "adminStore",
+        "resume": {
+          "resource": "session",
+          "role": "requires",
+          "calls": [
+            "ecommerce.admin.overview"
+          ],
+          "entities": [
+            {
+              "kind": "product",
+              "path": "$.products[*].id"
+            },
+            {
+              "kind": "category",
+              "path": "$.categories[*].id"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query(adminStore)/categories/craftUse()/craftComputed:adminCategories/0",
+      "kind": "primitive",
+      "label": "craftComputed:adminCategories",
+      "sourceHash": "99ba8f08b0cf0b3c",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "adminCategories",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView",
+        "usage": "categories"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query(adminStore)/orders/craftUse()/craftComputed:adminOrders/0",
+      "kind": "primitive",
+      "label": "craftComputed:adminOrders",
+      "sourceHash": "41a1bc52aa3498ea",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "adminOrders",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView",
+        "usage": "orders"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query(adminStore)/products/craftUse()/craftComputed:adminProducts/0",
+      "kind": "primitive",
+      "label": "craftComputed:adminProducts",
+      "sourceHash": "38e48d8e147f9c09",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "adminProducts",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView",
+        "usage": "products"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/craftEffect:adminOverviewPoll/0",
+      "kind": "primitive",
+      "label": "craftEffect:adminOverviewPoll",
+      "sourceHash": "7f119b4a02c70e4f",
+      "details": {
+        "primitive": "craftEffect",
+        "name": "adminOverviewPoll",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/query:adminAction/0",
+      "kind": "primitive",
+      "label": "query:adminAction",
+      "sourceHash": "c47fea70a70337ac",
+      "details": {
+        "primitive": "query",
+        "name": "adminAction",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView",
+        "resume": {
+          "resource": "session",
+          "role": "requires",
+          "refetch": false,
+          "calls": [
+            "ecommerce.product.save",
+            "ecommerce.product.delete",
+            "ecommerce.category.save",
+            "ecommerce.category.delete"
+          ],
+          "expect": {
+            "outcome": "recorded"
+          },
+          "onMismatch": "degraded"
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/cartLines/state:cartLines/0",
+      "kind": "primitive",
+      "label": "state:cartLines",
+      "sourceHash": "5295bc6acccf30d0",
+      "details": {
+        "primitive": "state",
+        "name": "cartLines",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+        "usage": "cartLines",
+        "exposedMethods": [
+          "add",
+          "shift",
+          "remove",
+          "clear"
+        ],
+        "resume": {
+          "resource": "cart",
+          "role": "restores",
+          "value": [],
+          "entities": [
+            {
+              "kind": "product",
+              "path": "$[*].productId"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/cartState/state:serverCart/0",
+      "kind": "primitive",
+      "label": "state:serverCart",
+      "sourceHash": "15614bbaf508bd0d",
+      "details": {
+        "primitive": "state",
+        "name": "serverCart",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+        "usage": "cartState",
+        "exposedMethods": [
+          "replace"
+        ],
+        "resume": {
+          "resource": "cart",
+          "role": "holds",
+          "path": "$.id"
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/craftComputed:cartCount/0",
+      "kind": "primitive",
+      "label": "craftComputed:cartCount",
+      "sourceHash": "368f043ec959a5ec",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "cartCount",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/craftComputed:isStaff/0",
+      "kind": "primitive",
+      "label": "craftComputed:isStaff",
+      "sourceHash": "0fc0d074f44a4c48",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "isStaff",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/currentSession/state:currentSession/0",
+      "kind": "primitive",
+      "label": "state:currentSession",
+      "sourceHash": "0b165e0dc4c3b3e7",
+      "details": {
+        "primitive": "state",
+        "name": "currentSession",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session",
+        "usage": "currentSession",
+        "exposedMethods": [
+          "open",
+          "close"
+        ],
+        "resume": {
+          "resource": "session",
+          "role": "holds",
+          "path": "$.token",
+          "identity": {
+            "role": "$.user.role",
+            "id": "$.user.id",
+            "storageKey": "session.v1"
+          }
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:currentUser/0",
+      "kind": "primitive",
+      "label": "query:currentUser",
+      "sourceHash": "b00a610293f77c0b",
+      "details": {
+        "primitive": "query",
+        "name": "currentUser",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session",
+        "resume": {
+          "resource": "session",
+          "role": "requires",
+          "identity": {
+            "role": "$.user.role",
+            "id": "$.user.id"
+          },
+          "calls": [
+            "ecommerce.auth.me"
+          ]
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:signOutProcess/0",
+      "kind": "primitive",
+      "label": "query:signOutProcess",
+      "sourceHash": "742835b7bf0e6053",
+      "details": {
+        "primitive": "query",
+        "name": "signOutProcess",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session",
+        "resume": {
+          "resource": "session",
+          "role": "revokes"
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/sessionNotice/state:sessionNotice/0",
+      "kind": "primitive",
+      "label": "state:sessionNotice",
+      "sourceHash": "1fabf51b99dff748",
+      "details": {
+        "primitive": "state",
+        "name": "sessionNotice",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session",
+        "usage": "sessionNotice",
+        "exposedMethods": [
+          "show"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/signInProcess/mutation:signInProcess/0",
+      "kind": "primitive",
+      "label": "mutation:signInProcess",
+      "sourceHash": "8ed9d74a9c33c8d6",
+      "details": {
+        "primitive": "mutation",
+        "name": "signInProcess",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session",
+        "usage": "signInProcess",
+        "resume": {
+          "resource": "session",
+          "role": "provides",
+          "calls": [
+            "ecommerce.auth.login",
+            "ecommerce.auth.me",
+            "ecommerce.auth.logout"
+          ]
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/state:categoryFilter/0",
+      "kind": "primitive",
+      "label": "state:categoryFilter",
+      "sourceHash": "95695337d0671643",
+      "details": {
+        "primitive": "state",
+        "name": "categoryFilter",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:shopUi",
+        "exposedMethods": [
+          "choose"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/state:formulaPicks/0",
+      "kind": "primitive",
+      "label": "state:formulaPicks",
+      "sourceHash": "1601633d51285eee",
+      "details": {
+        "primitive": "state",
+        "name": "formulaPicks",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:shopUi",
+        "exposedMethods": [
+          "toggle",
+          "forget"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/state:searchTerm/0",
+      "kind": "primitive",
+      "label": "state:searchTerm",
+      "sourceHash": "0b1cbea44841dbc7",
+      "details": {
+        "primitive": "state",
+        "name": "searchTerm",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:shopUi",
+        "exposedMethods": [
+          "search"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/syncServerCart/mutation:syncServerCart/0",
+      "kind": "primitive",
+      "label": "mutation:syncServerCart",
+      "sourceHash": "1a558d0c9062f9ff",
+      "details": {
+        "primitive": "mutation",
+        "name": "syncServerCart",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+        "usage": "syncServerCart",
+        "resume": {
+          "resource": "cart",
+          "role": "provides",
+          "persona": "guest",
+          "calls": [
+            "ecommerce.cart.create",
+            "ecommerce.cart.addLine",
+            "ecommerce.cart.get",
+            "ecommerce.cart.delete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CataloguePage/craftComponent(EcommerceCataloguePage)/visibleProducts/craftComputed:visibleProducts/0",
+      "kind": "primitive",
+      "label": "craftComputed:visibleProducts",
+      "sourceHash": "5bea1daf98858955",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "visibleProducts",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:EcommerceCataloguePage",
+        "usage": "visibleProducts"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CheckoutPage/craftComponent(EcommerceCheckoutPage)/placedOrder/craftComputed:placedOrder/0",
+      "kind": "primitive",
+      "label": "craftComputed:placedOrder",
+      "sourceHash": "06f378d6065efd26",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "placedOrder",
+        "ownerId": "component:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:EcommerceCheckoutPage",
+        "usage": "placedOrder"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/craftComputed:relatedProducts/0",
+      "kind": "primitive",
+      "label": "craftComputed:relatedProducts",
+      "sourceHash": "1f617015dd42dd1f",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "relatedProducts",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:productView"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/currentProduct/craftComputed:currentProduct/0",
+      "kind": "primitive",
+      "label": "craftComputed:currentProduct",
+      "sourceHash": "b05e5ad162e589fd",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "currentProduct",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:productView",
+        "usage": "currentProduct"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:placeOrderProcess/0",
+      "kind": "primitive",
+      "label": "query:placeOrderProcess",
+      "sourceHash": "612954cc2ebd4dbe",
+      "details": {
+        "primitive": "query",
+        "name": "placeOrderProcess",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:searchQuery/0",
+      "kind": "primitive",
+      "label": "query:searchQuery",
+      "sourceHash": "7defce319e80b947",
+      "details": {
+        "primitive": "query",
+        "name": "searchQuery",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:searchView",
+        "resume": {
+          "resource": "catalog",
+          "role": "requires",
+          "calls": [
+            "ecommerce.catalog.search"
+          ]
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:storeQuery/0",
+      "kind": "primitive",
+      "label": "query:storeQuery",
+      "sourceHash": "d1cb949c578dd5e0",
+      "details": {
+        "primitive": "query",
+        "name": "storeQuery",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+        "resume": {
+          "resource": "catalog",
+          "role": "provides",
+          "persona": "guest",
+          "calls": [
+            "ecommerce.catalog"
+          ],
+          "entities": [
+            {
+              "kind": "product",
+              "path": "$.products[*].id"
+            },
+            {
+              "kind": "category",
+              "path": "$.categories[*].id"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/categories/craftUse()/craftComputed:storeCategories/0",
+      "kind": "primitive",
+      "label": "craftComputed:storeCategories",
+      "sourceHash": "96ebf6f0f072b41b",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "storeCategories",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+        "usage": "categories"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/featuredProducts/craftUse()/craftComputed:featuredProducts/0",
+      "kind": "primitive",
+      "label": "craftComputed:featuredProducts",
+      "sourceHash": "2d0804b40452fb0d",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "featuredProducts",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+        "usage": "featuredProducts"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/products/craftUse()/craftComputed:storeProducts/0",
+      "kind": "primitive",
+      "label": "craftComputed:storeProducts",
+      "sourceHash": "0cbae0dc30b6cf9b",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "storeProducts",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+        "usage": "products"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/simpleProducts/craftUse()/craftComputed:storeSimpleProducts/0",
+      "kind": "primitive",
+      "label": "craftComputed:storeSimpleProducts",
+      "sourceHash": "c5628f678dcf1659",
+      "details": {
+        "primitive": "craftComputed",
+        "name": "storeSimpleProducts",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+        "usage": "simpleProducts"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/busy/craftPrivate()/state:busy/0",
+      "kind": "primitive",
+      "label": "state:busy",
+      "sourceHash": "78f0bf8e73a75556",
+      "details": {
+        "primitive": "state",
+        "name": "busy",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "exposedMethods": [
+          "setBusy"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/error/craftPrivate()/state:error/0",
+      "kind": "primitive",
+      "label": "state:error",
+      "sourceHash": "6a6c839245a44e2f",
+      "details": {
+        "primitive": "state",
+        "name": "error",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "exposedMethods": [
+          "setError"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/instruction/craftPrivate()/state:sendContextInstruction/0",
+      "kind": "primitive",
+      "label": "state:sendContextInstruction",
+      "sourceHash": "aac913f6b3ae468a",
+      "details": {
+        "primitive": "state",
+        "name": "sendContextInstruction",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "exposedMethods": [
+          "setInstruction"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/panelOffset/craftPrivate()/state:panelOffset/0",
+      "kind": "primitive",
+      "label": "state:panelOffset",
+      "sourceHash": "da92ed34b703b4b9",
+      "details": {
+        "primitive": "state",
+        "name": "panelOffset",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "exposedMethods": [
+          "setPanelOffset"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/promptOptions/craftPrivate()/state:sendContextPromptOptions/0",
+      "kind": "primitive",
+      "label": "state:sendContextPromptOptions",
+      "sourceHash": "5afff922de59d5bc",
+      "details": {
+        "primitive": "state",
+        "name": "sendContextPromptOptions",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "exposedMethods": [
+          "setOptions"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/replayStatusValue/craftPrivate()/state:replayStatus/0",
+      "kind": "primitive",
+      "label": "state:replayStatus",
+      "sourceHash": "ca5caea4de196d7c",
+      "details": {
+        "primitive": "state",
+        "name": "replayStatus",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "exposedMethods": [
+          "setReplayStatus"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/replayText/craftPrivate()/state:replayJson/0",
+      "kind": "primitive",
+      "label": "state:replayJson",
+      "sourceHash": "93deae0454a78049",
+      "details": {
+        "primitive": "state",
+        "name": "replayJson",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "exposedMethods": [
+          "setReplayJson"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/sendMutation/mutation:sendContextToAi/0",
+      "kind": "primitive",
+      "label": "mutation:sendContextToAi",
+      "sourceHash": "964328e9270cf9c6",
+      "details": {
+        "primitive": "mutation",
+        "name": "sendContextToAi",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setBusy/craftPrivate()/craftMethod:setBusy/0",
+      "kind": "primitive",
+      "label": "craftMethod:setBusy",
+      "sourceHash": "ca97841548153dd2",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setBusy",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "usage": "setBusy"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setError/craftPrivate()/craftMethod:setError/0",
+      "kind": "primitive",
+      "label": "craftMethod:setError",
+      "sourceHash": "fbf6b22ba35e9b40",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setError",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "usage": "setError"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setPanelOffset/craftPrivate()/craftMethod:setPanelOffset/0",
+      "kind": "primitive",
+      "label": "craftMethod:setPanelOffset",
+      "sourceHash": "f6ec91a551740253",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setPanelOffset",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "usage": "setPanelOffset"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setReplayStatus/craftPrivate()/craftMethod:setReplayStatus/0",
+      "kind": "primitive",
+      "label": "craftMethod:setReplayStatus",
+      "sourceHash": "e94f455fa476849f",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setReplayStatus",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "usage": "setReplayStatus"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setStatus/craftPrivate()/craftMethod:setStatus/0",
+      "kind": "primitive",
+      "label": "craftMethod:setStatus",
+      "sourceHash": "d1c1bd2cd82d2e09",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setStatus",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "usage": "setStatus"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/status/craftPrivate()/state:status/0",
+      "kind": "primitive",
+      "label": "state:status",
+      "sourceHash": "cba5bacd6480127e",
+      "details": {
+        "primitive": "state",
+        "name": "status",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+        "exposedMethods": [
+          "setStatus"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/captureError/craftPrivate()/state:captureError/0",
+      "kind": "primitive",
+      "label": "state:captureError",
+      "sourceHash": "bc9ac279e63fce43",
+      "details": {
+        "primitive": "state",
+        "name": "captureError",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+        "exposedMethods": [
+          "setCaptureError"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/captureInProgress/craftPrivate()/state:captureInProgress/0",
+      "kind": "primitive",
+      "label": "state:captureInProgress",
+      "sourceHash": "695d12d44ddef2d8",
+      "details": {
+        "primitive": "state",
+        "name": "captureInProgress",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+        "exposedMethods": [
+          "setCaptureInProgress"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/copied/craftPrivate()/state:sendDialogCopied/0",
+      "kind": "primitive",
+      "label": "state:sendDialogCopied",
+      "sourceHash": "77daed18c0316aef",
+      "details": {
+        "primitive": "state",
+        "name": "sendDialogCopied",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+        "exposedMethods": [
+          "setCopied"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/instruction/craftPrivate()/state:sendDialogInstruction/0",
+      "kind": "primitive",
+      "label": "state:sendDialogInstruction",
+      "sourceHash": "ec0fe4b20735ae73",
+      "details": {
+        "primitive": "state",
+        "name": "sendDialogInstruction",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+        "exposedMethods": [
+          "setInstruction"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/promptOptions/craftPrivate()/state:sendDialogPromptOptions/0",
+      "kind": "primitive",
+      "label": "state:sendDialogPromptOptions",
+      "sourceHash": "32df43ed0a751f68",
+      "details": {
+        "primitive": "state",
+        "name": "sendDialogPromptOptions",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+        "exposedMethods": [
+          "setPromptOptions"
+        ]
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCaptureError/craftPrivate()/craftMethod:setCaptureError/0",
+      "kind": "primitive",
+      "label": "craftMethod:setCaptureError",
+      "sourceHash": "d55b4a646c4744f1",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setCaptureError",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+        "usage": "setCaptureError"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCaptureInProgress/craftPrivate()/craftMethod:setCaptureInProgress/0",
+      "kind": "primitive",
+      "label": "craftMethod:setCaptureInProgress",
+      "sourceHash": "5389a5ba8b734792",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setCaptureInProgress",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+        "usage": "setCaptureInProgress"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCopied/craftPrivate()/craftMethod:setCopied/0",
+      "kind": "primitive",
+      "label": "craftMethod:setCopied",
+      "sourceHash": "51979a35c6a37348",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "setCopied",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+        "usage": "setCopied"
+      }
+    },
+    {
+      "id": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/global-persister-handler.service.ts#globalPersisterHandlerService/craftService()/craftMethod:clearAllCache/0",
+      "kind": "primitive",
+      "label": "craftMethod:clearAllCache",
+      "sourceHash": "3cf93ea96b411a1c",
+      "details": {
+        "primitive": "craftMethod",
+        "name": "clearAllCache",
+        "ownerId": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/global-persister-handler.service.ts:GlobalPersisterHandlerService"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.admin.overview",
+      "kind": "server-function-family",
+      "label": "ecommerce.admin.overview",
+      "sourceHash": "571e550973359b99",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.admin.overview"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.login",
+      "kind": "server-function-family",
+      "label": "ecommerce.auth.login",
+      "sourceHash": "f73671e11be20547",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.auth.login"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.logout",
+      "kind": "server-function-family",
+      "label": "ecommerce.auth.logout",
+      "sourceHash": "28030dc345fbe236",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.auth.logout"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.me",
+      "kind": "server-function-family",
+      "label": "ecommerce.auth.me",
+      "sourceHash": "4a047f110eada808",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.auth.me"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.addLine",
+      "kind": "server-function-family",
+      "label": "ecommerce.cart.addLine",
+      "sourceHash": "01d7e0c9244e61af",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.cart.addLine"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.create",
+      "kind": "server-function-family",
+      "label": "ecommerce.cart.create",
+      "sourceHash": "7031f8cec0c1d4e5",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.cart.create"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.delete",
+      "kind": "server-function-family",
+      "label": "ecommerce.cart.delete",
+      "sourceHash": "b2ab46c5a006e209",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.cart.delete"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.get",
+      "kind": "server-function-family",
+      "label": "ecommerce.cart.get",
+      "sourceHash": "5c0c381556665ece",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.cart.get"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.catalog",
+      "kind": "server-function-family",
+      "label": "ecommerce.catalog",
+      "sourceHash": "31861bcad48b575a",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.catalog"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.catalog.search",
+      "kind": "server-function-family",
+      "label": "ecommerce.catalog.search",
+      "sourceHash": "fe509f5819ad5ba3",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.catalog.search"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.category.delete",
+      "kind": "server-function-family",
+      "label": "ecommerce.category.delete",
+      "sourceHash": "31dd1f05f32eddb0",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.category.delete"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.category.save",
+      "kind": "server-function-family",
+      "label": "ecommerce.category.save",
+      "sourceHash": "f2f6154920be8dc7",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.category.save"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.checkout",
+      "kind": "server-function-family",
+      "label": "ecommerce.checkout",
+      "sourceHash": "e87f6d4e4bc666b3",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.checkout"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.product.delete",
+      "kind": "server-function-family",
+      "label": "ecommerce.product.delete",
+      "sourceHash": "d123bcec5e2e95ca",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.product.delete"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.product.save",
+      "kind": "server-function-family",
+      "label": "ecommerce.product.save",
+      "sourceHash": "e88a0c6b9858278f",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.product.save"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.reset",
+      "kind": "server-function-family",
+      "label": "ecommerce.reset",
+      "sourceHash": "8d859c4eff3c1cc6",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.reset"
+      }
+    },
+    {
+      "id": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.resume.facts",
+      "kind": "server-function-family",
+      "label": "ecommerce.resume.facts",
+      "sourceHash": "36b0fec9a20dc785",
+      "details": {
+        "family": "src/server/functions.ts",
+        "serverFunctionId": "ecommerce.resume.facts"
+      }
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts:adminDesk",
+      "kind": "service",
+      "label": "adminDesk",
+      "sourceHash": "49ac70d93aecfb7b"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView",
+      "kind": "service",
+      "label": "adminView",
+      "sourceHash": "f3d4b73a783916c8"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/product-id-path-params.ts:ProductIdPathParams",
+      "kind": "service",
+      "label": "ProductIdPathParams",
+      "sourceHash": "4715fa34dae88235"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+      "kind": "service",
+      "label": "cart",
+      "sourceHash": "37c426dd55dac079"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session",
+      "kind": "service",
+      "label": "session",
+      "sourceHash": "098054a0bf3d6cdb"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:shopUi",
+      "kind": "service",
+      "label": "shopUi",
+      "sourceHash": "573ed5c457619a90"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:productView",
+      "kind": "service",
+      "label": "productView",
+      "sourceHash": "3985c8ac585129c2"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:searchView",
+      "kind": "service",
+      "label": "searchView",
+      "sourceHash": "13c3e0ec79b63a07"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+      "kind": "service",
+      "label": "storefrontView",
+      "sourceHash": "7e63a06b7ad62fe2"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-context-menu.ts:aiContextMenuDismissal",
+      "kind": "service",
+      "label": "aiContextMenuDismissal",
+      "sourceHash": "6f8637c0d35c8c9c"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts:aiSendContextChatState",
+      "kind": "service",
+      "label": "aiSendContextChatState",
+      "sourceHash": "74f47a39a0e5bbd4"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts:aiSendDialogState",
+      "kind": "service",
+      "label": "aiSendDialogState",
+      "sourceHash": "0b45c3c155a4cf3c"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/craft-router-outlet.ts:craftRouterOutletState",
+      "kind": "service",
+      "label": "craftRouterOutletState",
+      "sourceHash": "d3b89011d894ab3e"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/browser-boundaries.ts:StorageService",
+      "kind": "service",
+      "label": "StorageService",
+      "sourceHash": "738420bb336298a6"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/dev-tools.ts:CraftLogServerUrl",
+      "kind": "service",
+      "label": "CraftLogServerUrl",
+      "sourceHash": "acac8076abeaa5ae"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/form/craft-field.directive.ts:CraftFieldCheckboxControl",
+      "kind": "service",
+      "label": "CraftFieldCheckboxControl",
+      "sourceHash": "c2f214c1498b4a6a"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/form/craft-field.directive.ts:CraftFieldValueControl",
+      "kind": "service",
+      "label": "CraftFieldValueControl",
+      "sourceHash": "e2d97d8229ff7b4c"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/global-persister-handler.service.ts:GlobalPersisterHandlerService",
+      "kind": "service",
+      "label": "GlobalPersisterHandlerService",
+      "sourceHash": "eb29028e4b737fa7"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/server-function-client.ts:ServerFunctionTransport",
+      "kind": "service",
+      "label": "ServerFunctionTransport",
+      "sourceHash": "7ba338a3d1e822bb"
+    },
+    {
+      "id": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/core/src/lib/storage-persister.service.ts:StoragePersister",
+      "kind": "service",
+      "label": "StoragePersister",
+      "sourceHash": "3805336f6983b1fe"
+    },
+    {
+      "id": "service:effect:MiddlewareExecutionScope",
+      "kind": "service",
+      "label": "MiddlewareExecutionScope"
+    },
+    {
+      "id": "service:effect:StoreRepository",
+      "kind": "service",
+      "label": "StoreRepository"
+    }
+  ],
+  "edges": [
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/adminStore/query:adminStore/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.admin.overview",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 145
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/query:adminAction/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.category.delete",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 232
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/query:adminAction/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.category.save",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 229
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/query:adminAction/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.product.delete",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 238
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/query:adminAction/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.product.save",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 235
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts#craftService()/query:adminAction/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.reset",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 241
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/craftComputed:cartCount/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/cartLines/state:cartLines/0",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "cartLines"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/craftComputed:isStaff/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/currentSession/state:currentSession/0",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "currentSession"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:currentUser/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.me",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 296
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:currentUser/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/currentSession/state:currentSession/0",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "resourceRole": "params",
+        "reader": "currentSession"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:signOutProcess/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.logout",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 307
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:signOutProcess/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/currentSession/state:currentSession/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "close",
+        "via": "state-method",
+        "line": 308
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/signInProcess/mutation:signInProcess/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.login",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "acquisition",
+        "line": 274
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/signInProcess/mutation:signInProcess/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.auth.logout",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "line": 265
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/signInProcess/mutation:signInProcess/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/query:currentUser/0",
+      "kind": "triggers",
+      "evidence": "ast",
+      "details": {
+        "insertion": "react-on-mutation",
+        "line": 299
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/signInProcess/mutation:signInProcess/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/currentSession/state:currentSession/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "open",
+        "via": "state-method",
+        "line": 276
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/signInProcess/mutation:signInProcess/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/sessionNotice/state:sessionNotice/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "show",
+        "via": "state-method",
+        "line": 277
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/syncServerCart/mutation:syncServerCart/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.delete",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "line": 191
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/syncServerCart/mutation:syncServerCart/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.get",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "line": 197,
+        "resourceRole": "loader"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/syncServerCart/mutation:syncServerCart/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/cartState/state:serverCart/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "replace",
+        "via": "state-method",
+        "line": 192
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CataloguePage/craftComponent(EcommerceCataloguePage)/visibleProducts/craftComputed:visibleProducts/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query(storeQuery)/products/craftUse()/craftComputed:storeProducts/0",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "path": "products"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CataloguePage/craftComponent(EcommerceCataloguePage)/visibleProducts/craftComputed:visibleProducts/0",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:shopUi",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {
+        "member": "searchTerm",
+        "access": "call"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CataloguePage/craftComponent(EcommerceCataloguePage)/visibleProducts/craftComputed:visibleProducts/0",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:searchView",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {
+        "member": "value",
+        "access": "call"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CataloguePage/craftComponent(EcommerceCataloguePage)/visibleProducts/craftComputed:visibleProducts/0",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {
+        "member": "products",
+        "access": "call"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#CheckoutPage/craftComponent(EcommerceCheckoutPage)/placedOrder/craftComputed:placedOrder/0",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {
+        "member": "value",
+        "access": "call"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/craftComputed:relatedProducts/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/currentProduct/craftComputed:currentProduct/0",
+      "kind": "depends-on",
+      "evidence": "ast",
+      "details": {
+        "reader": "currentProduct"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:placeOrderProcess/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.checkout",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 48
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:searchQuery/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.catalog.search",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "loader",
+        "line": 67
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts#craftService()/query:storeQuery/0",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.catalog",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "line": 32
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/sendMutation/mutation:sendContextToAi/0",
+      "to": "http-endpoint:POST:<unresolved:ai-send-context-chat.ts:271>",
+      "kind": "calls",
+      "evidence": "ast",
+      "details": {
+        "http": true,
+        "method": "POST",
+        "url": "<unresolved:ai-send-context-chat.ts:271>",
+        "line": 271,
+        "resourceRole": "loader"
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setBusy/craftPrivate()/craftMethod:setBusy/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/busy/craftPrivate()/state:busy/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "setBusy",
+        "via": "state-method",
+        "line": 240
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setError/craftPrivate()/craftMethod:setError/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/error/craftPrivate()/state:error/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "setError",
+        "via": "state-method",
+        "line": 235
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setPanelOffset/craftPrivate()/craftMethod:setPanelOffset/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/panelOffset/craftPrivate()/state:panelOffset/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "setPanelOffset",
+        "via": "state-method",
+        "line": 245
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setReplayStatus/craftPrivate()/craftMethod:setReplayStatus/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/replayStatusValue/craftPrivate()/state:replayStatus/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "setReplayStatus",
+        "via": "state-method",
+        "line": 250
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/setStatus/craftPrivate()/craftMethod:setStatus/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-context-chat.ts#craftService()/status/craftPrivate()/state:status/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "setStatus",
+        "via": "state-method",
+        "line": 230
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCaptureError/craftPrivate()/craftMethod:setCaptureError/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/captureError/craftPrivate()/state:captureError/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "setCaptureError",
+        "via": "state-method",
+        "line": 213
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCaptureInProgress/craftPrivate()/craftMethod:setCaptureInProgress/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/captureInProgress/craftPrivate()/state:captureInProgress/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "setCaptureInProgress",
+        "via": "state-method",
+        "line": 208
+      }
+    },
+    {
+      "from": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/setCopied/craftPrivate()/craftMethod:setCopied/0",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/libs/component/src/lib/ai/ai-send-dialog.ts#craftService()/copied/craftPrivate()/state:sendDialogCopied/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "setCopied",
+        "via": "state-method",
+        "line": 203
+      }
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-desk.ts:adminDesk",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {}
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/admin-page.ts:adminView",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:session",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {}
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.addLine",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "line": 164
+      }
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.create",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "resourceRole": "acquisition",
+        "line": 158
+      }
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+      "to": "server-function-family:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/server/functions.ts#ecommerce.cart.get",
+      "kind": "calls",
+      "evidence": "type",
+      "details": {
+        "serverFunction": true,
+        "line": 154
+      }
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+      "to": "primitive:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts#craftService()/cartState/state:serverCart/0",
+      "kind": "writes",
+      "evidence": "ast",
+      "details": {
+        "operation": "replace",
+        "via": "state-method",
+        "line": 171
+      }
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:productView",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/product-id-path-params.ts:ProductIdPathParams",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {}
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:productView",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {}
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:searchView",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:shopUi",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {}
+    },
+    {
+      "from": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/store-pages.ts:storefrontView",
+      "to": "service:/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/reprise-corrections/apps/demo-ecommerce/src/client/shop-state.ts:cart",
+      "kind": "depends-on",
+      "evidence": "type",
+      "details": {}
+    }
+  ]
+}

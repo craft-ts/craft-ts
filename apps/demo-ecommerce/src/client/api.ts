@@ -1,5 +1,5 @@
 import { craftUnique, createServerFunctionClient, isCraftException } from '@craft-ts/core';
-import type { getCatalog, searchCatalog as searchCatalogFunction, createCart as createCartFunction, addCartLine as addCartLineFunction, getCart as getCartFunction, deleteCart as deleteCartFunction, login, getCurrentUser, logout, getAdminOverview, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore } from '../server/functions';
+import type { getCatalog, searchCatalog as searchCatalogFunction, createCart as createCartFunction, addCartLine as addCartLineFunction, getCart as getCartFunction, login, getCurrentUser, logout, getAdminOverview, saveProduct, deleteProduct, saveCategory, deleteCategory, checkout, resetStore } from '../server/functions';
 import type { AccountSession } from '../shared/accounts';
 import type { Catalog, CartLine, Category, Order, Product, ServerCart, StoreData } from '../shared/model';
 
@@ -8,7 +8,6 @@ const rawSearchCatalog = createServerFunctionClient<typeof searchCatalogFunction
 const rawCreateCart = createServerFunctionClient<typeof createCartFunction>(craftUnique('ecommerce.cart.create'));
 const rawAddCartLine = createServerFunctionClient<typeof addCartLineFunction>(craftUnique('ecommerce.cart.addLine'));
 const rawGetCart = createServerFunctionClient<typeof getCartFunction>(craftUnique('ecommerce.cart.get'));
-const rawDeleteCart = createServerFunctionClient<typeof deleteCartFunction>(craftUnique('ecommerce.cart.delete'));
 const rawLogin = createServerFunctionClient<typeof login>(craftUnique('ecommerce.auth.login'));
 const rawCurrentUser = createServerFunctionClient<typeof getCurrentUser>(craftUnique('ecommerce.auth.me'));
 const rawLogout = createServerFunctionClient<typeof logout>(craftUnique('ecommerce.auth.logout'));
@@ -32,7 +31,6 @@ export function* searchCatalog(input: { readonly query: string }): Generator<unk
 export function* createCart(input: Record<string, never>): Generator<unknown, ServerCart, unknown> { return decode<ServerCart>(yield* rawCreateCart(input)); }
 export function* addCartLine(input: { readonly cartId: string; readonly line: CartLine }): Generator<unknown, ServerCart, unknown> { return decode<ServerCart>(yield* rawAddCartLine(input)); }
 export function* getCart(input: { readonly cartId: string }): Generator<unknown, ServerCart, unknown> { return decode<ServerCart>(yield* rawGetCart(input)); }
-export function* deleteCart(input: { readonly cartId: string }): Generator<unknown, unknown, unknown> { return yield* rawDeleteCart(input); }
 export function* signIn(input: { readonly email: string; readonly password: string }): Generator<unknown, AccountSession, unknown> { return decode<AccountSession>(yield* rawLogin(input)); }
 export function* currentUser(input: { readonly token: string }): Generator<unknown, AccountSession, unknown> { return decode<AccountSession>(yield* rawCurrentUser(input)); }
 export function* signOut(input: { readonly token: string }): Generator<unknown, unknown, unknown> { return yield* rawLogout(input); }

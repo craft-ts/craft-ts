@@ -25,7 +25,6 @@ import {
   CraftTemporalRuntime,
   craftComputed,
   craftEffect,
-  craftResume,
   craftService,
   craftUse,
   executeGeneratorCompatibleFactoryAsync,
@@ -131,15 +130,6 @@ export const { AdminView, provideAdminView } = craftService(
     const adminStore = yield* query(
       'adminStore',
       {
-        resume: craftResume({
-          resource: 'session',
-          role: 'requires',
-          calls: ['ecommerce.admin.overview'],
-          entities: [
-            { kind: 'product', path: '$.products[*].id' },
-            { kind: 'category', path: '$.categories[*].id' },
-          ],
-        }),
         method: (revision: number) => revision,
         loader: function* () {
           const result = yield* adminOverview({ token: yield* tokenOf() });
@@ -205,21 +195,6 @@ export const { AdminView, provideAdminView } = craftService(
       };
     });
     yield* query('adminAction', {
-      // Une action n'est jamais rejouée par la reprise ; son résultat est
-      // comparé à celui de l'enregistrement (le 403 d'Inès, par exemple).
-      resume: craftResume({
-        resource: 'session',
-        role: 'requires',
-        refetch: false,
-        calls: [
-          'ecommerce.product.save',
-          'ecommerce.product.delete',
-          'ecommerce.category.save',
-          'ecommerce.category.delete',
-        ],
-        expect: { outcome: 'recorded' },
-        onMismatch: 'degraded',
-      }),
       method: (action: AdminAction) => action,
       loader: function* ({ params: action }) {
         const token = yield* tokenOf();

@@ -127,44 +127,6 @@ describe('DebugSessionStore', () => {
     });
   });
 
-  it('keeps MCP resume proposals pending until the dashboard decides', () => {
-    store.begin(id, fixture(), createdAt);
-    const context = {
-      phase: 'prepare' as const,
-      plan: { status: 'ready', steps: [] },
-      mismatches: [{ kind: 'missing-persona', name: 'admin' }],
-      updatedAt: createdAt,
-    };
-    expect(store.publishResumeAssistantContext(id, context)).toBe(true);
-    expect(store.activeResumeAssistantContext()).toEqual({
-      sessionId: id,
-      context,
-    });
-
-    const proposal = store.proposeResumeOverrides(id, {
-      rationale: 'Reproduce the recorded refusal.',
-      overrides: [
-        {
-          call: 'PATCH /products/:id',
-          response: { error: 'Forbidden' },
-          status: 403,
-          frozen: true,
-          assistedBy: 'ai',
-        },
-      ],
-    });
-    expect(proposal).toMatchObject({ status: 'proposed', sessionId: id });
-    expect(store.requestResumeAssistantApply(id, proposal!.id)?.status).toBe(
-      'apply-requested',
-    );
-    expect(store.resumeAssistantProposalsFor(id)[0]?.status).toBe(
-      'apply-requested',
-    );
-    expect(
-      store.decideResumeAssistantProposal(id, proposal!.id, 'accepted')?.status,
-    ).toBe('accepted');
-  });
-
   it('marks sessions interrupted after a server restart', () => {
     store.begin(id, fixture(), createdAt, 'tab-a');
 

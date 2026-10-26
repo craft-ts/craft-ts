@@ -8,7 +8,6 @@ import {
   writeDependencyGraph,
   type WriteDependencyGraphOptions,
 } from '../scripts/dependency-graph.js';
-import { checkResumeGraph } from '../scripts/resume-chain.js';
 import { churnFromGitLog } from '../scripts/graph-metrics.js';
 import type { IstanbulCoverageMap } from '../scripts/graph-coverage.js';
 import { createMarkdownDocsCollector } from '../scripts/graph-docs.js';
@@ -187,7 +186,6 @@ interface GraphRun {
   readonly churnSince?: string;
   /** Path of an Istanbul `coverage-final.json`, relative to the root. */
   readonly coveragePath?: string;
-  readonly checkResume: boolean;
 }
 
 function readCoverage(rootDir: string, path: string): IstanbulCoverageMap {
@@ -240,7 +238,6 @@ function parseArgs(argv: string[]): GraphRun {
   };
   let churnSince: string | undefined;
   let coveragePath: string | undefined;
-  let checkResume = false;
   const docs: string[] = [];
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -254,12 +251,6 @@ function parseArgs(argv: string[]): GraphRun {
         break;
       case '--out':
         options.outputPath = argv[++index];
-        break;
-      case '--resume-graph':
-        options.resumeGraphPath = argv[++index] ?? 'resume-graph.json';
-        break;
-      case '--check-resume':
-        checkResume = true;
         break;
       case '--format': {
         const format = argv[++index];
@@ -315,7 +306,6 @@ function parseArgs(argv: string[]): GraphRun {
     options,
     ...(churnSince === undefined ? {} : { churnSince }),
     ...(coveragePath === undefined ? {} : { coveragePath }),
-    checkResume,
   };
 }
 
@@ -347,10 +337,6 @@ Options:
   --docs <glob>                Link Markdown pages matching the glob to the
                                routes, components, services and primitives they
                                name in inline code. Repeatable.
-  --resume-graph <path>        Also write the compact primitive and boundary
-                               graph used to plan verified session resumes.
-  --check-resume               Fail when resume resource declarations or
-                               persisted external calls are unresolved.
 
 Style queries, answered from the emitted dump without building the program:
   --impacted <--x>             Sheet classes a change to that custom property
@@ -389,11 +375,9 @@ if (contrast) {
     process.exitCode = 1;
   }
 } else if (!runStyleQuery(argv)) {
-  let checkResumeRequested = false;
   Promise.resolve()
     .then(() => {
-      const { options, churnSince, coveragePath, checkResume } = parseArgs(argv);
-      checkResumeRequested = checkResume;
+      const { options, churnSince, coveragePath } = parseArgs(argv);
       const rootDir = resolve(options.rootDir ?? process.cwd());
       return writeDependencyGraph({
         ...options,
@@ -411,16 +395,6 @@ if (contrast) {
       });
     })
     .then((graph) => {
-      if (checkResumeRequested) {
-        const diagnostics = checkResumeGraph(graph);
-        for (const diagnostic of diagnostics) {
-          console.error(`${diagnostic.code}: ${diagnostic.message}`);
-        }
-        if (diagnostics.length > 0) {
-          process.exitCode = 1;
-          return;
-        }
-      }
       console.log(
         `Craft graph written: ${graph.nodes.length} nodes, ${graph.edges.length} edges.`,
       );

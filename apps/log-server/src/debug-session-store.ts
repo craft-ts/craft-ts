@@ -72,29 +72,6 @@ export type StoredDebugSessionParticipant = Readonly<{
   initialSnapshot?: Readonly<Record<string, unknown>>;
 }>;
 
-export type StoredResumeProfile = Readonly<{
-  format: 'craft-debug-session-resume-profile';
-  version: 1;
-  clockPolicy: 'real' | 'recorded';
-  acceptedOverrides: readonly Readonly<Record<string, unknown>>[];
-}>;
-
-export type ResumeAssistantContext = Readonly<{
-  phase: 'prepare' | 'execute';
-  plan?: unknown;
-  mismatches: readonly unknown[];
-  updatedAt: string;
-}>;
-
-export type ResumeAssistantProposal = Readonly<{
-  id: string;
-  sessionId: string;
-  createdAt: string;
-  status: 'proposed' | 'apply-requested' | 'accepted' | 'rejected';
-  rationale: string;
-  overrides: readonly Readonly<Record<string, unknown>>[];
-}>;
-
 type StoredSession = Omit<StoredDebugSessionSummary, 'participantCount'> & {
   endedAt?: string;
   viewport?: Readonly<{ width: number; height: number }>;
@@ -103,7 +80,6 @@ type StoredSession = Omit<StoredDebugSessionSummary, 'participantCount'> & {
   initialSnapshot?: Readonly<Record<string, unknown>>;
   clips: readonly unknown[];
   participants: readonly StoredDebugSessionParticipant[];
-  resumeProfile?: StoredResumeProfile;
 };
 
 export type PortableDebugSession = Readonly<{
@@ -123,7 +99,6 @@ export type PortableDebugSession = Readonly<{
   participants?: readonly StoredDebugSessionParticipant[];
   environment?: StoredEnvironmentProfile;
   test?: DebugSessionTestMetadata;
-  resumeProfile?: StoredResumeProfile;
 }>;
 
 const DEFAULT_MAX_SESSIONS = 100;
@@ -145,15 +120,6 @@ export class DebugSessionStore {
   private readonly liveEvents = new Map<string, Record<string, unknown>[]>();
   private readonly eventKeys = new Map<string, Set<string>>();
   private readonly nextEventSequence = new Map<string, number>();
-  private readonly resumeAssistantContexts = new Map<
-    string,
-    ResumeAssistantContext
-  >();
-  private readonly resumeAssistantProposals = new Map<
-    string,
-    ResumeAssistantProposal[]
-  >();
-  private activeResumeAssistantSessionId: string | undefined;
   private readonly finishTimers = new Map<
     string,
     ReturnType<typeof setTimeout>
@@ -165,109 +131,6 @@ export class DebugSessionStore {
   /** The archive's age limit, exposed to the dashboard for its cleanup action. */
   get retentionDays(): number {
     return this.maxAgeMs / (24 * 60 * 60 * 1000);
-  }
-
-  hasSession(id: string): boolean {
-    return this.sessions.has(id);
-  }
-
-  /** Keeps the active plan and mismatches in memory for local MCP tools. */
-  publishResumeAssistantContext(
-    id: string,
-    context: ResumeAssistantContext,
-  ): boolean {
-    if (!this.sessions.has(id)) return false;
-    this.activeResumeAssistantSessionId = id;
-    this.resumeAssistantContexts.set(id, context);
-    return true;
-  }
-
-  activeResumeAssistantContext(): Readonly<{
-    sessionId: string;
-    context: ResumeAssistantContext;
-  }> | undefined {
-    const sessionId = this.activeResumeAssistantSessionId;
-    const context = sessionId
-      ? this.resumeAssistantContext(sessionId)
-      : undefined;
-    return sessionId && context ? { sessionId, context } : undefined;
-  }
-
-  resumeAssistantContext(id: string): ResumeAssistantContext | undefined {
-    return this.sessions.has(id)
-      ? this.resumeAssistantContexts.get(id)
-      : undefined;
-  }
-
-  proposeResumeOverrides(
-    id: string,
-    proposal: Readonly<{
-      rationale: string;
-      overrides: readonly Readonly<Record<string, unknown>>[];
-    }>,
-  ): ResumeAssistantProposal | undefined {
-    if (!this.sessions.has(id)) return undefined;
-    const proposals = this.resumeAssistantProposals.get(id) ?? [];
-    if (proposals.filter((item) => item.status !== 'rejected').length >= 20)
-      return undefined;
-    const created: ResumeAssistantProposal = {
-      id: randomUUID(),
-      sessionId: id,
-      createdAt: new Date().toISOString(),
-      status: 'proposed',
-      rationale: proposal.rationale,
-      overrides: proposal.overrides,
-    };
-    this.resumeAssistantProposals.set(id, [...proposals, created]);
-    return created;
-  }
-
-  resumeAssistantProposalsFor(
-    id: string,
-  ): readonly ResumeAssistantProposal[] {
-    return this.sessions.has(id)
-      ? [...(this.resumeAssistantProposals.get(id) ?? [])]
-      : [];
-  }
-
-  requestResumeAssistantApply(
-    id: string,
-    proposalId: string,
-  ): ResumeAssistantProposal | undefined {
-    return this.updateResumeAssistantProposal(id, proposalId, (proposal) =>
-      proposal.status === 'proposed'
-        ? { ...proposal, status: 'apply-requested' }
-        : proposal,
-    );
-  }
-
-  decideResumeAssistantProposal(
-    id: string,
-    proposalId: string,
-    decision: 'accepted' | 'rejected',
-  ): ResumeAssistantProposal | undefined {
-    return this.updateResumeAssistantProposal(id, proposalId, (proposal) =>
-      proposal.status === 'proposed' || proposal.status === 'apply-requested'
-        ? { ...proposal, status: decision }
-        : proposal,
-    );
-  }
-
-  private updateResumeAssistantProposal(
-    id: string,
-    proposalId: string,
-    update: (proposal: ResumeAssistantProposal) => ResumeAssistantProposal,
-  ): ResumeAssistantProposal | undefined {
-    if (!this.sessions.has(id)) return undefined;
-    const proposals = this.resumeAssistantProposals.get(id) ?? [];
-    const index = proposals.findIndex((proposal) => proposal.id === proposalId);
-    if (index < 0) return undefined;
-    const next = update(proposals[index]!);
-    const updated = proposals.map((proposal, candidate) =>
-      candidate === index ? next : proposal,
-    );
-    this.resumeAssistantProposals.set(id, updated);
-    return next;
   }
 
   /** Bytes used by the session index and archived event files. */
@@ -678,19 +541,6 @@ export class DebugSessionStore {
     this.persistIndex();
   }
 
-  saveResumeProfile(id: string, profile: unknown): boolean {
-    assertSessionId(id);
-    const current = this.sessions.get(id);
-    if (!current || !isStoredResumeProfile(profile)) return false;
-    this.sessions.set(id, {
-      ...current,
-      resumeProfile: profile,
-      updatedAt: new Date().toISOString(),
-    });
-    this.persistIndex();
-    return true;
-  }
-
   delete(id: string): boolean {
     assertSessionId(id);
     if (!this.removeSession(id)) return false;
@@ -711,10 +561,6 @@ export class DebugSessionStore {
   private removeSession(id: string): boolean {
     if (!this.sessions.has(id)) return false;
     this.sessions.delete(id);
-    if (this.activeResumeAssistantSessionId === id)
-      this.activeResumeAssistantSessionId = undefined;
-    this.resumeAssistantContexts.delete(id);
-    this.resumeAssistantProposals.delete(id);
     this.liveEvents.delete(id);
     this.eventKeys.delete(id);
     this.nextEventSequence.delete(id);
@@ -748,9 +594,6 @@ export class DebugSessionStore {
     this.indexFlushTimer = undefined;
     for (const timer of this.finishTimers.values()) clearTimeout(timer);
     this.finishTimers.clear();
-    this.resumeAssistantContexts.clear();
-    this.resumeAssistantProposals.clear();
-    this.activeResumeAssistantSessionId = undefined;
     this.persistIndex();
   }
 
@@ -791,7 +634,6 @@ export class DebugSessionStore {
       ...(initialSnapshot ? { initialSnapshot } : {}),
       participants: stored.participants,
       ...(stored.test ? { test: stored.test } : {}),
-      ...(stored.resumeProfile ? { resumeProfile: stored.resumeProfile } : {}),
     };
   }
 
@@ -1015,45 +857,13 @@ function isStoredSession(value: unknown): value is StoredSession {
     (value['test'] === undefined || isDebugSessionTestMetadata(value['test'])) &&
     Array.isArray(value['clips']) &&
     (value['participants'] === undefined ||
-      Array.isArray(value['participants'])) &&
-    (value['resumeProfile'] === undefined ||
-      isStoredResumeProfile(value['resumeProfile']))
+      Array.isArray(value['participants']))
   );
 }
 
 export function isDebugSessionTestMetadata(value: unknown): value is DebugSessionTestMetadata {
   return isRecord(value) && ['id', 'title', 'specFile', 'project', 'gitSha'].every((key) => typeof value[key] === 'string' && value[key].length <= 512) && Number.isInteger(value['retry']) && Number(value['retry']) >= 0
     && (value['runId'] === undefined || (typeof value['runId'] === 'string' && /^[0-9a-f-]{36}$/i.test(value['runId'])));
-}
-
-function isStoredResumeProfile(value: unknown): value is StoredResumeProfile {
-  if (
-    !isRecord(value) ||
-    value['format'] !== 'craft-debug-session-resume-profile' ||
-    value['version'] !== 1 ||
-    (value['clockPolicy'] !== 'real' && value['clockPolicy'] !== 'recorded') ||
-    !Array.isArray(value['acceptedOverrides']) ||
-    value['acceptedOverrides'].length > 100 ||
-    !value['acceptedOverrides'].every(
-      (override) =>
-        isRecord(override) &&
-        typeof override['call'] === 'string' &&
-        override['call'].length > 0 &&
-        override['frozen'] === true &&
-        Object.hasOwn(override, 'response') !==
-          Object.hasOwn(override, 'patch'),
-    )
-  )
-    return false;
-  const calls = value['acceptedOverrides'].map((override) =>
-    isRecord(override) ? override['call'] : undefined,
-  );
-  if (new Set(calls).size !== calls.length) return false;
-  try {
-    return JSON.stringify(value).length <= 250_000;
-  } catch {
-    return false;
-  }
 }
 
 function mergeParticipant(

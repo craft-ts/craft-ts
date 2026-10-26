@@ -8,10 +8,6 @@ import type {
   SendContextReplaySnapshot,
   SendContextSessionParticipant,
 } from '@craft-ts/core';
-import {
-  isDebugSessionResumeOverrideList,
-  type ResumeOverride,
-} from '@craft-ts/component';
 
 /**
  * What the replay knows about a recording, with no state and no browser: the
@@ -70,28 +66,6 @@ export type ReplaySlice = Readonly<{
 }>;
 
 export type ReplayStartMode = 'url' | 'snapshot';
-
-export type ResumeProfile = Readonly<{
-  format: 'craft-debug-session-resume-profile';
-  version: 1;
-  clockPolicy: 'real' | 'recorded';
-  acceptedOverrides: readonly ResumeOverride[];
-}>;
-
-export function isResumeProfile(value: unknown): value is ResumeProfile {
-  if (
-    !(
-      isRecord(value) &&
-      value['format'] === 'craft-debug-session-resume-profile' &&
-      value['version'] === 1 &&
-      (value['clockPolicy'] === 'real' ||
-        value['clockPolicy'] === 'recorded') &&
-      isDebugSessionResumeOverrideList(value['acceptedOverrides'])
-    )
-  )
-    return false;
-  return true;
-}
 
 export type ReplayFrameConnection = {
   readonly participantId: string;

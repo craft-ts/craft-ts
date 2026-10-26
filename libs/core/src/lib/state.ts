@@ -52,11 +52,6 @@ import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
 import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
-import {
-  ɵwithResumeSpecOf,
-  type CraftResumeSpec,
-  type CraftWithResume,
-} from './craft-resume';
 import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
   createYieldableInsertionMethod,
@@ -487,47 +482,6 @@ export function state<
     Name
   >
 >;
-export function state<Name extends string, StateInput>(
-  name: Name,
-  stateConfig: StateInput,
-  resume: CraftWithResume,
-): NamedCraftPrimitiveGen<
-  Name,
-  StateOutput<
-    ResolvedStateType<StateInput>,
-    {},
-    StateTrackedDependencies<StateInput>,
-    false,
-    false,
-    Name
-  >
->;
-export function state<
-  Name extends string,
-  StateInput,
-  Insertion1,
-  Insertion1Yielded = never,
->(
-  name: Name,
-  stateConfig: StateInput,
-  insertion1: InsertionsStateFactory<
-    NoInfer<ResolvedStateType<StateInput>>,
-    Insertion1,
-    {},
-    Insertion1Yielded
-  >,
-  resume: CraftWithResume,
-): NamedCraftPrimitiveGen<
-  Name,
-  StateOutput<
-    ResolvedStateType<StateInput>,
-    Insertion1,
-    StateTrackedDependencies<StateInput, Insertion1Yielded, Insertion1>,
-    false,
-    false,
-    Name
-  >
->;
 export function state(
   nameOrStateConfig: string | unknown,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -540,15 +494,7 @@ export function state(
     typeof nameOrStateConfig === 'string' && arguments.length >= 2;
   const name = isNamed ? nameOrStateConfig : 'state';
   const config = isNamed ? stateConfig : nameOrStateConfig;
-  // `withResume(...)` is the last insertion, whatever their number.
-  const resume = isNamed ? ɵwithResumeSpecOf(insertions.at(-1)) : undefined;
-  const stateInsertions = resume ? insertions.slice(0, -1) : insertions;
-  const ref = createStateRef(
-    name,
-    config,
-    resume,
-    ...(isNamed ? stateInsertions : []),
-  );
+  const ref = createStateRef(name, config, ...(isNamed ? insertions : []));
   return isNamed ? createNamedPrimitiveGen(name, ref) : createPrimitiveGen(ref);
 }
 
@@ -556,7 +502,6 @@ function createStateRef<StateType>(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stateConfig: any,
-  resume?: CraftResumeSpec,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...insertions: any[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -924,7 +869,6 @@ function createStateRef<StateType>(
   const registration = ɵregisterCraftPrimitive({
     kind: 'state',
     name,
-    ...(resume ? { resume } : {}),
     read: () => stateSignal(),
     write: (value) => setState(value as StateType),
     ...(injector ? { injector } : {}),

@@ -8,7 +8,6 @@ import {
   createCart,
   addCartLine,
   getCart,
-  deleteCart,
   login,
   getCurrentUser,
   logout,
@@ -19,41 +18,27 @@ import {
   deleteCategory,
   checkout,
   resetStore,
-  getResumeFacts,
 } from './functions';
 
-export interface DemoApplicationOptions {
-  /** Registers the inventory probe only in the local Vite development server. */
-  readonly allowResumePreflight?: boolean;
-}
-
-export function createDemoApplication(
-  path?: string,
-  options: DemoApplicationOptions = {},
-) {
-  const baseFunctions = [
-    getCatalog,
-    searchCatalog,
-    createCart,
-    addCartLine,
-    getCart,
-    deleteCart,
-    login,
-    getCurrentUser,
-    logout,
-    getAdminOverview,
-    saveProduct,
-    deleteProduct,
-    saveCategory,
-    deleteCategory,
-    checkout,
-    resetStore,
-  ] as const;
-  const functions = options.allowResumePreflight
-    ? [...baseFunctions, getResumeFacts]
-    : baseFunctions;
-  const registry = createServer({
-    functions,
+export function createDemoApplication(path?: string) {
+  return createServer({
+    functions: [
+      getCatalog,
+      searchCatalog,
+      createCart,
+      addCartLine,
+      getCart,
+      login,
+      getCurrentUser,
+      logout,
+      getAdminOverview,
+      saveProduct,
+      deleteProduct,
+      saveCategory,
+      deleteCategory,
+      checkout,
+      resetStore,
+    ],
     execute: executeEffect(createStoreLayer(path)).run,
     runtimeOptions: {
       maxBodyBytes: 1_048_576,
@@ -61,14 +46,11 @@ export function createDemoApplication(
       timeoutMs: 15_000,
     },
   });
-  return registry;
 }
 
-export async function handleDemoRequest(
-  request: Request,
-  options: DemoApplicationOptions = {},
-): Promise<Response> {
-  return createDemoApplication(undefined, options).handle(request);
+/** Le magasin vient de `CRAFT_DEMO_ECOMMERCE_STORE` quand il est défini (e2e). */
+export async function handleDemoRequest(request: Request): Promise<Response> {
+  return createDemoApplication().handle(request);
 }
 
 export function createDemoNodeServer() {

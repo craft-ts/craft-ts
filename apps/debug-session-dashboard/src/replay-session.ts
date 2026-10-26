@@ -16,7 +16,6 @@ import {
 import { handshake, listenToReplayBridge } from './replay-bridge';
 import {
   isRecord,
-  isResumeProfile,
   participantStartAtMs,
   parseLocalTarget,
   REPLAY_QUERY_MARKER,
@@ -73,8 +72,6 @@ import {
   routeSessionId,
   selectedParticipantId,
   session,
-  resumeProfile,
-  resumeClockPolicy,
   sessionParticipants,
   sessionsForReplay,
   sessionText,
@@ -174,8 +171,6 @@ export function beginSessionLoad(id: string): void {
   beginReplayLoadingIndicator();
   loadError.set(undefined);
   if (registers.loadedArchiveSessionId !== id) {
-    resumeProfile.set(undefined);
-    resumeClockPolicy.set('real');
     session.set(undefined);
     events.set([]);
     difference.set(undefined);
@@ -190,14 +185,6 @@ export function beginSessionLoad(id: string): void {
 export function completeSessionLoad(id: string, archived: unknown): void {
   if (routeSessionId() !== id) return;
   importJson(JSON.stringify(archived));
-  const profile = isRecord(archived) ? archived['resumeProfile'] : undefined;
-  if (isResumeProfile(profile)) {
-    resumeProfile.set(profile);
-    resumeClockPolicy.set(profile.clockPolicy);
-  } else {
-    resumeProfile.set(undefined);
-    resumeClockPolicy.set('real');
-  }
   registers.loadedArchiveCreatedAtMs =
     isRecord(archived) && typeof archived['createdAt'] === 'string'
       ? Date.parse(archived['createdAt'])
@@ -518,9 +505,7 @@ export function seekReplayToShare(share: number): void {
 export function cancelReplaySeek(): void {
   if (seekTarget() === undefined) return;
   seekTarget.set(undefined);
-  status.set(
-    `Accélération annulée · le replay est à l’étape ${replayIndex()}.`,
-  );
+  status.set(`Accélération annulée · le replay est à l’étape ${replayIndex()}.`);
 }
 
 function driveSeek(): void {

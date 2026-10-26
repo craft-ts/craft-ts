@@ -127,21 +127,6 @@ describe('reference provenance', () => {
     expect(decoded['user']).toEqual({ id: 'leo', role: 'client' });
   });
 
-  it('traces a numeric id only at a declared key', () => {
-    const declared = redactDebugSessionReferences(
-      { cartId: 4242, count: 4242 },
-      'salt',
-      '$',
-      'in',
-      { tracedKeys: new Set(['cartId']) },
-    );
-    expect(declared.refs.map(({ path }) => path)).toEqual(['$.cartId']);
-    expect(declared.value).toEqual({
-      cartId: `craft-ref:${fingerprintDebugSessionReference('4242', 'salt')}`,
-      count: 4242,
-    });
-  });
-
   it('never takes prose, slugs or code names for references outside identifier fields', () => {
     const { refs } = redactDebugSessionReferences(
       {

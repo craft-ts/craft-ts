@@ -38,16 +38,6 @@ export function supportsDebugSessionExportVersion(version: unknown): boolean {
   return true;
 }
 
-/** Resume requires v7 reference provenance; v6 remains replayable after migration. */
-export function supportsDebugSessionResume(input: unknown): boolean {
-  return (
-    isRecord(input) &&
-    input['format'] === 'craft-debug-session' &&
-    input['version'] === DEBUG_SESSION_EXPORT_VERSION &&
-    input['referenceCaptureVersion'] === 1
-  );
-}
-
 export function supportsDebugSessionReplayVersion(version: unknown): boolean {
   return (
     Number.isSafeInteger(version) &&
@@ -113,8 +103,4 @@ export function migrateDebugSessionExport(
     }
   }
   return { ok: true, value: value as unknown as SendContextReplayExport };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

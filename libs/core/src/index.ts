@@ -336,7 +336,6 @@ export {
   type ForeignYieldOutcome,
 } from './lib/craft-program-runtime';
 export * from './lib/host-tag';
-export * from './lib/craft-resume';
 export * from './lib/stream-kernel';
 export * from './lib/source$';
 export * from './lib/from-event-to-source$';

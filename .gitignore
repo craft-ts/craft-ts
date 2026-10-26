@@ -63,13 +63,10 @@ vitest.config.*.timestamp*
 # Attestation evidence: content-addressed, regenerable, never in git.
 .craft/evidence/
 .craft/runs/
-.craft/resume.personas.local.json
 .craft/craft-dependency-graph.json
 .craft/craft-dependency-graph.architecture.ts
-.craft/resume-graph.json
 apps/demo-ecommerce/.craft/craft-dependency-graph.json
 apps/demo-ecommerce/.craft/craft-dependency-graph.architecture.ts
-apps/demo-ecommerce/.craft/resume-graph.json
 libs/review-attestation/test-results/
 
 # Magasin de la démo : créé depuis initialStore au premier démarrage.

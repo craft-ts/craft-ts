@@ -213,52 +213,6 @@ describe('e-commerce authentication', () => {
 });
 
 describe('e-commerce server functions', () => {
-  it('exposes resume inventory checks only when explicitly enabled and keeps them read-only', async () => {
-    const request = (
-      facts: readonly { kind: 'product' | 'category'; name: string }[],
-    ) =>
-      new Request('http://ecommerce.test/__server-functions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          id: 'ecommerce.resume.facts',
-          input: { facts },
-        }),
-      });
-    const facts = [
-      { kind: 'product', name: 'croissant' },
-      { kind: 'product', name: 'missing-product' },
-      { kind: 'category', name: 'coffee' },
-      { kind: 'category', name: 'missing-category' },
-    ] as const;
-
-    expect(
-      (
-        await createDemoApplication(join(directory, 'store.json')).handle(
-          request(facts),
-        )
-      ).status,
-    ).toBe(400);
-
-    const devApplication = createDemoApplication(
-      join(directory, 'store.json'),
-      {
-        allowResumePreflight: true,
-      },
-    );
-    const response = await devApplication.handle(request(facts));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(
-      JSON.stringify([
-        { kind: 'entity', name: 'croissant', detail: 'product' },
-        { kind: 'entity', name: 'coffee', detail: 'category' },
-      ]),
-    );
-    await expect(access(join(directory, 'store.json'))).rejects.toMatchObject({
-      code: 'ENOENT',
-    });
-  });
-
   it('keeps catalogue reads read-only when the store file does not exist', async () => {
     await invoke(catalog, {});
     await expect(access(join(directory, 'store.json'))).rejects.toMatchObject({

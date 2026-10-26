@@ -187,7 +187,6 @@ type MutationConfig<
   LoaderYielded = never,
   StreamYielded = never,
 > = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
-  { readonly resume?: import('./craft-resume').CraftResumeSpec } &
   (
     | {
         /**
@@ -1835,7 +1834,6 @@ function createMutationRef<
             resourceTarget as any,
           ),
       name,
-      mutationConfig.resume,
     ),
   );
 

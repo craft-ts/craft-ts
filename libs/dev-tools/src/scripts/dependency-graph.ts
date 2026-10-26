@@ -39,7 +39,6 @@ import {
   type GraphReportOptions,
 } from './graph-report.js';
 import { applyCoverage, type IstanbulCoverageMap } from './graph-coverage.js';
-import { resumeGraphArtifactOf } from './resume-chain.js';
 import {
   attachNodeDocs,
   declarationDocOf,
@@ -272,8 +271,6 @@ export type WriteDependencyGraphOptions = AnalyzeDependencyGraphOptions & {
   report?: GraphReportOptions;
   /** A parsed `coverage-final.json`, applied to every written format. */
   coverage?: IstanbulCoverageMap;
-  /** Optional compact graph artifact for the session-resume planner. */
-  resumeGraphPath?: string;
 };
 
 const PRIMITIVES = new Set([
@@ -543,7 +540,6 @@ export function analyzeDependencyGraph(
   analyzePrimitiveInsertionMetadata(builder);
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
-  analyzePrimitiveResumeDeclarations(builder, sourceFiles);
   collectInteractiveTemplateElements(builder);
   collectStyledElements(builder);
   analyzeRoutes(builder);
@@ -639,18 +635,6 @@ export async function writeDependencyGraph(
     await writeFile(
       `${basePath}.report.md`,
       formatGraphReportMarkdown(report),
-      'utf8',
-    );
-  }
-  if (options.resumeGraphPath) {
-    const resumeGraphPath = resolve(
-      options.rootDir ?? process.cwd(),
-      options.resumeGraphPath,
-    );
-    await mkdir(dirname(resumeGraphPath), { recursive: true });
-    await writeFile(
-      resumeGraphPath,
-      `${JSON.stringify(resumeGraphArtifactOf(graph), null, 2)}\n`,
       'utf8',
     );
   }
@@ -2757,104 +2741,6 @@ function analyzeComponents(builder: GraphBuilder): void {
     }
     collectServicePropertyUses(builder, component);
   }
-}
-
-function analyzePrimitiveResumeDeclarations(
-  builder: GraphBuilder,
-  sourceFiles: readonly SourceFile[],
-): void {
-  for (const sourceFile of sourceFiles) {
-    for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const primitive = primitiveFactoryName(call);
-      if (!primitive || !['state', 'query', 'mutation'].includes(primitive)) continue;
-      const configIndex = 1;
-      const config = call.getArguments()[configIndex]?.asKind(SyntaxKind.ObjectLiteralExpression);
-      // A state takes `withResume(...)` as its last insertion; queries and
-      // mutations a `resume` property of their config.
-      const withResume = primitive === 'state'
-        ? call.getArguments().at(-1)?.asKind(SyntaxKind.CallExpression)
-        : undefined;
-      const resumeInitializer =
-        withResume?.getExpression().getText() === 'withResume'
-          ? withResume.getArguments()[0]
-          : config
-              ?.getProperty('resume')
-              ?.asKind(SyntaxKind.PropertyAssignment)
-              ?.getInitializer();
-      const resume = resumeDeclarationLiteral(resumeInitializer);
-      if (!resume) continue;
-      const primitiveNode = builder.nodes.get(stablePrimitiveId(call, primitive));
-      if (!primitiveNode) continue;
-      const details: Record<string, unknown> = {};
-      for (const property of resume.getProperties()) {
-        const assignment = property.asKind(SyntaxKind.PropertyAssignment);
-        if (!assignment) continue;
-        const name = assignment.getName().replace(/^['"]|['"]$/g, '');
-        if (
-          name === 'write' &&
-          (Node.isArrowFunction(assignment.getInitializer()) ||
-            Node.isFunctionExpression(assignment.getInitializer()))
-        ) {
-          details['hasWrite'] = true;
-          continue;
-        }
-        const value =
-          name === 'resource'
-            ? resumeResourceName(assignment.getInitializer())
-            : staticLiteralValue(assignment.getInitializer());
-        if (value !== undefined) details[name] = value;
-      }
-      if (Object.keys(details).length > 0) {
-        primitiveNode.details = {
-          ...(primitiveNode.details ?? {}),
-          resume: details,
-        };
-      }
-    }
-  }
-}
-
-/** `'session'`, or the name a `craftResumeResource('session')` constant carries. */
-function resumeResourceName(node: Node | undefined): string | undefined {
-  const literal = node && staticLiteralValue(node);
-  if (typeof literal === 'string') return literal;
-  const identifier = node?.asKind(SyntaxKind.Identifier);
-  const symbol = identifier?.getSymbol();
-  const declaration = (symbol?.getAliasedSymbol() ?? symbol)
-    ?.getDeclarations()
-    .find(Node.isVariableDeclaration);
-  const call = declaration?.getInitializer()?.asKind(SyntaxKind.CallExpression);
-  if (call?.getExpression().getText() !== 'craftResumeResource') return undefined;
-  const name = staticLiteralValue(call.getArguments()[0]);
-  return typeof name === 'string' ? name : undefined;
-}
-
-/**
- * The object literal a resume declaration is written as: inline, in
- * `craftResume({...})`, or returned by `craftResume((self) => ({...}))`.
- */
-function resumeDeclarationLiteral(
-  node: Node | undefined,
-): import('ts-morph').ObjectLiteralExpression | undefined {
-  if (!node) return undefined;
-  const literal = node.asKind(SyntaxKind.ObjectLiteralExpression);
-  if (literal) return literal;
-  const call = node.asKind(SyntaxKind.CallExpression);
-  if (call?.getExpression().getText() !== 'craftResume') return undefined;
-  const argument = call.getArguments()[0];
-  const direct = argument?.asKind(SyntaxKind.ObjectLiteralExpression);
-  if (direct) return direct;
-  if (Node.isArrowFunction(argument) || Node.isFunctionExpression(argument)) {
-    const body = argument.getBody();
-    const returned = Node.isBlock(body)
-      ? body.getDescendantsOfKind(SyntaxKind.ReturnStatement)[0]?.getExpression()
-      : body;
-    let expression: Node | undefined = returned;
-    while (expression && Node.isParenthesizedExpression(expression))
-      expression = expression.getExpression();
-    return expression?.asKind(SyntaxKind.ObjectLiteralExpression);
-  }
-  return undefined;
 }
 
 /**
@@ -5953,17 +5839,9 @@ function addServerFunctionUsage(
   const family = serverFunctionFamilyForCall(builder, call);
   if (!family) return;
   const owner = ownerNodeForCall(builder, call, aggregateOwnerId);
-  const serverFunctionId = String(family.details?.['serverFunctionId'] ?? '');
-  const acquisition = /(?:login|sign.?in|\.create|\.acquire|\.refresh)/i.test(
-    serverFunctionId,
-  );
   addEdge(builder, owner.id, family.id, 'calls', 'type', {
     serverFunction: true,
-    ...(acquisition
-      ? { resourceRole: 'acquisition' }
-      : resourceLoaderFactory(call)
-        ? { resourceRole: 'loader' }
-        : {}),
+    ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
     line: call.getStartLineNumber(),
   });
 }

@@ -57,10 +57,7 @@ import {
 } from './debug-session-browser-storage';
 import { connectDebugSessionDialogCapture } from './debug-session-dialogs';
 import { connectDebugSessionFetchCapture } from './debug-session-fetch-capture';
-import {
-  createDebugSessionReferenceRedactor,
-  lastPathKey,
-} from './debug-session-references';
+import { createDebugSessionReferenceRedactor } from './debug-session-references';
 import { connectDebugSessionXhrCapture } from './debug-session-xhr-capture';
 import { connectDebugSessionFormCapture } from './debug-session-form-capture';
 import { connectDebugSessionHoverCapture } from './debug-session-hover';
@@ -68,7 +65,6 @@ import { connectDebugSessionPerformanceCapture } from './debug-session-performan
 import { connectDebugSessionScrollCapture } from './debug-session-scroll';
 import { connectDebugSessionViewportCapture } from './debug-session-viewport';
 import { connectReplaySnapshotCapture } from './debug-session-orchestrator';
-import type { DebugSessionResumeSourceHashRecord } from './debug-session-resume-protocol';
 import {
   CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT,
   isCraftDebugReplayLaunch,
@@ -516,10 +512,6 @@ export function provideCraftDebugSessionCapture(
     captureBrowserStorage?: boolean;
     /** EXPERIMENTAL: capture Craft and source$ arguments for local invocation replay. */
     captureReplayArguments?: boolean;
-    /** Capture the redacted source-hash baseline used by verified resume. */
-    captureResumeSourceHashes?: () => Promise<
-      readonly DebugSessionResumeSourceHashRecord[]
-    >;
     /** Capture serialized restart points after the app reaches a stable state. */
     captureReplaySnapshots?: Readonly<{
       appVersion: string;
@@ -623,20 +615,6 @@ export function provideCraftDebugSessionCapture(
       ? [
           provideAppInitializer(async () => {
             ɵinjectSendContextSession();
-            if (
-              options.captureResumeSourceHashes &&
-              !isCraftDebugReplayLaunch()
-            ) {
-              try {
-                const records = await options.captureResumeSourceHashes();
-                session?.capture('snapshot', 'emitted', {
-                  name: 'resume-source-hashes',
-                  payload: { version: 1, records },
-                });
-              } catch {
-                // Missing baselines are reported as a planner warning.
-              }
-            }
             if (startupStorageSnapshot) {
               const snapshot = await startupStorageSnapshot;
               if (session) {
@@ -697,28 +675,17 @@ export function provideCraftDebugSessionCapture(
             captureSensitiveInputValues: options.captureSensitiveInputValues,
           })
         : undefined;
-      // Declared resume paths are traced even when their value is a number.
-      const resumeRegistry = ɵinjectCraftPrimitiveRegistry();
-      const resumeTracedKeys = () =>
-        new Set(
-          resumeRegistry.list().flatMap((entry) => {
-            const key = entry.resume?.path
-              ? lastPathKey(entry.resume.path)
-              : undefined;
-            return key ? [key] : [];
-          }),
-        );
       const disconnectFetchCapture =
         recording &&
         options.captureReplayArguments === true &&
         isLoopbackWebSocketUrl(options.webSocketUrl)
-          ? connectDebugSessionFetchCapture(createdSession, resumeTracedKeys)
+          ? connectDebugSessionFetchCapture(createdSession)
           : undefined;
       const disconnectXhrCapture =
         recording &&
         options.captureReplayArguments === true &&
         isLoopbackWebSocketUrl(options.webSocketUrl)
-          ? connectDebugSessionXhrCapture(createdSession, resumeTracedKeys)
+          ? connectDebugSessionXhrCapture(createdSession)
           : undefined;
       const disconnectPrimitiveCapture =
         recording &&

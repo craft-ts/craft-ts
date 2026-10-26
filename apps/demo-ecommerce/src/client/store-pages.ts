@@ -1,5 +1,5 @@
 import { a, article, aside, button, craftComponent, div, forNode, heading, headingSection, ifNode, input, li, main, p, section, span, strong, ul } from '@craft-ts/component';
-import { CraftRouter, CraftRouterLink, craftComputed, craftResume, craftService, craftSleep, craftUse, isCraftException, query } from '@craft-ts/core';
+import { CraftRouter, CraftRouterLink, craftComputed, craftService, craftSleep, craftUse, isCraftException, query } from '@craft-ts/core';
 import { catalog, placeOrder, searchCatalog } from './api';
 import { categoryName, categoryTone, euros, eventValue, failureOf, groupRule, lineKey, productEmoji, stockLabel } from './shop-format';
 import { ProductIdPathParams } from './product-id-path-params';
@@ -20,17 +20,6 @@ const isAvailable = (product: Product) => product.kind === 'formule' || product.
 export const { StorefrontView, provideStorefrontView } = craftService({ name: 'storefrontView', providedIn: 'toProvide' }, function* () {
   const cart = yield* Cart();
   yield* query('storeQuery', {
-    resume: craftResume({
-      resource: 'catalog',
-      role: 'provides',
-      persona: 'guest',
-      calls: ['ecommerce.catalog'],
-      entities: [
-        { kind: 'product', path: '$.products[*].id' },
-        { kind: 'category', path: '$.categories[*].id' },
-      ],
-      acquire: () => loadStore(),
-    }),
     params: () => true,
     loader: loadStore,
   }, ({ resource }) => ({
@@ -55,11 +44,6 @@ export const { StorefrontView, provideStorefrontView } = craftService({ name: 's
 export const { SearchView, provideSearchView } = craftService({ name: 'searchView', providedIn: 'toProvide' }, function* () {
   const shopUi = yield* ShopUi();
   yield* query('searchQuery', {
-    resume: craftResume({
-      resource: 'catalog',
-      role: 'requires',
-      calls: ['ecommerce.catalog.search'],
-    }),
     params: function* () { return (yield* shopUi.searchTerm()).trim(); },
     loader: function* ({ params: search }) {
       if (!search) return [] as Product[];

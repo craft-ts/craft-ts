@@ -9,11 +9,6 @@ import { ɵcraftValueService } from './craft-service';
 import { ɵHOST_TAG_LIST } from './craft-service';
 import { ɵcurrentInjector, ɵloopGuardPrimitiveCreated } from './loop-guard';
 import { ɵwithCraftReplay } from './craft-replay';
-import {
-  ɵresolveCraftResume,
-  type CraftResumeDeclaration,
-  type CraftResumeSpec,
-} from './craft-resume';
 
 /**
  * Primitives that hold a value the registry can read back and write into.
@@ -50,8 +45,6 @@ export type CraftPrimitiveEntry = Readonly<{
   error?(): unknown;
   /** Explicit opt-out from SSR transfer for secrets and private history. */
   transfer?: boolean;
-  /** Static resume policy, exposed to tooling without changing runtime behavior. */
-  resume?: CraftResumeDeclaration;
   /**
    * Re-runs the primitive's loader, when it has one. A resource the snapshot
    * does not cover is reloaded rather than left showing data that belongs to
@@ -359,7 +352,6 @@ export function ɵcraftPrimitiveAddress(
 type RegisterOptions = Readonly<{
   kind: CraftPrimitiveKind;
   name: string;
-  resume?: CraftResumeSpec;
   read(): unknown;
   write(value: unknown): void;
   restoreError?(error: unknown): void;
@@ -418,13 +410,6 @@ export function ɵregisterCraftPrimitive(
     injector: options.injector ?? ɵcurrentInjector(),
   });
 
-  // A factory declaration receives the primitive it is attached to.
-  const resume = ɵresolveCraftResume(
-    options.resume,
-    Object.assign(() => options.read(), {
-      set: (value: unknown) => options.write(value),
-    }),
-  );
   const { address, release } = registry.register(
     ɵcraftPrimitiveAddress(hostTags, options.kind, options.name),
     {
@@ -437,7 +422,6 @@ export function ɵregisterCraftPrimitive(
       ...(options.reload ? { reload: options.reload } : {}),
       ...(options.status ? { status: options.status } : {}),
       ...(options.error ? { error: options.error } : {}),
-      ...(resume ? { resume } : {}),
       // Aucun défaut ici : le transfert d'une primitive est une décision de
       // la politique de sécurité de l'application, pas du framework.
       ...(options.transfer === undefined ? {} : { transfer: options.transfer }),
