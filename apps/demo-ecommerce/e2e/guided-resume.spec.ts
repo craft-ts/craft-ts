@@ -15,6 +15,7 @@ import { craftSession, expect, test } from './fixtures';
 
 const serverOrigin = process.env['CRAFT_E2E_SESSION_SERVER_ORIGIN'] ?? 'http://127.0.0.1:4322';
 const bridgePort = Number(process.env['CRAFT_E2E_MCP_BRIDGE_PORT'] ?? '4334');
+const dashboardOrigin = process.env['CRAFT_E2E_SESSION_DASHBOARD_ORIGIN'] ?? 'http://localhost:4212';
 
 type Json = Record<string, unknown>;
 
@@ -219,5 +220,21 @@ test.describe('reprise guidée par une IA simulée', () => {
     await openApp(brokenTab, `/admin?craft-resume-checkpoint=${broken.id}`);
     await expect(brokenTab.locator('[data-craft-resume-checkpoint-notice]')).toContainText('ne tient plus', { timeout: 20_000 });
     await brokenContext.close();
+
+    // 9. Le fil de la reprise, suivi depuis le dashboard : l'IA y écrit, la personne y répond.
+    await tool(logs, 'resume.say', { kind: 'done', text: 'Point figé, valide une heure.' });
+    const dashboardContext = await craftSessions.newContext();
+    const dashboard = await dashboardContext.newPage();
+    await dashboard.goto(`${dashboardOrigin}/#/sessions/${sessionId}`);
+    await dashboard.getByRole('button', { name: 'Journal', exact: true }).click();
+    await dashboard.getByRole('tab', { name: 'Reprise' }).click();
+    await expect(dashboard.locator('[data-lab="resume-thread"]')).toContainText('Point figé, valide une heure.', { timeout: 20_000 });
+    await dashboard.getByRole('textbox', { name: 'Réponse à l’IA' }).fill('Merci, je reprends la main.');
+    await dashboard.locator('[data-lab="send-resume-reply"]').click();
+    await expect
+      .poll(async () => (await tool<{ replies: { text: string }[] }>(logs, 'resume.replies')).replies.map((reply) => reply.text))
+      .toContain('Merci, je reprends la main.');
+    await expect(dashboard.locator('[data-lab="resume-thread"]')).toContainText('Merci, je reprends la main.');
+    await dashboardContext.close();
   });
 });

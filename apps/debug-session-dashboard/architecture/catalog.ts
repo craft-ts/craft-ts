@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "048daff75a135d5a",
+  "graphHash": "611bd59a8f2e19a0",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -27,6 +27,7 @@ export const architectureCatalog = {
     "e2eReplayRoute",
     "replayDashboardState",
     "replayRoute",
+    "resumeThread",
     "sessionArchive",
     "thumbnailArchive",
     "thumbnailPreview"
@@ -73,6 +74,7 @@ export const architectureCatalog = {
     "ReplayOrchestration",
     "ReplayPage",
     "ReplayPlaybar",
+    "ReplayResumeThread",
     "ReplaySidePanel",
     "ReplayStage",
     "ReplayThumbnailMarks",
@@ -120,6 +122,7 @@ export const architectureCatalog = {
     "differenceHistoryOpen",
     "differenceMessage",
     "dismissedWarnings",
+    "draft",
     "emptyHidden",
     "environmentWarningHidden",
     "environmentWarningState",
@@ -169,6 +172,7 @@ export const architectureCatalog = {
     "nextActionTimingHidden",
     "nextActionTimingText",
     "nextDisabled",
+    "noResumeRequest",
     "notesHidden",
     "open",
     "openArchivedSession",
@@ -213,15 +217,20 @@ export const architectureCatalog = {
     "replayWarnings",
     "replayableEventsState",
     "replayableParticipantsState",
+    "reply",
     "reportText",
     "restartDisabled",
     "resumeCheckpointList",
     "resumeCheckpoints",
     "resumeDisabled",
+    "resumeEmptyHidden",
+    "resumeEmptyText",
     "resumeLabel",
+    "resumeMessages",
     "resumeRequest",
     "resumeRequestFailed",
     "resumeRequestSending",
+    "resumeSendDisabled",
     "resumeTooltip",
     "retentionDays",
     "retryHidden",
@@ -265,6 +274,7 @@ export const architectureCatalog = {
     "summaryHidden",
     "summaryText",
     "targetUrl",
+    "thread",
     "thumbnailManifest",
     "timeProgress",
     "timeRemaining",
@@ -317,6 +327,10 @@ export const architectureCatalog = {
     },
     {
       "method": "GET",
+      "url": "*/sessions/resume-requests/latest?*"
+    },
+    {
+      "method": "GET",
       "url": "<unresolved:e2e-replay-route.service.ts:26>"
     },
     {
@@ -334,6 +348,10 @@ export const architectureCatalog = {
     {
       "method": "POST",
       "url": "*/sessions/resume-requests"
+    },
+    {
+      "method": "POST",
+      "url": "*/sessions/resume-requests/*/messages"
     },
     {
       "method": "POST",
@@ -470,6 +488,7 @@ export const architectureCatalog = {
     "aiChatBridge": "global",
     "replayRoute": "global",
     "replayDashboardState": "global",
+    "resumeThread": "global",
     "sessionArchive": "global",
     "thumbnailArchive": "global",
     "thumbnailPreview": "global",

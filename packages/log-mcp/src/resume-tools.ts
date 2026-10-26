@@ -77,6 +77,54 @@ export function registerResumeTools(server: McpServer): void {
   );
 
   server.registerTool(
+    'resume.say',
+    {
+      description:
+        'Write in the resume thread the dashboard shows next to the replay: a step you take, a question, a hand-off (say the same as app.handoff), or done. Returns what the person answered there since your previous message. Keep it to one or two sentences.',
+      inputSchema: {
+        text: z.string().min(1).max(2_000),
+        kind: z.enum(['step', 'question', 'handoff', 'done']).optional(),
+        requestId: z.string().uuid().optional().describe('The latest resume request when omitted'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async ({ text, kind, requestId }) =>
+      guarded(async () => {
+        const id = requestId ?? (await latestRequest())?.id;
+        if (!id) throw new Error(NO_REQUEST_HINT);
+        const before = await threadOf(id);
+        const response = await fetch(`${logServerUrl()}/sessions/resume-requests/${id}/messages`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ from: 'ai', text, ...(kind ? { kind } : {}) }),
+        });
+        if (!response.ok) throw new Error(`Could not write in the thread (HTTP ${response.status}).`);
+        const { message } = (await response.json()) as { message: ResumeMessage };
+        return { message, replies: repliesAfterLastAi(before) };
+      }),
+  );
+
+  server.registerTool(
+    'resume.replies',
+    {
+      description:
+        'Read what the person wrote in the resume thread of the dashboard, after a message id (all of it when omitted).',
+      inputSchema: {
+        since: z.number().int().nonnegative().optional(),
+        requestId: z.string().uuid().optional().describe('The latest resume request when omitted'),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ since, requestId }) =>
+      guarded(async () => {
+        const id = requestId ?? (await latestRequest())?.id;
+        if (!id) throw new Error(NO_REQUEST_HINT);
+        const thread = await threadOf(id, since);
+        return { requestId: id, replies: thread.filter((message) => message.from === 'person') };
+      }),
+  );
+
+  server.registerTool(
     'session.story',
     {
       description:
@@ -151,6 +199,28 @@ export function registerResumeTools(server: McpServer): void {
         return { sessionId: point.sessionId, ...recorded };
       }),
   );
+}
+
+type ResumeMessage = Readonly<{
+  id: number;
+  at: string;
+  from: 'ai' | 'person';
+  kind: string;
+  text: string;
+}>;
+
+async function threadOf(requestId: string, since = 0): Promise<readonly ResumeMessage[]> {
+  const response = await fetch(
+    `${logServerUrl()}/sessions/resume-requests/${requestId}/messages?since=${since}`,
+  );
+  if (!response.ok) throw new Error(`Could not read the thread (HTTP ${response.status}).`);
+  return ((await response.json()) as { messages: ResumeMessage[] }).messages;
+}
+
+/** What the person wrote after the AI last spoke. */
+function repliesAfterLastAi(thread: readonly ResumeMessage[]): readonly ResumeMessage[] {
+  const lastAi = thread.reduce((last, message, index) => (message.from === 'ai' ? index : last), -1);
+  return thread.slice(lastAi + 1).filter((message) => message.from === 'person');
 }
 
 const NO_REQUEST_HINT =

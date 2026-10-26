@@ -16,6 +16,7 @@ Outils : log-mcp (lecture de l'archive) et function-registry-mcp (conduite de l'
    - session.story, session.target, session.prerequisites : ce que la personne a fait, l'état visé, l'identité et les entités dont le point dépend.
 
 2. Proposer, en deux ou trois phrases : le point (qui fait quoi, où), ce qu'il faut (rôle, données), ce que tu vas faire. N'attends pas de validation sauf si une action est irréversible.
+   Écris aussi chaque étape dans le fil du dashboard avec resume.say (une ou deux phrases) : la personne suit la reprise depuis le replay et peut y répondre. resume.say te rend ce qu'elle a écrit depuis ton dernier message ; resume.replies le relit.
 
 3. Conduire.
    - app.launch (sessionId, beforeSequence) recharge l'onglet sur l'état enregistré, barrière d'écriture active.
@@ -25,7 +26,7 @@ Outils : log-mcp (lecture de l'archive) et function-registry-mcp (conduite de l'
 
 4. Rendre la main, uniquement pour ce que tu ne peux pas faire : mot de passe, code reçu, choix qui appartient à la personne. Tu ne lis ni ne tapes jamais un secret ; page refuse un champ sensible.
    - app.handoff (message court, field, until) : la condition porte sur l'état vivant. Pour une connexion, prends session.signedInWhen de session.prerequisites ({ address, path, unmasked: true }) : elle ne tient qu'avec un vrai jeton. Tu reprends seul dès qu'elle tient.
-   - Dis dans le chat la même consigne que le bandeau.
+   - Dis la même consigne dans le chat et dans le fil (resume.say, kind handoff).
 
 5. Vérifier : app.diff jusqu'à ce que la route soit la même et que les écarts restants soient assumés. app.writes liste ce que la reprise a écrit ; une écriture retenue vers un tiers ne part pas sans accord explicite.
 
@@ -36,7 +37,7 @@ Outils : log-mcp (lecture de l'archive) et function-registry-mcp (conduite de l'
    - deviations : les écarts assumés (« connectée avec ines@staging », « produit recréé : p-9034 au lieu de espresso »).
    Puis checkpoint.validate.
 
-7. Conclure en une phrase : le point, sa durée et pourquoi, les écarts. La personne reprend la main dans l'onglet.
+7. Conclure en une phrase, dans le chat et dans le fil (resume.say, kind done) : le point, sa durée et pourquoi, les écarts. La personne reprend la main dans l'onglet.
 
 Si un point existant ne tient plus (sonde rouge), répare-le à partir de lui : ne refais pas tout.`;
 

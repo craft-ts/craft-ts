@@ -18,6 +18,9 @@ dashboard does that without touching a server.
 3. Otherwise the dashboard publishes the point and copies a sentence to paste
    into the AI host (Claude Code, Codex…). The AI drives the tab and shows an
    « À vous » banner when it needs the person, with the field highlighted.
+4. The **Reprise** tab of the replay's side panel shows the thread of the
+   resume: the AI's steps and hand-offs, and a field to answer it without
+   leaving the dashboard.
 
 ## Install
 
@@ -46,6 +49,7 @@ archive) and `npm run registry:mcp` (driving the tab). The prompt
 | Tool | Server | Role |
 |---|---|---|
 | `resume.request` | log-mcp | the point left by **Reprendre ici** |
+| `resume.say`, `resume.replies` | log-mcp | write a step, question or hand-off in the dashboard thread; read the person's answers |
 | `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | log-mcp | what happened, the state to reach, the identity and entities it needs, one recorded call |
 | `app.launch`, `app.diff` | registry | reload the tab on the recorded state; compare it with the point |
 | `app.replay` | registry | invoke a recorded gesture with arguments adapted to live data |
@@ -61,8 +65,10 @@ archive) and `npm run registry:mcp` (driving the tab). The prompt
   (`[REDACTED]` in state, `craft-ref:…` in calls), so a recorded session
   never opens as such: the AI hands the sign-in back and waits for the
   condition `session.prerequisites` gives (`signedInWhen`, a real token).
-- **Write barrier.** Once launched, the tab holds writes (`fetch` with a body)
-  to another origin than its own or loopback, and journals the others.
+- **Write barrier.** Once launched, the tab holds writes (`fetch` or
+  `XMLHttpRequest` with a body) to another origin than its own or loopback,
+  and journals the others; a server function named like a read is counted,
+  not listed.
 - **Resume points stay local.** They hold a test session's storage, tokens
   included, under `<DEBUG_SESSION_DIR>/checkpoints`, out of git. Probes only
   reach the app's own origin.

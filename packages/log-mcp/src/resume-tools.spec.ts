@@ -22,6 +22,7 @@ describe('resume tools', () => {
   let directory: string;
   let client: Client;
   let request: Record<string, unknown> | null;
+  let thread: Record<string, unknown>[];
   let previousFetch: typeof fetch;
   let previousUrl: string | undefined;
 
@@ -31,9 +32,20 @@ describe('resume tools', () => {
     previousUrl = process.env['LOG_SERVER_URL'];
     process.env['LOG_SERVER_URL'] = 'http://log.test';
     request = { id: 'r1', sessionId: SESSION, beforeSequence: 40, createdAt: '2026-10-26T10:00:00.000Z' };
-    globalThis.fetch = async (input) => {
+    thread = [];
+    globalThis.fetch = async (input, init) => {
       const url = new URL(String(input));
       if (url.pathname === '/sessions/resume-requests/latest') return Response.json({ request });
+      if (url.pathname === '/sessions/resume-requests/r1/messages') {
+        if (init?.method === 'POST') {
+          const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+          const message = { id: thread.length + 1, at: 'now', kind: 'step', ...body };
+          thread.push(message);
+          return Response.json({ message }, { status: 201 });
+        }
+        const since = Number(url.searchParams.get('since') ?? '0');
+        return Response.json({ messages: thread.filter((message) => Number(message['id']) > since) });
+      }
       if (url.pathname === `/sessions/${SESSION}`) return Response.json(archive);
       return new Response(null, { status: 404 });
     };
@@ -104,5 +116,19 @@ describe('resume tools', () => {
     expect(text).toContain('app.handoff');
     expect(text).toContain('checkpoint.save');
     expect(text).toContain(SESSION);
+  });
+  it('writes in the dashboard thread and returns what the person answered since', async () => {
+    await call('resume.say', { text: 'J’ouvre l’app sur /admin.' });
+    thread.push({ id: thread.length + 1, at: 'now', from: 'person', kind: 'reply', text: 'Prends le compte de Camille.' });
+
+    const said = await call('resume.say', { text: 'À vous : connectez-vous.', kind: 'handoff' });
+
+    expect(said['message']).toMatchObject({ from: 'ai', kind: 'handoff' });
+    expect(said['replies']).toEqual([expect.objectContaining({ text: 'Prends le compte de Camille.' })]);
+    await expect(call('resume.replies', { since: 2 })).resolves.toMatchObject({ replies: [] });
+    await expect(call('resume.replies')).resolves.toMatchObject({
+      requestId: 'r1',
+      replies: [expect.objectContaining({ from: 'person' })],
+    });
   });
 });

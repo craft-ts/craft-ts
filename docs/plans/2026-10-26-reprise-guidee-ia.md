@@ -61,10 +61,14 @@ qu'il soit rechargé sans elle tant qu'il reste valide.
 > sondes décodent une réponse JSON encodée deux fois avant d'y chercher un
 > texte. Le second essai est allé au bout : `app.diff` vide après la
 > connexion, point valide du premier coup, réouverture sans IA à l'état exact.
-> Reste : la retenue des écritures par XHR, le relais de chat (proposition C),
-> le bruit du récit (polling répété), `app.writes` qui compte chaque fonction
-> serveur comme une écriture, le pont du noyau qui répond `pageUrl` au lieu de
-> `url`.
+> Suite (2026-10-26) : la barrière couvre XHR ; le journal nomme la fonction
+> serveur et distingue lecture et écriture (`app.writes` compte les lectures) ;
+> `session.story` raconte une fois un appel répété sans geste entre deux
+> (`repeated`, `lastSequence`) ; le pont du noyau répond `url` et `title` ;
+> **proposition C en place** : fil par demande de reprise dans le log-server
+> (`/sessions/resume-requests/<id>/messages`), outils `resume.say` et
+> `resume.replies`, onglet **Reprise** du panneau latéral du dashboard qui
+> l'affiche et permet de répondre (vérifié en vrai et dans l'e2e).
 > Dans un worktree dont `node_modules` pointe vers le checkout principal,
 > lancer l'e2e avec `--tsconfig apps/demo-ecommerce/tsconfig.json` pour que les
 > serveurs MCP chargés dans le test lisent le `session-trace` du worktree. Le code retiré reste lisible sur
@@ -297,7 +301,7 @@ Une IA réelle n'intervient que dans un test manuel documenté (G5).
 | Contre | On jongle entre deux fenêtres. | Il faut un modèle avec appel d'outils côté dashboard, des clés, une boucle d'agent à écrire. | Un aller-retour de plus par message. |
 | Coût | faible | élevé | moyen |
 
-Proposition : **A maintenant**, **C ensuite** si le va-et-vient gêne, **B** seulement si on veut une reprise sans hôte IA installé.
+Proposition : **A maintenant**, **C ensuite** si le va-et-vient gêne, **B** seulement si on veut une reprise sans hôte IA installé. **A et C sont en place** (2026-10-26).
 
 ## Questions ouvertes
 

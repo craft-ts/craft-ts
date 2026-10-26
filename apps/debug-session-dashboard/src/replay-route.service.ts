@@ -33,6 +33,7 @@ import {
 import { installReplayWorkerSurface } from './replay-worker';
 import { httpFailureReason, SessionArchive } from './session-archive.service';
 import { E2eComparison } from './e2e-comparison.service';
+import { ResumeThread } from './resume-thread.service';
 import {
   ThumbnailArchive,
   type ThumbnailManifest,
@@ -72,6 +73,7 @@ export const { ReplayRoute } = craftService(
     const archive = yield* SessionArchive();
     const e2eComparison = yield* E2eComparison();
     const thumbnails = yield* ThumbnailArchive();
+    const resumeThread = yield* ResumeThread();
     const archivedValue = rawReactiveValue(archive.archived.value);
     const archivedException = rawReactiveValue(archive.archived.exception);
     const deletedValue = rawReactiveValue(archive.deleteSession.value);
@@ -93,6 +95,7 @@ export const { ReplayRoute } = craftService(
       beginSessionLoad(id);
       archive.archived.call(id);
       archive.resumeCheckpoints.call(id);
+      if (!workerMode) resumeThread.watch(id);
     };
 
     const remove = (id: string): void => {
@@ -163,6 +166,7 @@ export const { ReplayRoute } = craftService(
       if (id && id !== registers.loadedArchiveSessionId) open(id);
       if (!id) {
         thumbnails.stop();
+        resumeThread.stop();
         thumbnailManifest.set(undefined);
       }
       if (!id && !importedSession && !e2eReplay) {

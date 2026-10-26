@@ -60,7 +60,7 @@ describe('resume requests', () => {
 
   it('answers null when nobody asked', async () => {
     const latest = await fetch(`${baseUrl}/sessions/resume-requests/latest`);
-    await expect(latest.json()).resolves.toEqual({ request: null });
+    await expect(latest.json()).resolves.toEqual({ request: null, messages: [] });
   });
 
   it('rejects malformed requests and foreign origins', async () => {
@@ -73,6 +73,37 @@ describe('resume requests', () => {
     expect(allowed.headers.get('access-control-allow-origin')).toBe(
       'http://localhost:4210',
     );
+  });
+
+  it('keeps a thread per request, readable from the latest request or since a message', async () => {
+    const created = (await (await post({ sessionId: SESSION })).json()) as { request: { id: string } };
+    const thread = `${baseUrl}/sessions/resume-requests/${created.request.id}/messages`;
+    const say = (body: unknown) =>
+      fetch(thread, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+    const first = (await (await say({ from: 'ai', text: 'J’ouvre l’app sur /admin.' })).json()) as { message: { id: number } };
+    await say({ from: 'ai', kind: 'handoff', text: 'À vous : connectez-vous.' });
+    await say({ from: 'person', text: 'C’est fait.' });
+
+    const latest = (await (await fetch(`${baseUrl}/sessions/resume-requests/latest?sessionId=${SESSION}`)).json()) as {
+      messages: { from: string; kind: string }[];
+    };
+    expect(latest.messages.map((message) => [message.from, message.kind])).toEqual([
+      ['ai', 'step'],
+      ['ai', 'handoff'],
+      ['person', 'reply'],
+    ]);
+    const since = (await (await fetch(`${thread}?since=${first.message.id}`)).json()) as { messages: unknown[] };
+    expect(since.messages).toHaveLength(2);
+
+    expect((await say({ from: 'robot', text: 'x' })).status).toBe(400);
+    expect((await say({ from: 'ai', text: '   ' })).status).toBe(400);
+    const unknown = await fetch(`${baseUrl}/sessions/resume-requests/${OTHER}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ from: 'ai', text: 'perdu' }),
+    });
+    expect(unknown.status).toBe(404);
   });
 
   it('keeps only the most recent requests', () => {

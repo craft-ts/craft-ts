@@ -17,6 +17,10 @@ The logs MCP prompt `reprise-guidee` holds the same method.
    Then `session.story`, `session.target`, `session.prerequisites`.
 2. **Propose** in two or three sentences: who does what, where; what is needed
    (role, data); what you will do. Ask only before an irreversible action.
+   Write each step in the dashboard thread too (`resume.say`): the person
+   follows the resume from the replay and may answer there; `resume.say`
+   returns what they wrote since your previous message, `resume.replies`
+   reads it again.
 3. **Drive.** `app.launch` reloads the tab on the recorded state (write barrier
    on). `app.diff` tells what is missing; close the gap with `page` (goto, fill,
    click), `app.replay` (a recorded gesture with arguments fitted to live data)
@@ -33,7 +37,8 @@ The logs MCP prompt `reprise-guidee` holds the same method.
    { "address": "service:session / state:currentSession / state:currentSession", "path": "token", "unmasked": true }
    ```
 
-   Say the same instruction in the chat.
+   Say the same instruction in the chat and in the thread (`resume.say`, kind
+   `handoff`).
 5. **Check.** `app.diff` until the route matches and the remaining differences
    are accepted. `app.writes` lists what the resume wrote; a held write to a
    third party never goes out without explicit consent.
@@ -42,7 +47,7 @@ The logs MCP prompt `reprise-guidee` holds the same method.
    point holds (signed in, entity exists — use `{{state <address> <path>}}` for
    a live token or id), `created` entities with the request that deletes them,
    and `deviations` you accepted. Then `checkpoint.validate`.
-7. **Conclude** in one sentence: the point, how long it is valid and why, the
+7. **Conclude** in one sentence, in the chat and the thread (kind `done`): the point, how long it is valid and why, the
    deviations. The person takes the tab back.
 
 A point whose probe fails is repaired from itself, not rebuilt from scratch.

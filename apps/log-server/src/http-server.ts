@@ -35,6 +35,7 @@ import {
   type ResumeCheckpointStore,
 } from './resume-checkpoints.js';
 import {
+  parseResumeMessageInput,
   parseResumeRequestInput,
   ResumeRequestBoard,
 } from './resume-requests.js';
@@ -226,8 +227,48 @@ async function handleRequest(
       url.pathname === '/sessions/resume-requests/latest'
     ) {
       const sessionId = url.searchParams.get('sessionId') ?? undefined;
-      sendJson(response, 200, { request: board.latest(sessionId) ?? null }, headers);
+      const latest = board.latest(sessionId);
+      sendJson(
+        response,
+        200,
+        { request: latest ?? null, messages: latest ? board.messages(latest.id) : [] },
+        headers,
+      );
       return;
+    }
+    const threadMatch = /^\/sessions\/resume-requests\/([0-9a-f-]{36})\/messages$/i.exec(
+      url.pathname,
+    );
+    if (threadMatch) {
+      const requestId = threadMatch[1]!;
+      if (request.method === 'GET') {
+        const since = Number(url.searchParams.get('since') ?? '0');
+        sendJson(
+          response,
+          200,
+          { messages: board.messages(requestId, Number.isFinite(since) ? since : 0) },
+          headers,
+        );
+        return;
+      }
+      if (request.method === 'POST') {
+        let input;
+        try {
+          input = parseResumeMessageInput(
+            JSON.parse(await readBody(request, Math.min(maxBodySize, 16_000))),
+          );
+        } catch {
+          input = undefined;
+        }
+        if (!input) {
+          sendJson(response, 400, { error: 'Invalid resume message.' }, headers);
+          return;
+        }
+        const message = board.say(requestId, input);
+        if (!message) sendJson(response, 404, { error: 'Resume request not found.' }, headers);
+        else sendJson(response, 201, { message }, headers);
+        return;
+      }
     }
   }
 

@@ -6,10 +6,11 @@ import { ui } from './dashboard.style';
 import { ReplayDetails } from './replay-details';
 import { ReplayJournal } from './replay-journal';
 import { plural } from './replay-model';
+import { ReplayResumeThread } from './replay-resume-thread';
 import { errorCount, sidePanelOpen } from './replay-state';
 import { lit } from './view-helpers';
 
-/** The panel at the side: the journal of errors, then the details. */
+/** The panel at the side: the journal of errors, the details, the resume thread. */
 export const ReplaySidePanel = craftComponent(
   'ReplaySidePanel',
   {},
@@ -42,6 +43,7 @@ export const ReplaySidePanel = craftComponent(
       items: lit([
         { id: 'journal', label: 'Journal', render: () => ReplayJournal({}) },
         { id: 'details', label: 'Détails', render: () => ReplayDetails({}) },
+        { id: 'resume', label: 'Reprise', render: () => ReplayResumeThread({}) },
       ]),
     });
 
