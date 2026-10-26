@@ -346,6 +346,18 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
     ),
   },
 
+  /* demo-route-end */ /* demo-route: temporal-stream-replay */
+  {
+    path: 'temporal-stream-replay',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import(
+          './examples/primitives/temporal-stream-replay/temporal-stream-replay'
+        ),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: state-machine */
   {
     path: 'state-machine',
@@ -525,6 +537,7 @@ type DemoRoutePath =
   | 'state-machine-text'
   | 'state-machine-list'
   | 'replay-methods'
+  | 'temporal-stream-replay'
   | 'craft-service/counter'
   | 'craft-service/register-for'
   | 'craft-service/user-detail'
