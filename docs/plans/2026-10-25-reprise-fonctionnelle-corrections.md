@@ -1,5 +1,8 @@
 # Reprise fonctionnelle : corrections après revue
 
+> **Abandonné (2026-10-26).** L'approche déclarative est retirée ; voir
+> `2026-10-26-reprise-guidee-ia.md`. Ce document reste comme historique.
+
 Suite de `2026-10-24-reprise-fonctionnelle.md`. La revue du 2026-10-25 du
 commit `e109372d8` (branche `codex/reprise-fonctionnelle`) a trouvé des écarts
 entre ce que la reprise annonce et ce qu'elle fait. Ce plan les corrige, sur

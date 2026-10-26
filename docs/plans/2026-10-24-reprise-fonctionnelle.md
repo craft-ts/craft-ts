@@ -1,5 +1,8 @@
 # Reprise fonctionnelle d'une session enregistrée
 
+> **Abandonné (2026-10-26).** L'approche déclarative est retirée ; voir
+> `2026-10-26-reprise-guidee-ia.md`. Ce document reste comme historique.
+
 Depuis le dashboard de replay, rouvrir l'application **en vrai** à un point
 choisi d'une session, avec des états réels et valides : connexion refaite,
 droits du bon rôle, références serveur (jeton, panier) réacquises, temps
