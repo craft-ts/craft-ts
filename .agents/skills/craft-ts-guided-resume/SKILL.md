@@ -26,10 +26,11 @@ The logs MCP prompt `reprise-guidee` holds the same method.
    that belong to the person. Never read or type a secret — `page` refuses a
    sensitive field. `app.handoff` with a short message, the `field`, and an
    `until` condition on the live state. Recorded tokens are masked
-   (`craft-ref:…`), so wait for a real one:
+   (`[REDACTED]` in state, `craft-ref:…` in calls), so wait for a real one —
+   `session.prerequisites` gives it as `session.signedInWhen`:
 
    ```json
-   { "address": "service:session / query:signInProcess", "path": "token", "matches": "^(?!craft-ref:)" }
+   { "address": "service:session / state:currentSession / state:currentSession", "path": "token", "unmasked": true }
    ```
 
    Say the same instruction in the chat.

@@ -45,8 +45,26 @@ qu'il soit rechargé sans elle tant qu'il reste valide.
 > toujours par `app.handoff` (condition `matches: '^(?!craft-ref:)'`) ; la
 > restauration du storage d'origine remplace le `sessionStorage`, donc le mode
 > guidé est porté par l'URL de lancement.
-> Pas encore fait : une reprise menée par une IA réelle (sortie prévue de G5),
-> la retenue des écritures par XHR, le relais de chat (proposition C).
+> Essai réel (2026-10-26) : Claude a mené la reprise de la session de Camille
+> (démo e-commerce, brouillon d'*Espresso* juste avant « Enregistrer ») par les
+> seuls outils MCP, sur une autre origine. Le premier essai a trouvé quatre
+> défauts, corrigés avec tests : (1) un service global défini dans un module
+> paresseux était construit dans le contexte du premier composant qui
+> l'injectait — ses primitives quittaient le registre à la destruction de ce
+> composant, `app.diff` et le point figé ne voyaient plus le brouillon ;
+> l'environnement placé sous la racine vide construit désormais ces défauts
+> (`craft-injector.ts`) ; (2) restaurer le storage d'origine écrasait les clés
+> de l'outillage (id du pont MCP, session de debug de l'onglet) ; elles sont
+> préservées ; (3) l'état masque un jeton en `[REDACTED]`, les appels en
+> `craft-ref:` : la condition `unmasked` reconnaît les deux et
+> `session.prerequisites` la donne toute prête (`signedInWhen`) ; (4) les
+> sondes décodent une réponse JSON encodée deux fois avant d'y chercher un
+> texte. Le second essai est allé au bout : `app.diff` vide après la
+> connexion, point valide du premier coup, réouverture sans IA à l'état exact.
+> Reste : la retenue des écritures par XHR, le relais de chat (proposition C),
+> le bruit du récit (polling répété), `app.writes` qui compte chaque fonction
+> serveur comme une écriture, le pont du noyau qui répond `pageUrl` au lieu de
+> `url`.
 > Dans un worktree dont `node_modules` pointe vers le checkout principal,
 > lancer l'e2e avec `--tsconfig apps/demo-ecommerce/tsconfig.json` pour que les
 > serveurs MCP chargés dans le test lisent le `session-trace` du worktree. Le code retiré reste lisible sur

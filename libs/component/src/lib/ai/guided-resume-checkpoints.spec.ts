@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   cleanUpCheckpoint,
+  decodedAnswer,
   fillTemplate,
   runProbes,
   validateCheckpoint,
@@ -98,5 +99,15 @@ describe('resume checkpoints in the tab', () => {
       expect.objectContaining({ kind: 'product', id: 'p-9034', ok: true, status: 204 }),
     ]);
     expect(calls).toEqual([`DELETE ${location.origin}/api/products/p-9034`]);
+  });
+
+  it('matches a probe against the decoded answer of a server function', async () => {
+    // Server functions answer a JSON string that holds JSON.
+    const answer = JSON.stringify(JSON.stringify({ token: 't', user: { role: 'admin' } }));
+    expect(decodedAnswer(answer)).toBe('{"token":"t","user":{"role":"admin"}}');
+    globalThis.fetch = async () => new Response(answer, { status: 200 });
+    await expect(
+      runProbes([{ method: 'POST', url: '/__server-functions', expect: { status: 200, match: ['"role":"admin"'] } }], registry),
+    ).resolves.toEqual([expect.objectContaining({ ok: true })]);
   });
 });

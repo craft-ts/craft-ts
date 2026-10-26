@@ -204,8 +204,8 @@ export async function restoreBrowserStorageSnapshot(
   snapshot: BrowserStorageSnapshot,
 ): Promise<void> {
   assertBrowserStorageSnapshotRestorable(snapshot);
-  restoreWebStorage(window.localStorage, snapshot.localStorage);
-  restoreWebStorage(window.sessionStorage, snapshot.sessionStorage);
+  ɵrestoreWebStorage(window.localStorage, snapshot.localStorage);
+  ɵrestoreWebStorage(window.sessionStorage, snapshot.sessionStorage);
   await restoreCookies(snapshot.cookies, snapshot.cookieStoreSupported);
   if (snapshot.indexedDbSupported) await restoreIndexedDb(snapshot.indexedDb);
 }
@@ -294,12 +294,22 @@ function readNamedWebStorage(
   }
 }
 
-function restoreWebStorage(
+/**
+ * Keys the dev tooling keeps for this tab: its MCP bridge id, its own debug
+ * session and participant, the guided resume journal, the restore markers.
+ * Restoring a recording must not hand them the recorded tab's values — the
+ * tab would join the recorded session and lose its bridge identity.
+ */
+const TOOLING_STORAGE_KEY = /^(?:craft-ts\.(?:dev-tools|guided-resume)\.|craft-debug-)/;
+
+export function ɵrestoreWebStorage(
   storage: Storage,
   entries: readonly (readonly [string, string])[],
 ): void {
-  storage.clear();
-  for (const [key, value] of entries) storage.setItem(key, value);
+  for (const key of Object.keys(storage))
+    if (!TOOLING_STORAGE_KEY.test(key)) storage.removeItem(key);
+  for (const [key, value] of entries)
+    if (!TOOLING_STORAGE_KEY.test(key)) storage.setItem(key, value);
 }
 
 async function readCookies(

@@ -31,6 +31,12 @@ describe('guided resume handoff', () => {
     const realToken = { address: 'service:session / query:signInProcess', path: 'token', matches: '^(?!craft-ref:)' };
     expect(handoffConditionHolds(realToken, token('craft-ref:ab12'), '/')).toBe(false);
     expect(handoffConditionHolds(realToken, token('tok-123'), '/')).toBe(true);
+    // Both masks a recording uses, as session.prerequisites proposes it.
+    const signedIn = { address: 'service:session / query:signInProcess', path: 'token', unmasked: true };
+    expect(handoffConditionHolds(signedIn, token('[REDACTED]'), '/')).toBe(false);
+    expect(handoffConditionHolds(signedIn, token('craft-ref:ab12'), '/')).toBe(false);
+    expect(handoffConditionHolds(signedIn, token(''), '/')).toBe(false);
+    expect(handoffConditionHolds(signedIn, token('0dca1b8a'), '/')).toBe(true);
   });
 
   it('shows the banner, highlights the field and returns once the person is signed in', async () => {

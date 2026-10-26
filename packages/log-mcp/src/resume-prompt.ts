@@ -21,10 +21,10 @@ Outils : log-mcp (lecture de l'archive) et function-registry-mcp (conduite de l'
    - app.launch (sessionId, beforeSequence) recharge l'onglet sur l'état enregistré, barrière d'écriture active.
    - app.diff dit ce qui manque. Comble l'écart avec page (goto, fill, click), app.replay (un geste enregistré, arguments adaptés aux données vivantes) et registry.*. Crée ce qui n'existe pas ici plutôt que d'abandonner.
    - session.recordedCall donne une réponse enregistrée pour recopier des valeurs.
-   - Les jetons de l'archive sont masqués (craft-ref:…) : une session enregistrée n'est jamais ouverte telle quelle.
+   - Les jetons de l'archive sont masqués ([REDACTED] dans l'état, craft-ref:… dans les appels) : une session enregistrée n'est jamais ouverte telle quelle.
 
 4. Rendre la main, uniquement pour ce que tu ne peux pas faire : mot de passe, code reçu, choix qui appartient à la personne. Tu ne lis ni ne tapes jamais un secret ; page refuse un champ sensible.
-   - app.handoff (message court, field, until) : la condition porte sur l'état vivant, par exemple { address: 'service:session / query:signInProcess', path: 'token', matches: '^(?!craft-ref:)' }. Tu reprends seul dès qu'elle tient.
+   - app.handoff (message court, field, until) : la condition porte sur l'état vivant. Pour une connexion, prends session.signedInWhen de session.prerequisites ({ address, path, unmasked: true }) : elle ne tient qu'avec un vrai jeton. Tu reprends seul dès qu'elle tient.
    - Dis dans le chat la même consigne que le bandeau.
 
 5. Vérifier : app.diff jusqu'à ce que la route soit la même et que les écarts restants soient assumés. app.writes liste ce que la reprise a écrit ; une écriture retenue vers un tiers ne part pas sans accord explicite.

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertBrowserStorageSnapshotRestorable,
   redactBrowserStorageSnapshotForArchive,
+  ɵrestoreWebStorage,
   type BrowserStorageSnapshot,
 } from './debug-session-browser-storage';
 
@@ -139,5 +140,25 @@ describe('browser storage replay snapshots', () => {
         }),
       ),
     ).toThrow(/snapshot is incomplete/);
+  });
+  it('restores the recorded web storage around the dev tooling keys of this tab', () => {
+    sessionStorage.clear();
+    sessionStorage.setItem('craft-ts.dev-tools.client-id', 'this-tab');
+    sessionStorage.setItem('craft-ts.guided-resume.mode', 'true');
+    sessionStorage.setItem('craft-debug-session-participant-id:http://127.0.0.1:4206', 'me');
+    sessionStorage.setItem('stale', 'gone');
+
+    ɵrestoreWebStorage(sessionStorage, [
+      ['craft-ts.dev-tools.client-id', 'recorded-tab'],
+      ['craft-debug-session-participant-id:http://127.0.0.1:4206', 'camille'],
+      ['cart', '[1]'],
+    ]);
+
+    expect(Object.fromEntries(Object.keys(sessionStorage).map((key) => [key, sessionStorage.getItem(key)]))).toEqual({
+      'craft-ts.dev-tools.client-id': 'this-tab',
+      'craft-ts.guided-resume.mode': 'true',
+      'craft-debug-session-participant-id:http://127.0.0.1:4206': 'me',
+      cart: '[1]',
+    });
   });
 });

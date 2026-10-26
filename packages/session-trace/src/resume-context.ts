@@ -64,6 +64,11 @@ export type ResumePrerequisites = Readonly<{
     /** `true` when a value holding a token is still set at the point. */
     open: boolean | 'unknown';
     evidence: string;
+    /**
+     * The condition for `app.handoff` that holds once the live app is signed
+     * in again: the recorded token is masked, so only a real one counts.
+     */
+    signedInWhen?: Readonly<{ address: string; path: string; unmasked: true }>;
   }>;
   /** Route parameters and ids shown by the state at the point. */
   entities: readonly Readonly<{ kind: string; id: string; source: string }>[];
@@ -232,6 +237,14 @@ export function resumePrerequisites(
         : latestHolder
           ? { open: true, evidence: `${latestHolder[0]} garde un jeton au point.` }
           : { open: 'unknown', evidence: 'Aucune valeur portant un jeton.' };
+  const holderPath = latestHolder ? tokenPath(latestHolder[1].value) : undefined;
+  const sessionWithCondition: ResumePrerequisites['session'] =
+    latestHolder && holderPath
+      ? {
+          ...session,
+          signedInWhen: { address: latestHolder[0], path: holderPath, unmasked: true },
+        }
+      : session;
 
   const target = resumeTarget(archive, options);
   const entities: ResumePrerequisites['entities'][number][] = [];
@@ -252,8 +265,8 @@ export function resumePrerequisites(
 
   return {
     identities: dedupeIdentities(identities).slice(0, 10),
-    session,
-    entities: entities.slice(0, 40),
+    session: sessionWithCondition,
+    entities: dedupeEntities(entities).slice(0, 40),
     writes: [...calls.values()]
       .filter((call) => call.method !== 'GET' && WRITE_CALL.test(call.name))
       .map((call) => ({
@@ -445,6 +458,32 @@ function holdsToken(value: unknown, depth = 0): boolean {
       (/token/i.test(key) && typeof child === 'string' && child.length > 0) ||
       (typeof child === 'object' && holdsToken(child, depth + 1)),
   );
+}
+
+/** The dot path of the first token-like field, where `holdsToken` found one. */
+function tokenPath(value: unknown, depth = 0): string | undefined {
+  if (depth > 3) return undefined;
+  for (const [key, child] of Object.entries(record(value))) {
+    if (/token/i.test(key) && typeof child === 'string' && child.length > 0) return key;
+    if (typeof child === 'object') {
+      const nested = tokenPath(child, depth + 1);
+      if (nested) return `${key}.${nested}`;
+    }
+  }
+  return undefined;
+}
+
+/** One entity per kind and id: the first place it was seen is enough. */
+function dedupeEntities<T extends Readonly<{ kind: string; id: string }>>(
+  entities: readonly T[],
+): T[] {
+  const seen = new Set<string>();
+  return entities.filter((entity) => {
+    const key = `${entity.kind}:${entity.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function idsIn(value: unknown, depth = 0): { kind: string; id: string }[] {

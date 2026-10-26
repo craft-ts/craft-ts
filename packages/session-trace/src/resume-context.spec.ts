@@ -46,6 +46,11 @@ describe('resumePrerequisites', () => {
     const prerequisites = resumePrerequisites(adminEdit);
     expect(prerequisites.identities[0]).toMatchObject({ role: 'admin', id: 'camille' });
     expect(prerequisites.session.open).toBe(true);
+    // The recorded token is masked: the AI waits for a real one after handing off.
+    expect(prerequisites.session.signedInWhen).toMatchObject({ path: 'token', unmasked: true });
+    expect(prerequisites.session.signedInWhen?.address).toMatch(/session/);
+    const kinds = prerequisites.entities.map((entity) => `${entity.kind}:${entity.id}`);
+    expect(new Set(kinds).size).toBe(kinds.length);
     expect(prerequisites.writes.map((write) => write.call)).toContain('ecommerce.auth.login');
   });
 

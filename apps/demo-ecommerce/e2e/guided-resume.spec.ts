@@ -139,9 +139,9 @@ test.describe('reprise guidée par une IA simulée', () => {
     // 3. L'IA lit la demande, les prérequis et la cible.
     const request = await tool<{ request: Json }>(logs, 'resume.request');
     expect(request.request).toMatchObject({ sessionId, beforeSequence });
-    const prerequisites = await tool<{ identities: Json[]; session: Json }>(logs, 'session.prerequisites');
+    const prerequisites = await tool<{ identities: Json[]; session: Json & { signedInWhen?: Json } }>(logs, 'session.prerequisites');
     expect(prerequisites.identities[0]).toMatchObject({ role: 'admin' });
-    expect(prerequisites.session).toMatchObject({ open: true });
+    expect(prerequisites.session).toMatchObject({ open: true, signedInWhen: { unmasked: true } });
     const target = await tool<{ route: string; primitives: Json }>(logs, 'session.target');
     expect(target.route).toBe('/admin');
     const holder = tokenHolder(target.primitives);
@@ -168,7 +168,7 @@ test.describe('reprise guidée par une IA simulée', () => {
     const handoff = tool<{ outcome: string }>(registry, 'app.handoff', {
       message: 'Connecte-toi avec le compte admin, je reprends ensuite.',
       field: 'sign-in-password',
-      until: { address: holder.replace(/#\d+/g, ''), path: 'token', matches: '^(?!craft-ref:)' },
+      until: prerequisites.session.signedInWhen,
       timeoutMs: 60_000,
     });
     await expect(tab.locator('[data-craft-guided-resume-handoff]')).toContainText('compte admin');

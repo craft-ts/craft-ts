@@ -200,7 +200,11 @@ function registerGuidedResumeTools(
         .string()
         .min(1)
         .optional()
-        .describe('Regular expression on the value text, e.g. ^(?!craft-ref:) for a real token'),
+        .describe('Regular expression on the value text'),
+      unmasked: z
+        .boolean()
+        .optional()
+        .describe('true: a real value, not a recording mask ([REDACTED], craft-ref:…); see session.prerequisites signedInWhen'),
     }),
     z.object({ route: z.string().min(1).describe('Route prefix to reach') }),
   ]);

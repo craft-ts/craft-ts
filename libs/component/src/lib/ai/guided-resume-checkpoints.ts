@@ -220,7 +220,10 @@ export async function runProbes(
           : { body: typeof body === 'string' ? body : JSON.stringify(body) }),
       });
       const text = await response.text();
-      const missing = (probe.expect.match ?? []).filter((part) => !text.includes(part));
+      const decoded = decodedAnswer(text);
+      const missing = (probe.expect.match ?? []).filter(
+        (part) => !text.includes(part) && !decoded.includes(part),
+      );
       const statusOk =
         probe.expect.status === undefined
           ? response.ok
@@ -240,6 +243,22 @@ export async function runProbes(
     }
   }
   return results;
+}
+
+/**
+ * The answer as JSON text once decoded: server functions answer a JSON string
+ * that holds JSON, where `"role":"admin"` only appears escaped.
+ */
+export function decodedAnswer(text: string): string {
+  let value: unknown = text;
+  for (let depth = 0; depth < 3 && typeof value === 'string'; depth++) {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      break;
+    }
+  }
+  return typeof value === 'string' ? value : JSON.stringify(value);
 }
 
 const STATE_PLACEHOLDER = /\{\{\s*state\s+([^}]+?)\s*\}\}/g;

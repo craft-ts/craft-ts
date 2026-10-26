@@ -21,6 +21,11 @@ export type HandoffCondition =
        * `^(?!craft-ref:)` for a real token where the recording had a masked one.
        */
       matches?: string;
+      /**
+       * True: a real value, not one masked by a recording (`[REDACTED]`,
+       * `craft-ref:…`). What `session.prerequisites` proposes for signing in.
+       */
+      unmasked?: boolean;
     }>
   | Readonly<{ route: string }>;
 
@@ -77,6 +82,11 @@ export function handoffConditionHolds(
   );
   const value =
     address === undefined ? undefined : readPath(captured[address], condition.path);
+  if (condition.unmasked !== undefined)
+    return (
+      (value !== undefined && value !== null && value !== '' && !isMaskedValue(value)) ===
+      condition.unmasked
+    );
   if (condition.matches !== undefined)
     return (
       value !== undefined &&
@@ -182,6 +192,14 @@ function button(document: Document, label: string, primary: boolean): HTMLButton
     cursor: 'pointer',
   });
   return element;
+}
+
+/** A value a recording replaced: a redaction or a reference placeholder. */
+export function isMaskedValue(value: unknown): boolean {
+  return (
+    typeof value === 'string' &&
+    (/^\[REDACTED(?:_[A-Z]+)?\]$/.test(value) || value.startsWith('craft-ref:'))
+  );
 }
 
 function readPath(value: unknown, path: string | undefined): unknown {

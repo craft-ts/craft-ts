@@ -58,7 +58,9 @@ archive) and `npm run registry:mcp` (driving the tab). The prompt
 - **Secrets stay with the person.** `page` never shows the value of a password,
   one-time code or payment field (`type="password"`, `autocomplete`, or
   `data-craft-sensitive`) and refuses to fill it. Recorded tokens are masked
-  (`craft-ref:…`), so a recorded session never opens as such.
+  (`[REDACTED]` in state, `craft-ref:…` in calls), so a recorded session
+  never opens as such: the AI hands the sign-in back and waits for the
+  condition `session.prerequisites` gives (`signedInWhen`, a real token).
 - **Write barrier.** Once launched, the tab holds writes (`fetch` with a body)
   to another origin than its own or loopback, and journals the others.
 - **Resume points stay local.** They hold a test session's storage, tokens
