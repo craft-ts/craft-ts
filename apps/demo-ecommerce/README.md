@@ -16,6 +16,12 @@ Ouvrir le dashboard de replay sur [http://localhost:4210](http://localhost:4210)
 
 La capture et le pont de replay sont actifs en développement. La capture d’entrées, du stockage navigateur et des arguments de replay est activée uniquement quand le serveur de capture est configuré sur une adresse loopback. Les sessions sont archivées localement par le serveur de logs.
 
+## Tests E2E avec historique de session
+
+Les tests de `e2e/` importent `test` et `craftSession` depuis `./fixtures`, puis déclarent un identifiant stable avec `annotation: craftSession({ id: '...' })`. Encadre les actions importantes avec `craftSessions.step(...)` ; crée les contextes supplémentaires avec `craftSessions.newContext()` pour qu’ils rejoignent la même session.
+
+Lance la suite avec `npm run e2e:demo-ecommerce`. Avant Playwright, cette commande exécute ESLint — qui interdit de contourner la fixture — puis le contrôle d’architecture — qui vérifie les annotations, l’unicité des IDs et la cohérence des historiques versionnés. Pour enregistrer volontairement de nouvelles références vertes, utilise `npm run e2e:demo-ecommerce:update`, vérifie le diff de `e2e/__sessions__/`, puis commit les références souhaitées.
+
 ## Comptes de démonstration
 
 L’administration demande une session. Les comptes sont affichés sur les pages **Administration** et **Connexion**, avec un bouton de connexion en un clic :
