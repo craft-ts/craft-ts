@@ -87,6 +87,10 @@ export function provideCraftGuidedResume(
         methods: ɵinjectCraftMethodReplayRegistry(),
         reviveArgument: ɵreviveReplayArgument,
       };
+      // The launch URL carries the mode: restoring the recorded origin
+      // storage replaces this tab's sessionStorage, mode included.
+      if (new URLSearchParams(location.search).has(CRAFT_GUIDED_RESUME_QUERY_PARAM))
+        writeJson(MODE_KEY, true);
       if (readMode()) ɵinstallGuidedResumeWriteBarrier(logServerUrl);
       const archives = (sessionId: string) => fetchArchive(logServerUrl, sessionId);
       ɵregisterCraftMcpBridgeMethod('app/launch', (params) =>

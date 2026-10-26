@@ -7,6 +7,8 @@ const appPort = process.env['CRAFT_E2E_ECOMMERCE_PORT'] ?? '4205';
 const serverPort = process.env['CRAFT_E2E_SESSION_SERVER_PORT'] ?? '4322';
 // 4211 est le dashboard de sa propre config e2e : les deux suites peuvent tourner ensemble.
 const dashboardPort = process.env['CRAFT_E2E_SESSION_DASHBOARD_PORT'] ?? '4212';
+// The guided resume spec starts its own registry broker; 3333 stays the developer's.
+const mcpBridgePort = process.env['CRAFT_E2E_MCP_BRIDGE_PORT'] ?? '4334';
 const appOrigin = `http://localhost:${appPort}`;
 const serverOrigin = `http://127.0.0.1:${serverPort}`;
 const dashboardOrigin = `http://localhost:${dashboardPort}`;
@@ -16,6 +18,7 @@ const storePath = resolve(workspaceRoot, 'apps/demo-ecommerce/tmp/e2e-store.json
 process.env['CRAFT_E2E_SESSION_SERVER_ORIGIN'] = serverOrigin;
 process.env['CRAFT_E2E_SESSION_DASHBOARD_ORIGIN'] = dashboardOrigin;
 process.env['CRAFT_DEMO_ECOMMERCE_STORE'] = storePath;
+process.env['CRAFT_E2E_MCP_BRIDGE_PORT'] = mcpBridgePort;
 
 export default defineConfig({
   testDir: './e2e',
@@ -40,7 +43,7 @@ export default defineConfig({
       url: `${serverOrigin}/health`, reuseExistingServer: false, cwd: workspaceRoot, timeout: 120_000,
     },
     {
-      command: `CRAFT_DEMO_ECOMMERCE_STORE=${storePath} CRAFT_DEMO_ECOMMERCE_PORT=${appPort} VITE_CRAFT_LOG_SERVER_URL=${serverOrigin} VITE_CRAFT_REPLAY_DASHBOARD_ORIGIN=${dashboardOrigin} npx vite --config apps/demo-ecommerce/vite.config.ts --host localhost --strictPort`,
+      command: `CRAFT_DEMO_ECOMMERCE_STORE=${storePath} CRAFT_DEMO_ECOMMERCE_PORT=${appPort} VITE_CRAFT_LOG_SERVER_URL=${serverOrigin} VITE_CRAFT_REPLAY_DASHBOARD_ORIGIN=${dashboardOrigin} VITE_CRAFT_MCP_BRIDGE_URL=ws://127.0.0.1:${mcpBridgePort} npx vite --config apps/demo-ecommerce/vite.config.ts --host localhost --strictPort`,
       url: `${appOrigin}/`, reuseExistingServer: false, cwd: workspaceRoot, timeout: 120_000,
     },
     {

@@ -27,6 +27,10 @@ describe('guided resume handoff', () => {
       handoffConditionHolds({ address: 'service:session / query:currentUser', exists: false }, registry(null), '/'),
     ).toBe(true);
     expect(handoffConditionHolds({ route: '/admin' }, registry(null), '/admin/products')).toBe(true);
+    const token = (value: string) => ({ capture: () => ({ 'service:session / query:signInProcess': { token: value } }) });
+    const realToken = { address: 'service:session / query:signInProcess', path: 'token', matches: '^(?!craft-ref:)' };
+    expect(handoffConditionHolds(realToken, token('craft-ref:ab12'), '/')).toBe(false);
+    expect(handoffConditionHolds(realToken, token('tok-123'), '/')).toBe(true);
   });
 
   it('shows the banner, highlights the field and returns once the person is signed in', async () => {

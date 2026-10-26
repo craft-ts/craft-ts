@@ -35,7 +35,21 @@ qu'il soit rechargé sans elle tant qu'il reste valide.
 > non expiré pris pour ce même événement sur l'app pilotée ; sinon il publie la
 > demande pour l'IA. Limite : les cookies HttpOnly ne se capturent pas ; une
 > valeur non JSON (Date, Map) perd sa forme dans le point.
-> G5 reste à construire. Le code retiré reste lisible sur
+> G5 fait (2026-10-26) : invite MCP `reprise-guidee` (log-mcp), skill
+> `.agents/skills/craft-ts-guided-resume`, page `guide/ai/guided-resume`, et
+> l'e2e `apps/demo-ecommerce/e2e/guided-resume.spec.ts` où une IA simulée (vrais
+> clients MCP, sans modèle) lit la session, lance l'onglet au point, se voit
+> refuser le mot de passe, rend la main, reprend quand un vrai jeton est là,
+> fige le point ; le point se rouvre sans IA, une sonde rouge l'invalide.
+> Appris en route : l'archive masque les jetons, donc la connexion passe
+> toujours par `app.handoff` (condition `matches: '^(?!craft-ref:)'`) ; la
+> restauration du storage d'origine remplace le `sessionStorage`, donc le mode
+> guidé est porté par l'URL de lancement.
+> Pas encore fait : une reprise menée par une IA réelle (sortie prévue de G5),
+> la retenue des écritures par XHR, le relais de chat (proposition C).
+> Dans un worktree dont `node_modules` pointe vers le checkout principal,
+> lancer l'e2e avec `--tsconfig apps/demo-ecommerce/tsconfig.json` pour que les
+> serveurs MCP chargés dans le test lisent le `session-trace` du worktree. Le code retiré reste lisible sur
 > `claude/reprise-fonctionnelle-corrections` (`56e08a48c`) : G1 y reprend
 > les heuristiques d'identité et de vivacité (`debug-session-resume-plan.ts`),
 > G2 la barrière et la retenue des requêtes au démarrage
@@ -245,7 +259,7 @@ de reprise).
 | **G2** ✓ | Conduite : `app.launch` sans ouvreur, `app.replay`, `app.diff`, barrière en mode IA, refus des champs sensibles dans `page act fill` | un script de test (sans modèle) mène S1 jusqu'au point et `app.diff` est vide |
 | **G3** ✓ | Passage de main : `app.handoff` (bandeau, champ, condition, expiration) | le script attend une connexion humaine simulée et reprend seul |
 | **G4** ✓ | Points de reprise : `checkpoint.*`, sondes, validité, nettoyage ; **Reprendre ici** rouvre un point valide | un point S2 se rouvre sans IA ; une sonde rouge (produit supprimé) le déclare invalide |
-| **G5** | Invite et méthode pour l'IA : prompt de reprise (lire, proposer, conduire, rendre la main, vérifier, figer, choisir la durée), skill pour l'hôte | une IA réelle mène S1 et S2 de bout en bout avec une seule intervention humaine (la connexion) |
+| **G5** ✓ | Invite et méthode pour l'IA : prompt de reprise (lire, proposer, conduire, rendre la main, vérifier, figer, choisir la durée), skill pour l'hôte | une IA réelle mène S1 et S2 de bout en bout avec une seule intervention humaine (la connexion) |
 
 G1 et G2 sont indépendants ; G3 et G4 s'appuient sur G2 ; G5 vient en dernier.
 

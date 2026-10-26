@@ -96,4 +96,13 @@ describe('resume tools', () => {
       error: expect.stringContaining('Reprendre ici'),
     });
   });
+  it('serves the guided resume method as a prompt', async () => {
+    const prompts = await client.listPrompts();
+    expect(prompts.prompts.map((prompt) => prompt.name)).toEqual(['reprise-guidee']);
+    const prompt = await client.getPrompt({ name: 'reprise-guidee', arguments: { sessionId: SESSION } });
+    const text = (prompt.messages[0]?.content as { text: string }).text;
+    expect(text).toContain('app.handoff');
+    expect(text).toContain('checkpoint.save');
+    expect(text).toContain(SESSION);
+  });
 });

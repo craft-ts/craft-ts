@@ -16,6 +16,11 @@ export type HandoffCondition =
       notEquals?: unknown;
       /** True: defined and not null. False: undefined or null. */
       exists?: boolean;
+      /**
+       * A regular expression the value's text must match, e.g.
+       * `^(?!craft-ref:)` for a real token where the recording had a masked one.
+       */
+      matches?: string;
     }>
   | Readonly<{ route: string }>;
 
@@ -72,6 +77,12 @@ export function handoffConditionHolds(
   );
   const value =
     address === undefined ? undefined : readPath(captured[address], condition.path);
+  if (condition.matches !== undefined)
+    return (
+      value !== undefined &&
+      value !== null &&
+      new RegExp(condition.matches).test(typeof value === 'string' ? value : JSON.stringify(value))
+    );
   if (condition.exists !== undefined)
     return condition.exists ? value !== undefined && value !== null : value == null;
   if ('equals' in condition) return sameValue(value, condition.equals);

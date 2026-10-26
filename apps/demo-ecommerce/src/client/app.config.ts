@@ -34,6 +34,9 @@ export const appConfig = craftAppConfig({
       ? [
           ...provideCraftDevTools({
             logServerUrl: `${localLogServerUrl}/logs`,
+            ...(import.meta.env['VITE_CRAFT_MCP_BRIDGE_URL']
+              ? { mcpBridgeUrl: import.meta.env['VITE_CRAFT_MCP_BRIDGE_URL'] }
+              : {}),
           }),
           provideCraftDebugSessionCapture({
             webSocketUrl: `${localLogServerUrl.replace(/^http/, 'ws')}/sessions/ws`,

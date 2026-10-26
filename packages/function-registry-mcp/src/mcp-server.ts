@@ -196,6 +196,11 @@ function registerGuidedResumeTools(
       equals: z.unknown().optional(),
       notEquals: z.unknown().optional(),
       exists: z.boolean().optional(),
+      matches: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('Regular expression on the value text, e.g. ^(?!craft-ref:) for a real token'),
     }),
     z.object({ route: z.string().min(1).describe('Route prefix to reach') }),
   ]);
