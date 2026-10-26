@@ -113,6 +113,39 @@ const resumeRequestDecoder = {
   },
 };
 
+/** A resume point frozen by the AI, as the archive lists it. */
+export type ResumeCheckpointSummary = Readonly<{
+  id: string;
+  beforeSequence?: number;
+  origin: string;
+  route?: string;
+  expired: boolean;
+  expiresAt: string;
+  ttlReason: string;
+}>;
+
+function isResumeCheckpointSummary(value: unknown): value is ResumeCheckpointSummary {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    typeof value['origin'] === 'string' &&
+    typeof value['expired'] === 'boolean' &&
+    typeof value['expiresAt'] === 'string' &&
+    typeof value['ttlReason'] === 'string' &&
+    (value['beforeSequence'] === undefined || typeof value['beforeSequence'] === 'number') &&
+    (value['route'] === undefined || typeof value['route'] === 'string')
+  );
+}
+
+const checkpointListDecoder = {
+  decode(input: unknown): readonly ResumeCheckpointSummary[] {
+    const checkpoints = isRecord(input) ? input['checkpoints'] : undefined;
+    return Array.isArray(checkpoints)
+      ? checkpoints.filter(isResumeCheckpointSummary)
+      : [];
+  },
+};
+
 /** Why a request to the archive failed, in a few words. */
 export function httpFailureReason(exception: unknown): string {
   const payload = isRecord(exception) ? exception['payload'] : undefined;
@@ -224,6 +257,25 @@ export const { SessionArchive } = craftService(
       },
       () => ({}),
     );
+
+    // The points of one session, read when it opens: "Reprendre ici" reopens
+    // a valid one directly, without the AI.
+    const resumeCheckpoints = yield* query(
+      'resumeCheckpoints',
+      {
+        method: (sessionId: string) => sessionId,
+        loader: function* ({ params: sessionId }) {
+          return yield* CraftHttpClient.get(({ response }) => ({
+            url: `${SESSION_ARCHIVE_URL}/sessions/checkpoints?${new URLSearchParams({ sessionId })}`,
+            success: response(checkpointListDecoder),
+          }));
+        },
+      },
+      () => ({}),
+    );
+    yield* craftComputed('resumeCheckpointList', function* () {
+      return (yield* resumeCheckpoints.value()) ?? [];
+    });
 
     yield* craftComputed('savedSessions', function* () {
       return (yield* sessions.value())?.sessions ?? [];

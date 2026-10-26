@@ -16,6 +16,7 @@ export * from './lib/ai/debug-session-replay-signals';
 export * from './lib/ai/debug-session-replay-bridge';
 export * from './lib/ai/guided-resume';
 export * from './lib/ai/guided-resume-handoff';
+export * from './lib/ai/guided-resume-checkpoints';
 export * from './lib/ai/send-context-ui.tokens';
 export * from './lib/ai/send-context-to-ai';
 export * from './lib/assert-defined-input';

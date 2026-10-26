@@ -92,6 +92,7 @@ export const { ReplayRoute } = craftService(
       thumbnailManifest.set(undefined);
       beginSessionLoad(id);
       archive.archived.call(id);
+      archive.resumeCheckpoints.call(id);
     };
 
     const remove = (id: string): void => {

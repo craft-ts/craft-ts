@@ -25,7 +25,17 @@ qu'il soit rechargé sans elle tant qu'il reste valide.
 > quand la condition tient dans l'état vivant (adresse sans ordinal + chemin,
 > `equals`/`notEquals`/`exists`, ou préfixe de route), sur « C'est fait »,
 > « Je ne peux pas » ou à l'expiration (5 min par défaut).
-> G4 et G5 restent à construire. Le code retiré reste lisible sur
+> G4 fait (2026-10-26) : points de reprise sur disque dans le log-server
+> (`/sessions/checkpoints`, `<DEBUG_SESSION_DIR>/checkpoints`), outils
+> `checkpoint.save/list/restore/validate/cleanup`. L'onglet capture son état
+> (primitives, storage persistant, storage d'origine), rouvre un point seul
+> (`?craft-resume-checkpoint=<id>`) et joue les sondes de son origine, avec
+> `{{state <adresse> <chemin>}}` pour reprendre un jeton ou un id vivant. Une
+> sonde rouge affiche un bandeau. **Reprendre ici** rouvre directement un point
+> non expiré pris pour ce même événement sur l'app pilotée ; sinon il publie la
+> demande pour l'IA. Limite : les cookies HttpOnly ne se capturent pas ; une
+> valeur non JSON (Date, Map) perd sa forme dans le point.
+> G5 reste à construire. Le code retiré reste lisible sur
 > `claude/reprise-fonctionnelle-corrections` (`56e08a48c`) : G1 y reprend
 > les heuristiques d'identité et de vivacité (`debug-session-resume-plan.ts`),
 > G2 la barrière et la retenue des requêtes au démarrage
@@ -234,7 +244,7 @@ de reprise).
 | **G1** ✓ | Lecture : `resume.request`, `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | sur les archives S1-S6, le récit et les prérequis sont corrects (tests sur archives figées) |
 | **G2** ✓ | Conduite : `app.launch` sans ouvreur, `app.replay`, `app.diff`, barrière en mode IA, refus des champs sensibles dans `page act fill` | un script de test (sans modèle) mène S1 jusqu'au point et `app.diff` est vide |
 | **G3** ✓ | Passage de main : `app.handoff` (bandeau, champ, condition, expiration) | le script attend une connexion humaine simulée et reprend seul |
-| **G4** | Points de reprise : `checkpoint.*`, sondes, validité, nettoyage ; **Reprendre ici** rouvre un point valide | un point S2 se rouvre sans IA ; une sonde rouge (produit supprimé) le déclare invalide |
+| **G4** ✓ | Points de reprise : `checkpoint.*`, sondes, validité, nettoyage ; **Reprendre ici** rouvre un point valide | un point S2 se rouvre sans IA ; une sonde rouge (produit supprimé) le déclare invalide |
 | **G5** | Invite et méthode pour l'IA : prompt de reprise (lire, proposer, conduire, rendre la main, vérifier, figer, choisir la durée), skill pour l'hôte | une IA réelle mène S1 et S2 de bout en bout avec une seule intervention humaine (la connexion) |
 
 G1 et G2 sont indépendants ; G3 et G4 s'appuient sur G2 ; G5 vient en dernier.

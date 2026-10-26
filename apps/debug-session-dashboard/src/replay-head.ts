@@ -13,9 +13,17 @@ import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { goToHash, requestFrameFullscreen } from './replay-browser';
-import { launchDebugAppAtReplay, replayPoint } from './replay-debug';
+import {
+  launchDebugAppAtReplay,
+  openResumeCheckpoint,
+  replayPoint,
+} from './replay-debug';
 import { sessionDate } from './replay-labels';
-import { isRecord, participantOptionLabel } from './replay-model';
+import {
+  isRecord,
+  parseLocalTarget,
+  participantOptionLabel,
+} from './replay-model';
 import { selectParticipant } from './replay-session';
 import {
   connected,
@@ -32,8 +40,12 @@ import {
   selectedParticipantId,
   session,
   sidePanelOpen,
+  targetUrl,
 } from './replay-state';
-import { SessionArchive } from './session-archive.service';
+import {
+  SessionArchive,
+  type ResumeCheckpointSummary,
+} from './session-archive.service';
 import { eventValue } from './view-helpers';
 
 /** What to tell the AI host once the point is published. */
@@ -47,6 +59,22 @@ function copyResumePrompt(text: string): void {
   const clipboard =
     typeof navigator === 'undefined' ? undefined : navigator.clipboard;
   if (clipboard) void clipboard.writeText(text).catch(() => undefined);
+}
+
+/** A point frozen for this very event, on the app the dashboard drives. */
+function readyCheckpointFor(
+  checkpoints: readonly ResumeCheckpointSummary[],
+  target: string,
+  beforeSequence: number | undefined,
+): ResumeCheckpointSummary | undefined {
+  const parsed = parseLocalTarget(target.trim());
+  const origin = parsed.ok ? parsed.url.origin : undefined;
+  return checkpoints.find(
+    (checkpoint) =>
+      !checkpoint.expired &&
+      checkpoint.origin === origin &&
+      checkpoint.beforeSequence === beforeSequence,
+  );
 }
 
 /** The head of the replay page: the way back, which session, and the tools. */
@@ -199,6 +227,14 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
 
   const resumeRequestSending = rawReactiveValue(archive.resumeRequestSending);
   const resumeRequestFailed = rawReactiveValue(archive.resumeRequestFailed);
+  const resumeCheckpoints = rawReactiveValue(archive.resumeCheckpointList);
+  const readyCheckpoint = yield* craftComputed('readyCheckpoint', () =>
+    readyCheckpointFor(
+      resumeCheckpoints(),
+      targetUrl(),
+      replayPoint().beforeSequence,
+    ),
+  );
   const resumeDisabled = yield* craftComputed(
     'resumeDisabled',
     () => routeSessionId() === undefined || resumeRequestSending(),
@@ -213,10 +249,19 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       'aria-label': 'Reprendre ici',
       'aria-description':
         'Demande à l’IA de ramener l’application vivante au point du replay.',
-      'data-tooltip':
-        'Publie ce point pour l’IA (outil resume.request) et copie l’invite à lui donner.',
+      'data-tooltip': yield* craftComputed('resumeTooltip', function* () {
+        const ready = yield* readyCheckpoint();
+        return ready
+          ? `Rouvre le point de reprise enregistré (valide jusqu’au ${new Date(ready.expiresAt).toLocaleString('fr-FR')} : ${ready.ttlReason}).`
+          : 'Publie ce point pour l’IA (outil resume.request) et copie l’invite à lui donner.';
+      }),
       disabled: resumeDisabled,
       click: function* () {
+        const ready = yield* readyCheckpoint();
+        if (ready) {
+          openResumeCheckpoint(ready);
+          return;
+        }
         const sessionId = routeSessionId();
         if (sessionId === undefined) return;
         const point = replayPoint();
@@ -224,9 +269,14 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
         yield* archive.requestResume({ sessionId, ...point });
       },
     },
-    yield* craftComputed('resumeLabel', () =>
-      resumeRequestFailed() ? 'Reprise : archive injoignable' : 'Reprendre ici',
-    ),
+    yield* craftComputed('resumeLabel', function* () {
+      const ready = yield* readyCheckpoint();
+      return resumeRequestFailed()
+        ? 'Reprise : archive injoignable'
+        : ready
+          ? 'Reprendre ici · point prêt'
+          : 'Reprendre ici';
+    }),
   );
 
   const journal = button(

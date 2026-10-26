@@ -6,7 +6,16 @@ import type { RegistryBrokerMethod } from './protocol.js';
 type RegistryRequester = Pick<RegistryBridgeBroker, 'request'>;
 type PrimitiveValueKind = 'query' | 'asyncProcess' | 'mutation' | 'queryParams';
 
-export function createRegistryMcpServer(bridge: RegistryRequester): McpServer {
+export type RegistryMcpServerOptions = Readonly<{
+  /** Where resume points are kept; `LOG_SERVER_URL` or the local log server. */
+  logServerUrl?: string;
+  fetch?: typeof fetch;
+}>;
+
+export function createRegistryMcpServer(
+  bridge: RegistryRequester,
+  options: RegistryMcpServerOptions = {},
+): McpServer {
   const server = new McpServer({
     name: 'craft-ts-function-registry',
     version: '0.1.0',
@@ -123,6 +132,7 @@ export function createRegistryMcpServer(bridge: RegistryRequester): McpServer {
   );
 
   registerGuidedResumeTools(server, bridge);
+  registerCheckpointTools(server, bridge, options);
 
   return server;
 }
@@ -218,6 +228,136 @@ function registerGuidedResumeTools(
     'app/writes',
     'List the writes the tab made since the guided resume started: allowed (same origin, journaled) and held (another origin, never sent).',
     { clientId: z.string().min(1).optional() },
+  );
+}
+
+const probe = z.object({
+  method: z.string().min(1).optional(),
+  url: z.string().min(1).describe('Same-origin path; may use {{state <address> <path>}}'),
+  headers: z.record(z.string(), z.string()).optional(),
+  body: z.unknown().optional(),
+  expect: z.object({
+    status: z.number().int().optional(),
+    match: z.array(z.string()).optional().describe('Substrings the answer must contain'),
+  }),
+});
+
+/**
+ * Resume points: the AI freezes the tab once it is at the recorded point, so
+ * the point reopens later without it while its probes still hold.
+ */
+function registerCheckpointTools(
+  server: McpServer,
+  bridge: RegistryRequester,
+  options: RegistryMcpServerOptions,
+): void {
+  const http = options.fetch ?? fetch;
+  const base = () =>
+    (options.logServerUrl ?? process.env['LOG_SERVER_URL'] ?? 'http://127.0.0.1:4319').replace(/\/$/, '');
+  const json = async (path: string, init?: RequestInit) => {
+    const response = await http(`${base()}${path}`, init);
+    const body = (await response.json()) as Record<string, unknown>;
+    if (!response.ok) throw new Error(String(body['error'] ?? `HTTP ${response.status}`));
+    return body;
+  };
+  const clientId = z.string().min(1).optional();
+
+  server.registerTool(
+    'checkpoint.save',
+    {
+      description:
+        'Freeze the connected tab as a resume point of a recorded session, once app.diff says it is there. You choose how long it stays valid and say why (token lifetime, data that will be reset…). Probes are same-origin requests replayed before every reopen; list what the resume created with a cleanup request, and the deviations you accepted.',
+      inputSchema: {
+        clientId,
+        sessionId: z.string().uuid(),
+        beforeSequence: z.number().int().nonnegative().optional(),
+        label: z.string().min(1).max(200).optional(),
+        ttlMs: z.number().int().min(60_000).max(30 * 24 * 60 * 60_000),
+        ttlReason: z.string().min(1).max(300),
+        probes: z.array(probe).max(20).optional(),
+        created: z
+          .array(z.object({ kind: z.string().min(1), id: z.string().min(1), cleanup: probe.optional() }))
+          .max(50)
+          .optional(),
+        deviations: z.array(z.string().min(1).max(300)).max(30).optional(),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async ({ clientId: target, ttlMs, ...point }) => {
+      const captured = (await bridge.request('app/checkpoint/capture', {
+        ...(target === undefined ? {} : { clientId: target }),
+      })) as { origin: string; snapshot: unknown };
+      const saved = await json('/sessions/checkpoints', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ...point,
+          origin: captured.origin,
+          snapshot: captured.snapshot,
+          expiresAt: new Date(Date.now() + ttlMs).toISOString(),
+        }),
+      });
+      return toolResult(saved['checkpoint']);
+    },
+  );
+
+  server.registerTool(
+    'checkpoint.list',
+    {
+      description:
+        'List the resume points kept for a session (or all), newest first, with their expiry, reason, probes and deviations. `expired` is computed now; checkpoint.validate also runs the probes.',
+      inputSchema: {
+        sessionId: z.string().uuid().optional(),
+        beforeSequence: z.number().int().nonnegative().optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ sessionId, beforeSequence }) => {
+      const query = new URLSearchParams({
+        ...(sessionId === undefined ? {} : { sessionId }),
+        ...(beforeSequence === undefined ? {} : { beforeSequence: String(beforeSequence) }),
+      });
+      const listed = await json(`/sessions/checkpoints${query.size ? `?${query}` : ''}`);
+      return toolResult(listed['checkpoints']);
+    },
+  );
+
+  registerTool(
+    server,
+    bridge,
+    'checkpoint.restore',
+    'app/checkpoint/restore',
+    'Reload the connected tab on a resume point (state and origin storage). Then call checkpoint.validate.',
+    { clientId, id: z.string().uuid(), timeoutMs: z.number().int().positive().max(120_000).optional() },
+    true,
+  );
+  registerTool(
+    server,
+    bridge,
+    'checkpoint.validate',
+    'app/checkpoint/validate',
+    'Check a resume point from the connected tab: not expired, same origin, and every probe answers as expected. A failing probe tells what to repair, starting from the point.',
+    { clientId, id: z.string().uuid(), timeoutMs: z.number().int().positive().max(120_000).optional() },
+  );
+
+  server.registerTool(
+    'checkpoint.cleanup',
+    {
+      description:
+        'Delete what the resume created (the cleanup request of each created entity, sent from the connected tab), then forget the point unless keep is true.',
+      inputSchema: { clientId, id: z.string().uuid(), keep: z.boolean().optional() },
+      annotations: { readOnlyHint: false, destructiveHint: true },
+    },
+    async ({ clientId: target, id, keep }) => {
+      const cleaned = (await bridge.request('app/checkpoint/cleanup', {
+        ...(target === undefined ? {} : { clientId: target }),
+        id,
+      })) as readonly { ok: boolean }[];
+      const forget = keep !== true && cleaned.every((result) => result.ok);
+      if (forget)
+        await json(`/sessions/checkpoints/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return toolResult({ cleaned, forgotten: forget });
+    },
   );
 }
 

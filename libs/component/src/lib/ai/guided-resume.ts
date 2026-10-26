@@ -12,6 +12,15 @@ import {
   type DebugAppSnapshot,
 } from './debug-session-app-snapshot';
 import { validateDebugSessionExport } from './debug-session-replay';
+import {
+  captureLiveSnapshot,
+  cleanUpCheckpoint,
+  CRAFT_RESUME_CHECKPOINT_QUERY_PARAM,
+  fetchCheckpoint,
+  readLastCheckpointValidity,
+  reopenCheckpointFromUrl,
+  validateCheckpoint,
+} from './guided-resume-checkpoints';
 import { handOff, parseHandoffRequest } from './guided-resume-handoff';
 import { ɵreviveReplayArgument } from './debug-session-replay-bridge';
 import {
@@ -25,7 +34,7 @@ import {
  * from the local log server itself, so nothing but ids crosses the bridge.
  *
  * Methods added to the bridge: `app/launch`, `app/diff`, `app/replay`,
- * `app/writes`, `app/handoff`. Once a launch has happened the tab is in guided mode for the
+ * `app/writes`, `app/handoff`, and `app/checkpoint/*` for resume points. Once a launch has happened the tab is in guided mode for the
  * rest of its session: writes to another origin are held, the others journaled.
  */
 export type CraftGuidedResumeOptions = Readonly<{
@@ -99,7 +108,37 @@ export function provideCraftGuidedResume(
         active: readMode(),
         writes: readJournal(),
         lastLaunch: readJson(LAST_LAUNCH_KEY),
+        lastCheckpoint: readLastCheckpointValidity(),
       }));
+      ɵregisterCraftMcpBridgeMethod('app/checkpoint/capture', () =>
+        captureLiveSnapshot(restoreOptions),
+      );
+      ɵregisterCraftMcpBridgeMethod('app/checkpoint/validate', async (params) =>
+        validateCheckpoint(
+          await fetchCheckpoint(logServerUrl, requireId(params)),
+          restoreOptions.registry,
+        ),
+      );
+      ɵregisterCraftMcpBridgeMethod('app/checkpoint/cleanup', async (params) =>
+        cleanUpCheckpoint(
+          await fetchCheckpoint(logServerUrl, requireId(params)),
+          restoreOptions.registry,
+        ),
+      );
+      ɵregisterCraftMcpBridgeMethod('app/checkpoint/restore', async (params) => {
+        const id = requireId(params);
+        const checkpoint = await fetchCheckpoint(logServerUrl, id);
+        const route =
+          isRecord(checkpoint.snapshot) && typeof checkpoint.snapshot['route'] === 'string'
+            ? checkpoint.snapshot['route']
+            : '/';
+        const url = new URL(route, location.href);
+        url.searchParams.set(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM, id);
+        setTimeout(() => location.assign(url.href), 50);
+        return { reloading: true, url: url.href, next: 'Call checkpoint.validate once the tab is back.' };
+      });
+      if (new URLSearchParams(location.search).has(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM))
+        return reopenCheckpointFromUrl(logServerUrl, restoreOptions);
       return launchFromUrl(archives, restoreOptions);
     }),
   ];
@@ -173,6 +212,12 @@ async function launchFromUrl(
   for (const name of [CRAFT_GUIDED_RESUME_QUERY_PARAM, BEFORE_PARAM, PARTICIPANT_PARAM])
     url.searchParams.delete(name);
   history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+function requireId(params: Readonly<Record<string, unknown>>): string {
+  const id = params['id'];
+  if (typeof id !== 'string' || id.length === 0) throw new Error('id is required.');
+  return id;
 }
 
 function parsePoint(params: Readonly<Record<string, unknown>>): GuidedResumePoint {

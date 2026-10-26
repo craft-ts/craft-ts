@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "896213753c435fd2",
+  "graphHash": "048daff75a135d5a",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -198,6 +198,7 @@ export const architectureCatalog = {
     "problemMessage",
     "pruneSessions",
     "reachable",
+    "readyCheckpoint",
     "recordingLabel",
     "renderedMarks",
     "replayActionOffsetsMsState",
@@ -214,11 +215,14 @@ export const architectureCatalog = {
     "replayableParticipantsState",
     "reportText",
     "restartDisabled",
+    "resumeCheckpointList",
+    "resumeCheckpoints",
     "resumeDisabled",
     "resumeLabel",
     "resumeRequest",
     "resumeRequestFailed",
     "resumeRequestSending",
+    "resumeTooltip",
     "retentionDays",
     "retryHidden",
     "savedSessions",
@@ -306,6 +310,10 @@ export const architectureCatalog = {
     {
       "method": "GET",
       "url": "*/sessions/*/thumbnails"
+    },
+    {
+      "method": "GET",
+      "url": "*/sessions/checkpoints?*"
     },
     {
       "method": "GET",
