@@ -281,7 +281,7 @@ describe('AiSendContextChat', () => {
   );
 
   it.each([400, 503])(
-    'offers Retry and Copy payload after HTTP %s without copying automatically',
+    'offers Retry and Copy prompt after HTTP %s without copying automatically',
     async (status) => {
       const session = createSendContextSession();
       const fetchMock =
@@ -313,12 +313,12 @@ describe('AiSendContextChat', () => {
         String((fetchMock.mock.calls[0]?.[1] as RequestInit).body),
       );
       rendered.nativeElement
-        .querySelector<HTMLButtonElement>('[data-craft-name="aiCopyPayload"]')
+        .querySelector<HTMLButtonElement>(
+          '[data-craft-name="aiCopyWebhookPrompt"]',
+        )
         ?.click();
       await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
-      expect(JSON.parse(writeText.mock.calls[0]?.[0] as string)).toEqual(
-        firstBody,
-      );
+      expect(writeText.mock.calls[0]?.[0]).toContain('# Selected elements (1)');
 
       rendered.nativeElement
         .querySelector<HTMLButtonElement>('[data-craft-name="aiRetrySend"]')
@@ -456,6 +456,7 @@ describe('AiSendContextChat', () => {
 
   it('drops a section from the prompt when its checkbox is unchecked', async () => {
     const session = createSendContextSession();
+    session.capture('custom', 'emitted', { name: 'optional-timeline-event' });
     const rendered = await renderChat(createUiContext(session, []));
 
     const instruction = rendered.nativeElement.querySelector(
@@ -465,7 +466,7 @@ describe('AiSendContextChat', () => {
     instruction.dispatchEvent(new Event('input', { bubbles: true }));
 
     const componentOption = rendered.nativeElement.querySelector(
-      '[data-craft-name="aiIncludeComponent"]',
+      '[data-craft-name="aiIncludeTimeline"]',
     ) as HTMLInputElement;
     expect(componentOption.checked).toBe(true);
     componentOption.checked = false;
@@ -481,7 +482,7 @@ describe('AiSendContextChat', () => {
     await Promise.resolve();
     await rendered.flush();
     expect(writeText).toHaveBeenCalledOnce();
-    expect(writeText.mock.calls[0][0]).not.toContain('# Component information');
+    expect(writeText.mock.calls[0][0]).not.toContain('optional-timeline-event');
 
     rendered.destroy();
     session.destroy();
@@ -630,11 +631,89 @@ describe('AiSendContextChat', () => {
     session.capture('custom', 'emitted', { name: 'old-event' });
     const rendered = await renderChat(createUiContext(session, []));
 
-    (rendered.nativeElement.querySelector('[data-craft-name="aiClearTimeline"]') as HTMLButtonElement).click();
+    (
+      rendered.nativeElement.querySelector(
+        '[data-craft-name="aiClearTimeline"]',
+      ) as HTMLButtonElement
+    ).click();
 
     expect(session.events).toEqual([]);
     expect(session.activeClip?.label).toBe('Recording after clear');
+    session.capture('custom', 'emitted', { name: 'new-targeted-event' });
+    expect(session.events.map((event) => event.name)).toEqual([
+      'new-targeted-event',
+    ]);
     rendered.destroy();
     session.destroy();
+  });
+  it('keeps only the instruction, targets, page and timeline controls', async () => {
+    const rendered = await renderChat(
+      createUiContext(createSendContextSession(), []),
+    );
+    expect(rendered.nativeElement.querySelectorAll('textarea')).toHaveLength(1);
+    expect(
+      rendered.nativeElement.querySelectorAll('input[type="checkbox"]'),
+    ).toHaveLength(2);
+    expect(rendered.nativeElement.textContent).not.toContain('JSON');
+    expect(rendered.nativeElement.textContent).not.toContain(
+      'Replay a session',
+    );
+    expect(
+      rendered.nativeElement.querySelector('[data-craft-name="aiPickTarget"]'),
+    ).not.toBeNull();
+    rendered.destroy();
+  });
+
+  it('omits an unchecked timeline from both the prompt and webhook data', async () => {
+    const session = createSendContextSession();
+    session.capture('custom', 'emitted', { name: 'excluded-event' });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const rendered = await renderChat(createUiContext(session, [], '/context'));
+    const option = rendered.nativeElement.querySelector<HTMLInputElement>(
+      '[data-craft-name="aiIncludeTimeline"]',
+    )!;
+    option.checked = false;
+    option.dispatchEvent(new Event('change', { bubbles: true }));
+    await rendered.flush();
+    rendered.nativeElement
+      .querySelector<HTMLButtonElement>('[data-craft-name="aiSendContext"]')!
+      .click();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.events).toEqual([]);
+    expect(body.prompt).not.toContain('excluded-event');
+    rendered.destroy();
+    session.destroy();
+  });
+
+  it('includes the full page without capturing the AI panel itself', async () => {
+    const page = document.createElement('main');
+    page.textContent = 'Application page content';
+    const overlay = document.createElement('div');
+    overlay.dataset['craftAiOverlay'] = 'true';
+    overlay.textContent = 'AI overlay content';
+    document.body.append(page, overlay);
+    const rendered = await renderChat(
+      createUiContext(createSendContextSession(), []),
+    );
+    const option = rendered.nativeElement.querySelector<HTMLInputElement>(
+      '[data-craft-name="aiIncludePageDomStyles"]',
+    )!;
+    option.checked = true;
+    option.dispatchEvent(new Event('change', { bubbles: true }));
+    await rendered.flush();
+    rendered.nativeElement
+      .querySelector<HTMLButtonElement>('[data-craft-name="aiCopyPrompt"]')!
+      .click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+    expect(writeText.mock.calls[0][0]).toContain(
+      '# Full page DOM + computed CSS styles',
+    );
+    expect(writeText.mock.calls[0][0]).toContain('Application page content');
+    expect(writeText.mock.calls[0][0]).not.toContain('AI overlay content');
+    rendered.destroy();
   });
 });

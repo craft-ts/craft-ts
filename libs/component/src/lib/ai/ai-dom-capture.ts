@@ -79,9 +79,9 @@ function serializeDom(
     },
     styles: pickStyles(computed, whitelist),
     ...(computed.display === 'none' ? { hidden: true } : {}),
-    children: Array.from(element.children, (child) =>
-      serializeDom(child, whitelist),
-    ),
+    children: Array.from(element.children)
+      .filter((child) => !child.hasAttribute('data-craft-ai-overlay'))
+      .map((child) => serializeDom(child, whitelist)),
   };
 }
 

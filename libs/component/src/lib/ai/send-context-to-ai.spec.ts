@@ -352,7 +352,12 @@ describe('provideSendContextToAi', () => {
     const parent = createEnvironmentInjector(
       [
         ...ɵgetCraftRootDefaultProviders(),
-        ...provideSendContextToAi({ recording: true }),
+        ...provideSendContextToAi({
+          recording: true,
+          theme: {
+            light: { bg: 'var(--app-surface)', accent: { css: '#765432' } },
+          },
+        }),
       ],
       Injector.NULL,
       'SendContextAiLauncherRoot',
@@ -366,16 +371,47 @@ describe('provideSendContextToAi', () => {
     );
     // The overlay host turns pointer events off so the app stays usable; the
     // button has to turn them back on or the click never lands.
-    expect(launcher?.className).toContain(aiLauncher.root);
+    expect(launcher?.parentElement?.className).toContain(aiLauncher.root);
+    expect(
+      launcher?.parentElement?.style.getPropertyValue('--craft-ai-accent'),
+    ).toBe('#765432');
     expect(declarationsOf(aiLauncher.root)).toContain(' pointer-events: auto');
 
     expect(
       document.querySelector('[aria-label="Send context to AI"]'),
     ).toBeNull();
+    const floating = launcher!.closest<HTMLElement>('[data-ai-launcher]')!;
+    floating.getBoundingClientRect = () =>
+      ({ left: 500, top: 300, width: 180, height: 40 }) as DOMRect;
+    const handle = document.querySelector<HTMLButtonElement>(
+      '[data-craft-name="aiMoveLauncher"]',
+    )!;
+    for (const [type, x, y] of [
+      ['pointerdown', 600, 320],
+      ['pointermove', 500, 380],
+      ['pointerup', 500, 380],
+    ] as const) {
+      handle.dispatchEvent(
+        Object.assign(
+          new MouseEvent(type, { bubbles: true, clientX: x, clientY: y }),
+          { pointerId: 1 },
+        ),
+      );
+    }
+    const movedRight = floating.style.getPropertyValue(
+      '--craft-ai-launcher-right',
+    );
+    expect(movedRight).not.toBe('');
     launcher?.click();
     expect(
       document.querySelector('[aria-label="Send context to AI"]'),
     ).not.toBeNull();
+    const chatRoot = document
+      .querySelector('[data-craft-ai-overlay]')
+      ?.getElementsByClassName(aiTheme.root)[0] as HTMLElement | undefined;
+    expect(chatRoot?.style.getPropertyValue('--craft-ai-bg')).toBe(
+      'var(--app-surface)',
+    );
     // The chat takes over the corner, so the launcher steps aside.
     expect(
       document.querySelector('[aria-label="Open AI context chat"]'),
@@ -391,97 +427,161 @@ describe('provideSendContextToAi', () => {
       document.querySelector('[aria-label="Open AI context chat"]'),
     ).not.toBeNull();
 
+    const remounted =
+      document.querySelector<HTMLElement>('[data-ai-launcher]')!;
+    const overlay = remounted.closest<HTMLElement>('[data-craft-ai-overlay]')!;
+    expect(overlay.style.getPropertyValue('--craft-ai-launcher-right')).toBe(
+      movedRight,
+    );
+    remounted
+      .querySelector('[data-craft-name="aiMoveLauncher"]')!
+      .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(overlay.style.getPropertyValue('--craft-ai-launcher-right')).toBe(
+      '',
+    );
+
     mounted.destroy();
     host.remove();
     parent.destroy();
   });
 
-  it('preserves the instruction when another element is added to the open chat', async () => {
-    const {
-      ContextHostWithMultipleTargetsView,
-      provideContextHostWithMultipleTargetsView,
-    } = craftService(
-      { name: 'contextHostWithMultipleTargetsView', providedIn: 'toProvide' },
-      function* () {
-        // Nothing to expose.
-      },
-    );
+  it.each(['context menu', 'picker'])(
+    'preserves the draft and sends both targets when adding through the %s',
+    async (selection) => {
+      const {
+        ContextHostWithMultipleTargetsView,
+        provideContextHostWithMultipleTargetsView,
+      } = craftService(
+        { name: 'contextHostWithMultipleTargetsView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
 
-    const component = craftComponent(
-      'ContextHostWithMultipleTargets',
-      { providers: [provideContextHostWithMultipleTargetsView()] },
-      function* () {
-        yield* ContextHostWithMultipleTargetsView();
-        return div({}, [
-          span({ class: 'first-target' }, 'First target'),
-          span({ class: 'second-target' }, 'Second target'),
-        ]);
-      },
-    );
+      const component = craftComponent(
+        `ContextHostWithMultipleTargets${selection === 'picker' ? 'Picker' : 'Menu'}`,
+        { providers: [provideContextHostWithMultipleTargetsView()] },
+        function* () {
+          yield* ContextHostWithMultipleTargetsView();
+          return div({}, [
+            span({ class: 'first-target' }, 'First target'),
+            span({ class: 'second-target' }, 'Second target'),
+          ]);
+        },
+      );
 
-    const parent = createEnvironmentInjector(
-      [
-        ...ɵgetCraftRootDefaultProviders(),
-        ...provideSendContextToAi({ recording: true }),
-      ],
-      Injector.NULL,
-      'SendContextAiPersistenceRoot',
-    );
-    const host = document.createElement('div');
-    document.body.append(host);
-    const mounted = mountCraftComponent(component, host, parent);
+      const parent = createEnvironmentInjector(
+        [
+          ...ɵgetCraftRootDefaultProviders(),
+          ...provideSendContextToAi({ recording: true }),
+        ],
+        Injector.NULL,
+        'SendContextAiPersistenceRoot',
+      );
+      const host = document.createElement('div');
+      document.body.append(host);
+      const mounted = mountCraftComponent(component, host, parent);
 
-    const firstTarget = host.querySelector<HTMLElement>('.first-target');
-    const secondTarget = host.querySelector<HTMLElement>('.second-target');
-    firstTarget?.dispatchEvent(
-      new MouseEvent('contextmenu', {
-        bubbles: true,
-        clientX: 120,
-        clientY: 80,
-      }),
-    );
-    document
-      .querySelector<HTMLButtonElement>('[data-craft-name="aiSendToIa"]')
-      ?.click();
+      const firstTarget = host.querySelector<HTMLElement>('.first-target');
+      const secondTarget = host.querySelector<HTMLElement>('.second-target');
+      firstTarget?.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          clientX: 120,
+          clientY: 80,
+        }),
+      );
+      document
+        .querySelector<HTMLButtonElement>('[data-craft-name="aiSendToIa"]')
+        ?.click();
 
-    const instruction = document.querySelector<HTMLTextAreaElement>(
-      '#craft-ai-chat-instruction',
-    );
-    expect(instruction).not.toBeNull();
-    instruction!.value = 'Keep this instruction';
-    instruction!.dispatchEvent(new Event('input', { bubbles: true }));
-    await Promise.resolve();
+      const instruction = document.querySelector<HTMLTextAreaElement>(
+        '#craft-ai-chat-instruction',
+      );
+      expect(instruction).not.toBeNull();
+      instruction!.value = 'Keep this instruction';
+      instruction!.dispatchEvent(new Event('input', { bubbles: true }));
+      await Promise.resolve();
 
-    secondTarget?.dispatchEvent(
-      new PointerEvent('pointerdown', {
-        bubbles: true,
-        button: 2,
-        pointerId: 2,
-        clientX: 180,
-        clientY: 120,
-      }),
-    );
-    secondTarget?.dispatchEvent(
-      new MouseEvent('contextmenu', {
-        bubbles: true,
-        clientX: 180,
-        clientY: 120,
-      }),
-    );
-    document
-      .querySelector<HTMLButtonElement>('[data-craft-name="aiSendToIa"]')
-      ?.click();
-    await Promise.resolve();
+      const applicationClick = vi.fn();
+      secondTarget?.addEventListener('click', applicationClick);
+      if (selection === 'picker') {
+        const pick = document.querySelector<HTMLButtonElement>(
+          '[data-craft-name="aiPickTarget"]',
+        )!;
+        pick.click();
+        expect(pick.textContent).toContain('Cancel selection');
+        document.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+        );
+        expect(document.querySelector('#craft-ai-chat-instruction')).toBe(
+          instruction,
+        );
+        pick.click();
+        secondTarget?.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true }),
+        );
+        expect(document.querySelector('#craft-ai-chat-instruction')).toBe(
+          instruction,
+        );
+        secondTarget?.click();
+        expect(applicationClick).not.toHaveBeenCalled();
+      } else {
+        secondTarget?.dispatchEvent(
+          new PointerEvent('pointerdown', {
+            bubbles: true,
+            button: 2,
+            pointerId: 2,
+            clientX: 180,
+            clientY: 120,
+          }),
+        );
+        secondTarget?.dispatchEvent(
+          new MouseEvent('contextmenu', {
+            bubbles: true,
+            clientX: 180,
+            clientY: 120,
+          }),
+        );
+        document
+          .querySelector<HTMLButtonElement>('[data-craft-name="aiSendToIa"]')
+          ?.click();
+      }
 
-    expect(
-      document.querySelector<HTMLTextAreaElement>('#craft-ai-chat-instruction')
-        ?.value,
-    ).toBe('Keep this instruction');
+      await Promise.resolve();
 
-    mounted.destroy();
-    host.remove();
-    parent.destroy();
-  });
+      expect(
+        document.querySelector<HTMLTextAreaElement>(
+          '#craft-ai-chat-instruction',
+        )?.value,
+      ).toBe('Keep this instruction');
+      expect(
+        document.querySelector('[aria-label="Selected elements"]')?.textContent,
+      ).toContain('First target');
+      expect(
+        document.querySelector('[aria-label="Selected elements"]')?.textContent,
+      ).toContain('Second target');
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      document
+        .querySelector<HTMLButtonElement>('[data-craft-name="aiCopyPrompt"]')!
+        .click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+      expect(writeText.mock.calls[0][0]).toContain(
+        '# Instruction\nKeep this instruction',
+      );
+      expect(writeText.mock.calls[0][0]).toContain('# Selected elements (2)');
+      expect(writeText.mock.calls[0][0]).toContain('First target');
+      expect(writeText.mock.calls[0][0]).toContain('Second target');
+
+      mounted.destroy();
+      host.remove();
+      parent.destroy();
+    },
+  );
 
   it('styles the menu from its sheet, positioned by typed variables', async () => {
     const rendered = await renderCraftComponent(AiContextMenu, {
