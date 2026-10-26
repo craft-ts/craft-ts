@@ -110,7 +110,7 @@ function validateReplayInvocations(
     );
   });
   if (unreplayableInvocation)
-    return `L’appel Craft ${unreplayableInvocation.sequence} contient un argument non sérialisable ou expurgé ; la session reste inspectable, mais ce replay est refusé.`;
+    return `L’appel Craft ${unreplayableInvocation.sequence} contient un argument non sérialisable ; la session reste inspectable, mais ce replay est refusé.`;
   return undefined;
 }
 
@@ -610,8 +610,15 @@ function isReplayDestinationCurrent(href: unknown): boolean {
   }
 }
 
+/**
+ * An argument the replay cannot pass again. A value redacted at recording (a
+ * password given to a sign-in) is not one: the replayed app never reaches a
+ * live server, and the recorded request it matches was redacted the same way
+ * (`matchesRedacted`), so the recorded answer is served. An e-mail redacted
+ * as `[REDACTED_EMAIL]` is not tolerated by that matching, so it still is.
+ */
 function hasUnreplayableReplayArgument(value: unknown): boolean {
-  if (value === '[REDACTED]' || value === '[REDACTED_EMAIL]') return true;
+  if (value === '[REDACTED_EMAIL]') return true;
   if (Array.isArray(value)) return value.some(hasUnreplayableReplayArgument);
   if (!isRecord(value)) return false;
   if ('$craftReplayUnsupported' in value) return true;
