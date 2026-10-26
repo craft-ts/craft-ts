@@ -12,13 +12,19 @@
   "exclude": ["**/*.spec.ts", "**/*.test.ts", "vitest.config.ts"],
   "references": [
     {
+      "path": "../effect/tsconfig.lib.json"
+    },
+    {
       "path": "../test-type/tsconfig.lib.json"
+    },
+    {
+      "path": "../style/tsconfig.lib.json"
     },
     {
       "path": "../core/tsconfig.lib.json"
     },
     {
-      "path": "../style/tsconfig.lib.json"
+      "path": "../dev-tools/tsconfig.lib.json"
     }
   ]
 }

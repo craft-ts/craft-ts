@@ -19,6 +19,8 @@ process.env['CRAFT_DEMO_ECOMMERCE_STORE'] = storePath;
 
 export default defineConfig({
   testDir: './e2e',
+  // Les reprises fonctionnelles ont leur config : playwright.resume.config.ts.
+  testIgnore: ['resume.spec.ts'],
   // Hors de git : des artefacts dans `test-results/` rendraient l'arbre « dirty » pendant le run.
   outputDir: './tmp/test-results',
   fullyParallel: false,

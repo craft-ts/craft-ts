@@ -3,13 +3,23 @@ import {
   getCurrentStartCorrelationId,
   ɵisCraftHttpTransportActive,
 } from '@craft-ts/core';
+import {
+  redactDebugSessionHeaders,
+  redactDebugSessionReferences,
+  redactDebugSessionUrl,
+  redactDebugSessionUrlEncoded,
+  getDebugSessionReferenceSalt,
+} from './debug-session-references';
 
 /** Captures raw fetch outcomes for deterministic replay in local sessions. */
 export function connectDebugSessionFetchCapture(
   session: SendContextSession,
+  /** Last keys of declared resume paths, traced even when numeric. */
+  tracedKeys: () => ReadonlySet<string> = () => new Set(),
 ): () => void {
   if (typeof window === 'undefined') return () => undefined;
   const originalFetch = window.fetch;
+  const sessionSalt = getDebugSessionReferenceSalt(session);
   let sequence = 0;
   const wrappedFetch: typeof fetch = async (input, init) => {
     const request = new Request(input, init);
@@ -26,6 +36,41 @@ export function connectDebugSessionFetchCapture(
       .clone()
       .text()
       .catch(() => '[unreadable]');
+    const requestUrl = redactDebugSessionUrl(request.url, sessionSalt);
+    const requestHeaders = redactDebugSessionHeaders(
+      request.headers,
+      sessionSalt,
+      'out',
+    );
+    const requestContentType = request.headers.get('content-type') ?? '';
+    const parsedRequestBody = parseJson(requestPayload);
+    const isFormBody = /application\/x-www-form-urlencoded/i.test(
+      requestContentType,
+    );
+    const redactedRequestBody = isFormBody
+      ? redactDebugSessionUrlEncoded(
+          requestPayload,
+          sessionSalt,
+          'request.body',
+          'out',
+        )
+      : redactDebugSessionReferences(
+          parsedRequestBody ?? requestPayload,
+          sessionSalt,
+          'request.body',
+          'out',
+          { tracedKeys: tracedKeys() },
+        );
+    const serializedRequestBody = isFormBody
+      ? redactedRequestBody.value
+      : parsedRequestBody === undefined
+        ? redactedRequestBody.value
+        : JSON.stringify(redactedRequestBody.value);
+    const outboundRefs = [
+      ...requestUrl.refs,
+      ...requestHeaders.refs,
+      ...redactedRequestBody.refs,
+    ];
     session.capture('http', 'started', {
       name: request.method,
       operationId,
@@ -33,9 +78,11 @@ export function connectDebugSessionFetchCapture(
       payload: {
         source: 'browser-fetch',
         method: request.method,
-        url: request.url,
-        body: requestPayload || undefined,
+        url: requestUrl.url,
+        headers: requestHeaders.headers,
+        body: serializedRequestBody || undefined,
       },
+      refs: outboundRefs,
     });
 
     try {
@@ -48,6 +95,36 @@ export function connectDebugSessionFetchCapture(
       const body = isTextResponse(contentType)
         ? new TextDecoder().decode(bytes)
         : { encoding: 'base64', data: bytesToBase64(bytes) };
+      const responseHeaders = redactDebugSessionHeaders(
+        response.headers,
+        sessionSalt,
+        'in',
+      );
+      const parsedResponseBody =
+        typeof body === 'string' ? parseJson(body) : undefined;
+      const isFormResponse =
+        typeof body === 'string' &&
+        /application\/x-www-form-urlencoded/i.test(contentType);
+      const redactedResponseBody =
+        isFormResponse && typeof body === 'string'
+          ? redactDebugSessionUrlEncoded(
+              body,
+              sessionSalt,
+              'response.body',
+              'in',
+            )
+          : redactDebugSessionReferences(
+              parsedResponseBody ?? body,
+              sessionSalt,
+              'response.body',
+              'in',
+              { tracedKeys: tracedKeys() },
+            );
+      const serializedResponseBody = isFormResponse
+        ? redactedResponseBody.value
+        : parsedResponseBody === undefined
+          ? redactedResponseBody.value
+          : JSON.stringify(redactedResponseBody.value);
       session.capture('http', 'succeeded', {
         name: request.method,
         operationId,
@@ -56,9 +133,10 @@ export function connectDebugSessionFetchCapture(
           source: 'browser-fetch-response',
           status: response.status,
           statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries()),
-          body,
+          headers: responseHeaders.headers,
+          body: serializedResponseBody,
         },
+        refs: [...responseHeaders.refs, ...redactedResponseBody.refs],
       });
       return response;
     } catch (error) {
@@ -107,4 +185,12 @@ function bytesToBase64(bytes: Uint8Array): string {
     );
   }
   return btoa(binary);
+}
+
+function parseJson(value: string): unknown | undefined {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
 }

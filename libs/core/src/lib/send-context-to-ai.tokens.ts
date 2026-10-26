@@ -23,6 +23,11 @@ import { ɵcaptureCraftReplayTarget } from './craft-replay-target';
 import { provideTemplateTrace } from './template-trace';
 import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
 import { ɵinjectCraftRouteActivationTracker } from './craft-route-activation';
+import {
+  activateCraftRandomRuntime,
+  createCraftRandomSeed,
+  SeededCraftRandomRuntime,
+} from './craft-random-runtime';
 
 const capturedReplayDomEvents = new WeakSet<Event>();
 
@@ -73,6 +78,12 @@ export interface SendContextTarget {
   readonly selector?: string;
 }
 
+export interface SendContextReference {
+  readonly path: string;
+  readonly fingerprint: string;
+  readonly direction: 'out' | 'in';
+}
+
 export interface SendContextEvent {
   readonly id: string;
   readonly sequence: number;
@@ -97,6 +108,8 @@ export interface SendContextEvent {
   readonly participantSequence?: number;
   /** Wall-clock offset from the shared archive session start. */
   readonly globalElapsedMs?: number;
+  /** Session-salted identifiers discovered in captured network values. */
+  readonly refs?: readonly SendContextReference[];
 }
 
 export interface SendContextEnvironmentProfile {
@@ -129,7 +142,7 @@ export interface SendContextSessionParticipant {
 }
 
 /** Current portable recording schema. Bump only with an explicit replay migration decision. */
-export const DEBUG_SESSION_EXPORT_VERSION = 6 as const;
+export const DEBUG_SESSION_EXPORT_VERSION = 7 as const;
 /** Bump when replay semantics change incompatibly with previously captured sessions. */
 export const DEBUG_SESSION_REPLAY_VERSION = 1 as const;
 
@@ -140,6 +153,10 @@ export interface SendContextReplayExport {
   readonly version: typeof DEBUG_SESSION_EXPORT_VERSION;
   /** Replay contract version, independent from the portable JSON format. */
   readonly replayVersion?: number;
+  /** Reference redaction/provenance schema; absent on migrated v6 archives. */
+  readonly referenceCaptureVersion?: 1;
+  /** Seed used by CraftRandomRuntime while recording clips are active. */
+  readonly randomSeed?: number;
   readonly startUrl: string;
   /** CSS-pixel viewport dimensions when session capture is initialized. */
   readonly viewport?: Readonly<{ width: number; height: number }>;
@@ -177,6 +194,15 @@ export interface SendContextReplaySnapshot {
     storage: true;
     inFlightOperations: false;
   }>;
+  /** Craft temporal tasks pending at the checkpoint; deadlines use runtime time. */
+  readonly pendingTasks?: readonly Readonly<{
+    kind: string;
+    dueAt: number;
+    owner?: string;
+  }>[];
+  readonly temporalNow?: number;
+  /** Civil clock at the same checkpoint, used by recorded-time resumes. */
+  readonly temporalDateNow?: number;
 }
 
 export interface SendContextClip {
@@ -496,13 +522,15 @@ export function defaultSendContextRedactor(value: unknown): unknown {
     if (seen.has(current)) return '[Circular]';
     seen.add(current);
     return Object.fromEntries(
-      Object.entries(current).map(([key, entry]) =>
-        /password|passwd|secret|token|authorization|cookie|api[-_]?key|private[-_]?key/i.test(
+      Object.entries(current).map(([key, entry]) => {
+        const isSafeReferencePlaceholder =
+          typeof entry === 'string' && /^craft-ref:[a-f0-9]{16}$/i.test(entry);
+        return /password|passwd|secret|token|authorization|cookie|api[-_]?key|private[-_]?key/i.test(
           key,
-        )
+        ) && !isSafeReferencePlaceholder
           ? [key, '[REDACTED]']
-          : [key, visit(entry)],
-      ),
+          : [key, visit(entry)];
+      }),
     );
   };
   return visit(value);
@@ -581,6 +609,9 @@ export function createSendContextSession(
   let wasTruncated = false;
   const eventSizes: number[] = [];
   let retainedJsonSize = 2;
+  let randomSeed: number | undefined;
+  let recordingRandomRuntime: SeededCraftRandomRuntime | undefined;
+  let restoreRandomRuntime: (() => void) | undefined;
   const startedAtMonotonic =
     typeof performance === 'undefined' ? 0 : performance.now();
   const startUrl =
@@ -757,6 +788,9 @@ export function createSendContextSession(
     },
     startRecord(label = `Record ${clipList.length + 1}`) {
       if (activeClipId) session.stopRecord();
+      if (randomSeed === undefined) randomSeed = createCraftRandomSeed();
+      recordingRandomRuntime ??= new SeededCraftRandomRuntime(randomSeed);
+      restoreRandomRuntime = activateCraftRandomRuntime(recordingRandomRuntime);
       const clip: SendContextClip = {
         id: randomId('clip'),
         label,
@@ -777,6 +811,8 @@ export function createSendContextSession(
         clip.id === stopped.id ? stopped : clip,
       );
       activeClipId = undefined;
+      restoreRandomRuntime?.();
+      restoreRandomRuntime = undefined;
       publish();
       return stopped;
     },
@@ -791,6 +827,10 @@ export function createSendContextSession(
       retainedJsonSize = 2;
       clipList = [];
       activeClipId = undefined;
+      restoreRandomRuntime?.();
+      restoreRandomRuntime = undefined;
+      randomSeed = undefined;
+      recordingRandomRuntime = undefined;
       wasTruncated = false;
       publish();
     },
@@ -841,6 +881,8 @@ export function createSendContextSession(
         format: 'craft-debug-session',
         version: DEBUG_SESSION_EXPORT_VERSION,
         replayVersion: DEBUG_SESSION_REPLAY_VERSION,
+        referenceCaptureVersion: 1,
+        ...(randomSeed === undefined ? {} : { randomSeed }),
         startUrl,
         ...(viewport ? { viewport } : {}),
         exportedAt: Date.now(),
@@ -872,6 +914,8 @@ export function createSendContextSession(
         .join('\n');
     },
     destroy() {
+      restoreRandomRuntime?.();
+      restoreRandomRuntime = undefined;
       for (const cleanup of cleanups.splice(0)) cleanup();
       eventsSubject.complete();
       snapshotSubject.complete();

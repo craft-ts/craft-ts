@@ -47,6 +47,15 @@
     },
     {
       "path": "./libs/style"
+    },
+    {
+      "path": "./libs/graph-mcp"
+    },
+    {
+      "path": "./libs/docs-ui"
+    },
+    {
+      "path": "./libs/ui"
     }
   ]
 }

@@ -76,4 +76,41 @@ describe('debug session browser fetch capture', () => {
       body: { encoding: 'base64', data: 'AAEC/v8=' },
     });
   });
+
+  it('redacts references in form encoded request and response bodies', async () => {
+    const token = 'a8Df7Gh2Jk4Lp6Qw9Er1Ty3Ui5Op';
+    window.fetch = vi.fn(
+      async () =>
+        new Response(`token=${token}&ok=true`, {
+          status: 200,
+          headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+          },
+        }),
+    );
+    const session = createSendContextSession();
+    session.startRecord('form fetch capture');
+    const disconnect = connectDebugSessionFetchCapture(session);
+
+    try {
+      await window.fetch('http://localhost:4201/api/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: `token=${token}&page=2`,
+      });
+    } finally {
+      disconnect();
+    }
+
+    const events = JSON.parse(session.exportSessionJson()).events as Array<{
+      payload?: { body?: string };
+      response?: { body?: string };
+      refs?: unknown[];
+    }>;
+    expect(events[0]?.payload?.body).not.toContain(token);
+    expect(events[0]?.payload?.body).toContain('page=2');
+    expect(events[1]?.response?.body).not.toContain(token);
+    expect(events[0]?.refs?.length).toBeGreaterThan(0);
+    expect(events[1]?.refs?.length).toBeGreaterThan(0);
+  });
 });

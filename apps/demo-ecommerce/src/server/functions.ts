@@ -1,6 +1,6 @@
 import { serverFunction } from '@craft-ts/core';
 import { Effect, Schema } from 'effect';
-import { requireAdmin, requireStaff, signIn, signOut } from './auth';
+import { getCurrentSession, requireAdmin, requireStaff, signIn, signOut } from './auth';
 import { StoreRepository } from './database';
 
 const category = Schema.Struct({ id: Schema.String, name: Schema.String, description: Schema.String });
@@ -9,6 +9,7 @@ const simpleProduct = Schema.Struct({ kind: Schema.Literal('simple'), id: Schema
 const formulaProduct = Schema.Struct({ kind: Schema.Literal('formule'), id: Schema.String, name: Schema.String, description: Schema.String, categoryId: Schema.String, price: Schema.Number, groups: Schema.Array(choiceGroup), emoji: Schema.optional(Schema.String) });
 const product = Schema.Union([simpleProduct, formulaProduct]);
 const cartLine = Schema.Struct({ productId: Schema.String, quantity: Schema.Number, selections: Schema.optional(Schema.Array(Schema.Struct({ groupId: Schema.String, productIds: Schema.Array(Schema.String) }))) });
+const resumeFact = Schema.Struct({ kind: Schema.Union([Schema.Literal('product'), Schema.Literal('category')]), name: Schema.String });
 const output = Schema.toStandardSchemaV1(Schema.String);
 const storeErrors = { StoreError: (error: { readonly message: string }) => ({ code: 'STORE_ERROR', status: 400, message: error.message }) };
 const authErrors = { AuthError: (error: { readonly message: string; readonly status: 401 | 403 }) => ({ code: error.status === 401 ? 'AUTH_REQUIRED' : 'FORBIDDEN', status: error.status, message: error.message }) };
@@ -20,8 +21,51 @@ export const getCatalog = serverFunction('ecommerce.catalog', Schema.toStandardS
   return JSON.stringify({ categories, products });
 })).exposeErrors(storeErrors);
 
+/** Development-only, read-only inventory used by the resume preflight adapter. */
+export const getResumeFacts = serverFunction('ecommerce.resume.facts', Schema.toStandardSchemaV1(Schema.Struct({ facts: Schema.Array(resumeFact) })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
+  const repository = yield* StoreRepository;
+  const store = yield* repository.read();
+  const products = new Set(store.products.map((item) => item.id));
+  const categories = new Set(store.categories.map((item) => item.id));
+  return JSON.stringify(input.facts.filter((fact) =>
+    fact.kind === 'product' ? products.has(fact.name) : categories.has(fact.name),
+  ).map((fact) => ({ kind: 'entity', name: fact.name, detail: fact.kind })));
+})).exposeErrors(storeErrors);
+
+export const searchCatalog = serverFunction('ecommerce.catalog.search', Schema.toStandardSchemaV1(Schema.Struct({ query: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
+  const repository = yield* StoreRepository;
+  const { products } = yield* repository.read();
+  const query = input.query.trim().toLocaleLowerCase('fr-FR');
+  return JSON.stringify(products.filter((product) => `${product.name} ${product.description}`.toLocaleLowerCase('fr-FR').includes(query)));
+})).exposeErrors(storeErrors);
+
+export const createCart = serverFunction('ecommerce.cart.create', Schema.toStandardSchemaV1(Schema.Struct({})), { exposure: 'client', output }).handler(() => Effect.gen(function* () {
+  const repository = yield* StoreRepository;
+  return JSON.stringify(yield* repository.createCart());
+})).exposeErrors(storeErrors);
+
+export const addCartLine = serverFunction('ecommerce.cart.addLine', Schema.toStandardSchemaV1(Schema.Struct({ cartId: Schema.String, line: cartLine })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
+  const repository = yield* StoreRepository;
+  return JSON.stringify(yield* repository.addCartLine(input.cartId, input.line));
+})).exposeErrors(storeErrors);
+
+export const getCart = serverFunction('ecommerce.cart.get', Schema.toStandardSchemaV1(Schema.Struct({ cartId: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
+  const repository = yield* StoreRepository;
+  return JSON.stringify(yield* repository.getCart(input.cartId));
+})).exposeErrors(storeErrors);
+
+export const deleteCart = serverFunction('ecommerce.cart.delete', Schema.toStandardSchemaV1(Schema.Struct({ cartId: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
+  const repository = yield* StoreRepository;
+  yield* repository.deleteCart(input.cartId);
+  return JSON.stringify(true);
+})).exposeErrors(storeErrors);
+
 export const login = serverFunction('ecommerce.auth.login', Schema.toStandardSchemaV1(Schema.Struct({ email: Schema.String, password: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   return JSON.stringify(yield* signIn(input.email, input.password));
+})).exposeErrors(authErrors);
+
+export const getCurrentUser = serverFunction('ecommerce.auth.me', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
+  return JSON.stringify(yield* getCurrentSession(input.token));
 })).exposeErrors(authErrors);
 
 export const logout = serverFunction('ecommerce.auth.logout', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {

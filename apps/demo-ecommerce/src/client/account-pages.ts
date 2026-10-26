@@ -25,20 +25,20 @@ export const LoginPanel = craftComponent('EcommerceLoginPanel', {}, function* ()
         span({ class: 'credential-label' }, 'Mot de passe'), span({ class: 'mono' }, account.password),
       ]),
       button('quick-sign-in', { type: 'button', class: 'button button-block', 'data-variant': account.role === 'admin' ? undefined : 'soft', disabled: session.signInProcess.isLoading, *click() {
-        yield* session.signInProcess.call({ email: account.email, password: account.password });
+        yield* session.signInProcess.mutate({ email: account.email, password: account.password });
       } }, `Se connecter en tant que ${account.name}`),
     ]))),
     form('sign-in-form', { class: 'login-form', *submit(event) {
       event.preventDefault();
       const data = new FormData(event.target as HTMLFormElement);
-      yield* session.signInProcess.call({ email: String(data.get('email') ?? ''), password: String(data.get('password') ?? '') });
+      yield* session.signInProcess.mutate({ email: String(data.get('email') ?? ''), password: String(data.get('password') ?? '') });
     } }, [
       strong('Ou avec vos identifiants'),
       label({ class: 'field' }, ['E-mail', input('sign-in-email', { name: 'email', type: 'email', autocomplete: 'username', required: true, placeholder: 'camille@atelier.demo' })]),
       label({ class: 'field' }, ['Mot de passe', input('sign-in-password', { name: 'password', type: 'password', autocomplete: 'current-password', required: true })]),
       button('sign-in-submit', { type: 'submit', class: 'button', disabled: session.signInProcess.isLoading }, function* () { return (yield* session.signInProcess.isLoading()) ? 'Connexion…' : 'Se connecter'; }),
       // Un échec renvoyé par le serveur arrive dans le canal d'exception de la query, pas dans sa valeur.
-      ifNode('sign-in-failed', function* () { return failureOf(yield* session.signInProcess.exception()) !== undefined; }, () => p({ class: 'notice error' }, function* () { return failureOf(yield* session.signInProcess.exception())?.message ?? ''; })),
+      ifNode('sign-in-failed', function* () { return failureOf(yield* session.signInProcess.value()) !== undefined; }, () => p({ class: 'notice error' }, function* () { return failureOf(yield* session.signInProcess.value())?.message ?? ''; })),
     ]),
   ]);
 });

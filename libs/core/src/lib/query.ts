@@ -189,6 +189,7 @@ type QueryConfig<
   LoaderYielded = never,
   StreamYielded = never,
 > = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
+  { readonly resume?: import('./craft-resume').CraftResumeSpec } &
   (
     | {
         /**
@@ -1999,6 +2000,7 @@ function createQueryRef<
             resourceTarget as any,
           ),
       name,
+      queryConfig.resume,
     ),
   );
 

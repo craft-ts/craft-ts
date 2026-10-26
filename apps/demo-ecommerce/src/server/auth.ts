@@ -31,6 +31,13 @@ export function signIn(email: string, password: string): Effect.Effect<AccountSe
   });
 }
 
+/** Outil de test : déconnecte tout le monde, comme un redémarrage du serveur. */
+export function revokeAllSessions(): number {
+  const count = sessions.size;
+  sessions.clear();
+  return count;
+}
+
 export function signOut(token: string): Effect.Effect<void> {
   return Effect.sync(() => { sessions.delete(token); });
 }
@@ -49,6 +56,14 @@ function requireRole(token: string, roles: readonly AccountRole[], refusal: stri
 
 /** L'équipe (administrateurs et product managers) : ouvrir l'administration et consulter le catalogue complet. */
 export const requireStaff = (token: string) => requireRole(token, ['admin', 'product-manager'], 'Ce compte n’a pas accès à l’administration.');
+
+/** Revalidates a persisted browser session with the auth service. */
+export function getCurrentSession(token: string): Effect.Effect<AccountSession, AuthError> {
+  return Effect.map(
+    requireRole(token, ['admin', 'product-manager', 'client'], 'Session invalide.'),
+    (user) => ({ token, user }),
+  );
+}
 
 /** Les administrateurs seulement : toute écriture dans le catalogue, les catégories ou les données. */
 export const requireAdmin = (token: string) => requireRole(token, ['admin'], 'Action réservée aux administrateurs.');

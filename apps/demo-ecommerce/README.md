@@ -26,11 +26,11 @@ Lance la suite avec `npm run e2e:demo-ecommerce`. Avant Playwright, cette comman
 
 L’administration demande une session. Les comptes sont affichés sur les pages **Administration** et **Connexion**, avec un bouton de connexion en un clic :
 
-| Compte | E-mail | Mot de passe | Accès |
-| --- | --- | --- | --- |
-| Camille, gérante | `camille@atelier.demo` | `atelier-admin` | boutique + administration |
-| Inès, product manager | `ines@atelier.demo` | `atelier-produit` | boutique + administration en lecture |
-| Léo, client | `leo@atelier.demo` | `atelier-client` | boutique seule |
+| Compte                | E-mail                 | Mot de passe      | Accès                                |
+| --------------------- | ---------------------- | ----------------- | ------------------------------------ |
+| Camille, gérante      | `camille@atelier.demo` | `atelier-admin`   | boutique + administration            |
+| Inès, product manager | `ines@atelier.demo`    | `atelier-produit` | boutique + administration en lecture |
+| Léo, client           | `leo@atelier.demo`     | `atelier-client`  | boutique seule                       |
 
 Le serveur délivre un jeton de session à la connexion et le vérifie dans chaque fonction d’administration : un compte client ou un jeton inventé reçoit un refus, quoi que dise le navigateur. Seuls les admins ont le droit de modifier un produit : un product manager ouvre l’administration et l’éditeur, mais l’enregistrement lui est refusé. Les sessions vivent en mémoire ; après un redémarrage du serveur, la page d’administration revient à l’écran de connexion avec le message « Session expirée ». Les comptes sont définis dans `src/shared/accounts.ts`.
 
@@ -43,7 +43,7 @@ Le serveur délivre un jeton de session à la connexion et le vérifie dans chaq
 
 ## Données et règles
 
-Le magasin sauvegarde les catégories, les produits et les commandes dans `apps/demo-ecommerce/data/store.json`. Le bouton **Réinitialiser la démo** de l’administration réinstalle le catalogue initial défini dans le code et efface les commandes de démonstration. Les produits simples portent le stock; les formules ont un prix propre et consomment les composants choisis à la validation. Le serveur contrôle les groupes, catégories, bornes, choix distincts et quantités disponibles avant d’enregistrer une commande.
+Le magasin sauvegarde les catégories, les produits et les commandes dans `apps/demo-ecommerce/data/store.json`, créé depuis le catalogue initial au premier démarrage et hors du suivi git ; `CRAFT_DEMO_ECOMMERCE_STORE` le remplace par un autre fichier (les e2e de reprise en utilisent un jetable par run). Le bouton **Réinitialiser la démo** de l’administration réinstalle le catalogue initial défini dans le code et efface les commandes de démonstration. Les produits simples portent le stock; les formules ont un prix propre et consomment les composants choisis à la validation. Le serveur contrôle les groupes, catégories, bornes, choix distincts et quantités disponibles avant d’enregistrer une commande.
 
 La vitrine ne lit que les catégories et les produits ; les commandes ne sont servies qu’à l’administration.
 
@@ -54,5 +54,39 @@ npx nx typecheck demo-ecommerce --skipSync
 npx nx effect-check demo-ecommerce --skipSync
 npx nx lint demo-ecommerce --skipSync
 npx nx test demo-ecommerce --skipSync
+npx nx resume-check demo-ecommerce --skipSync
 npx nx build demo-ecommerce --skipSync
 ```
+
+## Reprise de session
+
+La session et le panier sont persistés par les insertions Craft. Au démarrage,
+`ecommerce.auth.me` revalide le jeton restauré ; une session expirée ne peut
+donc pas conserver des droits affichés par le navigateur. Les personas de
+reprise sont générées localement avec `npx nx resume-personas demo-ecommerce`.
+Le fichier `.craft/resume.personas.local.json` est ignoré par Git et contient
+les identifiants de démonstration.
+Le contrôle `resume-check` régénère `.craft/resume-graph.json` et fait échouer
+les cibles `serve` et `build` si une déclaration de ressource ou un appel
+externe persistant devient incohérent. En développement, Vite expose ce graphe
+au pont de reprise sur `__craft_resume_graph`, uniquement depuis une origine
+loopback ; les empreintes source sont associées aux déclarations live quand la
+correspondance est unique.
+Les captures incluent un baseline d’empreintes dépourvu de chemins locaux ; le
+dashboard le compare aux empreintes courantes et signale son absence au lieu
+de conclure à tort que le code n’a pas changé.
+
+La reprise reconnecte l’identité enregistrée (lue dans la réponse de
+`ecommerce.auth.me`, l’état restauré ou le storage), jamais une persona fixée
+dans le code ; une ressource fermée avant le point ciblé (déconnexion, panier
+vide) n’est pas réacquise. Le panier serveur est synchronisé par la mutation
+`syncServerCart` : les méthodes d’un `state` tournent avec le pilote synchrone
+et ne peuvent pas attendre le réseau.
+
+Les e2e de reprise (S1 à S6) tournent avec
+`npx nx e2e-resume demo-ecommerce`. Ils révoquent toutes les sessions avant de
+reprendre (`POST /__dev/auth/revoke-all`, actif seulement si `CRAFT_E2E=1`),
+vérifient l’identité que le serveur renvoie et échouent si une requête porte
+encore un `craft-ref:`. Les ports se changent avec `CRAFT_E2E_DEMO_PORT`,
+`CRAFT_E2E_DASHBOARD_PORT` et `CRAFT_E2E_SESSION_SERVER_PORT` ;
+`RESUME_E2E_DEBUG=1` affiche les consoles des onglets.

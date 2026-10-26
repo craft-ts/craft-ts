@@ -208,6 +208,7 @@ describe('debug session replay orchestrator', () => {
       recording.startRecord();
       let quiescent = false;
       let primitives: Readonly<Record<string, unknown>> = { count: 1 };
+      let temporalNow = 100;
       let notify!: () => void;
       const disconnect = connectReplaySnapshotCapture({
         session: recording,
@@ -215,6 +216,8 @@ describe('debug session replay orchestrator', () => {
         route: () => '/items',
         primitives: () => primitives,
         storage: async () => [],
+        pendingTasks: () => [{ kind: 'debounce', owner: 'search', dueAt: 240 }],
+        temporalNow: () => temporalNow,
         isQuiescent: () => quiescent,
         subscribe: (onChange) => {
           notify = onChange;
@@ -232,8 +235,13 @@ describe('debug session replay orchestrator', () => {
       expect(
         recording.events.filter((item) => item.name === 'replay-checkpoint'),
       ).toHaveLength(1);
+      expect(recording.events.find((item) => item.name === 'replay-checkpoint')?.payload).toMatchObject({
+        temporalNow: 100,
+        pendingTasks: [{ kind: 'debounce', owner: 'search', dueAt: 240 }],
+      });
 
       notify();
+      temporalNow += 10;
       await vi.advanceTimersByTimeAsync(100);
       expect(
         recording.events.filter((item) => item.name === 'replay-checkpoint'),
@@ -359,6 +367,28 @@ describe('debug session replay orchestrator', () => {
     });
 
     expect(validateReplaySnapshot(snapshot)).toMatchObject({ ok: true });
+    const sanitized = createReplaySnapshot({
+      appVersion: '1.2.3',
+      routeUrl: '/admin',
+      primitives: {
+        currentSession: { token: '[REDACTED]' },
+        product: { id: 'product-1' },
+      },
+      storage: [
+        {
+          backend: 'local',
+          storeName: 'atelier',
+          key: 'session.v1',
+          kind: 'query',
+          value: { token: '[REDACTED]' },
+        },
+      ],
+      inFlightOperations: 0,
+      capturedAt: 43,
+    });
+    expect(sanitized.primitives).toEqual({ product: { id: 'product-1' } });
+    expect(sanitized.storage).toEqual([]);
+    expect(validateReplaySnapshot(sanitized)).toMatchObject({ ok: true });
     expect(() =>
       createReplaySnapshot({
         appVersion: '1.2.3',

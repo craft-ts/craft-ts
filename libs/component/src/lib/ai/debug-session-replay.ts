@@ -1,5 +1,7 @@
 import {
+  activateCraftRandomRuntime,
   activateCraftTemporalRuntime,
+  SeededCraftRandomRuntime,
   VirtualCraftTemporalRuntime,
   type SendContextEvent,
   type SendContextReplayExport,
@@ -217,6 +219,14 @@ export function validateDebugSessionExport(json: string): ReplayValidation {
       ok: false,
       error: 'The session is missing its start URL or export timestamp.',
     };
+  }
+  if (
+    normalizedValue['randomSeed'] !== undefined &&
+    (!Number.isSafeInteger(normalizedValue['randomSeed']) ||
+      (normalizedValue['randomSeed'] as number) < 0 ||
+      (normalizedValue['randomSeed'] as number) > 0xffff_ffff)
+  ) {
+    return { ok: false, error: 'The recorded Craft random seed is invalid.' };
   }
   if (normalizedValue['viewport'] !== undefined) {
     const viewport = normalizedValue['viewport'];
@@ -871,6 +881,12 @@ export function createReplayController(
     );
   const clock = new VirtualCraftTemporalRuntime(firstTime);
   const restoreClock = activateCraftTemporalRuntime(clock);
+  const restoreRandom =
+    typeof session.randomSeed === 'number'
+      ? activateCraftRandomRuntime(
+          new SeededCraftRandomRuntime(session.randomSeed),
+        )
+      : () => undefined;
   const baselineEvents = options.observedEvents?.().length ?? 0;
   const observedRouteOperationIds = new Map<string, string>();
   const usedObservedRouteOperationIds = new Set<string>();
@@ -1071,6 +1087,7 @@ export function createReplayController(
       nativeControlPresentation.dispose();
       if (resetClock) clearReplayVisualState();
       restoreClock();
+      restoreRandom();
       if (resetClock) clock.reset(firstTime);
       playbackEpoch = undefined;
       playbackPaused = false;
@@ -1150,6 +1167,29 @@ export function createReplayController(
       recordedResponseResolver?.advanceTo(timeOf(change));
       await options.onTimelineAdvance?.(timeOf(change));
       options.restoreState?.(change.state, change);
+    }
+    return true;
+  };
+  const advanceRouteLoadTimeline = async (
+    event: SendContextEvent,
+  ): Promise<boolean> => {
+    const followingInteraction = interactions[cursor + 1];
+    const changes = session.events
+      .filter(
+        (candidate) =>
+          candidate.sequence > event.sequence &&
+          (followingInteraction === undefined ||
+            candidate.sequence < followingInteraction.sequence) &&
+          candidate.kind === 'primitive' &&
+          candidate.state !== undefined,
+      )
+      .sort((left, right) => left.sequence - right.sequence);
+    for (const change of changes) {
+      if (!(await waitForPlaybackTime(timeOf(change)))) return false;
+      const elapsedMs = Math.max(clock.now(), timeOf(change));
+      await clock.advanceTo(elapsedMs);
+      recordedResponseResolver?.advanceTo(elapsedMs);
+      await options.onTimelineAdvance?.(elapsedMs);
     }
     return true;
   };
@@ -1248,14 +1288,25 @@ export function createReplayController(
         ? payload['navigationOptions']
         : {};
       try {
-        await options.navigateToRecordedRoute(url, {
-          ...(typeof recordedOptions['replaceUrl'] === 'boolean'
-            ? { replaceUrl: recordedOptions['replaceUrl'] }
-            : {}),
-          ...(typeof recordedOptions['skipLocationChange'] === 'boolean'
-            ? { skipLocationChange: recordedOptions['skipLocationChange'] }
-            : {}),
-        });
+        const navigation = Promise.resolve(
+          options.navigateToRecordedRoute(url, {
+            ...(typeof recordedOptions['replaceUrl'] === 'boolean'
+              ? { replaceUrl: recordedOptions['replaceUrl'] }
+              : {}),
+            ...(typeof recordedOptions['skipLocationChange'] === 'boolean'
+              ? { skipLocationChange: recordedOptions['skipLocationChange'] }
+              : {}),
+          }),
+        );
+        const timeline = advanceRouteLoadTimeline(event);
+        const [navigationResult, timelineResult] = await Promise.allSettled([
+          navigation,
+          timeline,
+        ]);
+        if (navigationResult.status === 'rejected')
+          throw navigationResult.reason;
+        if (timelineResult.status === 'rejected') throw timelineResult.reason;
+        if (!timelineResult.value) return undefined;
       } catch (error) {
         stop(true);
         options.onError?.(
@@ -2806,22 +2857,20 @@ function rootReplayInvocationEvents(
 
   const craftRoots = roots.filter((event) => event.kind === 'craft');
   const sourceRoots = roots.filter((event) => event.kind === 'custom');
-  const nonDuplicatedRoots = roots.filter(
-    (event) => {
-      if (!event.correlationId) return true;
-      if (event.kind === 'custom')
-        return !craftRoots.some(
-          (craft) =>
-            craft.correlationId === event.correlationId &&
-            craft.sequence < event.sequence,
-        );
-      return !sourceRoots.some(
-        (source) =>
-          source.correlationId === event.correlationId &&
-          source.sequence < event.sequence,
+  const nonDuplicatedRoots = roots.filter((event) => {
+    if (!event.correlationId) return true;
+    if (event.kind === 'custom')
+      return !craftRoots.some(
+        (craft) =>
+          craft.correlationId === event.correlationId &&
+          craft.sequence < event.sequence,
       );
-    },
-  );
+    return !sourceRoots.some(
+      (source) =>
+        source.correlationId === event.correlationId &&
+        source.sequence < event.sequence,
+    );
+  });
 
   // A single Craft call can pass through several wrapped layers. The runtime
   // wrapper records each layer with the same correlation id and method address,
@@ -2837,9 +2886,7 @@ function rootReplayInvocationEvents(
     const address = String(invocation?.['address'] ?? '');
     const correlation = event.correlationId ?? event.id;
     const key =
-      event.kind === 'custom'
-        ? event.id
-        : `${correlation}\u0000${address}`;
+      event.kind === 'custom' ? event.id : `${correlation}\u0000${address}`;
     const group = byCall.get(key) ?? [];
     group.push(event);
     byCall.set(key, group);

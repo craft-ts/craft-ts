@@ -22,6 +22,12 @@ import {
   environmentDifferences,
   getReplaySteps,
 } from '@craft-ts/component';
+import type {
+  DebugSessionResumePlan,
+  ResumeFidelityClass,
+  ResumeStepStatus,
+} from '@craft-ts/component';
+import type { ResumePreflightResult } from '@craft-ts/component';
 import { currentHash } from './replay-browser';
 import type { ThumbnailManifest } from './thumbnail-archive.service';
 import {
@@ -39,6 +45,7 @@ import {
   type ReplayStartMode,
   type ReplayTimer,
   type ReplayViewport,
+  type ResumeProfile,
   type VisibilityChange,
 } from './replay-model';
 
@@ -195,6 +202,80 @@ const statusBridge = createStateBridge(
   'Importe une session v6 pour commencer.',
 );
 export const status = statusBridge.value;
+const resumePlanBridge = createStateBridge<DebugSessionResumePlan | undefined>(
+  'resumePlan',
+  undefined,
+);
+export const resumePlan = resumePlanBridge.value;
+export type ResumePreflightDisplay = ResumePreflightResult & {
+  readonly error?: string;
+};
+const resumePreflightBridge = createStateBridge<
+  ResumePreflightDisplay | undefined
+>('resumePreflight', undefined);
+export const resumePreflight = resumePreflightBridge.value;
+export type ResumeExecutionDisplay = Readonly<{
+  status: 'running' | 'completed' | 'failed';
+  classification?: ResumeFidelityClass;
+  steps: readonly Readonly<{
+    id: string;
+    status: ResumeStepStatus;
+    detail?: string;
+  }>[];
+  /** Tolerated drifts and skipped steps, listed without lowering the class. */
+  warnings?: readonly string[];
+  overrides?: readonly Readonly<{
+    participantId: string;
+    call: string;
+    assistedBy?: 'human' | 'ai';
+  }>[];
+  blocked: readonly string[];
+}>;
+const resumeExecutionBridge = createStateBridge<
+  ResumeExecutionDisplay | undefined
+>('resumeExecution', undefined);
+export const resumeExecution = resumeExecutionBridge.value;
+export type ResumeHeldCall = Readonly<{
+  holdId: string;
+  launchId: string;
+  call: string;
+}>;
+const resumeHeldCallBridge = createStateBridge<ResumeHeldCall | undefined>(
+  'resumeHeldCall',
+  undefined,
+);
+export const resumeHeldCall = resumeHeldCallBridge.value;
+export type ResumeClockPolicy = 'real' | 'recorded';
+const resumeClockPolicyBridge = createStateBridge<ResumeClockPolicy>(
+  'resumeClockPolicy',
+  'real',
+);
+export const resumeClockPolicy = resumeClockPolicyBridge.value;
+const resumeProfileBridge = createStateBridge<ResumeProfile | undefined>(
+  'resumeProfile',
+  undefined,
+);
+export const resumeProfile = resumeProfileBridge.value;
+export type ResumeAssistantProposal = Readonly<{
+  id: string;
+  sessionId: string;
+  createdAt: string;
+  status: 'proposed' | 'apply-requested' | 'accepted' | 'rejected';
+  rationale: string;
+  overrides: readonly Readonly<Record<string, unknown>>[];
+}>;
+const resumeAssistantProposalsBridge = createStateBridge<
+  readonly ResumeAssistantProposal[]
+>('resumeAssistantProposals', []);
+export const resumeAssistantProposals = resumeAssistantProposalsBridge.value;
+const resumeAssistantAutoApproveBridge = createStateBridge(
+  'resumeAssistantAutoApprove',
+  false,
+);
+export const resumeAssistantAutoApprove =
+  resumeAssistantAutoApproveBridge.value;
+const AUTO_RESUME_ASSISTANT_STORAGE_KEY =
+  'craft-debug-session-dashboard:auto-resume-assistant:v1';
 const connectedBridge = createStateBridge('connected', false);
 export const connected = connectedBridge.value;
 const differenceBridge = createStateBridge<ReplayDifference | undefined>(
@@ -334,6 +415,9 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     const browserDocument = yield* BrowserDocumentService();
     const autoSkipPreference =
       (yield* localStorage.getItem(AUTO_SKIP_STORAGE_KEY)) === 'true';
+    const autoResumeAssistantPreference =
+      (yield* localStorage.getItem(AUTO_RESUME_ASSISTANT_STORAGE_KEY)) ===
+      'true';
     const sessionTextWriter = createStateWriter(
       'sessionText',
       sessionTextBridge,
@@ -459,6 +543,90 @@ export const { ReplayDashboardState: ReplayState } = craftService(
         statusWriter.insertion,
       ),
     );
+    const resumePlanWriter = createStateWriter('resumePlan', resumePlanBridge);
+    resumePlanWriter.bind(
+      yield* state(
+        'resumePlan',
+        resumePlanBridge.initialValue,
+        resumePlanWriter.insertion,
+      ),
+    );
+    const resumePreflightWriter = createStateWriter(
+      'resumePreflight',
+      resumePreflightBridge,
+    );
+    resumePreflightWriter.bind(
+      yield* state(
+        'resumePreflight',
+        resumePreflightBridge.initialValue,
+        resumePreflightWriter.insertion,
+      ),
+    );
+    const resumeExecutionWriter = createStateWriter(
+      'resumeExecution',
+      resumeExecutionBridge,
+    );
+    resumeExecutionWriter.bind(
+      yield* state(
+        'resumeExecution',
+        resumeExecutionBridge.initialValue,
+        resumeExecutionWriter.insertion,
+      ),
+    );
+    const resumeClockPolicyWriter = createStateWriter(
+      'resumeClockPolicy',
+      resumeClockPolicyBridge,
+    );
+    resumeClockPolicyWriter.bind(
+      yield* state(
+        'resumeClockPolicy',
+        resumeClockPolicyBridge.initialValue,
+        resumeClockPolicyWriter.insertion,
+      ),
+    );
+    const resumeProfileWriter = createStateWriter(
+      'resumeProfile',
+      resumeProfileBridge,
+    );
+    resumeProfileWriter.bind(
+      yield* state(
+        'resumeProfile',
+        resumeProfileBridge.initialValue,
+        resumeProfileWriter.insertion,
+      ),
+    );
+    const resumeAssistantProposalsWriter = createStateWriter(
+      'resumeAssistantProposals',
+      resumeAssistantProposalsBridge,
+    );
+    resumeAssistantProposalsWriter.bind(
+      yield* state(
+        'resumeAssistantProposals',
+        resumeAssistantProposalsBridge.initialValue,
+        resumeAssistantProposalsWriter.insertion,
+      ),
+    );
+    const resumeAssistantAutoApproveWriter = createStateWriter(
+      'resumeAssistantAutoApprove',
+      resumeAssistantAutoApproveBridge,
+    );
+    const resumeAssistantAutoApproveState =
+      resumeAssistantAutoApproveWriter.bind(
+        yield* state(
+          'resumeAssistantAutoApprove',
+          autoResumeAssistantPreference,
+          resumeAssistantAutoApproveWriter.insertion,
+        ),
+      );
+    yield* craftEffect('persistResumeAssistantAutoApprove', function* () {
+      const storage = yield* LocalStorageService();
+      const enabled = rawReactiveValue(resumeAssistantAutoApproveState);
+      return () =>
+        storage.setItem(
+          AUTO_RESUME_ASSISTANT_STORAGE_KEY,
+          String(enabled()),
+        );
+    });
     const connectedWriter = createStateWriter('connected', connectedBridge);
     connectedWriter.bind(
       yield* state('connected', false, connectedWriter.insertion),
@@ -507,8 +675,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     yield* craftEffect('persistAutoSkipPreference', function* () {
       const storage = yield* LocalStorageService();
       const enabled = rawReactiveValue(autoSkipDifferencesState);
-      return () =>
-        storage.setItem(AUTO_SKIP_STORAGE_KEY, String(enabled()));
+      return () => storage.setItem(AUTO_SKIP_STORAGE_KEY, String(enabled()));
     });
     const partialReplayWriter = createStateWriter(
       'partialReplay',
@@ -995,6 +1162,10 @@ export function rememberAutoSkipDifferences(enabled: boolean): void {
   autoSkipDifferences.set(enabled);
 }
 
+export function rememberResumeAssistantAutoApprove(enabled: boolean): void {
+  resumeAssistantAutoApprove.set(enabled);
+}
+
 export function recordReplayDifference(
   participantId: string,
   found: ReplayDifference,
@@ -1074,6 +1245,15 @@ export function replayParticipantIds(): readonly string[] {
       if (continuations().has(participant.id)) return false;
       return hasReplayableParticipantData(participant);
     })
+    .map((participant) => participant.id);
+}
+
+/** Every participant tab in the archive, independent of the replay filter. */
+export function resumeParticipantIds(): readonly string[] {
+  const participants = sessionParticipants();
+  if (participants.length === 0) return ['default'];
+  return participants
+    .filter((participant) => !continuations().has(participant.id))
     .map((participant) => participant.id);
 }
 

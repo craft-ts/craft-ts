@@ -11,8 +11,9 @@ import {
   source$,
 } from '@craft-ts/core';
 import { isRecord } from './replay-model';
+import type { ResumeProfile } from './replay-model';
 
-const SESSION_ARCHIVE_URL =
+export const SESSION_ARCHIVE_URL =
   import.meta.env['VITE_CRAFT_SESSION_ARCHIVE_URL'] ?? 'http://127.0.0.1:4319';
 
 /** How often the list asks the archive again. */
@@ -153,6 +154,18 @@ export const { SessionArchive } = craftService(
       },
     });
 
+    const saveResumeProfile = yield* mutation('persistResumeProfile', {
+      method: (request: Readonly<{ id: string; profile: ResumeProfile }>) =>
+        request,
+      loader: function* ({ params }) {
+        return yield* CraftHttpClient.put(({ response }) => ({
+          url: `${SESSION_ARCHIVE_URL}/sessions/${encodeURIComponent(params.id)}/resume-profile`,
+          payload: params.profile,
+          success: response<{ saved: boolean }>(),
+        }));
+      },
+    });
+
     const sessions = yield* query(
       'sessions',
       {
@@ -172,6 +185,11 @@ export const { SessionArchive } = craftService(
           reload: { onMutationResolved: true },
         }),
         insertReactOnMutation(deleteSessions, {
+          reload: { onMutationResolved: true },
+        }),
+        // La liste reflète l'archive après l'enregistrement d'un profil de
+        // reprise ; l'archive ouverte n'est pas rechargée sous le replay.
+        insertReactOnMutation(saveResumeProfile, {
           reload: { onMutationResolved: true },
         }),
       ),
@@ -219,6 +237,12 @@ export const { SessionArchive } = craftService(
       'deleteArchivedSessions',
       function* (ids: readonly string[]) {
         yield* deleteSessions.mutate(ids);
+      },
+    );
+    yield* craftExpose(
+      'saveResumeProfile',
+      function* (id: string, profile: ResumeProfile) {
+        return yield* saveResumeProfile.mutate({ id, profile });
       },
     );
   },

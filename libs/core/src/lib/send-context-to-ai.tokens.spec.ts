@@ -8,6 +8,11 @@ import { createSendContextToAiBuffer } from './send-context-to-ai';
 import { craftUse } from './craft-use';
 import { setupCraftServiceTest } from './setup-craft-service-test';
 import { AppSnapshotRegistry } from './take-app-snapshot';
+import {
+  activateCraftRandomRuntime,
+  ɵinjectCraftRandomRuntime,
+  SeededCraftRandomRuntime,
+} from './craft-random-runtime';
 
 describe('send context session', () => {
   it('records valid selectors for the document roots', () => {
@@ -28,6 +33,25 @@ describe('send context session', () => {
     expect(session.events.map((event) => event.name)).toEqual(['two', 'three']);
     expect(session.selectClip(clip.id)?.eventIds).toHaveLength(2);
     expect(session.selectClip(clip.id)?.truncated).toBe(true);
+  });
+
+  it('records a random seed and activates its deterministic runtime during recording', () => {
+    const session = createSendContextSession();
+    const previousRuntime = new SeededCraftRandomRuntime(77);
+    const restorePrevious = activateCraftRandomRuntime(previousRuntime);
+    session.startRecord('deterministic recording');
+    const exported = JSON.parse(session.exportSessionJson()) as {
+      randomSeed?: number;
+    };
+    const expected = new SeededCraftRandomRuntime(exported.randomSeed ?? 0);
+
+    expect(exported.randomSeed).toEqual(expect.any(Number));
+    expect(ɵinjectCraftRandomRuntime().next()).toBe(expected.next());
+
+    session.stopRecord();
+    expect(ɵinjectCraftRandomRuntime()).toBe(previousRuntime);
+    restorePrevious();
+    session.destroy();
   });
 
   it('redacts sensitive values and serializes cycles', () => {
@@ -85,7 +109,8 @@ describe('send context session', () => {
     >;
     expect(value).toMatchObject({
       format: 'craft-debug-session',
-      version: 6,
+      version: 7,
+      referenceCaptureVersion: 1,
       truncated: true,
     });
     expect(value.events).toHaveLength(1);
@@ -143,6 +168,20 @@ describe('send context session', () => {
       defaultSendContextRedactor({ nested: { password: 'x', ok: 1 } }),
     ).toEqual({
       nested: { password: '[REDACTED]', ok: 1 },
+    });
+  });
+
+  it('preserves safe reference placeholders in sensitive fields', () => {
+    expect(
+      defaultSendContextRedactor({
+        token: 'craft-ref:0123456789abcdef',
+        authorization: 'craft-ref:fedcba9876543210',
+        password: 'ordinary-secret',
+      }),
+    ).toEqual({
+      token: 'craft-ref:0123456789abcdef',
+      authorization: 'craft-ref:fedcba9876543210',
+      password: '[REDACTED]',
     });
   });
 

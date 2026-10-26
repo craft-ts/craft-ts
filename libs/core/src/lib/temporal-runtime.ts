@@ -222,7 +222,10 @@ export function* CraftTemporalRuntime(): Generator<
 export const ɵinjectCraftTemporalRuntime = (): CraftTemporalRuntime => {
   if (activeTemporalRuntimeOverride) return activeTemporalRuntimeOverride;
   try {
-    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? new RealCraftTemporalRuntime();
+    return (
+      inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ??
+      new RealCraftTemporalRuntime()
+    );
   } catch {
     return new RealCraftTemporalRuntime();
   }
@@ -525,7 +528,10 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
   >();
 
   now(): number {
-    if (activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this) {
+    if (
+      activeTemporalRuntimeOverride &&
+      activeTemporalRuntimeOverride !== this
+    ) {
       return activeTemporalRuntimeOverride.now();
     }
     return typeof globalThis.performance?.now === 'function'
@@ -534,7 +540,8 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
   }
 
   override dateNow(): number {
-    return activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this
+    return activeTemporalRuntimeOverride &&
+      activeTemporalRuntimeOverride !== this
       ? activeTemporalRuntimeOverride.dateNow()
       : Date.now();
   }
@@ -544,7 +551,10 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
     delayMs: number,
     options: TemporalScheduleOptions = {},
   ): TemporalTaskHandle {
-    if (activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this) {
+    if (
+      activeTemporalRuntimeOverride &&
+      activeTemporalRuntimeOverride !== this
+    ) {
       return activeTemporalRuntimeOverride.schedule(callback, delayMs, options);
     }
     const task = super.schedule(callback, delayMs, options) as TemporalTask;
@@ -568,25 +578,171 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
     return task;
   }
 
-  override sleep(delayMs: number, options: TemporalScheduleOptions = {}): Promise<void> {
-    return activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this
+  override sleep(
+    delayMs: number,
+    options: TemporalScheduleOptions = {},
+  ): Promise<void> {
+    return activeTemporalRuntimeOverride &&
+      activeTemporalRuntimeOverride !== this
       ? activeTemporalRuntimeOverride.sleep(delayMs, options)
       : super.sleep(delayMs, options);
   }
 
   override pendingTasks(owner?: string): readonly TemporalTaskSnapshot[] {
-    return activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this
+    return activeTemporalRuntimeOverride &&
+      activeTemporalRuntimeOverride !== this
       ? activeTemporalRuntimeOverride.pendingTasks(owner)
       : super.pendingTasks(owner);
   }
 
   override cancelAll(owner?: string): void {
-    if (activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this) {
+    if (
+      activeTemporalRuntimeOverride &&
+      activeTemporalRuntimeOverride !== this
+    ) {
       activeTemporalRuntimeOverride.cancelAll(owner);
       return;
     }
     super.cancelAll(owner);
   }
+}
+
+/** Real-time clock that can freeze pending work during resume decisions. */
+export class SuspendableCraftTemporalRuntime extends BaseCraftTemporalRuntime {
+  private readonly nativeTimers = new Map<
+    number,
+    ReturnType<typeof setTimeout>
+  >();
+  private readonly resumeTasks = new Map<
+    number,
+    {
+      readonly owner?: string;
+      readonly kind: string;
+      readonly delayMs: number;
+      scheduled: boolean;
+    }
+  >();
+  private pausedAt?: number;
+  private pausedDateAt?: number;
+  private pausedDuration = 0;
+  private pausedDateDuration = 0;
+  private dateOffset = 0;
+
+  now(): number {
+    const raw = this.pausedAt ?? nativeMonotonicNow();
+    return raw - this.pausedDuration;
+  }
+
+  override dateNow(): number {
+    const raw = this.pausedDateAt ?? Date.now();
+    return raw - this.pausedDateDuration + this.dateOffset;
+  }
+
+  pause(): boolean {
+    if (this.pausedAt !== undefined) return false;
+    this.pausedAt = nativeMonotonicNow();
+    this.pausedDateAt = Date.now();
+    for (const timer of this.nativeTimers.values()) clearTimeout(timer);
+    this.nativeTimers.clear();
+    return true;
+  }
+
+  resume(): boolean {
+    if (this.pausedAt === undefined || this.pausedDateAt === undefined)
+      return false;
+    this.pausedDuration += nativeMonotonicNow() - this.pausedAt;
+    this.pausedDateDuration += Date.now() - this.pausedDateAt;
+    this.pausedAt = undefined;
+    this.pausedDateAt = undefined;
+    for (const task of this.tasks.values()) this.arm(task);
+    return true;
+  }
+
+  setDateNowOffset(offsetMs: number): void {
+    assertFiniteTime(offsetMs, 'offsetMs');
+    this.dateOffset = offsetMs;
+  }
+
+  /** Rebase recorded pending sleeps onto their matching startup causes. */
+  restorePendingTasks(
+    tasks: readonly Readonly<{ kind: string; dueAt: number; owner?: string }>[],
+    recordedNow: number,
+  ): void {
+    this.resumeTasks.clear();
+    tasks.forEach((task, index) => {
+      this.resumeTasks.set(index, {
+        ...(task.owner === undefined ? {} : { owner: task.owner }),
+        kind: task.kind,
+        delayMs: Math.max(0, task.dueAt - recordedNow),
+        scheduled: false,
+      });
+    });
+  }
+
+  /** Whether startup recreated the recorded task at its matching owner. */
+  restoredTaskWasScheduled(index: number): boolean {
+    return this.resumeTasks.get(index)?.scheduled ?? false;
+  }
+
+  clearRestoredTaskTracking(): void {
+    this.resumeTasks.clear();
+  }
+
+  override schedule(
+    callback: () => void,
+    delayMs: number,
+    options: TemporalScheduleOptions = {},
+  ): TemporalTaskHandle {
+    const restored = [...this.resumeTasks.entries()].find(
+      ([, candidate]) =>
+        !candidate.scheduled &&
+        candidate.owner !== undefined &&
+        candidate.owner === options.owner &&
+        candidate.kind === (options.kind ?? 'schedule'),
+    );
+    const effectiveDelay = restored?.[1].delayMs ?? delayMs;
+    if (restored) restored[1].scheduled = true;
+    const task = super.schedule(
+      callback,
+      effectiveDelay,
+      options,
+    ) as TemporalTask;
+    if (task.snapshot().status !== 'cancelled') this.arm(task);
+    const cancel = task.cancel.bind(task);
+    task.cancel = () => {
+      const cancelled = cancel();
+      if (cancelled) {
+        const timer = this.nativeTimers.get(task.id);
+        if (timer !== undefined) clearTimeout(timer);
+        this.nativeTimers.delete(task.id);
+      }
+      return cancelled;
+    };
+    return task;
+  }
+
+  override cancelAll(owner?: string): void {
+    for (const task of [...this.tasks.values()]) {
+      if (owner === undefined || task.snapshot().owner === owner) task.cancel();
+    }
+  }
+
+  private arm(task: TrackedTask): void {
+    if (this.pausedAt !== undefined || task.snapshot().status !== 'pending')
+      return;
+    const delay = Math.max(0, task.snapshot().dueAt - this.now());
+    const timer = setTimeout(() => {
+      this.nativeTimers.delete(task.id);
+      this.runTask(task);
+    }, delay);
+    this.nativeTimers.set(task.id, timer);
+  }
+}
+
+function nativeMonotonicNow(): number {
+  return typeof globalThis.performance?.now === 'function'
+    ? globalThis.performance.now()
+    : Date.now();
 }
 
 /**

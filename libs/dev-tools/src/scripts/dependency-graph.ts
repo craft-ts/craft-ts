@@ -39,6 +39,7 @@ import {
   type GraphReportOptions,
 } from './graph-report.js';
 import { applyCoverage, type IstanbulCoverageMap } from './graph-coverage.js';
+import { resumeGraphArtifactOf } from './resume-chain.js';
 import {
   attachNodeDocs,
   declarationDocOf,
@@ -271,6 +272,8 @@ export type WriteDependencyGraphOptions = AnalyzeDependencyGraphOptions & {
   report?: GraphReportOptions;
   /** A parsed `coverage-final.json`, applied to every written format. */
   coverage?: IstanbulCoverageMap;
+  /** Optional compact graph artifact for the session-resume planner. */
+  resumeGraphPath?: string;
 };
 
 const PRIMITIVES = new Set([
@@ -540,6 +543,7 @@ export function analyzeDependencyGraph(
   analyzePrimitiveInsertionMetadata(builder);
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
+  analyzePrimitiveResumeDeclarations(builder, sourceFiles);
   collectInteractiveTemplateElements(builder);
   collectStyledElements(builder);
   analyzeRoutes(builder);
@@ -635,6 +639,18 @@ export async function writeDependencyGraph(
     await writeFile(
       `${basePath}.report.md`,
       formatGraphReportMarkdown(report),
+      'utf8',
+    );
+  }
+  if (options.resumeGraphPath) {
+    const resumeGraphPath = resolve(
+      options.rootDir ?? process.cwd(),
+      options.resumeGraphPath,
+    );
+    await mkdir(dirname(resumeGraphPath), { recursive: true });
+    await writeFile(
+      resumeGraphPath,
+      `${JSON.stringify(resumeGraphArtifactOf(graph), null, 2)}\n`,
       'utf8',
     );
   }
@@ -2580,7 +2596,61 @@ function analyzeServiceBodies(builder: GraphBuilder): void {
     }
     const bindings = collectReactiveBindings(builder, factory, service.node.id);
     analyzeReactiveDependencies(builder, factory, bindings, service.node.id);
+    analyzePrimitiveStateWrites(builder, service.node.id, factory);
     addSourceInteractions(builder, service.node.id, factory);
+  }
+}
+
+/** Links calls to methods exposed by a state primitive back to their writer. */
+function analyzePrimitiveStateWrites(
+  builder: GraphBuilder,
+  serviceId: string,
+  factory: Node,
+): void {
+  const states = new Map<
+    string,
+    { node: DependencyGraphNode; methods: ReadonlySet<string>; bindingKey?: string }
+  >();
+  for (const call of factory.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (primitiveFactoryName(call) !== 'state') continue;
+    const declaration = primitiveVariableDeclaration(call);
+    const primitiveName = getStringArgument(call, 0);
+    if (!declaration || !primitiveName) continue;
+    const node = findOwnedPrimitive(builder, serviceId, primitiveName, 'state');
+    if (!node) continue;
+    const methods = new Set(readStringArray(node.details?.['exposedMethods']));
+    if (methods.size === 0) continue;
+    for (const binding of bindingIdentifierNodes(declaration.getNameNode())) {
+      states.set(binding.getText(), {
+        node,
+        methods,
+        ...(symbolKey(binding.getSymbol())
+          ? { bindingKey: symbolKey(binding.getSymbol()) }
+          : {}),
+      });
+    }
+  }
+  if (states.size === 0) return;
+
+  for (const call of factory.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const expression = call.getExpression();
+    if (!Node.isPropertyAccessExpression(expression)) continue;
+    const chain = propertyAccessChain(expression);
+    const stateName = chain?.[0];
+    const method = chain?.at(-1);
+    if (!stateName || !method) continue;
+    const state = states.get(stateName);
+    if (!state || !state.methods.has(method)) continue;
+    const root = rootIdentifier(expression);
+    const key = root ? symbolKey(root.getSymbol()) : undefined;
+    if (state.bindingKey && key !== state.bindingKey) continue;
+    const writer = ownerNodeForAst(builder, call, serviceId);
+    if (writer.id === state.node.id) continue;
+    addEdge(builder, writer.id, state.node.id, 'writes', 'ast', {
+      operation: method,
+      via: 'state-method',
+      line: call.getStartLineNumber(),
+    });
   }
 }
 
@@ -2687,6 +2757,104 @@ function analyzeComponents(builder: GraphBuilder): void {
     }
     collectServicePropertyUses(builder, component);
   }
+}
+
+function analyzePrimitiveResumeDeclarations(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  for (const sourceFile of sourceFiles) {
+    for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const primitive = primitiveFactoryName(call);
+      if (!primitive || !['state', 'query', 'mutation'].includes(primitive)) continue;
+      const configIndex = 1;
+      const config = call.getArguments()[configIndex]?.asKind(SyntaxKind.ObjectLiteralExpression);
+      // A state takes `withResume(...)` as its last insertion; queries and
+      // mutations a `resume` property of their config.
+      const withResume = primitive === 'state'
+        ? call.getArguments().at(-1)?.asKind(SyntaxKind.CallExpression)
+        : undefined;
+      const resumeInitializer =
+        withResume?.getExpression().getText() === 'withResume'
+          ? withResume.getArguments()[0]
+          : config
+              ?.getProperty('resume')
+              ?.asKind(SyntaxKind.PropertyAssignment)
+              ?.getInitializer();
+      const resume = resumeDeclarationLiteral(resumeInitializer);
+      if (!resume) continue;
+      const primitiveNode = builder.nodes.get(stablePrimitiveId(call, primitive));
+      if (!primitiveNode) continue;
+      const details: Record<string, unknown> = {};
+      for (const property of resume.getProperties()) {
+        const assignment = property.asKind(SyntaxKind.PropertyAssignment);
+        if (!assignment) continue;
+        const name = assignment.getName().replace(/^['"]|['"]$/g, '');
+        if (
+          name === 'write' &&
+          (Node.isArrowFunction(assignment.getInitializer()) ||
+            Node.isFunctionExpression(assignment.getInitializer()))
+        ) {
+          details['hasWrite'] = true;
+          continue;
+        }
+        const value =
+          name === 'resource'
+            ? resumeResourceName(assignment.getInitializer())
+            : staticLiteralValue(assignment.getInitializer());
+        if (value !== undefined) details[name] = value;
+      }
+      if (Object.keys(details).length > 0) {
+        primitiveNode.details = {
+          ...(primitiveNode.details ?? {}),
+          resume: details,
+        };
+      }
+    }
+  }
+}
+
+/** `'session'`, or the name a `craftResumeResource('session')` constant carries. */
+function resumeResourceName(node: Node | undefined): string | undefined {
+  const literal = node && staticLiteralValue(node);
+  if (typeof literal === 'string') return literal;
+  const identifier = node?.asKind(SyntaxKind.Identifier);
+  const symbol = identifier?.getSymbol();
+  const declaration = (symbol?.getAliasedSymbol() ?? symbol)
+    ?.getDeclarations()
+    .find(Node.isVariableDeclaration);
+  const call = declaration?.getInitializer()?.asKind(SyntaxKind.CallExpression);
+  if (call?.getExpression().getText() !== 'craftResumeResource') return undefined;
+  const name = staticLiteralValue(call.getArguments()[0]);
+  return typeof name === 'string' ? name : undefined;
+}
+
+/**
+ * The object literal a resume declaration is written as: inline, in
+ * `craftResume({...})`, or returned by `craftResume((self) => ({...}))`.
+ */
+function resumeDeclarationLiteral(
+  node: Node | undefined,
+): import('ts-morph').ObjectLiteralExpression | undefined {
+  if (!node) return undefined;
+  const literal = node.asKind(SyntaxKind.ObjectLiteralExpression);
+  if (literal) return literal;
+  const call = node.asKind(SyntaxKind.CallExpression);
+  if (call?.getExpression().getText() !== 'craftResume') return undefined;
+  const argument = call.getArguments()[0];
+  const direct = argument?.asKind(SyntaxKind.ObjectLiteralExpression);
+  if (direct) return direct;
+  if (Node.isArrowFunction(argument) || Node.isFunctionExpression(argument)) {
+    const body = argument.getBody();
+    const returned = Node.isBlock(body)
+      ? body.getDescendantsOfKind(SyntaxKind.ReturnStatement)[0]?.getExpression()
+      : body;
+    let expression: Node | undefined = returned;
+    while (expression && Node.isParenthesizedExpression(expression))
+      expression = expression.getExpression();
+    return expression?.asKind(SyntaxKind.ObjectLiteralExpression);
+  }
+  return undefined;
 }
 
 /**
@@ -5785,9 +5953,17 @@ function addServerFunctionUsage(
   const family = serverFunctionFamilyForCall(builder, call);
   if (!family) return;
   const owner = ownerNodeForCall(builder, call, aggregateOwnerId);
+  const serverFunctionId = String(family.details?.['serverFunctionId'] ?? '');
+  const acquisition = /(?:login|sign.?in|\.create|\.acquire|\.refresh)/i.test(
+    serverFunctionId,
+  );
   addEdge(builder, owner.id, family.id, 'calls', 'type', {
     serverFunction: true,
-    ...(resourceLoaderFactory(call) ? { resourceRole: 'loader' } : {}),
+    ...(acquisition
+      ? { resourceRole: 'acquisition' }
+      : resourceLoaderFactory(call)
+        ? { resourceRole: 'loader' }
+        : {}),
     line: call.getStartLineNumber(),
   });
 }
@@ -5801,11 +5977,89 @@ function serverFunctionFamilyForCall(
   const resolved = symbol?.getAliasedSymbol() ?? symbol;
   for (const declaration of resolved?.getDeclarations() ?? []) {
     const filePath = declaration.getSourceFile().getFilePath();
-    if (!filePath.endsWith('.fn-client.ts')) continue;
-    const familyPath = filePath.slice(0, -'.fn-client.ts'.length);
-    return builder.nodes.get(`server-function-family:${familyPath}`);
+    if (filePath.endsWith('.fn-client.ts')) {
+      const familyPath = filePath.slice(0, -'.fn-client.ts'.length);
+      const family = builder.nodes.get(`server-function-family:${familyPath}`);
+      if (family) return family;
+    }
   }
-  return undefined;
+
+  // Follow project-local wrappers such as api.signIn -> rawLogin ->
+  // createServerFunctionClient(craftUnique('auth.login')). The
+  // traversal is bounded by declaration identity so recursive helpers cannot
+  // make graph construction loop forever.
+  const visited = new Set<Node>();
+  const visit = (node: Node): DependencyGraphNode | undefined => {
+    const uniqueCalls = [
+      ...(Node.isCallExpression(node) ? [node] : []),
+      ...node.getDescendantsOfKind(SyntaxKind.CallExpression),
+    ];
+    for (const uniqueCall of uniqueCalls) {
+      if (uniqueCall.getExpression().getText() !== 'craftUnique') continue;
+      const id = getStringArgument(uniqueCall, 0);
+      if (!id) continue;
+      const family = [...builder.nodes.values()].find(
+        (candidate) =>
+          candidate.kind === 'server-function-family' &&
+          candidate.details?.['serverFunctionId'] === id,
+      );
+      if (family) return family;
+    }
+
+    if (!Node.isCallExpression(node)) {
+      for (const nestedCall of uniqueCalls) {
+        const found = visit(nestedCall);
+        if (found) return found;
+      }
+    }
+
+    const expressions = Node.isCallExpression(node)
+      ? [node.getExpression()]
+      : Node.isIdentifier(node)
+        ? [node]
+        : [];
+    for (const expression of expressions) {
+      const identifier = rootIdentifier(expression);
+      const resolved = identifier?.getSymbol()?.getAliasedSymbol() ?? identifier?.getSymbol();
+      for (const declaration of resolved?.getDeclarations() ?? []) {
+        if (visited.has(declaration)) continue;
+        visited.add(declaration);
+        if (Node.isVariableDeclaration(declaration)) {
+          const initializer = declaration.getInitializer();
+          // Reading a primitive (`yield* cartLines()`) does not call the
+          // server functions its methods use; `cartLines.add(...)` calls
+          // only what `add` does.
+          const primitive = initializer && primitiveFactoryOf(initializer);
+          if (primitive) {
+            const member = firstMemberName(expression);
+            const definition = member
+              ? primitiveMemberDefinition(primitive, member)
+              : undefined;
+            if (definition) {
+              const found = visit(definition);
+              if (found) return found;
+            }
+            continue;
+          }
+          if (initializer) {
+            const found = visit(initializer);
+            if (found) return found;
+          }
+        } else if (
+          Node.isFunctionDeclaration(declaration) ||
+          Node.isMethodDeclaration(declaration) ||
+          Node.isFunctionExpression(declaration) ||
+          Node.isArrowFunction(declaration)
+        ) {
+          const found = visit(declaration);
+          if (found) return found;
+        }
+      }
+    }
+    return undefined;
+  };
+
+  return visit(call);
 }
 
 type DependencyGraphUniqueCallSite = {
@@ -6385,6 +6639,43 @@ function findServiceForCall(
   if (bySymbol) return bySymbol;
   const byName = builder.servicesByHelperName.get(helperName) ?? [];
   return byName.length === 1 ? byName[0] : undefined;
+}
+
+/** The primitive factory call an initializer evaluates to, through `yield*`, `await` and parentheses. */
+function primitiveFactoryOf(node: Node): CallExpression | undefined {
+  let current: Node = node;
+  for (;;) {
+    if (Node.isYieldExpression(current) || Node.isAwaitExpression(current) || Node.isParenthesizedExpression(current)) {
+      const inner = current.getExpression();
+      if (!inner) return undefined;
+      current = inner;
+      continue;
+    }
+    break;
+  }
+  return Node.isCallExpression(current) && primitiveFactoryName(current) ? current : undefined;
+}
+
+/** `add` for `cartLines.add(...)`; undefined for `cartLines()`. */
+function firstMemberName(expression: Node): string | undefined {
+  let current = expression;
+  let member: string | undefined;
+  while (Node.isPropertyAccessExpression(current)) {
+    member = current.getName();
+    current = current.getExpression();
+  }
+  return member;
+}
+
+/** The body of a method a primitive exposes (`add: function* (...) {}`), searched in its factory. */
+function primitiveMemberDefinition(primitive: CallExpression, member: string): Node | undefined {
+  for (const candidate of primitive.getDescendants()) {
+    if (Node.isMethodDeclaration(candidate) && candidate.getName() === member) return candidate;
+    if (Node.isPropertyAssignment(candidate) && candidate.getName() === member) {
+      return candidate.getInitializer();
+    }
+  }
+  return undefined;
 }
 
 function rootIdentifier(node: Node): import('ts-morph').Identifier | undefined {
@@ -7547,6 +7838,38 @@ function collectServerFunctionMiddlewares(
         'ast',
         { boundary: 'middleware-uses', composition },
       );
+    }
+  }
+
+  // Apps may declare several server functions in a regular `functions.ts`
+  // file instead of using the split *.fn-* convention. Preserve those
+  // boundaries as family nodes too, keyed by the public server-function id.
+  for (const sourceFile of sourceFiles) {
+    if (serverFunctionSuffix(sourceFile.getBaseName())) continue;
+    for (const call of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
+      if (call.getExpression().getText() !== 'serverFunction') continue;
+      const id = getStringArgument(call, 0);
+      if (!id) continue;
+      if ([...builder.nodes.values()].some(
+        (node) =>
+          node.kind === 'server-function-family' &&
+          node.details?.['serverFunctionId'] === id,
+      )) continue;
+      const family = `${sourceFile.getFilePath()}#${id}`;
+      addNode(builder, {
+        id: `server-function-family:${family}`,
+        kind: 'server-function-family',
+        label: id,
+        filePath: sourceFile.getFilePath(),
+        line: call.getStartLineNumber(),
+        details: {
+          family: relative(builder.rootDir, sourceFile.getFilePath()),
+          serverFunctionId: id,
+          declarationStyle: 'inline',
+        },
+      }, call);
     }
   }
 }

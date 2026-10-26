@@ -1,12 +1,24 @@
 import type { SendContextEvent, SendContextSession } from '@craft-ts/core';
+import {
+  fingerprintDebugSessionReference,
+  getDebugSessionReferenceSalt,
+  redactDebugSessionReferences,
+  type DebugSessionReference,
+} from './debug-session-references';
 
 export const INITIAL_BROWSER_STORAGE_EVENT = 'browser-storage-initial';
 /** Emitted whenever the origin storage differs from its last capture. */
 export const BROWSER_STORAGE_CHECKPOINT_EVENT = 'browser-storage-checkpoint';
 
-type EncodedValue = null | boolean | number | string | EncodedValue[] | {
-  readonly [key: string]: EncodedValue;
-};
+type EncodedValue =
+  | null
+  | boolean
+  | number
+  | string
+  | EncodedValue[]
+  | {
+      readonly [key: string]: EncodedValue;
+    };
 
 type IndexedDbStoreSnapshot = Readonly<{
   name: string;
@@ -40,6 +52,107 @@ export type BrowserStorageSnapshot = Readonly<{
   warnings: readonly string[];
 }>;
 
+/** Redacts persisted reference values before snapshots enter a portable archive. */
+export function redactBrowserStorageSnapshotForArchive(
+  snapshot: BrowserStorageSnapshot,
+  session: object,
+): Readonly<{
+  snapshot: BrowserStorageSnapshot;
+  refs: readonly DebugSessionReference[];
+}> {
+  const salt = getDebugSessionReferenceSalt(session);
+  const generic = redactDebugSessionReferences(snapshot, salt, 'storage', 'in');
+  const redacted = generic.value as BrowserStorageSnapshot;
+  const refs = [...generic.refs];
+  // Database, store, and index metadata describes the storage schema; it is
+  // not persisted user data or credentials. Keep it readable while redacting
+  // IndexedDB record keys and values through the generic pass.
+  const indexedDb = redacted.indexedDb.map((database, databaseIndex) => ({
+    ...database,
+    name: snapshot.indexedDb[databaseIndex]?.name ?? database.name,
+    stores: database.stores.map((store, storeIndex) => {
+      const originalStore = snapshot.indexedDb[databaseIndex]?.stores[storeIndex];
+      return {
+        ...store,
+        name: originalStore?.name ?? store.name,
+        keyPath: originalStore?.keyPath ?? store.keyPath,
+        indexes: store.indexes.map((index, indexIndex) => ({
+          ...index,
+          name: originalStore?.indexes[indexIndex]?.name ?? index.name,
+          keyPath:
+            originalStore?.indexes[indexIndex]?.keyPath ?? index.keyPath,
+        })),
+      };
+    }),
+  }));
+  const localStorage = redactStoragePairs(
+    snapshot.localStorage,
+    'localStorage',
+    salt,
+    refs,
+  );
+  const sessionStorage = redactStoragePairs(
+    snapshot.sessionStorage,
+    'sessionStorage',
+    salt,
+    refs,
+  );
+  const cookies = snapshot.cookies.map((cookie, index) => {
+    if (!/(?:auth|session|token|secret|csrf)/i.test(cookie.name)) return cookie;
+    const fingerprint = fingerprintDebugSessionReference(cookie.value, salt);
+    refs.push({
+      path: `storage.cookies[${index}].value`,
+      fingerprint,
+      direction: 'in',
+    });
+    return { ...cookie, value: `craft-ref:${fingerprint}` };
+  });
+  return {
+    snapshot: { ...redacted, localStorage, sessionStorage, indexedDb, cookies },
+    refs: [
+      ...new Map(
+        refs.map((ref) => [
+          `${ref.path}:${ref.fingerprint}:${ref.direction}`,
+          ref,
+        ]),
+      ).values(),
+    ],
+  };
+}
+
+function redactStoragePairs(
+  entries: BrowserStorageSnapshot['localStorage'],
+  storeName: 'localStorage' | 'sessionStorage',
+  salt: string,
+  refs: DebugSessionReference[],
+): BrowserStorageSnapshot['localStorage'] {
+  return entries.map(([key, originalValue], index) => {
+    if (!/(?:auth|session|token|secret|csrf)/i.test(key))
+      return [key, originalValue] as const;
+    let value = originalValue;
+    try {
+      const parsed: unknown = JSON.parse(originalValue);
+      const redacted = redactDebugSessionReferences(
+        parsed,
+        salt,
+        `storage.${storeName}[${index}][1]`,
+        'in',
+      );
+      refs.push(...redacted.refs);
+      value = JSON.stringify(redacted.value);
+    } catch {
+      const fingerprint = fingerprintDebugSessionReference(originalValue, salt);
+      refs.push({
+        path: `storage.${storeName}[${index}][1]`,
+        fingerprint,
+        direction: 'in',
+      });
+      value = `craft-ref:${fingerprint}`;
+    }
+    return [key, value] as const;
+  });
+}
+
 type CookieSnapshot = Readonly<{
   name: string;
   value: string;
@@ -54,7 +167,9 @@ type CookieSnapshot = Readonly<{
 type CookieStoreLike = {
   getAll(): Promise<readonly CookieSnapshot[]>;
   set(cookie: CookieSnapshot): Promise<void>;
-  delete(cookie: Pick<CookieSnapshot, 'name' | 'path' | 'domain'>): Promise<void>;
+  delete(
+    cookie: Pick<CookieSnapshot, 'name' | 'path' | 'domain'>,
+  ): Promise<void>;
 };
 
 type IndexedDbFactoryWithDatabases = IDBFactory & {
@@ -92,8 +207,7 @@ export async function restoreBrowserStorageSnapshot(
   restoreWebStorage(window.localStorage, snapshot.localStorage);
   restoreWebStorage(window.sessionStorage, snapshot.sessionStorage);
   await restoreCookies(snapshot.cookies, snapshot.cookieStoreSupported);
-  if (snapshot.indexedDbSupported)
-    await restoreIndexedDb(snapshot.indexedDb);
+  if (snapshot.indexedDbSupported) await restoreIndexedDb(snapshot.indexedDb);
 }
 
 /** Refuses snapshots that silently omit a browser store required for replay. */
@@ -201,7 +315,9 @@ async function readCookies(
     try {
       return { cookies: await cookieStore.getAll(), supported: true };
     } catch (error) {
-      warnings.push(`Cookie Store API could not read cookies: ${errorMessage(error)}`);
+      warnings.push(
+        `Cookie Store API could not read cookies: ${errorMessage(error)}`,
+      );
     }
   }
   try {
@@ -246,7 +362,10 @@ async function restoreCookies(
     if (name) document.cookie = `${name}=; Max-Age=0; Path=/`;
   }
   for (const cookie of cookies) {
-    const attributes = [`${cookie.name}=${cookie.value}`, `Path=${cookie.path ?? '/'}`];
+    const attributes = [
+      `${cookie.name}=${cookie.value}`,
+      `Path=${cookie.path ?? '/'}`,
+    ];
     if (cookie.domain) attributes.push(`Domain=${cookie.domain}`);
     if (cookie.expires !== undefined && cookie.expires !== null)
       attributes.push(`Expires=${new Date(cookie.expires).toUTCString()}`);
@@ -261,9 +380,7 @@ function getCookieStore(): CookieStoreLike | undefined {
   return (window as Window & { cookieStore?: CookieStoreLike }).cookieStore;
 }
 
-async function readIndexedDb(
-  warnings: string[],
-): Promise<{
+async function readIndexedDb(warnings: string[]): Promise<{
   supported: boolean;
   databases: readonly IndexedDbSnapshot[];
 }> {
@@ -275,7 +392,9 @@ async function readIndexedDb(
     return { supported: false, databases: [] };
   }
   if (!factory?.databases) {
-    warnings.push('IndexedDB database enumeration is not supported by this browser.');
+    warnings.push(
+      'IndexedDB database enumeration is not supported by this browser.',
+    );
     return { supported: false, databases: [] };
   }
   let databases: readonly { name?: string; version?: number }[];
@@ -287,9 +406,7 @@ async function readIndexedDb(
   }
   const snapshots = await Promise.all(
     databases.flatMap(({ name, version }) =>
-      name
-        ? [readDatabase(factory, name, version ?? 1, warnings)]
-        : [],
+      name ? [readDatabase(factory, name, version ?? 1, warnings)] : [],
     ),
   );
   return { supported: true, databases: snapshots };
@@ -358,12 +475,10 @@ async function restoreIndexedDb(
 ): Promise<void> {
   const factory = window.indexedDB as IndexedDbFactoryWithDatabases;
   const capturedNames = new Set(databases.map((database) => database.name));
-  const current = await factory.databases?.() ?? [];
+  const current = (await factory.databases?.()) ?? [];
   await Promise.all(
     current.flatMap(({ name }) =>
-      name && !capturedNames.has(name)
-        ? [deleteDatabase(factory, name)]
-        : [],
+      name && !capturedNames.has(name) ? [deleteDatabase(factory, name)] : [],
     ),
   );
   for (const snapshot of databases) {
@@ -381,7 +496,7 @@ async function openDatabaseForRestore(
   factory: IndexedDbFactoryWithDatabases,
   snapshot: IndexedDbSnapshot,
 ): Promise<IDBDatabase> {
-  const currentVersion = (await factory.databases?.() ?? []).find(
+  const currentVersion = ((await factory.databases?.()) ?? []).find(
     (database) => database.name === snapshot.name,
   )?.version;
   if (currentVersion === undefined)
@@ -430,7 +545,8 @@ function databaseSchemaMatches(
       if (!actual.indexNames.contains(indexSnapshot.name)) return false;
       const index = actual.index(indexSnapshot.name);
       if (
-        JSON.stringify(index.keyPath) !== JSON.stringify(indexSnapshot.keyPath) ||
+        JSON.stringify(index.keyPath) !==
+          JSON.stringify(indexSnapshot.keyPath) ||
         index.unique !== indexSnapshot.unique ||
         index.multiEntry !== indexSnapshot.multiEntry
       )
@@ -478,9 +594,8 @@ function openDatabase(
   version?: number,
 ): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = version === undefined
-      ? factory.open(name)
-      : factory.open(name, version);
+    const request =
+      version === undefined ? factory.open(name) : factory.open(name, version);
     request.addEventListener('upgradeneeded', () => {
       const database = request.result;
       const snapshot = pendingSchema.get(name);
@@ -490,10 +605,18 @@ function openDatabase(
         for (const store of snapshot.stores) createObjectStore(database, store);
       }
     });
-    request.addEventListener('success', () => resolve(request.result), { once: true });
-    request.addEventListener('error', () => reject(request.error), { once: true });
-    request.addEventListener('blocked', () =>
-      reject(new Error(`Opening IndexedDB ${name} is blocked by another page.`)),
+    request.addEventListener('success', () => resolve(request.result), {
+      once: true,
+    });
+    request.addEventListener('error', () => reject(request.error), {
+      once: true,
+    });
+    request.addEventListener(
+      'blocked',
+      () =>
+        reject(
+          new Error(`Opening IndexedDB ${name} is blocked by another page.`),
+        ),
       { once: true },
     );
   });
@@ -520,16 +643,22 @@ function createObjectStore(
 function mutableKeyPath(
   keyPath: string | readonly string[] | null,
 ): string | string[] | null {
-  return Array.isArray(keyPath) ? [...keyPath] : keyPath as string | null;
+  return Array.isArray(keyPath) ? [...keyPath] : (keyPath as string | null);
 }
 
 function deleteDatabase(factory: IDBFactory, name: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = factory.deleteDatabase(name);
     request.addEventListener('success', () => resolve(), { once: true });
-    request.addEventListener('error', () => reject(request.error), { once: true });
-    request.addEventListener('blocked', () =>
-      reject(new Error(`Deleting IndexedDB ${name} is blocked by another page.`)),
+    request.addEventListener('error', () => reject(request.error), {
+      once: true,
+    });
+    request.addEventListener(
+      'blocked',
+      () =>
+        reject(
+          new Error(`Deleting IndexedDB ${name} is blocked by another page.`),
+        ),
       { once: true },
     );
   });
@@ -537,16 +666,24 @@ function deleteDatabase(factory: IDBFactory, name: string): Promise<void> {
 
 function requestValue<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
-    request.addEventListener('success', () => resolve(request.result), { once: true });
-    request.addEventListener('error', () => reject(request.error), { once: true });
+    request.addEventListener('success', () => resolve(request.result), {
+      once: true,
+    });
+    request.addEventListener('error', () => reject(request.error), {
+      once: true,
+    });
   });
 }
 
 function transactionDone(transaction: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     transaction.addEventListener('complete', () => resolve(), { once: true });
-    transaction.addEventListener('abort', () => reject(transaction.error), { once: true });
-    transaction.addEventListener('error', () => reject(transaction.error), { once: true });
+    transaction.addEventListener('abort', () => reject(transaction.error), {
+      once: true,
+    });
+    transaction.addEventListener('error', () => reject(transaction.error), {
+      once: true,
+    });
   });
 }
 
@@ -558,7 +695,8 @@ async function encodeStructuredValue(
   },
 ): Promise<EncodedValue> {
   if (value === undefined) return { $type: 'undefined' };
-  if (typeof value === 'bigint') return { $type: 'bigint', value: value.toString() };
+  if (typeof value === 'bigint')
+    return { $type: 'bigint', value: value.toString() };
   if (typeof value === 'number' && !Number.isFinite(value))
     return { $type: 'number', value: String(value) };
   if (value === null || typeof value !== 'object') return value as EncodedValue;
@@ -576,7 +714,9 @@ async function encodeStructuredValue(
   if (value instanceof RegExp)
     return withId('regexp', { source: value.source, flags: value.flags });
   if (value instanceof ArrayBuffer)
-    return withId('array-buffer', { bytes: bytesToBase64(new Uint8Array(value)) });
+    return withId('array-buffer', {
+      bytes: bytesToBase64(new Uint8Array(value)),
+    });
   if (ArrayBuffer.isView(value)) {
     const view = value as ArrayBufferView;
     const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
@@ -637,7 +777,9 @@ async function decodeStructuredValue(
   references = new Map<number, unknown>(),
 ): Promise<unknown> {
   if (Array.isArray(value))
-    return Promise.all(value.map((entry) => decodeStructuredValue(entry, references)));
+    return Promise.all(
+      value.map((entry) => decodeStructuredValue(entry, references)),
+    );
   if (value === null || typeof value !== 'object') return value;
   const reference = value['$ref'];
   if (typeof reference === 'number') return references.get(reference);
@@ -683,12 +825,13 @@ async function decodeStructuredValue(
     const blobBuffer = new ArrayBuffer(bytes.byteLength);
     new Uint8Array(blobBuffer).set(bytes);
     const blob = new Blob([blobBuffer], { type: mimeType });
-    const result = typeof value['name'] === 'string'
-      ? new File([blob], value['name'], {
-          type: mimeType,
-          lastModified: Number(value['lastModified'] ?? 0),
-        })
-      : blob;
+    const result =
+      typeof value['name'] === 'string'
+        ? new File([blob], value['name'], {
+            type: mimeType,
+            lastModified: Number(value['lastModified'] ?? 0),
+          })
+        : blob;
     references.set(id, result);
     return result;
   }
@@ -718,9 +861,10 @@ async function decodeStructuredValue(
       result.add(await decodeStructuredValue(entry, references));
     return result;
   }
-  const result: Record<string, unknown> = value['nullPrototype'] === true
-    ? Object.create(null) as Record<string, unknown>
-    : {};
+  const result: Record<string, unknown> =
+    value['nullPrototype'] === true
+      ? (Object.create(null) as Record<string, unknown>)
+      : {};
   references.set(id, result);
   for (const entry of asArray(value['entries'])) {
     if (Array.isArray(entry) && typeof entry[0] === 'string')
@@ -737,19 +881,32 @@ async function decodeStructuredValue(
 function createTypedArray(name: string, bytes: Uint8Array): ArrayBufferView {
   const buffer = bytes.slice().buffer;
   switch (name) {
-    case 'Int8Array': return new Int8Array(buffer);
-    case 'Uint8Array': return new Uint8Array(buffer);
-    case 'Uint8ClampedArray': return new Uint8ClampedArray(buffer);
-    case 'Int16Array': return new Int16Array(buffer);
-    case 'Uint16Array': return new Uint16Array(buffer);
-    case 'Int32Array': return new Int32Array(buffer);
-    case 'Uint32Array': return new Uint32Array(buffer);
-    case 'Float32Array': return new Float32Array(buffer);
-    case 'Float64Array': return new Float64Array(buffer);
-    case 'BigInt64Array': return new BigInt64Array(buffer);
-    case 'BigUint64Array': return new BigUint64Array(buffer);
-    case 'DataView': return new DataView(buffer);
-    default: return new Uint8Array(buffer);
+    case 'Int8Array':
+      return new Int8Array(buffer);
+    case 'Uint8Array':
+      return new Uint8Array(buffer);
+    case 'Uint8ClampedArray':
+      return new Uint8ClampedArray(buffer);
+    case 'Int16Array':
+      return new Int16Array(buffer);
+    case 'Uint16Array':
+      return new Uint16Array(buffer);
+    case 'Int32Array':
+      return new Int32Array(buffer);
+    case 'Uint32Array':
+      return new Uint32Array(buffer);
+    case 'Float32Array':
+      return new Float32Array(buffer);
+    case 'Float64Array':
+      return new Float64Array(buffer);
+    case 'BigInt64Array':
+      return new BigInt64Array(buffer);
+    case 'BigUint64Array':
+      return new BigUint64Array(buffer);
+    case 'DataView':
+      return new DataView(buffer);
+    default:
+      return new Uint8Array(buffer);
   }
 }
 
@@ -816,10 +973,12 @@ export function initialBrowserStorageSnapshot(
 export function browserStorageSnapshotBefore(
   events: readonly SendContextEvent[],
   beforeSequence?: number,
-): Readonly<{
-  snapshot: BrowserStorageSnapshot;
-  source: 'checkpoint' | 'initial';
-}> | undefined {
+):
+  | Readonly<{
+      snapshot: BrowserStorageSnapshot;
+      source: 'checkpoint' | 'initial';
+    }>
+  | undefined {
   const checkpoint = events
     .filter(
       (entry) =>
@@ -870,14 +1029,20 @@ export function connectBrowserStorageCheckpoints(
     }
     capturing = true;
     try {
-      const json = JSON.stringify(await capture());
+      const snapshot = await capture();
+      const json = JSON.stringify(snapshot);
       const previous = await last;
       if (disposed || json === previous) return;
       last = Promise.resolve(json);
       if (json.length > STORAGE_CHECKPOINT_MAX_CHARS) return;
+      const redacted = redactBrowserStorageSnapshotForArchive(
+        snapshot,
+        session,
+      );
       session.capture('storage', 'emitted', {
         name: BROWSER_STORAGE_CHECKPOINT_EVENT,
-        payload: { snapshotJson: json },
+        payload: { snapshotJson: JSON.stringify(redacted.snapshot) },
+        ...(redacted.refs.length > 0 ? { refs: redacted.refs } : {}),
       });
     } catch {
       // Storage that cannot be read now is simply not checkpointed.

@@ -118,7 +118,9 @@ test('restores browser storage before the replay application boots', async ({
 }) => {
   test.skip(browserName !== 'chromium', 'IndexedDB enumeration is required.');
   const localKey = `replay-local-${Date.now()}`;
-  const sessionKey = `replay-session-${Date.now()}`;
+  // Keep this a non-secret storage key. Keys containing "session" are
+  // intentionally redacted together with their values in portable archives.
+  const sessionKey = `replay-state-${Date.now()}`;
   const cookieName = `replay_cookie_${Date.now()}`;
   const databaseName = `replay-storage-${Date.now()}`;
   const before = (await (
@@ -408,6 +410,21 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
     })
     .not.toBe('');
 
+  // The initial storage checkpoint is captured asynchronously during app
+  // startup. Let it settle before asserting that an inactive tab stays idle.
+  await expect
+    .poll(async () => {
+      const archived = (await (
+        await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
+      ).json()) as StoredSession;
+      return archived.events.some(
+        (event) =>
+          event.kind === 'storage' &&
+          event.name === 'browser-storage-initial',
+      );
+    })
+    .toBe(true);
+
   let stored: StoredSession | undefined;
   await expect
     .poll(async () => {
@@ -421,6 +438,18 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
       ).size;
     })
     .toBe(2);
+  await expect
+    .poll(async () => {
+      const archived = (await (
+        await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
+      ).json()) as StoredSession;
+      return archived.events.filter(
+        (event) =>
+          event.kind === 'storage' &&
+          event.name === 'browser-storage-checkpoint',
+      ).length;
+    })
+    .toBeGreaterThanOrEqual(2);
   expect(stored?.participants).toHaveLength(2);
   const dashboard = await context.newPage();
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
@@ -437,6 +466,12 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '1 /',
   );
+  await dashboard.getByRole('button', { name: 'Journal', exact: true }).click();
+  await dashboard.getByRole('tab', { name: 'Journal' }).click();
+  await dashboard.getByRole('switch', { name: 'Tout afficher' }).click();
+  await expect(
+    dashboard.getByRole('button', { name: 'Reprendre ici' }).first(),
+  ).toBeVisible();
 
   await secondTab.evaluate(() => {
     Object.defineProperty(document, 'hasFocus', {
@@ -464,12 +499,26 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
   const afterBlur = (await (
     await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
   ).json()) as StoredSession;
-  const eventsAfterBlur = afterBlur.events.length;
+  const blurredParticipant = afterBlur.participants?.find(
+    (participant) => participant.state === 'blurred',
+  );
+  expect(blurredParticipant).toBeDefined();
+  const interactionsAfterBlur = afterBlur.events.filter(
+    (event) =>
+      event.participantId === blurredParticipant?.id &&
+      isRecordedApplicationInteraction(event),
+  ).length;
   await secondTab.waitForTimeout(1_200);
   const afterIdle = (await (
     await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
   ).json()) as StoredSession;
-  expect(afterIdle.events).toHaveLength(eventsAfterBlur);
+  expect(
+    afterIdle.events.filter(
+      (event) =>
+        event.participantId === blurredParticipant?.id &&
+        isRecordedApplicationInteraction(event),
+    ),
+  ).toHaveLength(interactionsAfterBlur);
   expect(
     afterIdle.participants?.some(
       (participant) => participant.state === 'blurred',

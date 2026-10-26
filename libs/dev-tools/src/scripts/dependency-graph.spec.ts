@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { analyzeDependencyGraph } from './dependency-graph';
+import { resumeChainOf } from './resume-chain';
 
 const temporaryDirectories: string[] = [];
 
@@ -100,6 +101,126 @@ function edgeLabels(
 }
 
 describe('analyzeDependencyGraph reactive granularity', () => {
+  it('reads resume declarations written with withResume and a craftResume factory', async () => {
+    const root = await fixture({
+      'resume.ts': `
+        ${CRAFT_STUBS}
+        declare function craftResume(value: unknown): unknown;
+        declare function withResume(value: unknown): unknown;
+        const { Session } = craftService({ name: 'Session', providedIn: 'global' }, function* () {
+          yield* state('currentSession', undefined as unknown, ({ set }) => ({ open: (value: unknown) => set(value) }),
+            withResume(craftResume((self: unknown) => ({ resource: 'session', role: 'holds', path: '$.token' }))));
+          yield* query('currentUser', {
+            resume: craftResume({ resource: 'session', role: 'requires', calls: ['auth.me'] }),
+            params: () => true,
+            loader: function* () { return true; },
+          });
+        });
+      `,
+    });
+    const graph = analyzeDependencyGraph({ rootDir: root, tsConfigFilePath: 'tsconfig.json' });
+    expect(nodeByLabel(graph, 'state:currentSession')[0]?.details?.['resume']).toEqual({
+      resource: 'session',
+      role: 'holds',
+      path: '$.token',
+    });
+    expect(nodeByLabel(graph, 'query:currentUser')[0]?.details?.['resume']).toEqual({
+      resource: 'session',
+      role: 'requires',
+      calls: ['auth.me'],
+    });
+  });
+
+  it('treats reading a primitive as a dependency, not a call of its methods', async () => {
+    const root = await fixture({
+      'cart.ts': `
+        ${CRAFT_STUBS}
+        declare function serverFunction(id: string): unknown;
+        declare function createServerFunctionClient<T>(id: T): (...args: any[]) => Generator<unknown, unknown, unknown>;
+        const addLineFunction = serverFunction('ecommerce.cart.addLine');
+        const removeLineFunction = serverFunction('ecommerce.cart.removeLine');
+        const rawAddLine = createServerFunctionClient(craftUnique('ecommerce.cart.addLine'));
+        const rawRemoveLine = createServerFunctionClient(craftUnique('ecommerce.cart.removeLine'));
+        const { Cart } = craftService({ name: 'Cart', providedIn: 'global' }, function* () {
+          const cartLines = yield* state('cartLines', [] as number[], ({ set }) => ({
+            add: function* (line: number) { yield* rawAddLine({ line }); yield* set([line]); },
+            remove: function* (line: number) { yield* rawRemoveLine({ line }); },
+          }));
+          yield* craftComputed('cartCount', function* () {
+            return (yield* cartLines()).length;
+          });
+          yield* craftEffect('addOnStart', function* () {
+            yield* cartLines.add(1);
+          });
+        });
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    expect(edgeLabels(graph, 'craftComputed:cartCount', 'calls')).toEqual([]);
+    expect(edgeLabels(graph, 'craftComputed:cartCount', 'depends-on')).toContain(
+      'depends-on->state:cartLines',
+    );
+    // A real member call reaches that member's server function only.
+    const effectCalls = edgeLabels(graph, 'craftEffect:addOnStart', 'calls');
+    expect(effectCalls).not.toContain('calls->ecommerce.cart.removeLine');
+  });
+
+  it('follows server-function wrappers through craftUnique and createServerFunctionClient', async () => {
+    const root = await fixture({
+      'resume.ts': `
+        ${CRAFT_STUBS}
+        declare function serverFunction(id: string): unknown;
+        declare function createServerFunctionClient<T>(id: T): (...args: any[]) => Generator<unknown, unknown, unknown>;
+        const login = serverFunction('ecommerce.auth.login');
+        const rawLogin = createServerFunctionClient(craftUnique('ecommerce.auth.login'));
+        function* signIn(input: unknown) { return yield* rawLogin(input); }
+        const { Session } = craftService({ name: 'Session', providedIn: 'global' }, function* () {
+          const currentSession = yield* state('currentSession', undefined as unknown, ({ set }) => ({
+            open: (value: unknown) => set(value),
+          }));
+          yield* query('signInProcess', {
+            resume: { resource: 'session', role: 'provides', persona: 'product-manager' },
+            method: (input: unknown) => input,
+            loader: function* ({ params }) {
+              const result = yield* signIn(params);
+              yield* currentSession.open(result);
+              return result;
+            },
+          });
+          yield* craftComputed('isStaff', function* () { return yield* currentSession(); });
+        });
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    const rootPrimitive = nodeByLabel(graph, 'craftComputed:isStaff')[0];
+    expect(rootPrimitive).toBeDefined();
+    const chain = resumeChainOf(graph, rootPrimitive!.id);
+    expect(chain.nodes.map((node) => node.label)).toEqual(
+      expect.arrayContaining([
+        'state:currentSession',
+        'query:signInProcess',
+        'ecommerce.auth.login',
+      ]),
+    );
+    expect(chain.edges.map((edge) => edge.kind)).toEqual(
+      expect.arrayContaining(['depends-on', 'writes', 'calls']),
+    );
+    const loginPrimitive = graph.nodes.find((node) => node.label === 'query:signInProcess');
+    expect(loginPrimitive?.details?.['resume']).toEqual({
+      resource: 'session',
+      role: 'provides',
+      persona: 'product-manager',
+    });
+  });
+
   it('reads primitives a service yields, including private ones', async () => {
     const root = await fixture({
       'todo.ts': `
@@ -654,6 +775,46 @@ describe('analyzeDependencyGraph architecture facts', () => {
 });
 
 describe('analyzeDependencyGraph insertions', () => {
+  it('links primitive loaders that write an exposed state method', async () => {
+    const root = await fixture({
+      'session.ts': `
+        ${CRAFT_STUBS}
+
+        const { Session } = craftService(
+          { name: 'Session', providedIn: 'global' },
+          function* () {
+            const currentSession = yield* state('currentSession', undefined, ({ set }) => ({
+              open: (value: unknown) => set(value),
+            }));
+            yield* query('signInProcess', {
+              loader: function* () {
+                yield* currentSession.open({ user: 'roma' });
+              },
+            });
+            yield* craftComputed('isStaff', function* () {
+              return yield* currentSession();
+            });
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    const writes = edgesFrom(graph, 'query:signInProcess', 'writes');
+
+    expect(writes).toHaveLength(1);
+    expect(graph.nodes.find((node) => node.id === writes[0]?.to)).toMatchObject({
+      label: 'state:currentSession',
+    });
+    expect(writes[0]?.details).toMatchObject({
+      operation: 'open',
+      via: 'state-method',
+    });
+  });
+
   it('links a mutation returned by another service to the consuming query', async () => {
     const root = await fixture({
       'reviews.ts': `

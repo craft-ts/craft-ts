@@ -315,6 +315,10 @@ export function createStoragePersister(
             queryValue?: unknown;
             timestamp?: unknown;
           };
+          // An empty query cache entry is not a restorable value. In
+          // particular, JSON.stringify omits `queryValue: undefined`, which
+          // would otherwise produce a snapshot entry that fails validation.
+          if (!('queryValue' in stored)) continue;
           if (
             typeof stored.timestamp === 'number' &&
             query.cacheTime > 0 &&

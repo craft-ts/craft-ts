@@ -15,19 +15,25 @@
       "path": "../../libs/i18n/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/effect/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/stream/tsconfig.lib.json"
     },
     {
       "path": "../../libs/stream-effect/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/effect/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/core/tsconfig.lib.json"
     },
     {
       "path": "../../libs/component/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/review-attestation/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/style/tsconfig.lib.json"
     },
     {
       "path": "../../libs/dev-tools/tsconfig.lib.json"

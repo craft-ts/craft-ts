@@ -5,9 +5,58 @@ choisi d'une session, avec des états réels et valides : connexion refaite,
 droits du bon rôle, références serveur (jeton, panier) réacquises, temps
 recalé, et rien d'écrit sur un backend sans accord.
 
-> **Statut.** Plan. Seul le premier point du lot 0 est fait (renforcement de
-> `no-direct-temporal-globals`, 2026-10-24, non commité). Tout le reste est à
-> construire.
+> **Statut corrigé (2026-10-25).** La revue a montré que plusieurs points
+> ci-dessous n'étaient pas vrais ; ils sont corrigés par
+> `2026-10-25-reprise-fonctionnelle-corrections.md`. En particulier : la
+> persona était fixée dans la déclaration, les acquisitions partaient sans
+> test de vivacité, `expect`/`onMismatch`/`cleanup` n'étaient pas exécutés,
+> et les valeurs ne restaient **pas** hors archive (jetons en clair dans les
+> réponses JSON encodées deux fois, ressources relayées par `postMessage`).
+> Le masquage des secrets reste reporté.
+>
+> **Statut d'origine.** Mise en œuvre annoncée terminée dans le worktree `codex/reprise-fonctionnelle`.
+> Les lots 0 à 10 sont raccordés à la démo. Le graphe statique de reprise
+> est produit par `resume-check`, servi en développement sur loopback, et ses
+> empreintes sont raccordées aux déclarations runtime quand la correspondance
+> est unique. Les archives de la démo capturent aussi un baseline d’empreintes
+> sans chemins source. Le lot 7 dispose d’un exécuteur séquentiel, d’une
+> barrière réseau et d’un lancement guidé multi-onglets : le dashboard prépare
+> un plan par participant, ouvre un onglet par participant archivé, puis lance
+> le participant de tête avant les suivants. Les onglets suivants attendent
+> leurs ressources partagées en mémoire, puis exécutent leur propre plan.
+> Le dashboard affiche la progression et le
+> rapport agrégé de fidélité. La
+> barrière couvre `fetch`, XHR, WebSocket et workers à partir des appels
+> explicitement autorisés, et l’instantané conserve maintenant les horloges
+> monotone et civile pour le profil enregistré. Les tâches temporelles sont
+> recalées par propriétaire et type quand le démarrage les recrée ; celles qui
+> ne le sont pas apparaissent dans le rapport. Un appel réseau imprévu via
+> `fetch` ou XHR asynchrone est maintenant
+> retenu avec une décision dans le dashboard (autoriser une fois ou refuser),
+> puis refusé automatiquement après deux minutes. XHR synchrone, WebSocket et
+> workers non autorisés échouent encore directement.
+> L’archive locale sait persister un profil versionné avec la politique
+> d’horloge et des surcharges figées. Le dashboard permet d’éditer leurs
+> cibles et valeurs JSON, les valide structurellement, et l’application les
+> applique aux réponses HTTP par remplacement ou patch JSON, avec statut
+> facultatif (par exemple 403) ; seules les
+> surcharges effectivement utilisées affectent la classe de fidélité. Le
+> dashboard contrôle la forme JSON contre la réponse archivée pour ce même
+> appel ; les schémas OpenAPI/API restent à raccorder. Le dashboard publie
+> maintenant le plan et les écarts au pont local de `log-mcp` : les outils
+> `resume_*` peuvent proposer une surcharge ; l’approbation est humaine par
+> défaut, avec une option automatique réservée au dashboard en loopback, et la
+> persistance du profil reste une action distincte. Le journal propose
+> aussi « Reprendre ici » sur chaque événement pour planifier au point choisi.
+> Les attentes `recorded` sont projetées sans leurs valeurs dans le plan ; une
+> réponse future archivée (par exemple le 403 de S1) est visible dans le plan
+> et le manifeste sans exposer son corps.
+> Le lot 10 ajoute `craft graph --check-resume`, raccordé aux cibles `serve`
+> et `build` de la démo. Les acceptations S1, S2 et S3 passent dans Chromium :
+> reconnexion avec le 403 métier attendu, nouveau panier sans commande, puis
+> reprise de la recherche temporisée et du polling multi-onglets. Les specs
+> unitaires ciblées, le lint et le contrôle du graphe passent également. Les
+> points reportés ci-dessous restent ouverts.
 
 ## Promesse
 
@@ -15,32 +64,32 @@ Pas une téléportation exacte : une **reprise vérifiée, à fidélité mesuré
 qui refuse de se lancer quand elle ne peut pas garantir l'état. Chaque reprise
 se termine par un rapport qui la classe :
 
-| Classe | Condition |
-|---|---|
-| **réelle** | toutes les étapes bloquantes conformes en vrai, aucune surcharge |
-| **assistée** | au moins une étape surchargée (à la main ou par l'IA), aucune bloquée |
-| **partiellement simulée** | au moins une étape servie depuis l'enregistrement |
-| **refusée** | une étape bloquante a échoué ou le pré-vol n'est pas passé |
+| Classe                    | Condition                                                             |
+| ------------------------- | --------------------------------------------------------------------- |
+| **réelle**                | toutes les étapes bloquantes conformes en vrai, aucune surcharge      |
+| **assistée**              | au moins une étape surchargée (à la main ou par l'IA), aucune bloquée |
+| **partiellement simulée** | au moins une étape servie depuis l'enregistrement                     |
+| **refusée**               | une étape bloquante a échoué ou le pré-vol n'est pas passé            |
 
 Une reprise n'est jamais présentée comme plus réelle qu'elle ne l'est.
 
 ## Ce qui existe déjà
 
-| Brique | Où | Rôle dans la reprise |
-|---|---|---|
-| Format d'archive v6, événements corrélés (`operationId`, `correlationId`), participants multi-onglets | `libs/core/src/lib/send-context-to-ai.tokens.ts` | matière première |
-| Capture fetch (méthode, URL, corps, réponse complète) | `libs/component/src/lib/ai/debug-session-fetch-capture.ts` | à enrichir (en-têtes, XHR, empreintes) |
-| Rejeu HTTP apparié par contexte d'appel | `libs/core/src/lib/craft-http-trace.ts` (`ɵinstallCraftHttpReplay`, `ɵconsumeCraftHttpReplayResult`) | base de la barrière hybride |
-| Snapshot d'app avant un événement | `libs/component/src/lib/ai/debug-session-app-snapshot.ts` (`buildDebugAppSnapshot`) | point de départ de la restauration |
-| Lancement d'un onglet restauré | `debug-session-snapshot-launch.ts`, `debug-session-replay-bridge.ts`, dashboard `replay-debug.ts` | protocole à étendre |
-| Checkpoints du storage navigateur | `debug-session-browser-storage.ts` | partie globale du snapshot |
-| Restauration des primitives | `libs/core/src/lib/craft-primitive-registry.ts` (`restore`) | substitution des références |
-| Racines d'invocation, plan de rejeu | `debug-session-orchestrator.ts` (`rootInvocations`, `compileReplayPlan`) | chaîne dynamique |
-| Rapport de dérive, tolérances | `debug-session-scenario.ts` (`createReplayDriftReport`, `compareReplayScenarioValue`) | rapport de fidélité |
-| Runtime temporel : `now`, `dateNow`, `schedule`, `pendingTasks` (`dueAt`, `owner`), runtime virtuel | `libs/core/src/lib/temporal-runtime.ts` | horloge de reprise, tâches à réarmer |
-| Graphe : primitives, `triggers` (`insertReactOnMutation`), `http-endpoint`, opérations serveur, état persisté (`insertLocalStoragePersister`) | `libs/dev-tools/src/scripts/dependency-graph.ts` | chaîne statique |
-| Classifications de données et frontières `external-output` | `libs/dev-tools/src/scripts/data-flow-graph.ts` | masquage du manifeste |
-| Chat IA du dashboard, serveurs MCP | `apps/debug-session-dashboard/src/replay-ai-bridge.service.ts`, `packages/log-mcp` | aide IA |
+| Brique                                                                                                                                        | Où                                                                                                   | Rôle dans la reprise                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Format d'archive v6, événements corrélés (`operationId`, `correlationId`), participants multi-onglets                                         | `libs/core/src/lib/send-context-to-ai.tokens.ts`                                                     | matière première                       |
+| Capture fetch (méthode, URL, corps, réponse complète)                                                                                         | `libs/component/src/lib/ai/debug-session-fetch-capture.ts`                                           | à enrichir (en-têtes, XHR, empreintes) |
+| Rejeu HTTP apparié par contexte d'appel                                                                                                       | `libs/core/src/lib/craft-http-trace.ts` (`ɵinstallCraftHttpReplay`, `ɵconsumeCraftHttpReplayResult`) | base de la barrière hybride            |
+| Snapshot d'app avant un événement                                                                                                             | `libs/component/src/lib/ai/debug-session-app-snapshot.ts` (`buildDebugAppSnapshot`)                  | point de départ de la restauration     |
+| Lancement d'un onglet restauré                                                                                                                | `debug-session-snapshot-launch.ts`, `debug-session-replay-bridge.ts`, dashboard `replay-debug.ts`    | protocole à étendre                    |
+| Checkpoints du storage navigateur                                                                                                             | `debug-session-browser-storage.ts`                                                                   | partie globale du snapshot             |
+| Restauration des primitives                                                                                                                   | `libs/core/src/lib/craft-primitive-registry.ts` (`restore`)                                          | substitution des références            |
+| Racines d'invocation, plan de rejeu                                                                                                           | `debug-session-orchestrator.ts` (`rootInvocations`, `compileReplayPlan`)                             | chaîne dynamique                       |
+| Rapport de dérive, tolérances                                                                                                                 | `debug-session-scenario.ts` (`createReplayDriftReport`, `compareReplayScenarioValue`)                | rapport de fidélité                    |
+| Runtime temporel : `now`, `dateNow`, `schedule`, `pendingTasks` (`dueAt`, `owner`), runtime virtuel                                           | `libs/core/src/lib/temporal-runtime.ts`                                                              | horloge de reprise, tâches à réarmer   |
+| Graphe : primitives, `triggers` (`insertReactOnMutation`), `http-endpoint`, opérations serveur, état persisté (`insertLocalStoragePersister`) | `libs/dev-tools/src/scripts/dependency-graph.ts`                                                     | chaîne statique                        |
+| Classifications de données et frontières `external-output`                                                                                    | `libs/dev-tools/src/scripts/data-flow-graph.ts`                                                      | masquage du manifeste                  |
+| Chat IA du dashboard, serveurs MCP                                                                                                            | `apps/debug-session-dashboard/src/replay-ai-bridge.service.ts`, `packages/log-mcp`                   | aide IA                                |
 
 ## Décisions
 
@@ -62,15 +111,15 @@ Une reprise n'est jamais présentée comme plus réelle qu'elle ne l'est.
 
 ### Par défaut (réversibles, à confirmer à l'usage)
 
-| Point | Défaut |
-|---|---|
-| Environnements | local + hôtes listés dans la config du projet ; jamais la prod |
-| Horloge | temps réel, échéances recalées ; temps enregistré en option explicite |
-| Persona manquante | refus, avec une option « reprise assistée » (admin + surcharges) |
-| Secrets | empreintes dans les archives ; identifiants des personas dans un fichier local ignoré par git |
-| Dérive du code | refus si une primitive de la chaîne a changé (`sourceHash`), avertissement sinon |
-| Mutation non prévue | retenue jusqu'à décision ; bloquée en mode sans surveillance |
-| Manifeste | export manuel ; seed automatique en option par backend ; champs sensibles masqués |
+| Point               | Défaut                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| Environnements      | local + hôtes listés dans la config du projet ; jamais la prod                                |
+| Horloge             | temps réel, échéances recalées ; temps enregistré en option explicite                         |
+| Persona manquante   | refus, avec une option « reprise assistée » (admin + surcharges)                              |
+| Secrets             | empreintes dans les archives ; identifiants des personas dans un fichier local ignoré par git |
+| Dérive du code      | refus si une primitive de la chaîne a changé (`sourceHash`), avertissement sinon              |
+| Mutation non prévue | retenue jusqu'à décision ; bloquée en mode sans surveillance                                  |
+| Manifeste           | export manuel ; seed automatique en option par backend ; champs sensibles masqués             |
 
 ### Reportées
 
@@ -118,11 +167,11 @@ archive ──► analyse ──► plan ──► pré-vol ──► exécution
 Les trois servent de tests d'acceptation de bout en bout, dans
 `apps/demo-ecommerce`.
 
-| Id | Scénario | Ce qu'il prouve |
-|---|---|---|
-| **S1** | Inès (product manager) se connecte, ouvre l'admin, modifie un produit et reçoit « Action réservée aux administrateurs. » | auth, identité, droits, issue métier attendue (403) |
-| **S2** | Léo remplit un panier **côté serveur**, le point ciblé est juste avant la commande | référence serveur + contenu, `restores`, `checkout` jamais rejoué |
-| **S3** | une recherche en debounce et un polling sont en attente au point ciblé | temps, tâches à réarmer, appels déclenchés au montage |
+| Id     | Scénario                                                                                                                 | Ce qu'il prouve                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| **S1** | Inès (product manager) se connecte, ouvre l'admin, modifie un produit et reçoit « Action réservée aux administrateurs. » | auth, identité, droits, issue métier attendue (403)               |
+| **S2** | Léo remplit un panier **côté serveur**, le point ciblé est juste avant la commande                                       | référence serveur + contenu, `restores`, `checkout` jamais rejoué |
+| **S3** | une recherche en debounce et un polling sont en attente au point ciblé                                                   | temps, tâches à réarmer, appels déclenchés au montage             |
 
 Le refus d'édition du PM est **voulu** dans la démo : c'est le bug que S1 doit
 reproduire. Il ne faut pas le « corriger ».
@@ -355,9 +404,10 @@ restant, le polling reprend.
    forcé ou « enregistré ».
 2. **Validation** contre le schéma de réponse (sortie de fonction serveur,
    OpenAPI, ou à défaut « même forme que l'enregistrement »).
-3. **Outils MCP** exposés par le dashboard, sur le modèle de `log-mcp` :
+3. **Outils MCP** exposés par le dashboard via le pont local de `log-mcp` :
    `resume_plan`, `resume_mismatch`, `resume_propose_overrides`,
-   `resume_apply`. Le chat existant (`AiChatBridge`) sert d'interface.
+   `resume_apply`. Les outils lisent le contexte publié en mémoire et
+   transportent les propositions ; le dashboard reste l'interface d'approbation.
 4. **Deux moments** : à la préparation (combler les trous du plan) et pendant
    l'exécution (une pause sur écart, horloge gelée, patch proposé).
 5. **Garde-fous** : l'IA ne déclenche aucun appel ; validation humaine par
@@ -366,20 +416,21 @@ restant, le polling reprend.
    IA ».
 
 **Sortie :** S1 sans compte PM : l'IA propose connexion admin + rôle surchargé
-+ réponse 403 ; reprise « assistée » qui reproduit le refus ; la reprise
-suivante rejoue les surcharges figées sans appeler l'IA.
+
+- réponse 403 ; reprise « assistée » qui reproduit le refus ; la reprise
+  suivante rejoue les surcharges figées sans appeler l'IA.
 
 ### Lot 10 — Verrous statiques
 
 Dans `craft check` et la suite d'architecture, une fois les lots 2 et 4 en
 place.
 
-| Diagnostic | Déclencheur |
-|---|---|
-| `resume-unresolved` | primitive en amont d'un état persisté ou partagé qui appelle une mutation ou acquisition externe sans déclaration (ou `none` motivé) |
-| `resume-held-without-substitution` | état qui garde une valeur issue d'un `provides` sans `holds` |
-| `resume-requires-without-provider` | ressource requise que rien ne fournit |
-| `resume-dynamic-endpoint` | URL dynamique dans une chaîne de reprise, sans contrat HTTP explicite |
+| Diagnostic                         | Déclencheur                                                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `resume-unresolved`                | primitive en amont d'un état persisté ou partagé qui appelle une mutation ou acquisition externe sans déclaration (ou `none` motivé) |
+| `resume-held-without-substitution` | état qui garde une valeur issue d'un `provides` sans `holds`                                                                         |
+| `resume-requires-without-provider` | ressource requise que rien ne fournit                                                                                                |
+| `resume-dynamic-endpoint`          | URL dynamique dans une chaîne de reprise, sans contrat HTTP explicite                                                                |
 
 **Sortie :** retirer une déclaration de demo-ecommerce fait échouer
 `craft check` avec le bon diagnostic.
@@ -396,13 +447,13 @@ lot 2 + lot 4 ──► lot 10
 
 ## Risques et critères d'arrêt
 
-| Risque | Signal | Réponse |
-|---|---|---|
-| L'analyse statique ne suit pas les wrappers de façon fiable | lot 2 : chaînes incomplètes sur la démo | déclarations explicites obligatoires sur les frontières, le graphe ne fait que vérifier |
-| Trop de faux positifs dans la provenance | lot 1 : références parasites sur des sessions réelles | seuil d'entropie relevé, marquage typé des références dans les schémas |
-| La barrière casse des apps | lot 7 : appels légitimes retenus en nombre | liste d'autorisation dérivée du plan, mode observation avant le mode blocage |
-| Tâches impossibles à réarmer par leur cause | lot 5 : `owner` insuffisant | enrichir `TemporalScheduleOptions` d'une adresse de primitive |
-| Coût de déclaration trop élevé | plus de quelques déclarations par ressource | revoir le modèle, pas l'app |
+| Risque                                                      | Signal                                                | Réponse                                                                                 |
+| ----------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| L'analyse statique ne suit pas les wrappers de façon fiable | lot 2 : chaînes incomplètes sur la démo               | déclarations explicites obligatoires sur les frontières, le graphe ne fait que vérifier |
+| Trop de faux positifs dans la provenance                    | lot 1 : références parasites sur des sessions réelles | seuil d'entropie relevé, marquage typé des références dans les schémas                  |
+| La barrière casse des apps                                  | lot 7 : appels légitimes retenus en nombre            | liste d'autorisation dérivée du plan, mode observation avant le mode blocage            |
+| Tâches impossibles à réarmer par leur cause                 | lot 5 : `owner` insuffisant                           | enrichir `TemporalScheduleOptions` d'une adresse de primitive                           |
+| Coût de déclaration trop élevé                              | plus de quelques déclarations par ressource           | revoir le modèle, pas l'app                                                             |
 
 ## Points restant ouverts
 
