@@ -43,7 +43,12 @@ import { AiContextMenu } from './ai-context-menu';
 import { observeAiPerformance } from './ai-performance';
 import { AiSendDialog } from './ai-send-dialog';
 import { AiSendContextChat } from './ai-send-context-chat';
-import { AiSendContextLauncher } from './ai-send-context-launcher';
+import {
+  AiSendContextLauncher,
+  type AiLauncherPosition,
+} from './ai-send-context-launcher';
+import { craftAiLauncherPosition } from './ai-overlay.style';
+import { assign, unit } from '@craft-ts/style';
 import { connectDebugSessionPersistence } from './debug-session-persistence';
 import {
   captureBrowserStorageSnapshot,
@@ -87,8 +92,18 @@ import {
   ɵinjectSendContextUiRenderer,
 } from './send-context-ui.tokens';
 
+import {
+  applySendContextTheme,
+  type SendContextTheme,
+} from './send-context-theme';
+
 const HANDLED_FLAG = Symbol('craft-ai-contextmenu-handled');
 type HandledEvent = MouseEvent & { [HANDLED_FLAG]?: true };
+
+const aiComponentContexts = new WeakMap<
+  Element,
+  { hostName: string; tagList: readonly string[] }
+>();
 
 const aiContextMenuCleanups = new WeakMap<HTMLElement, () => void>();
 
@@ -120,6 +135,7 @@ function installAiContextMenuListener({
 }): void {
   if (element.closest('[data-craft-ai-overlay]')) return;
   if (aiContextMenuCleanups.has(element)) return;
+  aiComponentContexts.set(element, { hostName, tagList });
 
   const onContextMenu = (event: MouseEvent): void => {
     const handled = event as HandledEvent;
@@ -152,6 +168,7 @@ function installAiContextMenuListener({
   const cleanup = () => {
     element.removeEventListener('contextmenu', onContextMenu);
     aiContextMenuCleanups.delete(element);
+    aiComponentContexts.delete(element);
   };
   aiContextMenuCleanups.set(element, cleanup);
   destroyRef.onDestroy(cleanup);
@@ -160,6 +177,7 @@ function installAiContextMenuListener({
 type Overlay = {
   readonly host: HTMLElement;
   readonly mount: { destroy(): void };
+  readonly cleanup: () => void;
 };
 
 /**
@@ -170,6 +188,7 @@ function openOverlay(
   zIndex: number,
   pointerEvents: 'none' | 'auto',
   mount: (host: HTMLElement) => { destroy(): void },
+  theme?: SendContextTheme,
 ): Overlay {
   const host = document.createElement('div');
   host.style.position = 'fixed';
@@ -178,11 +197,13 @@ function openOverlay(
   host.style.pointerEvents = pointerEvents;
   host.dataset['craftAiOverlay'] = 'true';
   document.body.appendChild(host);
-  return { host, mount: mount(host) };
+  const mounted = mount(host);
+  return { host, mount: mounted, cleanup: applySendContextTheme(host, theme) };
 }
 
 function closeOverlay(overlay: Overlay | null): null {
   if (overlay) {
+    overlay.cleanup();
     overlay.mount.destroy();
     overlay.host.remove();
   }
@@ -249,6 +270,7 @@ export function createAiContextMenuController({
   chatActions,
   exportSections,
   endpoint,
+  theme,
 }: {
   injector: Injector;
   buffer: SendContextToAiBuffer;
@@ -263,10 +285,12 @@ export function createAiContextMenuController({
   chatActions?: readonly SendContextChatAction[];
   exportSections?: readonly SendContextExportSection[];
   endpoint?: string;
+  theme?: SendContextTheme;
 }): AiContextMenuController {
   let menu: Overlay | null = null;
   let dialog: Overlay | null = null;
   let launcher: Overlay | null = null;
+  let launcherPosition: AiLauncherPosition | undefined;
   // Long tasks are recorded from startup so a freeze that happens before the
   // chat is opened still shows up in the next exported prompt.
   const stopAiPerformance = observeAiPerformance();
@@ -275,6 +299,7 @@ export function createAiContextMenuController({
   // reads and the controller writes, so they live in signals: a template that
   // touches them through the UI context re-renders on the next capture.
   const capturedSignal = craftSignal<CapturedContext | null>(null);
+  const selectingTarget = craftSignal(false);
   const targetsSignal = craftSignal<readonly SendContextTarget[]>([]);
   const snapshotSignal = craftSignal<SendContextSessionSnapshot>({
     events: session?.events ?? [],
@@ -303,6 +328,7 @@ export function createAiContextMenuController({
   }
 
   function closeDialog(): void {
+    cancelTargetSelection();
     dialog = closeOverlay(dialog);
     // The chat sits in the same corner as the launcher, so the launcher is
     // unmounted while it is open and comes back with it.
@@ -316,10 +342,42 @@ export function createAiContextMenuController({
   function mountLauncher(): void {
     if (launcher || typeof document === 'undefined') return;
     const component = launcherComponent ?? AiSendContextLauncher;
-    launcher = openOverlay(99997, 'none', (host) =>
-      mountCraftComponent(component, host, injector, {
-        onOpen: () => onSelect(capturedSignal()),
-      } as never),
+    launcher = openOverlay(
+      99997,
+      'none',
+      (host) => {
+        const mounted = mountCraftComponent(component, host, injector, {
+          onOpen: () => onSelect(capturedSignal()),
+          onMove: (position: AiLauncherPosition | undefined) => {
+            launcherPosition = position;
+            // Reset inherited overrides as well as the launcher's local ones.
+            if (!position) {
+              host.style.removeProperty(
+                craftAiLauncherPosition.right.declaration.name,
+              );
+              host.style.removeProperty(
+                craftAiLauncherPosition.bottom.declaration.name,
+              );
+            }
+          },
+        } as never);
+        if (launcherPosition) {
+          const styles = {
+            ...assign(
+              craftAiLauncherPosition.right,
+              unit.px(launcherPosition.right),
+            ),
+            ...assign(
+              craftAiLauncherPosition.bottom,
+              unit.px(launcherPosition.bottom),
+            ),
+          };
+          for (const [name, value] of Object.entries(styles))
+            host.style.setProperty(name, value);
+        }
+        return mounted;
+      },
+      theme,
     );
   }
 
@@ -357,6 +415,11 @@ export function createAiContextMenuController({
     get selectedClipId() {
       return snapshotSignal().activeClipId;
     },
+    get selectingTarget() {
+      return selectingTarget();
+    },
+    pickTarget,
+    cancelTargetSelection,
     addTarget,
     removeTarget(target) {
       targetsSignal.set(
@@ -374,13 +437,17 @@ export function createAiContextMenuController({
   function openLegacyDialog(
     payload: SendContextPayload & { readonly captureElement?: Element },
   ): void {
-    dialog = openOverlay(99999, 'auto', (host) =>
-      mountCraftComponent(AiSendDialog, host, injector, {
-        payload: function* () {
-          return payload;
-        },
-        onClose: closeDialog as unknown as Output<() => void>,
-      }),
+    dialog = openOverlay(
+      99999,
+      'auto',
+      (host) =>
+        mountCraftComponent(AiSendDialog, host, injector, {
+          payload: function* () {
+            return payload;
+          },
+          onClose: closeDialog as unknown as Output<() => void>,
+        }),
+      theme,
     );
   }
 
@@ -388,13 +455,17 @@ export function createAiContextMenuController({
     const component = renderer ?? chatComponent;
     if (!component) return;
     closeLauncher();
-    dialog = openOverlay(99999, 'none', (host) =>
-      mountCraftComponent(component, host, injector, {
-        context: function* () {
-          return uiContext;
-        },
-        onClose: closeDialog as unknown as Output<() => void>,
-      } as never),
+    dialog = openOverlay(
+      99999,
+      'none',
+      (host) =>
+        mountCraftComponent(component, host, injector, {
+          context: function* () {
+            return uiContext;
+          },
+          onClose: closeDialog as unknown as Output<() => void>,
+        } as never),
+      theme,
     );
   }
 
@@ -428,8 +499,70 @@ export function createAiContextMenuController({
     openLegacyDialog({ ...ctx, snapshot: buffer.snapshot() });
   }
 
+  function cancelTargetSelection(): void {
+    selectingTarget.set(false);
+    document.removeEventListener('pointerdown', blockTargetPress, true);
+    document.removeEventListener('click', selectPageTarget, true);
+    document.removeEventListener('keydown', cancelWithEscape, true);
+  }
+
+  function isPageTarget(
+    event: Event,
+  ): event is MouseEvent & { target: Element } {
+    return (
+      event.target instanceof Element &&
+      !event.target.closest('[data-craft-ai-overlay]')
+    );
+  }
+
+  function blockTargetPress(event: Event): void {
+    if (!isPageTarget(event)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+
+  function selectPageTarget(event: MouseEvent): void {
+    if (!isPageTarget(event)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const target = event.target;
+    let component: Element | null = target;
+    while (component && !aiComponentContexts.has(component))
+      component = component.parentElement;
+    const context = component ? aiComponentContexts.get(component) : undefined;
+    cancelTargetSelection();
+    onSelect({
+      hostName: context?.hostName ?? target.tagName.toLowerCase(),
+      tagList: context?.tagList ?? [],
+      coords: { x: event.clientX, y: event.clientY },
+      clickedElement: {
+        tagName: target.tagName.toLowerCase(),
+        textContent: (target.textContent ?? '').trim().slice(0, 500),
+        outerHTML: target.outerHTML.slice(0, 2000),
+      },
+      captureElement: component ?? target,
+      outerHTML: (component ?? target).outerHTML.slice(0, 2000),
+    });
+  }
+
+  function cancelWithEscape(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    cancelTargetSelection();
+  }
+
+  function pickTarget(): void {
+    closeMenu();
+    selectingTarget.set(true);
+    document.addEventListener('pointerdown', blockTargetPress, true);
+    document.addEventListener('click', selectPageTarget, true);
+    document.addEventListener('keydown', cancelWithEscape, true);
+  }
+
   mountLauncher();
   destroyRef.onDestroy(() => {
+    cancelTargetSelection();
     stopAiPerformance();
     closeMenu();
     dialog = closeOverlay(dialog);
@@ -438,7 +571,7 @@ export function createAiContextMenuController({
 
   return {
     open(ctx: CapturedContext): void {
-      capturedSignal.set(ctx);
+      cancelTargetSelection();
       closeMenu();
       // The session chat survives a right-click and absorbs the new element;
       // the legacy dialog freezes its payload, so it has to be rebuilt.
@@ -450,28 +583,34 @@ export function createAiContextMenuController({
       // the current registry directly when it prepares its payload.
       takeSnapshot();
 
-      menu = openOverlay(99998, 'none', (host) =>
-        mountCraftComponent(
-          contextMenuComponent ?? AiContextMenu,
-          host,
-          injector,
-          {
-            x: function* () {
-              return ctx.coords.x;
+      menu = openOverlay(
+        99998,
+        'none',
+        (host) =>
+          mountCraftComponent(
+            contextMenuComponent ?? AiContextMenu,
+            host,
+            injector,
+            {
+              x: function* () {
+                return ctx.coords.x;
+              },
+              y: function* () {
+                return ctx.coords.y;
+              },
+              onSelect: () => onSelect(ctx),
+              onDismiss: closeMenu,
             },
-            y: function* () {
-              return ctx.coords.y;
-            },
-            onSelect: () => onSelect(ctx),
-            onDismiss: closeMenu,
-          },
-        ),
+          ),
+        theme,
       );
     },
   };
 }
 
 export interface SendContextToAiOptions {
+  /** Partial light/dark palettes, using CSS colours or application colour tokens. */
+  readonly theme?: SendContextTheme;
   /** Browser-accessible webhook URL. Omit it to keep the copy-only behavior. */
   readonly endpoint?: string;
   /** Start recording at app startup; false waits for the user to click Record. */
@@ -1032,6 +1171,7 @@ export function provideSendContextToAi(
         chatActions: ɵinjectSendContextChatActions(),
         exportSections: ɵinjectSendContextExportSections(),
         endpoint: options.endpoint,
+        theme: options.theme,
       }),
     ),
     provideFnWrapper(

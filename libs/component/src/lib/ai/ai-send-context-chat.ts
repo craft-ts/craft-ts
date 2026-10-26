@@ -48,16 +48,10 @@ import {
   DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
   describeTarget,
   formatEventLine,
-  safeJson,
   type SendContextWebhookPayload,
   type SendContextPromptOptions,
 } from './send-context-prompt';
 import type { SendContextUiContext } from './send-context-ui.tokens';
-import {
-  createReplayController,
-  validateReplayExport,
-  type ReplayController,
-} from './debug-session-replay';
 
 /** The timeline is a debugging view, not a log: only the tail is readable. */
 const VISIBLE_EVENTS = 100;
@@ -207,24 +201,6 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
         setPanelOffset: (value: PanelOffset) => set(value),
       })),
     )) as unknown as PanelOffsetState;
-    type ReplayTextState = (() => string) & {
-      setReplayJson: (value: string) => Generator<never, unknown, unknown>;
-    };
-    type ReplayStatusState = (() => string) & {
-      setReplayStatus: (value: string) => Generator<never, unknown, unknown>;
-    };
-    const replayText = (yield* craftPrivate(
-      state('replayJson', '', ({ set }) => ({
-        setReplayJson: (value: string) => set(value),
-      })),
-    )) as unknown as ReplayTextState;
-    const replayStatusValue = (yield* craftPrivate(
-      state('replayStatus', '', ({ set }) => ({
-        setReplayStatus: (value: string) => set(value),
-      })),
-    )) as unknown as ReplayStatusState;
-    let replayController: ReplayController | undefined;
-
     const setStatus: (value: string) => void = yield* craftPrivate(
       craftMethod('setStatus', function* (value: string) {
         yield* status.setStatus(value);
@@ -243,11 +219,6 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     const setPanelOffset: (value: PanelOffset) => void = yield* craftPrivate(
       craftMethod('setPanelOffset', function* (value: PanelOffset) {
         yield* panelOffset.setPanelOffset(value);
-      }),
-    );
-    const setReplayStatus: (value: string) => void = yield* craftPrivate(
-      craftMethod('setReplayStatus', function* (value: string) {
-        yield* replayStatusValue.setReplayStatus(value);
       }),
     );
 
@@ -328,7 +299,7 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     const readInstruction = (): string => craftUse(instruction());
 
     const onEscape = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape' && !readContext().selectingTarget) onClose();
     };
     // Dismiss on `pointerdown`, not `click`. The chat is opened from a click
     // handler — on the launcher or on "Add to AI context" — and that very
@@ -341,7 +312,7 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
       // A secondary press is the start of the context-menu flow used to add
       // another element. Do not close the chat before the subsequent
       // `contextmenu` event can update its live context.
-      if (event.button !== 0) return;
+      if (event.button !== 0 || readContext().selectingTarget) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest('[data-ai-chat]')) return;
@@ -459,11 +430,8 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
         {
           instruction: text,
           targets: ui.targets,
-          events: appEvents(),
+          events: options.includeTimeline ? appEvents() : [],
           payload: ui.payload,
-          timelineJson: options.includeTimelineJson
-            ? timelineJson()
-            : undefined,
           captures: { component: componentCapture, page: pageCapture },
         },
         options,
@@ -522,93 +490,6 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
       setStatus('');
       setBusy(true);
       sendMutation.mutate(pendingWebhookPayload);
-    };
-
-    const copyPayload = (): void => {
-      if (!pendingWebhookPayload || craftUse(busy())) return;
-      copyToClipboard(
-        safeJson(pendingWebhookPayload, '[unserializable payload]'),
-        'Payload copied to the clipboard ✓',
-      );
-    };
-
-    /** The same view the timeline shows, as JSON — not the raw session dump. */
-    const timelineJson = (): string => {
-      const ui = readContext();
-      const clip = ui.selectedClipId
-        ? ui.clips.find((entry) => entry.id === ui.selectedClipId)
-        : undefined;
-      const events = clip
-        ? appEvents().filter((event) => clip.eventIds.includes(event.id))
-        : appEvents();
-      return safeJson(
-        { events, ...(clip ? { clip } : { clips: ui.clips }) },
-        '[unserializable timeline]',
-      );
-    };
-
-    const exportJson = (): void => {
-      const json = readContext().session.exportSessionJson();
-      const parsed = JSON.parse(json) as { truncated?: boolean };
-      copyToClipboard(
-        json,
-        parsed.truncated
-          ? 'Session copied, but retention truncated it; this export cannot be replayed.'
-          : 'Full session copied to the clipboard ✓',
-      );
-    };
-
-    const importReplay = (): void => {
-      const validation = validateReplayExport(craftUse(replayText()));
-      if (!validation.ok) {
-        setReplayStatus(validation.error);
-        return;
-      }
-      replayController?.stop();
-      replayController = createReplayController(validation.session, {
-        onError: setReplayStatus,
-        onDifference: (event) => {
-          if (event.state === undefined) return undefined;
-          const actual = readContext().events.at(-1)?.state;
-          if (JSON.stringify(actual) === JSON.stringify(event.state))
-            return undefined;
-          setReplayStatus(`State differs after event ${event.sequence}.`);
-          return { eventId: event.id, expected: event.state, actual };
-        },
-      });
-      let recordedPath = validation.session.startUrl;
-      try {
-        const recordedUrl = new URL(validation.session.startUrl, location.href);
-        recordedPath = `${recordedUrl.pathname}${recordedUrl.search}${recordedUrl.hash}`;
-      } catch {
-        /* the validator already requires a string; report the raw path */
-      }
-      setReplayStatus(
-        `Session ready: ${validation.session.events.length} events. For a clean start, reload this local app at ${recordedPath}, then paste and validate the export again.`,
-      );
-    };
-    const replayStep = (): void => {
-      if (!replayController) {
-        setReplayStatus('Paste and validate a session first.');
-        return;
-      }
-      void replayController
-        .step()
-        .then(() =>
-          setReplayStatus(`Replay step ${replayController?.index() ?? 0}.`),
-        );
-    };
-    const replayPlay = (): void => {
-      replayController?.play();
-      setReplayStatus('Replay playing.');
-    };
-    const replayPause = (): void => {
-      replayController?.pause();
-      setReplayStatus('Replay paused.');
-    };
-    const replayStop = (): void => {
-      replayController?.stop();
-      setReplayStatus('Replay stopped.');
     };
 
     const toggleRecord = (): void => {
@@ -671,19 +552,18 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     yield* craftExpose('toggleRecord', toggleRecord);
     yield* craftExpose('clearTimeline', clearTimeline);
     yield* craftExpose('copyPrompt', copyPrompt);
-    yield* craftExpose('exportJson', exportJson);
-    yield* craftExpose('replayJson', () => craftUse(replayText()));
-    yield* craftExpose('writeReplayJson', replayText.setReplayJson);
-    yield* craftExpose('importReplay', importReplay);
-    yield* craftExpose('replayStep', replayStep);
-    yield* craftExpose('replayPlay', replayPlay);
-    yield* craftExpose('replayPause', replayPause);
-    yield* craftExpose('replayStop', replayStop);
-    yield* craftExpose('replayStatus', () => craftUse(replayStatusValue()));
     yield* craftExpose('endpoint', configuredEndpoint);
     yield* craftExpose('sendPayload', sendPayload);
     yield* craftExpose('retrySend', retrySend);
-    yield* craftExpose('copyPayload', copyPayload);
+    yield* craftExpose(
+      'selectingTarget',
+      () => readContext().selectingTarget ?? false,
+    );
+    yield* craftExpose('pickTarget', () => {
+      const ui = readContext();
+      if (ui.selectingTarget) ui.cancelTargetSelection?.();
+      else ui.pickTarget?.();
+    });
   },
 );
 
@@ -716,19 +596,11 @@ export const AiSendContextChat = craftComponent(
       toggleRecord,
       clearTimeline,
       copyPrompt,
-      exportJson,
-      replayJson,
-      writeReplayJson,
-      importReplay,
-      replayStep,
-      replayPlay,
-      replayPause,
-      replayStop,
-      replayStatus,
       endpoint,
       sendPayload,
       retrySend,
-      copyPayload,
+      selectingTarget,
+      pickTarget,
     } = yield* AiSendContextChatState();
     return div({ class: [aiTheme.root, aiChat.overlay] }, [
       div(
@@ -780,8 +652,43 @@ export const AiSendContextChat = craftComponent(
           ),
 
           section({ class: aiChat.section }, [
+            label(
+              {
+                class: aiChat.sectionHead,
+                htmlFor: 'craft-ai-chat-instruction',
+              },
+              'Instruction',
+            ),
+            textarea('aiChatInstruction', {
+              id: 'craft-ai-chat-instruction',
+              class: aiChat.textarea,
+              rows: 4,
+              value: instruction,
+              placeholder: 'Describe what you want the AI to do…',
+              *input(event) {
+                yield* writeInstruction(
+                  (event.target as HTMLTextAreaElement).value,
+                );
+              },
+            }),
+          ]),
+
+          section({ class: aiChat.section }, [
             div({ class: aiChat.sectionHead }, [
               span(() => `Selected elements (${targets().length})`),
+              button(
+                'aiPickTarget',
+                {
+                  type: 'button',
+                  class: aiChat.button,
+                  click: pickTarget,
+                  'aria-pressed': selectingTarget,
+                },
+                () =>
+                  selectingTarget()
+                    ? 'Cancel selection'
+                    : '+ Select an element',
+              ),
             ]),
             ol(
               { class: aiChat.targets, 'aria-label': 'Selected elements' },
@@ -792,7 +699,7 @@ export const AiSendContextChat = craftComponent(
                   empty: () =>
                     p(
                       { class: aiChat.empty },
-                      'Right-click a component to capture it.',
+                      'Select an element on the page or right-click a component.',
                     ),
                 },
                 (target) =>
@@ -894,137 +801,31 @@ export const AiSendContextChat = craftComponent(
             ),
           ]),
 
-          section({ class: aiChat.section }, [
-            label(
-              {
-                class: aiChat.sectionHead,
-                htmlFor: 'craft-ai-chat-instruction',
-              },
-              'Instruction',
-            ),
-            textarea('aiChatInstruction', {
-              id: 'craft-ai-chat-instruction',
-              class: aiChat.textarea,
-              rows: 4,
-              value: instruction,
-              placeholder: 'Describe what you want the AI to do…',
-              *input(event) {
-                yield* writeInstruction(
-                  (event.target as HTMLTextAreaElement).value,
-                );
-              },
-            }),
-          ]),
-
           fieldset({ class: aiChat.options }, [
             legend({ class: aiChat.legend }, 'What to copy'),
             promptOption(
-              'aiIncludeTargets',
-              'Selected elements',
-              options,
-              writeOptions,
-              'includeTargets',
-            ),
-            promptOption(
-              'aiIncludeComponent',
-              'Component information',
-              options,
-              writeOptions,
-              'includeComponent',
-            ),
-            promptOption(
               'aiIncludeTimeline',
-              'Timeline summary',
+              'Include action timeline',
               options,
               writeOptions,
               'includeTimeline',
             ),
             promptOption(
-              'aiIncludeTimelineJson',
-              'Timeline JSON',
-              options,
-              writeOptions,
-              'includeTimelineJson',
-            ),
-            promptOption(
-              'aiIncludeAppSnapshot',
-              'App snapshot',
-              options,
-              writeOptions,
-              'includeAppSnapshot',
-            ),
-            promptOption(
-              'aiIncludeDomStyles',
-              'Component DOM + CSS',
-              options,
-              writeOptions,
-              'includeDomStyles',
-            ),
-            promptOption(
               'aiIncludePageDomStyles',
-              'Full page DOM + CSS',
+              'Include full page',
               options,
               writeOptions,
               'includePageDomStyles',
             ),
           ]),
-
-          // Toggled by `hidden` rather than `ifNode`, which needs a *named*
-          // craft value and would leak internal symbols into the exported type.
-          div(
+          p(
             {
-              class: aiChat.warning,
-              hidden: () =>
-                !(options().includeDomStyles || options().includePageDomStyles),
+              class: aiChat.empty,
+              hidden: () => !selectingTarget(),
+              role: 'status',
             },
-            'The DOM capture can take a moment, freeze the page and produce a very large prompt.',
+            'Click an element on the page to add it. Escape cancels selection.',
           ),
-          section({ class: aiChat.section }, [
-            label(
-              { class: aiChat.sectionHead, htmlFor: 'craft-ai-replay-json' },
-              'Replay a session',
-            ),
-            textarea('aiReplayJson', {
-              id: 'craft-ai-replay-json',
-              class: aiChat.textarea,
-              rows: 3,
-              value: replayJson,
-              placeholder: 'Paste a full Craft debug session JSON export…',
-              *input(event) {
-                yield* writeReplayJson(
-                  (event.target as HTMLTextAreaElement).value,
-                );
-              },
-            }),
-            div({ class: aiChat.actions }, [
-              button(
-                'aiReplayImport',
-                { type: 'button', class: aiChat.button, click: importReplay },
-                'Validate',
-              ),
-              button(
-                'aiReplayPlay',
-                { type: 'button', class: aiChat.button, click: replayPlay },
-                'Play',
-              ),
-              button(
-                'aiReplayPause',
-                { type: 'button', class: aiChat.button, click: replayPause },
-                'Pause',
-              ),
-              button(
-                'aiReplayStep',
-                { type: 'button', class: aiChat.button, click: replayStep },
-                'Next step',
-              ),
-              button(
-                'aiReplayStop',
-                { type: 'button', class: aiChat.button, click: replayStop },
-                'Stop',
-              ),
-            ]),
-            p({ class: aiChat.empty, role: 'status' }, replayStatus),
-          ]),
           liveRegion(
             { politeness: 'polite' },
             div(
@@ -1053,11 +854,6 @@ export const AiSendContextChat = craftComponent(
               'Close',
             ),
             span({ class: aiChat.spacer }),
-            button(
-              'aiExportJson',
-              { type: 'button', class: aiChat.button, click: exportJson },
-              'Copy JSON',
-            ),
             ...(endpoint
               ? [
                   button(
@@ -1080,17 +876,6 @@ export const AiSendContextChat = craftComponent(
                       click: retrySend,
                     },
                     'Retry',
-                  ),
-                  button(
-                    'aiCopyPayload',
-                    {
-                      type: 'button',
-                      class: aiChat.button,
-                      hidden: () => !error(),
-                      disabled: busy,
-                      click: copyPayload,
-                    },
-                    'Copy payload',
                   ),
                   button(
                     'aiSendContext',

@@ -1,3 +1,7 @@
+export type {
+  SendContextTheme,
+  SendContextColors,
+} from './lib/ai/send-context-theme';
 export * from './lib/ai/ai-context-menu';
 export * from './lib/ai/ai-send-dialog';
 export * from './lib/ai/ai-send-context-chat';

@@ -14,7 +14,7 @@ Typical uses include:
 
 The feature is user-driven. It does not call an AI service by itself. Without
 an `endpoint`, everything stays in the browser and the user copies the prompt
-or the timeline when they choose to. The required `recording` option decides
+when they choose to. The required `recording` option decides
 when capture starts: `true` starts a session clip automatically at app startup;
 `false` waits until the user clicks **Record**. In either mode, the user can
 stop and manually start recording from the timeline controls. Events are only
@@ -24,7 +24,12 @@ captured while a recording clip is active.
 
 Register the provider once in the application providers. The default UI then
 adds an `AI context` launcher in the bottom-right corner and a context menu to
-Craft component hosts. The minimal setup opts in to session recording:
+Craft component hosts. Drag the grip icon beside the launcher to move it out
+of the way. The launcher stays within the viewport and keeps its position when
+the chat opens and closes. The grip also accepts arrow keys; double-click it to
+restore the application's default position.
+
+The minimal setup opts in to session recording:
 
 <<< @/tests/snippets/guide/ai/send-context-webhook.spec.ts#minimal
 
@@ -33,9 +38,15 @@ The two entry points are equivalent:
 - open the launcher to start with an empty context, then interact with the app;
 - right-click a component to start with that component already selected.
 
-From the chat, the user can add more elements with another right-click, remove
-selected elements, write an instruction, record or clear the timeline, and
-choose which sections to include in the generated Markdown prompt.
+The panel contains an instruction, selected elements, and the action timeline.
+Choose **+ Select an element**, then click anywhere in the application to add a
+new target without triggering its action or losing the current instruction.
+**Escape** or **Cancel selection** cancels the picker. Right-clicking a component
+and choosing **Add to AI context** also adds another target to the same draft.
+Selected elements can be removed individually.
+
+The two checkboxes control whether to include the action timeline and the full
+page. The instruction and selected component context are always included.
 
 ## What is collected
 
@@ -54,82 +65,33 @@ The session combines several kinds of context:
   briefly pause the page while they are collected.
 
 The default prompt contains selected elements, component information, the
-timeline summary, and app snapshots when they exist. Timeline JSON and DOM/CSS
-captures are opt-in. The checkboxes in the chat change the Markdown prompt;
-the webhook also receives the structured fields so an agent can process them
-without parsing Markdown.
+timeline summary, and app snapshots when they exist. **Include full page** adds
+the page DOM and computed CSS, excluding the AI overlay itself. It can produce
+a large prompt. JSON export and replay controls are kept out of this panel.
 
-The chat also supports recording a named **clip**. A clip is a subset of the
-timeline, which is useful when an investigation contains several unrelated
-interactions. `Copy JSON` copies a versioned export of the **full session**,
-regardless of which clip is selected. `Copy prompt` builds the AI-oriented
-Markdown document. **Clear** removes the current timeline and, if recording
-was active, starts a fresh clip so the next reproduction can be captured.
+**Clear** removes the current timeline and, if recording was active, starts a
+fresh clip so the next interactions form a focused reproduction. Clearing keeps
+the instruction and selected targets. A stopped recording stays stopped.
 
-## Export and replay a debugging session
+Programmatic session exports and replay APIs remain available for debugging
+integrations. Use `session.exportSessionJson()` to obtain a portable session;
+the AI panel's **Copy prompt** action produces the context for an assistant.
 
-Use the timeline's `Record` control while reproducing an issue, then choose
-`Copy JSON` to copy the complete session. The export includes the starting URL,
-the starting CSS viewport size, the event timeline, clips, and recorded HTTP
-request/response data. The replay dashboard keeps that viewport inside the
-target frame and scales it down to fit the available panel. DOM events include
-a replay target and action; form values and relevant keyboard details are
-included when available. Password fields and fields whose names indicate
-secrets are omitted, and the normal send-context redactor runs before data is
-exported. Link clicks retain the redacted absolute `href` alongside the router
-events, so an investigation can distinguish the destination that was clicked
-from the route the application actually reached. Events from the debugging
-overlay itself are excluded.
+## Match the application's colours
 
-In the local app, open the context panel, paste the JSON into **Replay a
-session**, and choose `Validate`. Invalid JSON, unsupported versions, and
-sessions marked as truncated are rejected. Retention can evict old events, so
-an export with lost events is explicitly marked incomplete and cannot be
-replayed as a complete session.
+Pass partial light and dark palettes with `theme`. Each colour accepts a CSS
+colour, a CSS variable reference, or a typed Craft style colour token. Unspecified
+colours keep their defaults; dark values override the light palette when the
+browser prefers dark mode. The palette applies to the launcher, context menu,
+and panel.
 
-For the most useful replay, first reload the local app on the recorded path,
-then reopen the panel, paste the export again, and validate it. The origin in
-the export may belong to another environment; replay compares request paths
-and uses the current local app. It re-runs the app's code and interactions; it
-does not restore the app's complete initial state.
+<<< @/tests/snippets/guide/ai/send-context-webhook.spec.ts#theme
 
-After validation, use:
-
-- `Play` to replay interactions at the intervals recorded in the session;
-- `Pause` to hold replay before the next interaction;
-- `Next step` to dispatch one interaction and advance Craft's virtual clock
-  to that event's recorded time;
-- `Stop` to end replay and restore the normal Craft clock and `fetch`.
-
-Recorded HTTP responses are returned for matching `fetch` requests. A request
-with no recorded match stops replay and is rejected; it is never sent through
-`fetch` to the server. Matching uses the request method, local path and query,
-body, and recorded order. Craft timers scheduled through `CraftTemporalRuntime`
-and progressive `scheduleFor` rendering use the replay clock: they remain
-paused between steps and run when replay advances time. Direct calls by the
-application to native timers or animation-frame APIs are outside this virtual
-clock's control.
-
-Events that include a captured state can be compared with state observed after
-replay. A mismatch in this context-panel replay is reported for investigation;
-it does not force the recorded state back into the app. For explicit recovery,
-use the local session dashboard: when a recorded same-origin link destination
-or primitive checkpoint is available, **Forcer l’état attendu et continuer**
-uses the Craft router, restores values for primitives that still exist, then
-continues at the next interaction. This is an opt-in recovery after reviewing
-the expected and observed values; redacted destinations cannot be navigated.
-If no direct recovery is available, the local dashboard can offer **Ignorer
-jusqu’au prochain point de reprise** when a later compatible primitive
-checkpoint exists and no HTTP request or Craft operation is still open across
-the interval. It restores that checkpoint, continues in pause, and labels the
-subsequent comparison as partial with the skipped interval. It never skips an
-unknown or still-open operation boundary.
-
-Replay currently compares recorded Craft function names, phases, and order.
-It does not invoke a missing Craft function from session data. The generic
-allowlisted function replay contract and interaction-level causal orchestrator
-are not part of this provider yet; exports remain data and are never evaluated
-as code.
+The most common keys are `bg`, `surface`, `surface-muted`, `control-bg`, `text`,
+`text-muted`, `border`, `border-subtle`, `accent`, `accent-hover`, `accent-text`,
+`on-accent`, and `focus`. `SendContextColors` exposes all supported colour keys.
+CSS variables can point directly to the application's existing theme, so its
+colours can change without replacing this provider.
 
 ## Send the context to an agent
 
@@ -159,15 +121,15 @@ The browser sends a JSON `POST` with this versioned shape:
 
 `prompt` is generated from the instruction, the selected options, and the
 structured fields. `component` is omitted when the chat was opened from the
-launcher without a captured component. `captures.component` and
-`captures.page` are present only when their corresponding DOM/CSS options were
-selected. Events generated by the webhook request itself are excluded from
+launcher without a captured component. `captures.page` is present when **Include full page** is selected.
+Unchecking **Include action timeline** removes events from both the prompt and
+the structured payload. Events generated by the webhook request itself are excluded from
 the context sent to that webhook.
 
 Any `2xx` response is successful, including `200`, `202`, and `204`. Network
 failures, timeouts, and non-`2xx` responses are shown in the chat. `Retry`
-reuses the exact same payload, and `Copy payload` copies that payload only
-after a failed request.
+reuses the exact same payload. **Copy prompt** remains available after a
+failed request.
 
 The endpoint is application configuration shipped to the browser, not a
 secret. It must allow the application's origin through CORS and accept JSON
@@ -225,7 +187,8 @@ There are three levels of UI customization:
 The complete renderer receives `SendContextUiContext`. It exposes the live
 session, events, clips, selected targets, captured payload, DOM capture element,
 recording state, endpoint, and operations such as `addTarget`, `removeTarget`,
-`selectClip`, and `close`.
+`selectClip`, `pickTarget`, `cancelTargetSelection`, and `close`. The optional
+`selectingTarget` property reports whether the picker is active.
 
 ```ts
 import {

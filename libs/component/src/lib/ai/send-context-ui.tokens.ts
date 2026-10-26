@@ -39,6 +39,10 @@ export interface SendContextUiContext {
   readonly chatActions: readonly SendContextChatAction[];
   readonly exportSections: readonly SendContextExportSection[];
   readonly selectedClipId?: string;
+  /** Select another page element without replacing the current draft. */
+  readonly selectingTarget?: boolean;
+  pickTarget?(): void;
+  cancelTargetSelection?(): void;
   addTarget(target: SendContextTarget): void;
   removeTarget(target: SendContextTarget): void;
   selectClip(id: string | undefined): void;
