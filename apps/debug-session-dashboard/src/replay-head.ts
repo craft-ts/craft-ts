@@ -13,7 +13,7 @@ import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { goToHash, requestFrameFullscreen } from './replay-browser';
-import { launchDebugAppAtReplay } from './replay-debug';
+import { launchDebugAppAtReplay, replayPoint } from './replay-debug';
 import { sessionDate } from './replay-labels';
 import { isRecord, participantOptionLabel } from './replay-model';
 import { selectParticipant } from './replay-session';
@@ -35,6 +35,19 @@ import {
 } from './replay-state';
 import { SessionArchive } from './session-archive.service';
 import { eventValue } from './view-helpers';
+
+/** What to tell the AI host once the point is published. */
+function resumePrompt(sessionId: string, beforeSequence?: number): string {
+  return beforeSequence === undefined
+    ? `Reprends la session de debug ${sessionId} à la fin de l’enregistrement (outil resume.request).`
+    : `Reprends la session de debug ${sessionId} juste avant l’événement ${beforeSequence} (outil resume.request).`;
+}
+
+function copyResumePrompt(text: string): void {
+  const clipboard =
+    typeof navigator === 'undefined' ? undefined : navigator.clipboard;
+  if (clipboard) void clipboard.writeText(text).catch(() => undefined);
+}
 
 /** The head of the replay page: the way back, which session, and the tools. */
 export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
@@ -184,6 +197,38 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     'Déboguer ici',
   );
 
+  const resumeRequestSending = rawReactiveValue(archive.resumeRequestSending);
+  const resumeRequestFailed = rawReactiveValue(archive.resumeRequestFailed);
+  const resumeDisabled = yield* craftComputed(
+    'resumeDisabled',
+    () => routeSessionId() === undefined || resumeRequestSending(),
+  );
+  const resume = button(
+    'resumeHere',
+    {
+      type: 'button',
+      class: buttonUi.root,
+      'data-variant': 'secondary',
+      'data-lab': 'resume-here',
+      'aria-label': 'Reprendre ici',
+      'aria-description':
+        'Demande à l’IA de ramener l’application vivante au point du replay.',
+      'data-tooltip':
+        'Publie ce point pour l’IA (outil resume.request) et copie l’invite à lui donner.',
+      disabled: resumeDisabled,
+      click: function* () {
+        const sessionId = routeSessionId();
+        if (sessionId === undefined) return;
+        const point = replayPoint();
+        copyResumePrompt(resumePrompt(sessionId, point.beforeSequence));
+        yield* archive.requestResume({ sessionId, ...point });
+      },
+    },
+    yield* craftComputed('resumeLabel', () =>
+      resumeRequestFailed() ? 'Reprise : archive injoignable' : 'Reprendre ici',
+    ),
+  );
+
   const journal = button(
     'toggleJournal',
     {
@@ -265,6 +310,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     div({ class: ui.headTools }, [
       tabs,
       debug,
+      resume,
       fullscreen,
       notes,
       differences,

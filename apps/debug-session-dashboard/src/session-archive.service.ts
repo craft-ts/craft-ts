@@ -97,6 +97,22 @@ const archivedSessionDecoder = {
   },
 };
 
+/** A point of an archived session the AI is asked to resume from. */
+export type ResumePoint = Readonly<{
+  sessionId: string;
+  beforeSequence?: number;
+  participantId?: string;
+}>;
+
+const resumeRequestDecoder = {
+  decode(input: unknown): Readonly<{ id: string }> | undefined {
+    const request = isRecord(input) ? input['request'] : undefined;
+    return isRecord(request) && typeof request['id'] === 'string'
+      ? { id: request['id'] }
+      : undefined;
+  },
+};
+
 /** Why a request to the archive failed, in a few words. */
 export function httpFailureReason(exception: unknown): string {
   const payload = isRecord(exception) ? exception['payload'] : undefined;
@@ -153,6 +169,19 @@ export const { SessionArchive } = craftService(
       },
     });
 
+    // "Reprendre ici": the archive keeps the point for the AI's
+    // `resume.request` tool, so the person only has to say "reprends".
+    const resumeRequest = yield* mutation('resumeRequest', {
+      method: (point: ResumePoint) => point,
+      loader: function* ({ params: point }) {
+        return yield* CraftHttpClient.post(({ response }) => ({
+          url: `${SESSION_ARCHIVE_URL}/sessions/resume-requests`,
+          payload: point,
+          success: response(resumeRequestDecoder),
+        }));
+      },
+    });
+
     const sessions = yield* query(
       'sessions',
       {
@@ -172,6 +201,11 @@ export const { SessionArchive } = craftService(
           reload: { onMutationResolved: true },
         }),
         insertReactOnMutation(deleteSessions, {
+          reload: { onMutationResolved: true },
+        }),
+        // A request names an archived session: the list is read again so the
+        // page shows what the archive holds when the AI starts reading it.
+        insertReactOnMutation(resumeRequest, {
           reload: { onMutationResolved: true },
         }),
       ),
@@ -200,6 +234,12 @@ export const { SessionArchive } = craftService(
     yield* craftComputed('storageBytes', function* () {
       return (yield* sessions.value())?.storageBytes ?? 0;
     });
+    yield* craftComputed('resumeRequestSending', function* () {
+      return yield* resumeRequest.isLoading();
+    });
+    yield* craftComputed('resumeRequestFailed', function* () {
+      return yield* resumeRequest.hasException();
+    });
     yield* craftComputed('reachable', function* () {
       return !(yield* sessions.hasException());
     });
@@ -212,6 +252,9 @@ export const { SessionArchive } = craftService(
     };
     refreshAgain();
 
+    yield* craftExpose('requestResume', function* (point: ResumePoint) {
+      yield* resumeRequest.mutate(point);
+    });
     yield* craftExpose('pruneExpired', function* () {
       yield* pruneSessions.mutate(true);
     });

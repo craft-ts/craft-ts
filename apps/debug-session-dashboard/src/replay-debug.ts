@@ -143,9 +143,19 @@ export function launchDebugApp(
  * end of the recording once it has run them all.
  */
 export function launchDebugAppAtReplay(): void {
+  const point = replayPoint();
+  launchDebugApp(point.beforeSequence, point.participantId);
+}
+
+/** Where the replay is: before the next action, in the tab that will run it. */
+export function replayPoint(): Readonly<{
+  beforeSequence?: number;
+  participantId?: string;
+}> {
   const next = replayableEvents()[replayIndex()];
-  launchDebugApp(
-    next?.sequence,
-    next?.participantId ?? activeReplayParticipantId(),
-  );
+  const participantId = next?.participantId ?? activeReplayParticipantId();
+  return {
+    ...(next?.sequence === undefined ? {} : { beforeSequence: next.sequence }),
+    ...(participantId === undefined ? {} : { participantId }),
+  };
 }

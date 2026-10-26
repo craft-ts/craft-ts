@@ -1,0 +1,234 @@
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import {
+  resumePrerequisites,
+  resumeRecordedCall,
+  resumeStory,
+  resumeTarget,
+  type ResumeArchive,
+} from '@craft-ts/session-trace';
+
+type ResumeRequest = Readonly<{
+  id: string;
+  sessionId: string;
+  participantId?: string;
+  beforeSequence?: number;
+  eventId?: string;
+  note?: string;
+  createdAt: string;
+}>;
+
+type ResumePoint = Readonly<{
+  sessionId: string;
+  beforeSequence?: number;
+  participantId?: string;
+  /** Set when the point comes from the dashboard's latest "resume here". */
+  requestId?: string;
+}>;
+
+const pointSchema = {
+  sessionId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe('Archived session; the latest resume request when omitted'),
+  beforeSequence: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe('The point is just before this event; the end of the session when omitted'),
+  participantId: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Keep one browser tab of a multi-tab session'),
+};
+
+/**
+ * Read-only tools that tell the AI what the person did up to a point of a
+ * recorded session, so it can bring the app it drives to the same place.
+ */
+export function registerResumeTools(server: McpServer): void {
+  server.registerTool(
+    'resume.request',
+    {
+      description:
+        'Read the latest "resume here" left from the debug session dashboard: which session and which point the person wants to resume from, and a summary of that session. Call it first when asked to resume a session; the session.* tools use it when no sessionId is given.',
+      inputSchema: {
+        sessionId: z.string().uuid().optional().describe('Only a request for this session'),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ sessionId }) =>
+      guarded(async () => {
+        const request = await latestRequest(sessionId);
+        if (!request) return { request: null, hint: NO_REQUEST_HINT };
+        const archive = await fetchArchive(request.sessionId);
+        return {
+          request,
+          session: {
+            startUrl: archive.startUrl,
+            events: archive.events.length,
+            participants: archive.participants?.length ?? 0,
+          },
+        };
+      }),
+  );
+
+  server.registerTool(
+    'session.story',
+    {
+      description:
+        'Tell what the person did up to the resume point, step by step at a human level: interactions (with typed values), method invocations, server calls and their status, route changes and errors. Use it to reproduce the path in the live app.',
+      inputSchema: {
+        ...pointSchema,
+        limit: z.number().int().positive().max(1_000).optional().describe('Most recent steps kept (200 by default)'),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ limit, ...input }) =>
+      guarded(async () => {
+        const { point, archive } = await load(input);
+        return { point, ...resumeStory(archive, { ...pointOptions(point), ...(limit ? { limit } : {}) }) };
+      }),
+  );
+
+  server.registerTool(
+    'session.target',
+    {
+      description:
+        'Describe the state the app should reach at the resume point: route, primitive values by address, browser storage keys, pending tasks and calls still in flight. Compare it with what app.diff reports on the live app.',
+      inputSchema: pointSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (input) =>
+      guarded(async () => {
+        const { point, archive } = await load(input);
+        return { point, ...resumeTarget(archive, pointOptions(point)) };
+      }),
+  );
+
+  server.registerTool(
+    'session.prerequisites',
+    {
+      description:
+        'List what must hold before resuming: the identity and role the person used, whether they were signed in, the entities the point depends on (route parameters, ids in state) and the server writes already made. Credentials are never recorded: when an identity is needed, hand control back to the person for that field.',
+      inputSchema: pointSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (input) =>
+      guarded(async () => {
+        const { point, archive } = await load(input);
+        return { point, ...resumePrerequisites(archive, pointOptions(point)) };
+      }),
+  );
+
+  server.registerTool(
+    'session.recordedCall',
+    {
+      description:
+        'Return one recorded server call with its request and answer, by event sequence or by call name (the last occurrence unless `occurrence` is given, 0-based). Use it to compare with what the live server answers.',
+      inputSchema: {
+        sessionId: pointSchema.sessionId,
+        sequence: z.number().int().nonnegative().optional(),
+        call: z.string().min(1).optional().describe('Server function id or "METHOD /path"'),
+        occurrence: z.number().int().nonnegative().optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ sessionId, sequence, call, occurrence }) =>
+      guarded(async () => {
+        if (sequence === undefined && call === undefined)
+          throw new Error('Give either `sequence` or `call`.');
+        const { point, archive } = await load({ ...(sessionId ? { sessionId } : {}) });
+        const recorded = resumeRecordedCall(archive, {
+          ...(sequence === undefined ? {} : { sequence }),
+          ...(call === undefined ? {} : { call }),
+          ...(occurrence === undefined ? {} : { occurrence }),
+        });
+        if (!recorded) throw new Error('No recorded call matches.');
+        return { sessionId: point.sessionId, ...recorded };
+      }),
+  );
+}
+
+const NO_REQUEST_HINT =
+  'Nobody asked to resume yet: ask the person to click « Reprendre ici » on an event of the debug session dashboard, or to give a session id.';
+
+async function load(
+  input: Readonly<{ sessionId?: string; beforeSequence?: number; participantId?: string }>,
+): Promise<{ point: ResumePoint; archive: ResumeArchive }> {
+  const point = await resolvePoint(input);
+  return { point, archive: await fetchArchive(point.sessionId) };
+}
+
+async function resolvePoint(
+  input: Readonly<{ sessionId?: string; beforeSequence?: number; participantId?: string }>,
+): Promise<ResumePoint> {
+  if (input.sessionId) return { ...input, sessionId: input.sessionId };
+  const request = await latestRequest();
+  if (!request) throw new Error(NO_REQUEST_HINT);
+  // What the call names wins over what the dashboard left.
+  const beforeSequence = input.beforeSequence ?? request.beforeSequence;
+  const participantId = input.participantId ?? request.participantId;
+  return {
+    sessionId: request.sessionId,
+    ...(beforeSequence === undefined ? {} : { beforeSequence }),
+    ...(participantId === undefined ? {} : { participantId }),
+    requestId: request.id,
+  };
+}
+
+function pointOptions(point: ResumePoint) {
+  return {
+    ...(point.beforeSequence === undefined ? {} : { beforeSequence: point.beforeSequence }),
+    ...(point.participantId === undefined ? {} : { participantId: point.participantId }),
+  };
+}
+
+async function latestRequest(sessionId?: string): Promise<ResumeRequest | undefined> {
+  const query = sessionId ? `?${new URLSearchParams({ sessionId })}` : '';
+  const response = await fetch(`${logServerUrl()}/sessions/resume-requests/latest${query}`);
+  if (!response.ok) throw new Error(`Could not read resume requests (HTTP ${response.status}).`);
+  const body = (await response.json()) as { request?: ResumeRequest | null };
+  return body.request ?? undefined;
+}
+
+async function fetchArchive(sessionId: string): Promise<ResumeArchive> {
+  const response = await fetch(`${logServerUrl()}/sessions/${encodeURIComponent(sessionId)}`);
+  if (!response.ok) throw new Error(`Session ${sessionId} not found (HTTP ${response.status}).`);
+  const session = (await response.json()) as Record<string, unknown>;
+  const events = Array.isArray(session['events'])
+    ? session['events'].filter(
+        (event): event is Record<string, unknown> =>
+          typeof event === 'object' && event !== null && !Array.isArray(event),
+      )
+    : [];
+  return {
+    events,
+    ...(typeof session['startUrl'] === 'string' ? { startUrl: session['startUrl'] } : {}),
+    ...(Array.isArray(session['participants'])
+      ? { participants: session['participants'] as Record<string, unknown>[] }
+      : {}),
+  };
+}
+
+function logServerUrl(): string {
+  return (process.env['LOG_SERVER_URL'] ?? 'http://127.0.0.1:4319').replace(/\/$/, '');
+}
+
+async function guarded(run: () => Promise<unknown>) {
+  try {
+    return toolResult(await run());
+  } catch (error) {
+    return toolResult({ error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+function toolResult(result: unknown) {
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+    structuredContent: { result },
+  };
+}

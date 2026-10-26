@@ -29,6 +29,10 @@ import {
   type SessionHistory,
 } from '@craft-ts/session-trace';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
+import {
+  parseResumeRequestInput,
+  ResumeRequestBoard,
+} from './resume-requests.js';
 import type { ThumbnailManifest } from './thumbnails/thumbnail-store.js';
 
 export type LogHttpServerOptions = {
@@ -38,6 +42,8 @@ export type LogHttpServerOptions = {
   readonly e2eSessionRoots?: readonly string[];
   /** Prepares and serves the thumbnails of archived sessions. */
   readonly thumbnails?: ThumbnailService;
+  /** Where the dashboard leaves "resume here" for the AI; one per server by default. */
+  readonly resumeRequests?: ResumeRequestBoard;
   readonly host?: string;
   readonly port?: number;
   /** Reject bodies larger than this, in bytes. */
@@ -67,11 +73,15 @@ export function createLogHttpServer(options: LogHttpServerOptions): Server {
   const allowedOrigins = new Set(
     (options.allowedOrigins ?? DEFAULT_ALLOWED_ORIGINS).map(normalizeOrigin),
   );
+  const resolvedOptions = {
+    ...options,
+    resumeRequests: options.resumeRequests ?? new ResumeRequestBoard(),
+  };
   const server = createServer((request, response) => {
     void handleRequest(
       request,
       response,
-      options,
+      resolvedOptions,
       maxBodySize,
       allowedOrigins,
     ).catch((error: unknown) => {
@@ -115,7 +125,7 @@ export function createLogHttpServer(options: LogHttpServerOptions): Server {
 async function handleRequest(
   request: IncomingMessage,
   response: ServerResponse,
-  options: LogHttpServerOptions,
+  options: LogHttpServerOptions & { readonly resumeRequests: ResumeRequestBoard },
   maxBodySize: number,
   allowedOrigins: ReadonlySet<string>,
 ): Promise<void> {
@@ -179,6 +189,39 @@ async function handleRequest(
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
     );
     return;
+  }
+
+  if (url.pathname.startsWith('/sessions/resume-requests')) {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    const board = options.resumeRequests;
+    if (request.method === 'POST' && url.pathname === '/sessions/resume-requests') {
+      let input;
+      try {
+        input = parseResumeRequestInput(
+          JSON.parse(await readBody(request, Math.min(maxBodySize, 16_000))),
+        );
+      } catch {
+        input = undefined;
+      }
+      if (!input) {
+        sendJson(response, 400, { error: 'Invalid resume request.' }, headers);
+        return;
+      }
+      sendJson(response, 201, { request: board.add(input) }, headers);
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/sessions/resume-requests') {
+      sendJson(response, 200, { requests: board.list() }, headers);
+      return;
+    }
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/sessions/resume-requests/latest'
+    ) {
+      const sessionId = url.searchParams.get('sessionId') ?? undefined;
+      sendJson(response, 200, { request: board.latest(sessionId) ?? null }, headers);
+      return;
+    }
   }
 
   if (request.method === 'POST' && url.pathname === '/sessions/prune') {

@@ -7,7 +7,12 @@ vivante jusqu'à un état équivalent au point choisi, puis fige ce point pour
 qu'il soit rechargé sans elle tant qu'il reste valide.
 
 > **Statut.** G0 fait (2026-10-26) : l'approche déclarative est retirée.
-> G1 à G5 restent à construire. Le code retiré reste lisible sur
+> G1 fait (2026-10-26) : `packages/session-trace/src/resume-context.ts`
+> (récit, cible, prérequis, appel enregistré), demandes de reprise du
+> log-server (`POST /sessions/resume-requests`, `GET …/latest`, en mémoire,
+> sous les règles d'origine des routes de sessions), outils log-mcp
+> (`packages/log-mcp/src/resume-tools.ts`) et bouton **Reprendre ici** du
+> dashboard (publie le point, copie l'invite). G2 à G5 restent à construire. Le code retiré reste lisible sur
 > `claude/reprise-fonctionnelle-corrections` (`56e08a48c`) : G1 y reprend
 > les heuristiques d'identité et de vivacité (`debug-session-resume-plan.ts`),
 > G2 la barrière et la retenue des requêtes au démarrage
@@ -35,6 +40,9 @@ qu'il soit rechargé sans elle tant qu'il reste valide.
 | Intervention humaine | Seulement pour ce que l'IA ne peut pas avoir : identifiants, codes reçus (OTP, e-mail), informations que seule la personne connaît. L'IA rend la main sur ce champ précis, puis la reprend. |
 | Durée de validité d'un point de reprise | Choisie par l'IA, avec sa justification (expiration du jeton lu dans la réponse ou le JWT, durée d'un créneau, données susceptibles de bouger). |
 | Approche déclarative | Retirée (`craftResume` et tout ce qui en dépend), voir « Ce qui part ». |
+| Environnements autorisés | Pas de politique imposée par le framework : chaque projet décide où il lance une reprise conduite. Les outils ne refusent aucune origine. |
+| Données personnelles | Reporté. Les archives gardent ce qu'elles contiennent aujourd'hui (empreintes `craft-ref:` pour les champs sensibles). |
+| Chat | À choisir : voir « Où vit le chat ». La première version suit la proposition A. |
 
 ## Le parcours vu par la personne
 
@@ -151,8 +159,7 @@ type ProbeCall = { call: string; input?: unknown; expect: { status?: number; mat
 
 ## Garde-fous (indépendants de l'IA)
 
-- **Environnement** : la reprise conduite refuse une origine qui n'est pas
-  loopback ou listée comme environnement de test dans la config du projet.
+- **Environnement** : laissé au projet (voir « Décisions prises »).
 - **Barrière d'écriture** : l'onglet repris garde la barrière actuelle, en mode
   « IA ». Les écritures vers l'app sous test passent et sont journalisées
   (`app.writes`). Les appels vers des tiers (paiement, e-mail, SMS) et les
@@ -211,7 +218,7 @@ de reprise).
 | Lot | Contenu | Sortie |
 |---|---|---|
 | **G0** ✓ | Retirer l'approche déclarative (« Ce qui part »), garder « Ce qui reste » | build, specs et e2e d'historique verts ; `libs/` sans `craftResume` |
-| **G1** | Lecture : `resume.request`, `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | sur les archives S1-S6, le récit et les prérequis sont corrects (tests sur archives figées) |
+| **G1** ✓ | Lecture : `resume.request`, `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | sur les archives S1-S6, le récit et les prérequis sont corrects (tests sur archives figées) |
 | **G2** | Conduite : `app.launch` sans ouvreur, `app.replay`, `app.diff`, barrière en mode IA, refus des champs sensibles dans `page act fill` | un script de test (sans modèle) mène S1 jusqu'au point et `app.diff` est vide |
 | **G3** | Passage de main : `app.handoff` (bandeau, champ, condition, expiration) | le script attend une connexion humaine simulée et reprend seul |
 | **G4** | Points de reprise : `checkpoint.*`, sondes, validité, nettoyage ; **Reprendre ici** rouvre un point valide | un point S2 se rouvre sans IA ; une sonde rouge (produit supprimé) le déclare invalide |
@@ -226,16 +233,20 @@ complet est testé par un **script d'IA simulée** : une suite fixe d'appels
 d'outils, telle qu'une IA les ferait, qui doit atteindre un `app.diff` vide.
 Une IA réelle n'intervient que dans un test manuel documenté (G5).
 
+## Où vit le chat : propositions
+
+| | A. L'hôte de l'IA | B. Un chat dans le dashboard | C. L'hôte, avec un fil dans le dashboard |
+|---|---|---|---|
+| Principe | Claude Code, Codex… avec log-mcp et function-registry-mcp. **Reprendre ici** publie la demande et copie l'invite. | Un panneau de chat dans le dashboard, branché à un modèle (le webhook « send context » ou une API). | Comme A, plus un outil `resume.say` : l'IA écrit ses étapes, le dashboard les affiche, à côté du bandeau « À vous » de l'onglet. |
+| Pour | Rien à héberger ; l'IA a déjà tous les outils ; marche aujourd'hui. | Tout se passe au même endroit ; pas de copier-coller. | On suit la reprise depuis le replay sans quitter le dashboard. |
+| Contre | On jongle entre deux fenêtres. | Il faut un modèle avec appel d'outils côté dashboard, des clés, une boucle d'agent à écrire. | Un aller-retour de plus par message. |
+| Coût | faible | élevé | moyen |
+
+Proposition : **A maintenant**, **C ensuite** si le va-et-vient gêne, **B** seulement si on veut une reprise sans hôte IA installé.
+
 ## Questions ouvertes
 
-1. **Où vit le chat** : seulement l'hôte de l'utilisateur (Claude Code,
-   Codex) via MCP, ou aussi le chat intégré au dashboard (`AiChatBridge`) ?
-   Proposition : l'hôte d'abord, le dashboard ouvre l'hôte avec l'invite.
-2. **Environnements de test** : où les déclarer (config du projet, liste
-   d'origines) ?
-3. **Actions irréversibles** : faut-il une déclaration légère côté app
+1. **Actions irréversibles** : faut-il une déclaration légère côté app
    (« ce bouton paie ») ou suffit-il de retenir les appels vers d'autres
-   origines ?
-4. **Données personnelles** : l'archive contient encore des données en clair ;
-   avant de reprendre des sessions de vrais utilisateurs, il faut décider du
-   masquage (reporté jusqu'ici).
+   origines ? La première version retient les écritures vers une autre
+   origine et journalise les autres.

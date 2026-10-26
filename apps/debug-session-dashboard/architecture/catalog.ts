@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "4f3eed0c70724c51",
+  "graphHash": "896213753c435fd2",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -214,6 +214,11 @@ export const architectureCatalog = {
     "replayableParticipantsState",
     "reportText",
     "restartDisabled",
+    "resumeDisabled",
+    "resumeLabel",
+    "resumeRequest",
+    "resumeRequestFailed",
+    "resumeRequestSending",
     "retentionDays",
     "retryHidden",
     "savedSessions",
@@ -317,6 +322,10 @@ export const architectureCatalog = {
     {
       "method": "POST",
       "url": "*/sessions/prune"
+    },
+    {
+      "method": "POST",
+      "url": "*/sessions/resume-requests"
     },
     {
       "method": "POST",
