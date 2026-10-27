@@ -276,6 +276,8 @@ export function createAiContextMenuController({
   chatActions,
   exportSections,
   endpoint,
+  sendButtonLabel,
+  launcherLabel,
   theme,
 }: {
   injector: Injector;
@@ -291,6 +293,8 @@ export function createAiContextMenuController({
   chatActions?: readonly SendContextChatAction[];
   exportSections?: readonly SendContextExportSection[];
   endpoint?: string;
+  sendButtonLabel?: string;
+  launcherLabel?: string;
   theme?: SendContextTheme;
 }): AiContextMenuController {
   let menu: Overlay | null = null;
@@ -345,6 +349,10 @@ export function createAiContextMenuController({
     launcher = closeOverlay(launcher);
   }
 
+  let previousTargetSelectionCursor:
+    | { readonly value: string; readonly priority: string }
+    | undefined;
+
   function mountLauncher(): void {
     if (launcher || typeof document === 'undefined') return;
     const component = launcherComponent ?? AiSendContextLauncher;
@@ -354,6 +362,7 @@ export function createAiContextMenuController({
       (host) => {
         const mounted = mountCraftComponent(component, host, injector, {
           onOpen: () => onSelect(capturedSignal()),
+          label: launcherLabel,
           onMove: (position: AiLauncherPosition | undefined) => {
             launcherPosition = position;
             // Reset inherited overrides as well as the launcher's local ones.
@@ -412,6 +421,7 @@ export function createAiContextMenuController({
       return { ...rest, snapshot: buffer.snapshot() };
     },
     endpoint,
+    sendButtonLabel,
     get captureElement() {
       return capturedSignal()?.captureElement;
     },
@@ -510,6 +520,13 @@ export function createAiContextMenuController({
     document.removeEventListener('pointerdown', blockTargetPress, true);
     document.removeEventListener('click', selectPageTarget, true);
     document.removeEventListener('keydown', cancelWithEscape, true);
+    if (previousTargetSelectionCursor) {
+      const { value, priority } = previousTargetSelectionCursor;
+      if (value)
+        document.documentElement.style.setProperty('cursor', value, priority);
+      else document.documentElement.style.removeProperty('cursor');
+      previousTargetSelectionCursor = undefined;
+    }
   }
 
   function isPageTarget(
@@ -560,6 +577,11 @@ export function createAiContextMenuController({
 
   function pickTarget(): void {
     closeMenu();
+    previousTargetSelectionCursor = {
+      value: document.documentElement.style.getPropertyValue('cursor'),
+      priority: document.documentElement.style.getPropertyPriority('cursor'),
+    };
+    document.documentElement.style.setProperty('cursor', 'crosshair', 'important');
     selectingTarget.set(true);
     document.addEventListener('pointerdown', blockTargetPress, true);
     document.addEventListener('click', selectPageTarget, true);
@@ -617,10 +639,14 @@ export function createAiContextMenuController({
 export interface SendContextToAiOptions {
   /** Partial light/dark palettes, using CSS colours or application colour tokens. */
   readonly theme?: SendContextTheme;
-  /** Browser-accessible webhook URL. Omit it to keep the copy-only behavior. */
+  /** Visible text on the default floating launcher. */
+  readonly launcherLabel?: string;
+  /** Browser-accessible webhook URL. Its server can forward context to support or email. */
   readonly endpoint?: string;
-  /** Start recording at app startup; false waits for the user to click Record. */
-  readonly recording: boolean;
+  /** Label for the webhook action. Defaults to `Send`. */
+  readonly sendButtonLabel?: string;
+  /** Start recording at app startup. Defaults to true. */
+  readonly recording?: boolean;
   /** Set false when a separate `provideCraftDebugSessionCapture` is installed. */
   readonly capture?: boolean;
   /**
@@ -1227,6 +1253,8 @@ export function provideSendContextToAi(
         chatActions: ɵinjectSendContextChatActions(),
         exportSections: ɵinjectSendContextExportSections(),
         endpoint: options.endpoint,
+        sendButtonLabel: options.sendButtonLabel,
+        launcherLabel: options.launcherLabel,
         theme: options.theme,
       }),
     ),

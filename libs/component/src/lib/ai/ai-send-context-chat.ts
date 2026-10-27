@@ -166,6 +166,9 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
         value: PanelOffset,
       ) => Generator<never, unknown, unknown>;
     };
+    type TimelineExpandedState = (() => boolean) & {
+      setExpanded: (value: boolean) => Generator<never, unknown, unknown>;
+    };
 
     const instruction = (yield* craftPrivate(
       state('sendContextInstruction', '', ({ set }) => ({
@@ -201,6 +204,11 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
         setPanelOffset: (value: PanelOffset) => set(value),
       })),
     )) as unknown as PanelOffsetState;
+    const timelineExpanded = (yield* craftPrivate(
+      state('timelineExpanded', false, ({ set }) => ({
+        setExpanded: (value: boolean) => set(value),
+      })),
+    )) as unknown as TimelineExpandedState;
     const setStatus: (value: string) => void = yield* craftPrivate(
       craftMethod('setStatus', function* (value: string) {
         yield* status.setStatus(value);
@@ -219,6 +227,11 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     const setPanelOffset: (value: PanelOffset) => void = yield* craftPrivate(
       craftMethod('setPanelOffset', function* (value: PanelOffset) {
         yield* panelOffset.setPanelOffset(value);
+      }),
+    );
+    const setTimelineExpanded: (value: boolean) => void = yield* craftPrivate(
+      craftMethod('setTimelineExpanded', function* (value: boolean) {
+        yield* timelineExpanded.setExpanded(value);
       }),
     );
 
@@ -401,6 +414,8 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     yield* craftExpose('dragEnd', endDrag);
 
     const resetPanelOffset = (): void => setPanelOffset({ x: 0, y: 0 });
+    const toggleTimeline = (): void =>
+      setTimelineExpanded(!craftUse(timelineExpanded()));
 
     const copyToClipboard = (text: string, message: string): void => {
       const clipboard = navigator.clipboard;
@@ -548,11 +563,17 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
     yield* craftExpose('error', () => craftUse(error()));
     yield* craftExpose('busy', () => craftUse(busy()));
     yield* craftExpose('panelOffset', () => craftUse(panelOffset()));
+    yield* craftExpose('timelineExpanded', () => craftUse(timelineExpanded()));
+    yield* craftExpose('toggleTimeline', toggleTimeline);
     yield* craftExpose('resetPanelOffset', resetPanelOffset);
     yield* craftExpose('toggleRecord', toggleRecord);
     yield* craftExpose('clearTimeline', clearTimeline);
     yield* craftExpose('copyPrompt', copyPrompt);
     yield* craftExpose('endpoint', configuredEndpoint);
+    yield* craftExpose(
+      'sendButtonLabel',
+      () => readContext().sendButtonLabel ?? 'Send',
+    );
     yield* craftExpose('sendPayload', sendPayload);
     yield* craftExpose('retrySend', retrySend);
     yield* craftExpose(
@@ -589,6 +610,8 @@ export const AiSendContextChat = craftComponent(
       error,
       busy,
       panelOffset,
+      timelineExpanded,
+      toggleTimeline,
       dragStart,
       dragPreview,
       dragEnd,
@@ -597,6 +620,7 @@ export const AiSendContextChat = craftComponent(
       clearTimeline,
       copyPrompt,
       endpoint,
+      sendButtonLabel,
       sendPayload,
       retrySend,
       selectingTarget,
@@ -733,6 +757,17 @@ export const AiSendContextChat = craftComponent(
           section({ class: aiChat.section }, [
             div({ class: aiChat.sectionHead }, [
               span(() => `Timeline (${eventCount()})`),
+              button(
+                'aiToggleTimeline',
+                {
+                  type: 'button',
+                  class: aiChat.button,
+                  'aria-expanded': timelineExpanded,
+                  'aria-controls': 'craft-ai-event-timeline',
+                  click: toggleTimeline,
+                },
+                () => (timelineExpanded() ? 'Hide' : 'Show'),
+              ),
               span({ class: aiChat.actions }, [
                 button(
                   'aiToggleRecord',
@@ -758,7 +793,12 @@ export const AiSendContextChat = craftComponent(
               ]),
             ]),
             ol(
-              { class: aiChat.timeline, 'aria-label': 'Recorded events' },
+              {
+                id: 'craft-ai-event-timeline',
+                class: aiChat.timeline,
+                'aria-label': 'Recorded events',
+                hidden: () => !timelineExpanded(),
+              },
               forNode(
                 () => visibleEvents(),
                 {
@@ -886,7 +926,7 @@ export const AiSendContextChat = craftComponent(
                       disabled: busy,
                       click: sendPayload,
                     },
-                    () => (busy() ? 'Sending…' : 'Send'),
+                    () => (busy() ? 'Sending…' : sendButtonLabel()),
                   ),
                 ]
               : [

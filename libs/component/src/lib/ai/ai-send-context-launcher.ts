@@ -2,7 +2,7 @@ import { drag, type CraftPointerGesture } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { craftComponent } from '../component';
 import { button, div, span } from '../hyperscript';
-import type { CraftComponent, Output } from '../types';
+import type { CraftComponent, Input, Output } from '../types';
 import {
   aiLauncher,
   aiTheme,
@@ -19,15 +19,20 @@ export interface AiLauncherPosition {
 export const AiSendContextLauncher: CraftComponent<{
   onOpen: Output<() => void>;
   onMove?: Output<(position: AiLauncherPosition | undefined) => void>;
+  label?: string;
 }> = craftComponent(
   'AiSendContextLauncher',
   {},
-  (inputs: {
+  function* (inputs: {
     readonly onOpen: Output<() => void>;
     readonly onMove: Output<
       (position: AiLauncherPosition | undefined) => void
     >;
-  }) => {
+    readonly label: Input<string | undefined>;
+  }) {
+    const readLabel = function* () {
+      return (yield* inputs.label()) ?? 'AI context';
+    };
     let origin: DOMRect | undefined;
     const launcherOf = (handle: Element) =>
       handle.closest<HTMLElement>('[data-ai-launcher]');
@@ -86,10 +91,12 @@ export const AiSendContextLauncher: CraftComponent<{
             type: 'button',
             class: aiLauncher.open,
             title: 'Send context to AI',
-            'aria-label': 'Open AI context chat',
+            'aria-label': function* () {
+              return `Open ${yield* readLabel()} chat`;
+            },
             click: () => inputs.onOpen(),
           },
-          [span({ 'aria-hidden': 'true' }, '✨'), span('AI context')],
+          [span({ 'aria-hidden': 'true' }, '✨'), span(readLabel)],
         ),
         button(
           'aiMoveLauncher',

@@ -33,6 +33,8 @@ export interface SendContextUiContext {
   readonly payload: SendContextPayload | undefined;
   /** Optional browser-side destination configured by `provideSendContextToAi`. */
   readonly endpoint?: string;
+  /** Label for the webhook action; defaults to `Send`. */
+  readonly sendButtonLabel?: string;
   /** The element the payload was captured on, for the DOM + CSS capture. */
   readonly captureElement: Element | undefined;
   readonly chatSections: readonly SendContextChatSection[];

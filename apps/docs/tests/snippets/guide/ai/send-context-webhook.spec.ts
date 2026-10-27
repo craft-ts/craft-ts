@@ -6,7 +6,7 @@ useSnippetHarness();
 
 // #region minimal
 export const minimalAiContextProviders = [
-  provideSendContextToAi({ recording: true }),
+  provideSendContextToAi({}),
 ];
 // #endregion minimal
 
@@ -14,6 +14,7 @@ export const minimalAiContextProviders = [
 export const aiContextProviders = provideSendContextToAi({
   recording: true,
   endpoint: 'https://agent.example.com/hooks/context',
+  sendButtonLabel: 'Send to support',
 });
 // #endregion configuration
 
