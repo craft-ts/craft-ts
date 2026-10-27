@@ -1,6 +1,6 @@
 # @craft-ts/session-trace
 
-Normalizes a portable CraftTS debug session (format v6) into a deterministic
+Normalizes a portable CraftTS debug session (format v7) into a deterministic
 trace, and compares a trace with green references. Pure TypeScript with no
 dependency and no browser or Node global: the Playwright fixture, the session
 dashboard, the log server and the logs MCP all use this one module, so they

@@ -1,6 +1,6 @@
 # CraftTS local session dashboard
 
-The dashboard is a separate CraftTS app. It reads `craft-debug-session` v6 JSON in
+The dashboard is a separate CraftTS app. It reads `craft-debug-session` v7 JSON in
 the browser and can browse sessions captured by the
 loopback debug server. Session data stays on the local machine.
 
@@ -102,7 +102,7 @@ origins listed by the target application. The dashboard rejects non-local
 target URLs. Both start modes restore recorded browser storage, Craft primitive
 values, and registered persister contents. URL mode uses the recorded start
 URL; snapshot mode uses the selected target URL and requires a Craft snapshot.
-The dashboard sends the v6 session to a replay-marked target before application
+The dashboard sends the v7 session to a replay-marked target before application
 bootstrap is released. If browser storage must be restored, the target restores
 it and reloads first. The bridge primes Craft and persister snapshots and
 installs recorded HTTP, fetch, WebSocket, and Worker outcomes before root
@@ -123,12 +123,15 @@ options. The key is serialized in the archive and must not contain a secret.
 The replay validator leaves sessions without distinct keys inspectable, but
 refuses to replay an overlapping identical request pair.
 
-Exports use format v6 and replay contract v1, and retain the existing
+Exports use format v7 and replay contract v1, and retain the existing
 event/byte limits. The session list shows both versions and marks a replay
 incompatible when the dashboard does not support its format or replay contract.
 Older exports without a `replayVersion` are treated as replay v1. Truncated
-sessions can be inspected but cannot be replayed. Versions v1–v4 are rejected
-with an explicit unsupported-version message; there is no silent migration.
+sessions can be inspected but cannot be replayed. Formats v1–v5 cannot be
+replayed because the required migration chain is not registered. The dashboard
+explicitly migrates v6 exports to v7. The v7 schema adds versioned
+reference metadata for redacted network values; migrated v6 exports remain
+replayable without that metadata.
 Events carry monotonic elapsed offsets. Clicks on links retain the
 redacted absolute `href` in the DOM event, in addition to router events. This
 helps identify the intended destination even if navigation did not occur.
@@ -149,7 +152,6 @@ primitive notifications, then records route, primitive registry state, and
 persisted storage only when Craft invocations and resource states are settled.
 Snapshot replay selects the latest validated checkpoint and restores its state
 before later interactions. Validation rejects incomplete or redacted snapshots.
-No migration from v5 to v6 is registered.
 
 Before replay, the target application checks recorded route, invocation, and
 deferred activation addresses against its current router and runtime registries.
