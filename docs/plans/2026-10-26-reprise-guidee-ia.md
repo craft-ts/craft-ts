@@ -69,6 +69,17 @@ qu'il soit rechargé sans elle tant qu'il reste valide.
 > (`/sessions/resume-requests/<id>/messages`), outils `resume.say` et
 > `resume.replies`, onglet **Reprise** du panneau latéral du dashboard qui
 > l'affiche et permet de répondre (vérifié en vrai et dans l'e2e).
+> Retour d'expérience (2026-10-27, session 85a988c8) : l'IA reproduisait l'état
+> sans demander l'objectif, et la mise en place retombait sur la personne
+> (skill introuvable hors du worktree, port du pont pris par une autre session,
+> bandeau de passage de main dans un panneau caché, sonde `GET /admin` sans
+> valeur). Réponses : skill dans `.claude/skills/` qui **demande l'objectif
+> avant d'agir** (observer quoi, être exact sur quoi, écrire ou non, point à
+> usage unique ou non) puis vérifie la mise en place ; `resume.doctor` ; pont
+> partagé (une deuxième session relaie au lieu de planter, et reprend le port
+> si la première part) ; `session.prerequisites.probes` (la lecture
+> enregistrée qui envoyait le jeton, avec le jeton vivant) ; `goal` sur le
+> point figé ; `.mcp.json` versionné (`craft-logs`, `craft-registry`).
 > Dans un worktree dont `node_modules` pointe vers le checkout principal,
 > lancer l'e2e avec `--tsconfig apps/demo-ecommerce/tsconfig.json` pour que les
 > serveurs MCP chargés dans le test lisent le `session-trace` du worktree. Le code retiré reste lisible sur

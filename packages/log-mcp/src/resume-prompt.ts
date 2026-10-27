@@ -6,40 +6,30 @@ import { z } from 'zod';
  * drive, hand back, check, freeze. Served as an MCP prompt so any host gets
  * the same steps; the skill `craft-ts-guided-resume` says the same.
  */
-export const GUIDED_RESUME_PROMPT = `Tu reprends une session de debug enregistrée : tu ramènes l'application vivante dans l'état où elle était au point choisi, puis tu figes ce point pour qu'il se rouvre sans toi.
+export const GUIDED_RESUME_PROMPT = `Tu reprends une session de debug enregistrée : tu ramènes l'application vivante là où elle était au point choisi, pour ce que la personne veut y observer, puis tu figes ce point pour qu'il se rouvre sans toi. Le skill craft-ts-guided-resume décrit la méthode en détail ; voici l'essentiel.
 
-Outils : log-mcp (lecture de l'archive) et function-registry-mcp (conduite de l'onglet).
+Outils : le serveur MCP des logs (resume.*, session.*) et celui du registre (resume.doctor, app.*, checkpoint.*, page). Si ton hôte diffère leur chargement, charge-les avant de conclure qu'ils manquent.
 
-1. Lire.
-   - resume.request : la session et le point demandés depuis « Reprendre ici ». Sans demande, demande un id de session.
-   - checkpoint.list (sessionId, beforeSequence) : s'il existe un point non expiré, checkpoint.restore puis checkpoint.validate. S'il est valide, c'est fini.
-   - session.story, session.target, session.prerequisites : ce que la personne a fait, l'état visé, l'identité et les entités dont le point dépend.
+1. Lire, sans rien faire : resume.request ; session.story jusqu'au point et les quelques étapes qui le suivent (ce que la personne a fait ensuite est souvent ce qu'elle veut regarder) ; session.prerequisites ; checkpoint.list (un point valide se rouvre avec checkpoint.restore puis checkpoint.validate).
 
-2. Proposer, en deux ou trois phrases : le point (qui fait quoi, où), ce qu'il faut (rôle, données), ce que tu vas faire. N'attends pas de validation sauf si une action est irréversible.
-   Écris aussi chaque étape dans le fil du dashboard avec resume.say (une ou deux phrases) : la personne suit la reprise depuis le replay et peut y répondre. resume.say te rend ce qu'elle a écrit depuis ton dernier message ; resume.replies le relit.
+2. Demander l'objectif, en un seul message, avec des réponses que tu proposes depuis l'enregistrement, et la même question dans le fil (resume.say, kind question) :
+   - que veux-tu observer à partir de ce point ?
+   - qu'est-ce qui doit être identique à l'enregistrement (compte et rôle, données du serveur que la suite lit ou écrit, brouillon) ?
+   - puis-je écrire sur le serveur pour y arriver (réinitialiser, recréer) ?
+   - le point servira-t-il une fois ou plusieurs ?
+   Saute ce qui est déjà dit. Sans réponse précise : la prochaine action comme objectif, aucune écriture sans accord. Reformule l'objectif en une phrase.
 
-3. Conduire.
-   - app.launch (sessionId, beforeSequence) recharge l'onglet sur l'état enregistré, barrière d'écriture active.
-   - app.diff dit ce qui manque. Comble l'écart avec page (goto, fill, click), app.replay (un geste enregistré, arguments adaptés aux données vivantes) et registry.*. Crée ce qui n'existe pas ici plutôt que d'abandonner.
-   - session.recordedCall donne une réponse enregistrée pour recopier des valeurs.
-   - Les jetons de l'archive sont masqués ([REDACTED] dans l'état, craft-ref:… dans les appels) : une session enregistrée n'est jamais ouverte telle quelle.
+3. Mettre en place : resume.doctor. Pour chaque vérification en échec, corrige toi-même si tu peux (ouvre l'app dans ton navigateur et montre-la), sinon demande une chose précise. Ne tue aucun processus et ne modifie aucune configuration sans accord.
 
-4. Rendre la main, uniquement pour ce que tu ne peux pas faire : mot de passe, code reçu, choix qui appartient à la personne. Tu ne lis ni ne tapes jamais un secret ; page refuse un champ sensible.
-   - app.handoff (message court, field, until) : la condition porte sur l'état vivant. Pour une connexion, prends session.signedInWhen de session.prerequisites ({ address, path, unmasked: true }) : elle ne tient qu'avec un vrai jeton. Tu reprends seul dès qu'elle tient.
-   - Dis la même consigne dans le chat et dans le fil (resume.say, kind handoff).
+4. Vérifier d'abord, sur le serveur vivant, les données dont l'objectif dépend (session.recordedCall contre ce que l'app lit). Puis app.launch, app.diff, et combler avec page, app.replay, registry.*. Chaque étape dans le fil (resume.say).
 
-5. Vérifier : app.diff jusqu'à ce que la route soit la même et que les écarts restants soient assumés. app.writes liste ce que la reprise a écrit ; une écriture retenue vers un tiers ne part pas sans accord explicite.
+5. Rendre la main seulement pour un secret : app.handoff avec until = session.prerequisites.session.signedInWhen, en disant où se connecter (l'onglet, son URL). Même consigne dans le chat et le fil. Si le délai expire, redemande et relance.
 
-6. Figer : checkpoint.save avec
-   - ttlMs et ttlReason choisis par toi d'après ce qui expire (durée du jeton, réinitialisation des données…) ;
-   - probes : des requêtes de la même origine qui prouvent que le point tient (le compte est connecté, l'entité existe), avec {{state <adresse> <chemin>}} pour un jeton ou un id vivant ;
-   - created : ce que tu as créé, avec la requête qui le supprime ;
-   - deviations : les écarts assumés (« connectée avec ines@staging », « produit recréé : p-9034 au lieu de espresso »).
-   Puis checkpoint.validate.
+6. Vérifier contre l'objectif : app.diff sans écart qui compte pour lui ; app.writes.
 
-7. Conclure en une phrase, dans le chat et dans le fil (resume.say, kind done) : le point, sa durée et pourquoi, les écarts. La personne reprend la main dans l'onglet.
+7. Figer : checkpoint.save avec goal, ttlMs et ttlReason, probes (celles de session.prerequisites plus une pour les données de l'objectif), created, deviations ; puis checkpoint.validate.
 
-Si un point existant ne tient plus (sonde rouge), répare-le à partir de lui : ne refais pas tout.`;
+8. Conclure en une phrase, dans le chat et le fil (kind done) : le point et l'objectif, sa durée et pourquoi, les écarts, et ce que la personne fait ensuite.`;
 
 export function registerGuidedResumePrompt(server: McpServer): void {
   server.registerPrompt(

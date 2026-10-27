@@ -31,6 +31,8 @@ export type ResumeCheckpoint = Readonly<{
   sessionId: string;
   beforeSequence?: number;
   label?: string;
+  /** What the person wanted to observe from the point, asked before the resume. */
+  goal?: string;
   /** The app origin the point was taken on; it reopens only there. */
   origin: string;
   createdAt: string;
@@ -181,10 +183,14 @@ export function parseResumeCheckpointInput(
   if (!Array.isArray(deviations) || !deviations.every((item) => typeof item === 'string'))
     return 'deviations must be strings.';
   const label = value['label'];
+  const goal = value['goal'];
+  if (goal !== undefined && (typeof goal !== 'string' || goal.length > 500))
+    return 'goal must be a sentence of 500 characters at most.';
   return {
     sessionId,
     ...(beforeSequence === undefined ? {} : { beforeSequence }),
     ...(typeof label === 'string' ? { label } : {}),
+    ...(typeof goal === 'string' && goal.trim() ? { goal: goal.trim() } : {}),
     origin,
     expiresAt: new Date(expiresAt).toISOString(),
     ttlReason,

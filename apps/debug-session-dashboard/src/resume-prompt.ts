@@ -8,8 +8,8 @@ export function resumePrompt(sessionId: string, beforeSequence?: number): string
       ? 'à la fin de l’enregistrement'
       : `juste avant l’événement ${beforeSequence}`;
   return [
-    `Reprends la session de debug ${sessionId} ${point}, en reprise guidée (invite MCP reprise-guidee, skill craft-ts-guided-resume).`,
-    'Lis le point avec resume.request et session.*, ramène l’onglet de l’app au point avec app.launch puis app.diff, rends-moi la main avec app.handoff pour les identifiants, fige le point avec checkpoint.save, et écris tes étapes avec resume.say.',
+    `Reprends la session de debug ${sessionId} ${point}, en reprise guidée (skill craft-ts-guided-resume, invite MCP reprise-guidee).`,
+    'Commence par lire le point (resume.request, session.*) puis demande-moi ce que je veux y observer avant d’agir ; vérifie la mise en place avec resume.doctor.',
     'Ces outils viennent des serveurs MCP de reprise (logs et registre) : charge-les s’ils ne sont pas encore listés.',
   ].join(' ');
 }

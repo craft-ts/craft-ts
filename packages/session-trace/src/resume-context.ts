@@ -75,6 +75,23 @@ export type ResumePrerequisites = Readonly<{
   /** Calls that wrote to the backend before the point (the AI may redo them). */
   writes: readonly Readonly<{ sequence: number; call: string; status?: number }>[];
   pendingTasks: readonly Readonly<Record<string, unknown>>[];
+  /**
+   * Probes ready for `checkpoint.save`: a recorded read that answered who was
+   * signed in, sent again with the live token. A point whose session expired
+   * then fails its probe instead of passing a bare page load.
+   */
+  probes: readonly ResumeProbeHint[];
+}>;
+
+export type ResumeProbeHint = Readonly<{
+  method: string;
+  url: string;
+  headers?: Readonly<Record<string, string>>;
+  body?: unknown;
+  expect: Readonly<{ status?: number; match?: readonly string[] }>;
+  /** The recorded call it comes from, and what it proves. */
+  from: string;
+  proves: string;
 }>;
 
 export type ResumeRecordedCall = Readonly<{
@@ -295,7 +312,84 @@ export function resumePrerequisites(
         ...(call.status === undefined ? {} : { status: call.status }),
       })),
     pendingTasks: target.pendingTasks,
+    probes: sessionWithCondition.signedInWhen
+      ? sessionProbes([...calls.values()], sessionWithCondition.signedInWhen)
+      : [],
   };
+}
+
+/** Headers a replayed call needs; credentials come from the live state instead. */
+const PROBE_HEADER = /^(?:content-type|accept|x-craft-[a-z-]+)$/i;
+
+/**
+ * The latest successful read that sent a token and answered an identity,
+ * rebuilt with the live token: `{{state <address> <path>}}`.
+ */
+function sessionProbes(
+  calls: readonly Call[],
+  signedIn: Readonly<{ address: string; path: string }>,
+): ResumeProbeHint[] {
+  const live = `{{state ${signedIn.address} ${signedIn.path}}}`;
+  const reads = [...calls]
+    .reverse()
+    .filter(
+      (call) =>
+        !call.failed &&
+        call.status !== undefined &&
+        call.status < 300 &&
+        !WRITE_CALL.test(call.name) &&
+        sendsToken(call.requestBody),
+    );
+  // Best: a read that answered who it was. Else any read the token opened.
+  const whoAmI = reads.find((call) => identitiesIn(call.responseBody).length > 0);
+  const call = whoAmI ?? reads[0];
+  if (!call) return [];
+  const role = whoAmI ? identitiesIn(whoAmI.responseBody)[0]?.role : undefined;
+  let path = call.url;
+  try {
+    const url = new URL(call.url, 'http://recorded.invalid');
+    path = `${url.pathname}${url.search}`;
+  } catch {
+    // A relative url is already a path.
+  }
+  const headers = Object.fromEntries(
+    Object.entries(record(call.headers)).flatMap(([key, value]) =>
+      PROBE_HEADER.test(key) && typeof value === 'string' ? [[key.toLowerCase(), value]] : [],
+    ),
+  );
+  return [
+    {
+      method: call.method,
+      url: path,
+      ...(Object.keys(headers).length ? { headers } : {}),
+      ...(call.requestBody === undefined ? {} : { body: withLiveToken(call.requestBody, live) }),
+      expect: { status: call.status, ...(role ? { match: [`"role":"${role}"`] } : {}) },
+      from: call.name,
+      proves: role
+        ? `la session est ouverte avec le rôle ${role}`
+        : 'le jeton de la session est accepté par le serveur',
+    },
+  ];
+}
+
+function sendsToken(value: unknown, depth = 0): boolean {
+  if (depth > 4) return false;
+  return Object.entries(record(value)).some(
+    ([key, child]) =>
+      (/token/i.test(key) && typeof child === 'string') ||
+      (typeof child === 'object' && sendsToken(child, depth + 1)),
+  );
+}
+
+function withLiveToken(value: unknown, live: string): unknown {
+  if (Array.isArray(value)) return value.map((item) => withLiveToken(item, live));
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key,
+      /token/i.test(key) && typeof child === 'string' ? live : withLiveToken(child, live),
+    ]),
+  );
 }
 
 /** One recorded request and its answer: by sequence, or the nth call of a name. */

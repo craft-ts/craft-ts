@@ -41,6 +41,32 @@ describe('resumeStory', () => {
   });
 });
 
+describe('resumePrerequisites probes', () => {
+  it('prefers the recorded read that answered who was signed in', () => {
+    const call = (sequence: number, id: string, input: unknown, answer: unknown) => [
+      { sequence, kind: 'http', phase: 'started', operationId: `op-${sequence}`, payload: { method: 'POST', url: 'http://localhost:4206/__server-functions', headers: { 'content-type': 'application/json', 'x-craft-function-id': id, cookie: 'secret' }, body: JSON.stringify({ id, input }) } },
+      { sequence: sequence + 1, kind: 'http', phase: 'succeeded', operationId: `op-${sequence}`, response: { status: 200, body: JSON.stringify(JSON.stringify(answer)) } },
+    ];
+    const archive: ResumeArchive = {
+      events: [
+        { sequence: 1, kind: 'primitive', name: 'primitive-change', payload: { address: 'service:session / state:currentSession#1' }, state: { 'service:session / state:currentSession#1': { token: '[REDACTED]', user: { id: 'ines', role: 'product-manager' } } } },
+        ...call(2, 'shop.auth.me', { token: 'craft-ref:aa' }, { token: 'craft-ref:aa', user: { id: 'ines', role: 'product-manager' } }),
+        ...call(4, 'shop.admin.overview', { token: 'craft-ref:aa' }, { products: [] }),
+      ],
+    };
+
+    const [probe] = resumePrerequisites(archive).probes;
+
+    expect(probe).toMatchObject({
+      from: 'shop.auth.me',
+      url: '/__server-functions',
+      body: { input: { token: '{{state service:session / state:currentSession token}}' } },
+      expect: { status: 200, match: ['"role":"product-manager"'] },
+    });
+    expect(probe?.headers).toEqual({ 'content-type': 'application/json', 'x-craft-function-id': 'shop.auth.me' });
+  });
+});
+
 describe('resumeStory polling', () => {
   it('tells a poll once until the next gesture, with how often it repeated', () => {
     let sequence = 0;
@@ -85,6 +111,16 @@ describe('resumePrerequisites', () => {
     const kinds = prerequisites.entities.map((entity) => `${entity.kind}:${entity.id}`);
     expect(new Set(kinds).size).toBe(kinds.length);
     expect(prerequisites.writes.map((write) => write.call)).toContain('ecommerce.auth.login');
+    // A ready probe: a recorded read the token opened, sent with the live token.
+    expect(prerequisites.probes).toEqual([
+      expect.objectContaining({
+        method: 'POST',
+        url: '/__server-functions',
+        from: 'ecommerce.admin.overview',
+        body: { id: 'ecommerce.admin.overview', input: { token: `{{state ${prerequisites.session.signedInWhen?.address} token}}` } },
+        expect: { status: 200 },
+      }),
+    ]);
   });
 
   it('sees a session closed by a sign-out and reads route parameters', () => {

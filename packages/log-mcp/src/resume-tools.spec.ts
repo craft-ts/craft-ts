@@ -73,6 +73,8 @@ describe('resume tools', () => {
       session: { events: archive.events.length },
       // Reading the request is enough to know what comes next.
       method: expect.arrayContaining([
+        expect.stringContaining('objectif'),
+        expect.stringContaining('resume.doctor'),
         expect.stringContaining('app.launch'),
         expect.stringContaining('app.handoff'),
         expect.stringContaining('checkpoint.save'),
@@ -120,6 +122,12 @@ describe('resume tools', () => {
     const prompt = await client.getPrompt({ name: 'reprise-guidee', arguments: { sessionId: SESSION } });
     const text = (prompt.messages[0]?.content as { text: string }).text;
     expect(text).toContain('app.handoff');
+    // The goal comes before any action, the setup check right after.
+    const goal = text.indexOf('2. Demander l\'objectif');
+    const setup = text.indexOf('3. Mettre en place : resume.doctor');
+    expect(goal).toBeGreaterThan(0);
+    expect(goal).toBeLessThan(setup);
+    expect(setup).toBeLessThan(text.indexOf('app.launch, app.diff'));
     expect(text).toContain('checkpoint.save');
     expect(text).toContain(SESSION);
   });

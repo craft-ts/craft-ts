@@ -303,6 +303,21 @@ export class RegistryBridgeBroker {
     });
   }
 
+  /**
+   * Another registry MCP server found the port taken and relays its calls
+   * here: several AI sessions drive the same tabs through one bridge.
+   */
+  #answerRelay(socket: WebSocket, record: RelayRequest): void {
+    void this.request(record.method, record.params).then(
+      (result) => sendRelayAnswer(socket, { callId: record.callId, result }),
+      (error: unknown) =>
+        sendRelayAnswer(socket, {
+          callId: record.callId,
+          error: { message: error instanceof Error ? error.message : String(error) },
+        }),
+    );
+  }
+
   #handleConnection(socket: WebSocket): void {
     socket.on('message', (rawData) => this.#handleMessage(socket, rawData));
     socket.on('close', () => {
@@ -348,6 +363,11 @@ export class RegistryBridgeBroker {
     const record = message as Record<string, unknown>;
     if (isHello(record)) {
       this.#registerClient(socket, record);
+      return;
+    }
+
+    if (isRelayRequest(record)) {
+      this.#answerRelay(socket, record);
       return;
     }
 
@@ -696,6 +716,28 @@ function isResponse(
 
 function isSocketOpen(socket: WebSocket | undefined): socket is WebSocket {
   return socket !== undefined && socket.readyState === WebSocket.OPEN;
+}
+
+type RelayRequest = Readonly<{
+  type: 'relay/request';
+  callId: string;
+  method: RegistryBrokerMethod;
+  params?: Readonly<Record<string, unknown>>;
+}>;
+
+function isRelayRequest(record: Record<string, unknown>): record is RelayRequest {
+  return (
+    record['type'] === 'relay/request' &&
+    typeof record['callId'] === 'string' &&
+    typeof record['method'] === 'string' &&
+    (record['params'] === undefined ||
+      (typeof record['params'] === 'object' && record['params'] !== null))
+  );
+}
+
+function sendRelayAnswer(socket: WebSocket, answer: Record<string, unknown>): void {
+  if (socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify({ type: 'relay/response', ...answer }));
 }
 
 function isAppMethod(method: RegistryBrokerMethod): method is AppMethod {

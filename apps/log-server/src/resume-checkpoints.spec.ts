@@ -21,6 +21,7 @@ function checkpoint(overrides: Record<string, unknown> = {}) {
     probes: [{ method: 'GET', url: '/api/products/flat-white', expect: { status: 200 } }],
     created: [{ kind: 'product', id: 'p-9034', cleanup: { method: 'DELETE', url: '/api/products/p-9034', expect: { status: 204 } } }],
     deviations: ['produit recréé (p-9034 au lieu de flat-white)'],
+    goal: 'voir l’enregistrement du prix échouer',
     ...overrides,
   };
 }
@@ -60,7 +61,7 @@ describe('resume checkpoints', () => {
 
     const listed = await fetch(`${baseUrl}/sessions/checkpoints?sessionId=${SESSION}&beforeSequence=40`);
     await expect(listed.json()).resolves.toMatchObject({
-      checkpoints: [{ id: summary.id, expired: false, route: '/admin', deviations: ['produit recréé (p-9034 au lieu de flat-white)'] }],
+      checkpoints: [{ id: summary.id, expired: false, route: '/admin', goal: 'voir l’enregistrement du prix échouer', deviations: ['produit recréé (p-9034 au lieu de flat-white)'] }],
     });
     const other = await fetch(`${baseUrl}/sessions/checkpoints?beforeSequence=12`);
     await expect(other.json()).resolves.toEqual({ checkpoints: [] });

@@ -47,6 +47,7 @@ describe('registry MCP server', () => {
       'app.replay',
       'app.handoff',
       'app.writes',
+      'resume.doctor',
       'checkpoint.save',
       'checkpoint.list',
       'checkpoint.restore',

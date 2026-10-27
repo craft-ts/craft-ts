@@ -2,6 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { RegistryBridgeBroker } from './bridge-broker.js';
 import type { RegistryBrokerMethod } from './protocol.js';
+import { diagnoseGuidedResume } from './resume-doctor.js';
+import type { SharedRegistryBridge } from './shared-bridge.js';
 
 type RegistryRequester = Pick<RegistryBridgeBroker, 'request'>;
 type PrimitiveValueKind = 'query' | 'asyncProcess' | 'mutation' | 'queryParams';
@@ -10,6 +12,8 @@ export type RegistryMcpServerOptions = Readonly<{
   /** Where resume points are kept; `LOG_SERVER_URL` or the local log server. */
   logServerUrl?: string;
   fetch?: typeof fetch;
+  /** How this server holds the bridge, for resume.doctor. */
+  bridge?: Pick<SharedRegistryBridge, 'role' | 'address'>;
 }>;
 
 export function createRegistryMcpServer(
@@ -272,15 +276,39 @@ function registerCheckpointTools(
   const clientId = z.string().min(1).optional();
 
   server.registerTool(
+    'resume.doctor',
+    {
+      description:
+        'Check in one call everything a guided resume needs: the log server, the resume request, the bridge (held here or relayed to another session), exactly one app tab on it, the guided resume installed in that tab. Each failed check says what to do: repair it or ask the person in one sentence. Call it before app.launch, and again after fixing something.',
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async () =>
+      toolResult(
+        await diagnoseGuidedResume({
+          request: (method, params) => bridge.request(method, params),
+          fetch: http,
+          logServerUrl: base(),
+          ...(options.bridge ? { bridge: options.bridge } : {}),
+        }),
+      ),
+  );
+
+  server.registerTool(
     'checkpoint.save',
     {
       description:
-        'Freeze the connected tab as a resume point of a recorded session, once app.diff says it is there. You choose how long it stays valid and say why (token lifetime, data that will be reset…). Probes are same-origin requests replayed before every reopen; list what the resume created with a cleanup request, and the deviations you accepted.',
+        'Freeze the connected tab as a resume point of a recorded session, once app.diff says it is there. Record the goal the person gave. Start probes from session.prerequisites.probes and add one for the data the goal needs. You choose how long it stays valid and say why (token lifetime, data that will be reset…). Probes are same-origin requests replayed before every reopen; list what the resume created with a cleanup request, and the deviations you accepted.',
       inputSchema: {
         clientId,
         sessionId: z.string().uuid(),
         beforeSequence: z.number().int().nonnegative().optional(),
         label: z.string().min(1).max(200).optional(),
+        goal: z
+          .string()
+          .min(1)
+          .max(500)
+          .optional()
+          .describe('What the person wants to observe from this point, as they said it'),
         ttlMs: z.number().int().min(60_000).max(30 * 24 * 60 * 60_000),
         ttlReason: z.string().min(1).max(300),
         probes: z.array(probe).max(20).optional(),

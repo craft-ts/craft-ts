@@ -162,7 +162,7 @@ export function registerResumeTools(server: McpServer): void {
     'session.prerequisites',
     {
       description:
-        'List what must hold before resuming: the identity and role the person used, whether they were signed in, the entities the point depends on (route parameters, ids in state) and the server writes already made. Credentials are never recorded: when an identity is needed, hand control back to the person for that field.',
+        'List what must hold before resuming: the identity and role the person used, whether they were signed in, the entities the point depends on (route parameters, ids in state) and the server writes already made. Credentials are never recorded: when an identity is needed, hand control back to the person for that field (session.signedInWhen is the app.handoff condition). `probes` are ready for checkpoint.save: a recorded read sent again with the live token, so the point fails when its session expires.',
       inputSchema: pointSchema,
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
@@ -209,13 +209,13 @@ export function registerResumeTools(server: McpServer): void {
  * does not mean they are unavailable.
  */
 export const RESUME_METHOD: readonly string[] = [
-  'Les outils app.*, checkpoint.* et page viennent du serveur MCP du registre (function-registry-mcp) ; resume.* et session.* de celui des logs. Si ton hôte diffère le chargement des outils MCP, charge-les avant de conclure qu’ils manquent.',
-  'Lire : checkpoint.list (sessionId, beforeSequence) — un point non expiré se rouvre avec checkpoint.restore puis checkpoint.validate. Sinon session.story, session.target, session.prerequisites.',
-  'Écrire chaque étape dans le fil du dashboard avec resume.say.',
-  'Conduire : app.launch (sessionId, beforeSequence) recharge l’onglet de l’app relié au pont sur l’état enregistré, puis app.diff dit ce qui manque ; combler avec page, app.replay, registry.*.',
-  'Rendre la main pour un secret : app.handoff avec until = session.prerequisites.session.signedInWhen ; ne jamais taper un mot de passe.',
-  'Vérifier : app.diff sans écart non assumé, app.writes pour ce que la reprise a écrit.',
-  'Figer : checkpoint.save (ttlMs et ttlReason choisis, probes, created, deviations), puis checkpoint.validate, et resume.say kind done.',
+  'Les outils resume.doctor, app.*, checkpoint.* et page viennent du serveur MCP du registre ; resume.* et session.* de celui des logs. Si ton hôte diffère le chargement des outils MCP, charge-les avant de conclure qu’ils manquent.',
+  'Lire sans rien faire : session.story jusqu’au point et ce qui le suit, session.prerequisites, checkpoint.list (un point valide se rouvre avec checkpoint.restore puis checkpoint.validate).',
+  'Demander l’objectif avant toute action, en un message avec des réponses proposées depuis l’enregistrement : ce que la personne veut observer, ce qui doit être identique, si tu peux écrire sur le serveur, si le point servira une fois ou plusieurs. Le reste sert cet objectif.',
+  'Mettre en place : resume.doctor, puis corriger ou demander une chose précise par vérification en échec (ouvrir l’app, choisir l’onglet…). Ne tuer aucun processus, ne modifier aucune configuration sans accord.',
+  'Vérifier d’abord les données dont l’objectif dépend sur le serveur vivant, puis app.launch et app.diff, combler avec page, app.replay, registry.* ; chaque étape dans le fil avec resume.say.',
+  'Rendre la main pour un secret : app.handoff avec until = session.prerequisites.session.signedInWhen, en disant où se connecter ; relancer si le délai expire.',
+  'Figer : checkpoint.save avec goal, ttlMs/ttlReason, probes (session.prerequisites.probes plus une pour les données de l’objectif), created, deviations ; puis checkpoint.validate et resume.say kind done.',
 ];
 
 type ResumeMessage = Readonly<{

@@ -1,55 +1,128 @@
 ---
 name: craft-ts-guided-resume
-description: Resume a recorded CraftTS debug session in the live app — read the archive with the log MCP (resume.request, session.story/target/prerequisites/recordedCall), drive the tab with the function-registry MCP (app.launch, app.diff, app.replay, page), hand control back for credentials with app.handoff, then freeze a resume point (checkpoint.save) with an expiry you justify. Use when the person clicked « Reprendre ici » in the debug session dashboard or asks to resume, reproduce from, or reopen a recorded session at an event.
+description: Resume a recorded CraftTS debug session in the live app. First ask what the person wants to observe from that point and what must be faithful, then check and fix the setup (resume.doctor), bring an app tab to the point (app.launch, app.diff), hand sign-ins back (app.handoff), and freeze a resume point whose probes match the goal (checkpoint.save). Use when the person clicked « Reprendre ici » in the debug session dashboard, pastes a « Reprends la session de debug … » sentence, or asks to resume, reproduce from, or reopen a recorded session at an event.
 ---
 
 # Guided resume
 
-Bring the live app to the state a recorded session had at one point, with as
-little human help as possible, then freeze that point so it reopens without you.
-The logs MCP prompt `reprise-guidee` holds the same method.
+Bring the live app to where a recording was, for a purpose the person has. A
+resume that reproduces state without knowing why spends effort on details that
+do not matter and misses the ones that do (stale server data, the wrong
+account). So: understand the goal, make the setup work, then drive.
 
-## Steps
+The person speaks French in this project: talk to them in French.
 
-1. **Read.** `resume.request` gives the session and point (else ask for a session
-   id). `checkpoint.list` with that session and `beforeSequence`: a point not
-   expired → `checkpoint.restore`, then `checkpoint.validate`; valid means done.
-   Then `session.story`, `session.target`, `session.prerequisites`.
-2. **Propose** in two or three sentences: who does what, where; what is needed
-   (role, data); what you will do. Ask only before an irreversible action.
-   Write each step in the dashboard thread too (`resume.say`): the person
-   follows the resume from the replay and may answer there; `resume.say`
-   returns what they wrote since your previous message, `resume.replies`
-   reads it again.
-3. **Drive.** `app.launch` reloads the tab on the recorded state (write barrier
-   on). `app.diff` tells what is missing; close the gap with `page` (goto, fill,
-   click), `app.replay` (a recorded gesture with arguments fitted to live data)
-   and `registry.*`. Create what does not exist here instead of giving up.
-   `session.recordedCall` gives recorded answers to copy values from.
-4. **Hand back** only what you must not or cannot do: passwords, codes, choices
-   that belong to the person. Never read or type a secret — `page` refuses a
-   sensitive field. `app.handoff` with a short message, the `field`, and an
-   `until` condition on the live state. Recorded tokens are masked
-   (`[REDACTED]` in state, `craft-ref:…` in calls), so wait for a real one —
-   `session.prerequisites` gives it as `session.signedInWhen`:
+## 0. Tools
 
-   ```json
-   { "address": "service:session / state:currentSession / state:currentSession", "path": "token", "unmasked": true }
-   ```
+Two MCP servers of this repo (`.mcp.json`): the logs one (`resume.*`,
+`session.*`) and the registry one (`resume.doctor`, `app.*`, `checkpoint.*`,
+`page`). Hosts that defer MCP tools list them by name only: load them before
+concluding they are missing. If neither server is there at all, say so in one
+sentence and ask the person to approve the project MCP servers and open a new
+session; do not edit global configuration.
 
-   Say the same instruction in the chat and in the thread (`resume.say`, kind
-   `handoff`).
-5. **Check.** `app.diff` until the route matches and the remaining differences
-   are accepted. `app.writes` lists what the resume wrote; a held write to a
-   third party never goes out without explicit consent.
-6. **Freeze.** `checkpoint.save` with `ttlMs` and `ttlReason` you choose from
-   what expires (token lifetime, data reset…), same-origin `probes` proving the
-   point holds (signed in, entity exists — use `{{state <address> <path>}}` for
-   a live token or id), `created` entities with the request that deletes them,
-   and `deviations` you accepted. Then `checkpoint.validate`.
-7. **Conclude** in one sentence, in the chat and the thread (kind `done`): the point, how long it is valid and why, the
-   deviations. The person takes the tab back.
+## 1. Read the point (no question yet)
 
-A point whose probe fails is repaired from itself, not rebuilt from scratch.
+`resume.request` (the session and the point; its `method` repeats these steps),
+then `session.story` up to the point **and a few steps after it**
+(`session.story` without `beforeSequence`, look at what follows): what the
+person did next is usually what they want to look at. `session.prerequisites`
+(identity, `signedInWhen`, entities, writes, ready `probes`). `checkpoint.list`
+for this point: a valid one is reopened with `checkpoint.restore` +
+`checkpoint.validate`, and the resume is done unless the goal changed.
+
+## 2. Ask for the goal — one message, before any action
+
+Ask at most four short questions, each with answers you propose from the
+recording, so the person can reply in a few words. Skip a question the request
+or the conversation already answered. Write the same questions in the dashboard
+thread (`resume.say`, kind `question`) and wait for the answer in the chat.
+
+1. **What to observe.** « Que veux-tu regarder à partir de ce point ? » —
+   propose the next recorded gesture (« ce qui se passe quand Camille clique
+   Enregistrer avec le prix à 4,83 € »), a bug the story shows (an error, a
+   4xx/5xx), or « juste retrouver l'écran ».
+2. **What must be exact.** « Qu'est-ce qui doit être identique à
+   l'enregistrement ? » — the account and role, the server data the next step
+   reads or writes (name the entity: « l'espresso à 3,50 € »), the form or
+   draft; the rest may differ.
+3. **Server writes.** « Puis-je écrire sur le serveur pour y arriver ? » —
+   reset demo data, recreate an entity, redo a recorded write; or touch nothing
+   and note the differences.
+4. **Use of the point.** « Une fois, ou un point à rouvrir plusieurs fois ? » —
+   this sets the validity you will choose and how strict its probes are.
+
+If the person answers « fais au mieux », take: the next gesture as the goal,
+route + identity + the primitives that gesture uses as what must be exact, no
+server write without asking, a point valid for the working session.
+
+Restate the goal in one sentence before going on. Everything after this
+serves it.
+
+## 3. Set up — `resume.doctor`
+
+Call `resume.doctor`. For each failed check, fix it yourself when you can and
+say it in one line; otherwise ask the person one precise thing.
+
+- **log-server** down: ask to start it (`npm run logs:server`, same port as
+  `LOG_SERVER_URL`).
+- **tab** missing: open `appUrl` in a browser you drive (your own browser pane
+  if the host has one) and show it to the person; else give them the URL.
+  Run `resume.doctor` again.
+- **tab** several: pick the one to drive and pass its `clientId` to `app.*` and
+  `page`, or ask to close the others. A dashboard replay counts as a tab.
+- **guided-resume** missing in the app: say which provider to add
+  (`provideCraftGuidedResume` next to `provideCraftDevTools`) and stop there.
+- **bridge** held by another session: nothing to do, calls are relayed.
+
+Never kill a process or edit the person's configuration to get there; ask.
+
+## 4. Check what the goal depends on, then drive
+
+Before rebuilding the screen, check the data the goal needs on the live server:
+compare `session.recordedCall` answers with what the app reads now (`page`,
+`registry.*`). If they differ and writes are allowed, fix them first (reset,
+recreate); otherwise tell the person what will differ and why it matters.
+
+Then `app.launch` (point, `participantId`, `clientId`), `app.diff`, and close
+the gap with `page` (goto, fill, click), `app.replay` (a recorded gesture with
+arguments fitted to live data) and `registry.*`. Write each step in the thread
+(`resume.say`, one sentence).
+
+## 5. Hand back what only the person may do
+
+Passwords, codes, choices that are theirs. Never read or type a secret — `page`
+refuses sensitive fields. `app.handoff` with `until` =
+`session.prerequisites.session.signedInWhen`, the `field`, and a message that
+says **where**: the tab you drive (show it if your host can) and its URL.
+Say the same in the chat and in the thread (kind `handoff`). If the hand-off
+times out, ask once more in the chat and call it again; do not give up.
+
+## 6. Check against the goal
+
+`app.diff` until the route matches and every remaining difference is either
+irrelevant to the goal or accepted by the person. `app.writes` tells what the
+resume wrote; a held write to a third party never goes out without consent.
+
+## 7. Freeze
+
+`checkpoint.save` with:
+- `goal`: the sentence from step 2;
+- `ttlMs` + `ttlReason`: from what expires (token lifetime, data reset) and how
+  the point will be used;
+- `probes`: start from `session.prerequisites.probes` (the session is still
+  open), add one for the data the goal needs (« l'espresso existe à 3,50 € »),
+  same origin, `{{state <address> <path>}}` for live ids and tokens;
+- `created`: what you created, with the request that deletes it;
+- `deviations`: what differs and why it does not matter for the goal.
+
+Then `checkpoint.validate`. A failing probe is repaired from the point, not by
+starting over.
+
+## 8. Conclude
+
+One short message in the chat and the thread (kind `done`): the point and the
+goal it serves, how long it is valid and why, the deviations, and the one
+thing the person does next (« clique Enregistrer dans l'onglet ouvert »).
 
 See [guide/ai/guided-resume](../../../apps/docs/guide/ai/guided-resume.md).
