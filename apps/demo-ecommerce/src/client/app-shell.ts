@@ -12,6 +12,7 @@ export const AppShell = craftComponent('EcommerceAppShell', {}, function* () {
       nav({ class: 'main-nav' }, [
         a('home', {}, 'Accueil').pipe(CraftRouterLink({ to: '' })),
         a('shop', {}, 'La boutique').pipe(CraftRouterLink({ to: 'catalogue' })),
+        a('logs-cart', {}, 'Logs panier').pipe(CraftRouterLink({ to: 'panier-logs' })),
         a('admin', {}, 'Administration').pipe(CraftRouterLink({ to: 'admin' })),
       ]),
       div({ class: 'top-actions' }, [

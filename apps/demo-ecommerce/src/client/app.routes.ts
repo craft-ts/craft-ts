@@ -1,6 +1,7 @@
 import { loadCraftComponent } from '@craft-ts/component';
 import { assertExhaustiveRouteExceptions, craftRoute, craftRoutes } from '@craft-ts/core';
 import { productIdPathParam, provideProductIdPathParams } from './product-id-path-params';
+import { provideCartLogsPageState } from './cart-logs-state';
 
 export const { ecommerceRoutes: appRoutes } = craftRoutes('ecommerce', [
   craftRoute('', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./store-pages')).then((module) => module.HomePage)) }),
@@ -18,6 +19,15 @@ export const { ecommerceRoutes: appRoutes } = craftRoutes('ecommerce', [
     providersFn: ({ ProductIdPathParams }) => [provideProductIdPathParams(function* () { return yield* ProductIdPathParams(); })],
   },
   craftRoute('panier', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./store-pages')).then((module) => module.CartPage)) }),
+  {
+    path: 'panier-logs',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./cart-logs-page')).then(
+        (module) => module.CartLogsPage,
+      ),
+    ),
+    providersFn: () => [provideCartLogsPageState()],
+  },
   craftRoute('paiement', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./store-pages')).then((module) => module.CheckoutPage)) }),
   craftRoute('connexion', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./account-pages')).then((module) => module.LoginPage)) }),
   craftRoute('admin', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./admin-page')).then((module) => module.AdminPage)) }),
@@ -27,7 +37,7 @@ assertExhaustiveRouteExceptions(appRoutes);
 
 // Chemins écrits à la main : les dériver de `appRoutes` ferait boucler le typage,
 // car les pages chargées ici appellent elles-mêmes `CraftRouter.navigate`.
-type EcommerceRoutePath = '' | 'catalogue' | 'produit/:productId' | 'formule/:productId' | 'panier' | 'paiement' | 'connexion' | 'admin';
+type EcommerceRoutePath = '' | 'catalogue' | 'produit/:productId' | 'formule/:productId' | 'panier' | 'panier-logs' | 'paiement' | 'connexion' | 'admin';
 
 declare module '@craft-ts/core' {
   interface CraftRouterRoutesRegistry {
