@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "74f3060e10d2965a",
+  "graphHash": "f6d62e524b62981d",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -263,6 +263,7 @@ export const architectureCatalog = {
     "setError",
     "setPanelOffset",
     "setStatus",
+    "setTimelineExpanded",
     "showAllEvents",
     "showPreparedThumbnails",
     "showThumbnailManifest",
@@ -281,6 +282,7 @@ export const architectureCatalog = {
     "thumbnailManifest",
     "timeProgress",
     "timeRemaining",
+    "timelineExpanded",
     "timelineProgress",
     "title",
     "toastMessage",
@@ -358,7 +360,7 @@ export const architectureCatalog = {
     },
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:242>"
+      "url": "<unresolved:ai-send-context-chat.ts:255>"
     }
   ],
   "uniques": [],
