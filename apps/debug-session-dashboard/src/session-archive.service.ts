@@ -9,6 +9,7 @@ import {
   mutation,
   query,
   source$,
+  state,
 } from '@craft-ts/core';
 import { isRecord } from './replay-model';
 
@@ -97,6 +98,57 @@ const archivedSessionDecoder = {
   },
 };
 
+/** A point of an archived session the AI is asked to resume from. */
+export type ResumePoint = Readonly<{
+  sessionId: string;
+  beforeSequence?: number;
+  participantId?: string;
+}>;
+
+const resumeRequestDecoder = {
+  decode(input: unknown): Readonly<{ id: string }> | undefined {
+    const request = isRecord(input) ? input['request'] : undefined;
+    return isRecord(request) && typeof request['id'] === 'string'
+      ? { id: request['id'] }
+      : undefined;
+  },
+};
+
+/** A resume point frozen by the AI, as the archive lists it. */
+export type ResumeCheckpointSummary = Readonly<{
+  id: string;
+  beforeSequence?: number;
+  origin: string;
+  route?: string;
+  expired: boolean;
+  expiresAt: string;
+  ttlReason: string;
+}>;
+
+function isResumeCheckpointSummary(value: unknown): value is ResumeCheckpointSummary {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    typeof value['origin'] === 'string' &&
+    typeof value['expired'] === 'boolean' &&
+    typeof value['expiresAt'] === 'string' &&
+    typeof value['ttlReason'] === 'string' &&
+    (value['beforeSequence'] === undefined || typeof value['beforeSequence'] === 'number') &&
+    (value['route'] === undefined || typeof value['route'] === 'string')
+  );
+}
+
+const checkpointListDecoder = {
+  decode(input: unknown): readonly ResumeCheckpointSummary[] {
+    const checkpoints = isRecord(input) ? input['checkpoints'] : undefined;
+    return Array.isArray(checkpoints)
+      ? checkpoints.filter(isResumeCheckpointSummary)
+      : [];
+  },
+};
+
+export type ResumeNotice = Readonly<{ sessionId: string; prompt: string }>;
+
 /** Why a request to the archive failed, in a few words. */
 export function httpFailureReason(exception: unknown): string {
   const payload = isRecord(exception) ? exception['payload'] : undefined;
@@ -153,6 +205,19 @@ export const { SessionArchive } = craftService(
       },
     });
 
+    // "Reprendre ici": the archive keeps the point for the AI's
+    // `resume.request` tool, so the person only has to say "reprends".
+    const resumeRequest = yield* mutation('resumeRequest', {
+      method: (point: ResumePoint) => point,
+      loader: function* ({ params: point }) {
+        return yield* CraftHttpClient.post(({ response }) => ({
+          url: `${SESSION_ARCHIVE_URL}/sessions/resume-requests`,
+          payload: point,
+          success: response(resumeRequestDecoder),
+        }));
+      },
+    });
+
     const sessions = yield* query(
       'sessions',
       {
@@ -174,6 +239,11 @@ export const { SessionArchive } = craftService(
         insertReactOnMutation(deleteSessions, {
           reload: { onMutationResolved: true },
         }),
+        // A request names an archived session: the list is read again so the
+        // page shows what the archive holds when the AI starts reading it.
+        insertReactOnMutation(resumeRequest, {
+          reload: { onMutationResolved: true },
+        }),
       ),
     );
 
@@ -191,6 +261,25 @@ export const { SessionArchive } = craftService(
       () => ({}),
     );
 
+    // The points of one session, read when it opens: "Reprendre ici" reopens
+    // a valid one directly, without the AI.
+    const resumeCheckpoints = yield* query(
+      'resumeCheckpoints',
+      {
+        method: (sessionId: string) => sessionId,
+        loader: function* ({ params: sessionId }) {
+          return yield* CraftHttpClient.get(({ response }) => ({
+            url: `${SESSION_ARCHIVE_URL}/sessions/checkpoints?${new URLSearchParams({ sessionId })}`,
+            success: response(checkpointListDecoder),
+          }));
+        },
+      },
+      () => ({}),
+    );
+    yield* craftComputed('resumeCheckpointList', function* () {
+      return (yield* resumeCheckpoints.value()) ?? [];
+    });
+
     yield* craftComputed('savedSessions', function* () {
       return (yield* sessions.value())?.sessions ?? [];
     });
@@ -199,6 +288,12 @@ export const { SessionArchive } = craftService(
     });
     yield* craftComputed('storageBytes', function* () {
       return (yield* sessions.value())?.storageBytes ?? 0;
+    });
+    yield* craftComputed('resumeRequestSending', function* () {
+      return yield* resumeRequest.isLoading();
+    });
+    yield* craftComputed('resumeRequestFailed', function* () {
+      return yield* resumeRequest.hasException();
     });
     yield* craftComputed('reachable', function* () {
       return !(yield* sessions.hasException());
@@ -212,6 +307,22 @@ export const { SessionArchive } = craftService(
     };
     refreshAgain();
 
+    // What the dashboard tells after « Reprendre ici »: the request is out,
+    // and the sentence to give the AI, shown in case the copy failed.
+    const resumeNotice = yield* state(
+      'resumeNotice',
+      undefined as ResumeNotice | undefined,
+      ({ set }) => ({
+        show: (notice: ResumeNotice) => set(notice),
+        dismiss: () => set(undefined),
+      }),
+    );
+    yield* craftExpose('requestResume', function* (point: ResumePoint, prompt: string) {
+      resumeNotice.dismiss();
+      yield* resumeRequest.mutate(point);
+      if (!(yield* resumeRequest.hasException()))
+        resumeNotice.show({ sessionId: point.sessionId, prompt });
+    });
     yield* craftExpose('pruneExpired', function* () {
       yield* pruneSessions.mutate(true);
     });

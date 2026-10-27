@@ -422,6 +422,7 @@ const aiAgentsSidebar: readonly SidebarEntry[] = [
       { text: 'Coding agents', link: '/resources/ai-agents' },
       { text: 'MCP tools', link: '/guide/ai/mcp-tools' },
       { text: 'Live page MCP', link: '/guide/ai/dev-page' },
+      { text: 'Guided resume', link: '/guide/ai/guided-resume' },
       {
         text: 'Send context to AI',
         link: '/guide/ai/send-context-webhook',

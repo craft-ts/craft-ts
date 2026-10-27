@@ -749,6 +749,11 @@ export function provideCraftDebugReplayBridge(
   ];
 }
 
+/** Turns a recorded method argument back into a value (dates, events, bigints…). */
+export function ɵreviveReplayArgument(value: unknown): unknown {
+  return reviveReplayArgument(value);
+}
+
 function reviveReplayArgument(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(reviveReplayArgument);
   if (!isRecord(value)) return value;

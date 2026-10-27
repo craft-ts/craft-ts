@@ -4,7 +4,7 @@ import {
   CraftPrimitiveRegistry,
   ɵregisterCraftPrimitive,
 } from './craft-primitive-registry';
-import { craftService } from './craft-service';
+import { craftService, ɵcreateHostTaggedInjector } from './craft-service';
 import { craftSignal } from './host/craft-signal';
 import { setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
@@ -287,5 +287,29 @@ describe('craft primitive registry', () => {
 
     // There is exactly one of it, so a number would be noise in every log line.
     expect(entry?.hostTags).toContain('service:Settings');
+  });
+
+  it('keeps a global service lazily defined under a host out of that host', () => {
+    // Defined after the root injector exists, like a service of a lazy route:
+    // the first component to ask for it must not lend it its host or lifetime.
+    const { LateDesk } = craftService(
+      { name: 'LateDesk', providedIn: 'global' },
+      function* () {
+        yield* state('draft', 'espresso', ({ set }) => ({
+          edit: (value: string) => set(value),
+        }));
+      },
+    );
+    const dashboard = injector.run(() =>
+      ɵcreateHostTaggedInjector(injector, 'component:Dashboard#1'),
+    );
+    dashboard.run(() => craftUse(LateDesk()));
+    (dashboard as unknown as { destroy(): void }).destroy();
+
+    const entry = registry
+      .list()
+      .find((candidate) => candidate.name === 'draft');
+    expect(entry?.address).toBe('service:LateDesk / state:draft / state:draft#1');
+    expect(entry?.read()).toBe('espresso');
   });
 });

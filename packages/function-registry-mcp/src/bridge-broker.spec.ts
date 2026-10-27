@@ -386,6 +386,35 @@ describe('RegistryBridgeBroker', () => {
     });
   });
 
+  it('relays app methods to the ready tab with their own timeout', async () => {
+    publishSurface(app, { clientId: 'app-a', url: '/admin', controls: [] });
+    await vi.waitFor(async () => {
+      await expect(broker.request('page')).resolves.toMatchObject({ status: 'ready' });
+    });
+    app.on('message', (rawData) => {
+      const request = JSON.parse(rawData.toString()) as {
+        callId: string;
+        method: string;
+        params?: Record<string, unknown>;
+      };
+      if (request.method !== 'app/diff') return;
+      // Slower than the broker's default request timeout (500 ms here).
+      setTimeout(() => {
+        app.send(
+          JSON.stringify({
+            type: 'response',
+            callId: request.callId,
+            result: { differences: [], params: request.params },
+          }),
+        );
+      }, 700);
+    });
+
+    await expect(
+      broker.request('app/diff', { sessionId: 's', timeoutMs: 2_000 }),
+    ).resolves.toEqual({ differences: [], params: { sessionId: 's' } });
+  });
+
   it('uses the ready tab when another card is still reloading', async () => {
     publishSurface(app, {
       clientId: 'app-a',

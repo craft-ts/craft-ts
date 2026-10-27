@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { LOG_LEVELS } from './levels.js';
 import type { LogReader } from './log-reader.js';
 import { gunzipSync } from 'node:zlib';
+import { registerGuidedResumePrompt } from './resume-prompt.js';
+import { registerResumeTools } from './resume-tools.js';
 import { compareSessionTraces, normalizeSessionTrace, type PortableSessionForTrace } from '@craft-ts/session-trace';
 
 export function createLogMcpServer(reader: LogReader): McpServer {
@@ -105,6 +107,9 @@ export function createLogMcpServer(reader: LogReader): McpServer {
       }
     },
   );
+
+  registerResumeTools(server);
+  registerGuidedResumePrompt(server);
 
   return server;
 }

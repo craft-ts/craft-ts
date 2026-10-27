@@ -7,7 +7,82 @@ vivante jusqu'à un état équivalent au point choisi, puis fige ce point pour
 qu'il soit rechargé sans elle tant qu'il reste valide.
 
 > **Statut.** G0 fait (2026-10-26) : l'approche déclarative est retirée.
-> G1 à G5 restent à construire. Le code retiré reste lisible sur
+> G1 fait (2026-10-26) : `packages/session-trace/src/resume-context.ts`
+> (récit, cible, prérequis, appel enregistré), demandes de reprise du
+> log-server (`POST /sessions/resume-requests`, `GET …/latest`, en mémoire,
+> sous les règles d'origine des routes de sessions), outils log-mcp
+> (`packages/log-mcp/src/resume-tools.ts`) et bouton **Reprendre ici** du
+> dashboard (publie le point, copie l'invite).
+> G2 fait (2026-10-26) : le pont MCP du noyau répond à `page act` (goto par
+> le routeur ; un champ sensible ne montre jamais sa valeur et refuse `fill`)
+> et à des méthodes ajoutées par d'autres libs (`ɵregisterCraftMcpBridgeMethod`) ;
+> le broker relaie `app/*` avec leur propre délai ; `provideCraftGuidedResume`
+> (libs/component) répond à `app/launch`, `app/diff`, `app/replay`,
+> `app/writes`, lit l'archive au log-server et pose la barrière d'écriture
+> (autre origine non loopback retenue, le reste journalisé, `fetch` seulement).
+> G3 fait (2026-10-26) : `app.handoff` affiche le bandeau « À vous » (hors
+> capture, `data-craft-ai-overlay`), met le champ en évidence et rend la main
+> quand la condition tient dans l'état vivant (adresse sans ordinal + chemin,
+> `equals`/`notEquals`/`exists`, ou préfixe de route), sur « C'est fait »,
+> « Je ne peux pas » ou à l'expiration (5 min par défaut).
+> G4 fait (2026-10-26) : points de reprise sur disque dans le log-server
+> (`/sessions/checkpoints`, `<DEBUG_SESSION_DIR>/checkpoints`), outils
+> `checkpoint.save/list/restore/validate/cleanup`. L'onglet capture son état
+> (primitives, storage persistant, storage d'origine), rouvre un point seul
+> (`?craft-resume-checkpoint=<id>`) et joue les sondes de son origine, avec
+> `{{state <adresse> <chemin>}}` pour reprendre un jeton ou un id vivant. Une
+> sonde rouge affiche un bandeau. **Reprendre ici** rouvre directement un point
+> non expiré pris pour ce même événement sur l'app pilotée ; sinon il publie la
+> demande pour l'IA. Limite : les cookies HttpOnly ne se capturent pas ; une
+> valeur non JSON (Date, Map) perd sa forme dans le point.
+> G5 fait (2026-10-26) : invite MCP `reprise-guidee` (log-mcp), skill
+> `.agents/skills/craft-ts-guided-resume`, page `guide/ai/guided-resume`, et
+> l'e2e `apps/demo-ecommerce/e2e/guided-resume.spec.ts` où une IA simulée (vrais
+> clients MCP, sans modèle) lit la session, lance l'onglet au point, se voit
+> refuser le mot de passe, rend la main, reprend quand un vrai jeton est là,
+> fige le point ; le point se rouvre sans IA, une sonde rouge l'invalide.
+> Appris en route : l'archive masque les jetons, donc la connexion passe
+> toujours par `app.handoff` (condition `matches: '^(?!craft-ref:)'`) ; la
+> restauration du storage d'origine remplace le `sessionStorage`, donc le mode
+> guidé est porté par l'URL de lancement.
+> Essai réel (2026-10-26) : Claude a mené la reprise de la session de Camille
+> (démo e-commerce, brouillon d'*Espresso* juste avant « Enregistrer ») par les
+> seuls outils MCP, sur une autre origine. Le premier essai a trouvé quatre
+> défauts, corrigés avec tests : (1) un service global défini dans un module
+> paresseux était construit dans le contexte du premier composant qui
+> l'injectait — ses primitives quittaient le registre à la destruction de ce
+> composant, `app.diff` et le point figé ne voyaient plus le brouillon ;
+> l'environnement placé sous la racine vide construit désormais ces défauts
+> (`craft-injector.ts`) ; (2) restaurer le storage d'origine écrasait les clés
+> de l'outillage (id du pont MCP, session de debug de l'onglet) ; elles sont
+> préservées ; (3) l'état masque un jeton en `[REDACTED]`, les appels en
+> `craft-ref:` : la condition `unmasked` reconnaît les deux et
+> `session.prerequisites` la donne toute prête (`signedInWhen`) ; (4) les
+> sondes décodent une réponse JSON encodée deux fois avant d'y chercher un
+> texte. Le second essai est allé au bout : `app.diff` vide après la
+> connexion, point valide du premier coup, réouverture sans IA à l'état exact.
+> Suite (2026-10-26) : la barrière couvre XHR ; le journal nomme la fonction
+> serveur et distingue lecture et écriture (`app.writes` compte les lectures) ;
+> `session.story` raconte une fois un appel répété sans geste entre deux
+> (`repeated`, `lastSequence`) ; le pont du noyau répond `url` et `title` ;
+> **proposition C en place** : fil par demande de reprise dans le log-server
+> (`/sessions/resume-requests/<id>/messages`), outils `resume.say` et
+> `resume.replies`, onglet **Reprise** du panneau latéral du dashboard qui
+> l'affiche et permet de répondre (vérifié en vrai et dans l'e2e).
+> Retour d'expérience (2026-10-27, session 85a988c8) : l'IA reproduisait l'état
+> sans demander l'objectif, et la mise en place retombait sur la personne
+> (skill introuvable hors du worktree, port du pont pris par une autre session,
+> bandeau de passage de main dans un panneau caché, sonde `GET /admin` sans
+> valeur). Réponses : skill dans `.claude/skills/` qui **demande l'objectif
+> avant d'agir** (observer quoi, être exact sur quoi, écrire ou non, point à
+> usage unique ou non) puis vérifie la mise en place ; `resume.doctor` ; pont
+> partagé (une deuxième session relaie au lieu de planter, et reprend le port
+> si la première part) ; `session.prerequisites.probes` (la lecture
+> enregistrée qui envoyait le jeton, avec le jeton vivant) ; `goal` sur le
+> point figé ; `.mcp.json` versionné (`craft-logs`, `craft-registry`).
+> Dans un worktree dont `node_modules` pointe vers le checkout principal,
+> lancer l'e2e avec `--tsconfig apps/demo-ecommerce/tsconfig.json` pour que les
+> serveurs MCP chargés dans le test lisent le `session-trace` du worktree. Le code retiré reste lisible sur
 > `claude/reprise-fonctionnelle-corrections` (`56e08a48c`) : G1 y reprend
 > les heuristiques d'identité et de vivacité (`debug-session-resume-plan.ts`),
 > G2 la barrière et la retenue des requêtes au démarrage
@@ -35,6 +110,9 @@ qu'il soit rechargé sans elle tant qu'il reste valide.
 | Intervention humaine | Seulement pour ce que l'IA ne peut pas avoir : identifiants, codes reçus (OTP, e-mail), informations que seule la personne connaît. L'IA rend la main sur ce champ précis, puis la reprend. |
 | Durée de validité d'un point de reprise | Choisie par l'IA, avec sa justification (expiration du jeton lu dans la réponse ou le JWT, durée d'un créneau, données susceptibles de bouger). |
 | Approche déclarative | Retirée (`craftResume` et tout ce qui en dépend), voir « Ce qui part ». |
+| Environnements autorisés | Pas de politique imposée par le framework : chaque projet décide où il lance une reprise conduite. Les outils ne refusent aucune origine. |
+| Données personnelles | Reporté. Les archives gardent ce qu'elles contiennent aujourd'hui (empreintes `craft-ref:` pour les champs sensibles). |
+| Chat | À choisir : voir « Où vit le chat ». La première version suit la proposition A. |
 
 ## Le parcours vu par la personne
 
@@ -151,8 +229,7 @@ type ProbeCall = { call: string; input?: unknown; expect: { status?: number; mat
 
 ## Garde-fous (indépendants de l'IA)
 
-- **Environnement** : la reprise conduite refuse une origine qui n'est pas
-  loopback ou listée comme environnement de test dans la config du projet.
+- **Environnement** : laissé au projet (voir « Décisions prises »).
 - **Barrière d'écriture** : l'onglet repris garde la barrière actuelle, en mode
   « IA ». Les écritures vers l'app sous test passent et sont journalisées
   (`app.writes`). Les appels vers des tiers (paiement, e-mail, SMS) et les
@@ -211,11 +288,11 @@ de reprise).
 | Lot | Contenu | Sortie |
 |---|---|---|
 | **G0** ✓ | Retirer l'approche déclarative (« Ce qui part »), garder « Ce qui reste » | build, specs et e2e d'historique verts ; `libs/` sans `craftResume` |
-| **G1** | Lecture : `resume.request`, `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | sur les archives S1-S6, le récit et les prérequis sont corrects (tests sur archives figées) |
-| **G2** | Conduite : `app.launch` sans ouvreur, `app.replay`, `app.diff`, barrière en mode IA, refus des champs sensibles dans `page act fill` | un script de test (sans modèle) mène S1 jusqu'au point et `app.diff` est vide |
-| **G3** | Passage de main : `app.handoff` (bandeau, champ, condition, expiration) | le script attend une connexion humaine simulée et reprend seul |
-| **G4** | Points de reprise : `checkpoint.*`, sondes, validité, nettoyage ; **Reprendre ici** rouvre un point valide | un point S2 se rouvre sans IA ; une sonde rouge (produit supprimé) le déclare invalide |
-| **G5** | Invite et méthode pour l'IA : prompt de reprise (lire, proposer, conduire, rendre la main, vérifier, figer, choisir la durée), skill pour l'hôte | une IA réelle mène S1 et S2 de bout en bout avec une seule intervention humaine (la connexion) |
+| **G1** ✓ | Lecture : `resume.request`, `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | sur les archives S1-S6, le récit et les prérequis sont corrects (tests sur archives figées) |
+| **G2** ✓ | Conduite : `app.launch` sans ouvreur, `app.replay`, `app.diff`, barrière en mode IA, refus des champs sensibles dans `page act fill` | un script de test (sans modèle) mène S1 jusqu'au point et `app.diff` est vide |
+| **G3** ✓ | Passage de main : `app.handoff` (bandeau, champ, condition, expiration) | le script attend une connexion humaine simulée et reprend seul |
+| **G4** ✓ | Points de reprise : `checkpoint.*`, sondes, validité, nettoyage ; **Reprendre ici** rouvre un point valide | un point S2 se rouvre sans IA ; une sonde rouge (produit supprimé) le déclare invalide |
+| **G5** ✓ | Invite et méthode pour l'IA : prompt de reprise (lire, proposer, conduire, rendre la main, vérifier, figer, choisir la durée), skill pour l'hôte | une IA réelle mène S1 et S2 de bout en bout avec une seule intervention humaine (la connexion) |
 
 G1 et G2 sont indépendants ; G3 et G4 s'appuient sur G2 ; G5 vient en dernier.
 
@@ -226,16 +303,20 @@ complet est testé par un **script d'IA simulée** : une suite fixe d'appels
 d'outils, telle qu'une IA les ferait, qui doit atteindre un `app.diff` vide.
 Une IA réelle n'intervient que dans un test manuel documenté (G5).
 
+## Où vit le chat : propositions
+
+| | A. L'hôte de l'IA | B. Un chat dans le dashboard | C. L'hôte, avec un fil dans le dashboard |
+|---|---|---|---|
+| Principe | Claude Code, Codex… avec log-mcp et function-registry-mcp. **Reprendre ici** publie la demande et copie l'invite. | Un panneau de chat dans le dashboard, branché à un modèle (le webhook « send context » ou une API). | Comme A, plus un outil `resume.say` : l'IA écrit ses étapes, le dashboard les affiche, à côté du bandeau « À vous » de l'onglet. |
+| Pour | Rien à héberger ; l'IA a déjà tous les outils ; marche aujourd'hui. | Tout se passe au même endroit ; pas de copier-coller. | On suit la reprise depuis le replay sans quitter le dashboard. |
+| Contre | On jongle entre deux fenêtres. | Il faut un modèle avec appel d'outils côté dashboard, des clés, une boucle d'agent à écrire. | Un aller-retour de plus par message. |
+| Coût | faible | élevé | moyen |
+
+Proposition : **A maintenant**, **C ensuite** si le va-et-vient gêne, **B** seulement si on veut une reprise sans hôte IA installé. **A et C sont en place** (2026-10-26).
+
 ## Questions ouvertes
 
-1. **Où vit le chat** : seulement l'hôte de l'utilisateur (Claude Code,
-   Codex) via MCP, ou aussi le chat intégré au dashboard (`AiChatBridge`) ?
-   Proposition : l'hôte d'abord, le dashboard ouvre l'hôte avec l'invite.
-2. **Environnements de test** : où les déclarer (config du projet, liste
-   d'origines) ?
-3. **Actions irréversibles** : faut-il une déclaration légère côté app
+1. **Actions irréversibles** : faut-il une déclaration légère côté app
    (« ce bouton paie ») ou suffit-il de retenir les appels vers d'autres
-   origines ?
-4. **Données personnelles** : l'archive contient encore des données en clair ;
-   avant de reprendre des sessions de vrais utilisateurs, il faut décider du
-   masquage (reporté jusqu'ici).
+   origines ? La première version retient les écritures vers une autre
+   origine et journalise les autres.

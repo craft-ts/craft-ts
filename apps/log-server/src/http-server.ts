@@ -29,6 +29,16 @@ import {
   type SessionHistory,
 } from '@craft-ts/session-trace';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
+import {
+  parseResumeCheckpointInput,
+  summarizeCheckpoint,
+  type ResumeCheckpointStore,
+} from './resume-checkpoints.js';
+import {
+  parseResumeMessageInput,
+  parseResumeRequestInput,
+  ResumeRequestBoard,
+} from './resume-requests.js';
 import type { ThumbnailManifest } from './thumbnails/thumbnail-store.js';
 
 export type LogHttpServerOptions = {
@@ -38,6 +48,10 @@ export type LogHttpServerOptions = {
   readonly e2eSessionRoots?: readonly string[];
   /** Prepares and serves the thumbnails of archived sessions. */
   readonly thumbnails?: ThumbnailService;
+  /** Where the dashboard leaves "resume here" for the AI; one per server by default. */
+  readonly resumeRequests?: ResumeRequestBoard;
+  /** Frozen resume points, on disk next to the sessions. */
+  readonly checkpoints?: ResumeCheckpointStore;
   readonly host?: string;
   readonly port?: number;
   /** Reject bodies larger than this, in bytes. */
@@ -67,11 +81,15 @@ export function createLogHttpServer(options: LogHttpServerOptions): Server {
   const allowedOrigins = new Set(
     (options.allowedOrigins ?? DEFAULT_ALLOWED_ORIGINS).map(normalizeOrigin),
   );
+  const resolvedOptions = {
+    ...options,
+    resumeRequests: options.resumeRequests ?? new ResumeRequestBoard(),
+  };
   const server = createServer((request, response) => {
     void handleRequest(
       request,
       response,
-      options,
+      resolvedOptions,
       maxBodySize,
       allowedOrigins,
     ).catch((error: unknown) => {
@@ -115,7 +133,7 @@ export function createLogHttpServer(options: LogHttpServerOptions): Server {
 async function handleRequest(
   request: IncomingMessage,
   response: ServerResponse,
-  options: LogHttpServerOptions,
+  options: LogHttpServerOptions & { readonly resumeRequests: ResumeRequestBoard },
   maxBodySize: number,
   allowedOrigins: ReadonlySet<string>,
 ): Promise<void> {
@@ -179,6 +197,142 @@ async function handleRequest(
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
     );
     return;
+  }
+
+  if (url.pathname.startsWith('/sessions/resume-requests')) {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    const board = options.resumeRequests;
+    if (request.method === 'POST' && url.pathname === '/sessions/resume-requests') {
+      let input;
+      try {
+        input = parseResumeRequestInput(
+          JSON.parse(await readBody(request, Math.min(maxBodySize, 16_000))),
+        );
+      } catch {
+        input = undefined;
+      }
+      if (!input) {
+        sendJson(response, 400, { error: 'Invalid resume request.' }, headers);
+        return;
+      }
+      sendJson(response, 201, { request: board.add(input) }, headers);
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/sessions/resume-requests') {
+      sendJson(response, 200, { requests: board.list() }, headers);
+      return;
+    }
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/sessions/resume-requests/latest'
+    ) {
+      const sessionId = url.searchParams.get('sessionId') ?? undefined;
+      const latest = board.latest(sessionId);
+      sendJson(
+        response,
+        200,
+        { request: latest ?? null, messages: latest ? board.messages(latest.id) : [] },
+        headers,
+      );
+      return;
+    }
+    const threadMatch = /^\/sessions\/resume-requests\/([0-9a-f-]{36})\/messages$/i.exec(
+      url.pathname,
+    );
+    if (threadMatch) {
+      const requestId = threadMatch[1]!;
+      if (request.method === 'GET') {
+        const since = Number(url.searchParams.get('since') ?? '0');
+        sendJson(
+          response,
+          200,
+          { messages: board.messages(requestId, Number.isFinite(since) ? since : 0) },
+          headers,
+        );
+        return;
+      }
+      if (request.method === 'POST') {
+        let input;
+        try {
+          input = parseResumeMessageInput(
+            JSON.parse(await readBody(request, Math.min(maxBodySize, 16_000))),
+          );
+        } catch {
+          input = undefined;
+        }
+        if (!input) {
+          sendJson(response, 400, { error: 'Invalid resume message.' }, headers);
+          return;
+        }
+        const message = board.say(requestId, input);
+        if (!message) sendJson(response, 404, { error: 'Resume request not found.' }, headers);
+        else sendJson(response, 201, { message }, headers);
+        return;
+      }
+    }
+  }
+
+  if (
+    url.pathname === '/sessions/checkpoints' ||
+    url.pathname.startsWith('/sessions/checkpoints/')
+  ) {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    const store = options.checkpoints;
+    if (!store) {
+      sendJson(response, 404, { error: 'Resume checkpoints are unavailable.' }, headers);
+      return;
+    }
+    if (url.pathname === '/sessions/checkpoints') {
+      if (request.method === 'GET') {
+        const before = url.searchParams.get('beforeSequence');
+        sendJson(
+          response,
+          200,
+          {
+            checkpoints: store.list({
+              ...(url.searchParams.has('sessionId')
+                ? { sessionId: url.searchParams.get('sessionId')! }
+                : {}),
+              ...(before !== null && /^\d+$/.test(before)
+                ? { beforeSequence: Number(before) }
+                : {}),
+            }),
+          },
+          headers,
+        );
+        return;
+      }
+      if (request.method === 'POST') {
+        let input: ReturnType<typeof parseResumeCheckpointInput>;
+        try {
+          input = parseResumeCheckpointInput(JSON.parse(await readBody(request, maxBodySize)));
+        } catch {
+          input = 'Invalid checkpoint payload.';
+        }
+        if (typeof input === 'string') {
+          sendJson(response, 400, { error: input }, headers);
+          return;
+        }
+        sendJson(
+          response,
+          201,
+          { checkpoint: summarizeCheckpoint(store.save(input), new Date()) },
+          headers,
+        );
+        return;
+      }
+    }
+    const id = url.pathname.slice('/sessions/checkpoints/'.length);
+    if (request.method === 'GET') {
+      const checkpoint = store.get(id);
+      if (!checkpoint) sendJson(response, 404, { error: 'Checkpoint not found.' }, headers);
+      else sendJson(response, 200, { checkpoint }, headers);
+      return;
+    }
+    if (request.method === 'DELETE') {
+      sendJson(response, 200, { deleted: store.delete(id) }, headers);
+      return;
+    }
   }
 
   if (request.method === 'POST' && url.pathname === '/sessions/prune') {

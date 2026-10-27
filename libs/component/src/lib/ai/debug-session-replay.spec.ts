@@ -1692,38 +1692,44 @@ describe('debug session replay format', () => {
     ).toMatchObject({ ok: true });
   });
 
-  it('keeps sessions inspectable but refuses redacted or unsupported method arguments', () => {
-    const session = {
-      format: 'craft-debug-session',
-      version: 7,
-      startUrl: 'http://localhost/',
-      exportedAt: 10,
-      truncated: false,
-      clips: [],
-      events: [
-        {
-          id: 'method-start',
-          sequence: 1,
-          timestamp: 10,
-          kind: 'craft',
-          phase: 'started',
-          operationId: 'method-1',
-          payload: {
-            host: 'method:saveProfile',
-            replayInvocation: {
-              address: 'component:Profile#1 / method:saveProfile',
-              args: [{ password: '[REDACTED]' }],
+  it('replays a method whose argument was redacted, and refuses an unsupported one', () => {
+    const session = (args: unknown[]) =>
+      JSON.stringify({
+        format: 'craft-debug-session',
+        version: 7,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'method-start',
+            sequence: 1,
+            timestamp: 10,
+            kind: 'craft',
+            phase: 'started',
+            operationId: 'method-1',
+            payload: {
+              host: 'method:mutate',
+              replayInvocation: {
+                address: 'service:session / mutation:signInProcess / method:mutate',
+                args,
+              },
             },
           },
-        },
-      ],
-    };
-    const json = JSON.stringify(session);
+        ],
+      });
 
-    expect(validateDebugSessionExport(json)).toMatchObject({ ok: true });
-    expect(validateReplayExport(json)).toMatchObject({
+    // A sign-in: the password is redacted, the recorded answer is replayed.
+    expect(
+      validateReplayExport(session([{ email: 'camille@atelier.demo', password: '[REDACTED]' }])),
+    ).toMatchObject({ ok: true });
+
+    const unsupported = session([{ $craftReplayUnsupported: 'function' }]);
+    expect(validateDebugSessionExport(unsupported)).toMatchObject({ ok: true });
+    expect(validateReplayExport(unsupported)).toMatchObject({
       ok: false,
-      error: expect.stringContaining('non sérialisable ou expurgé'),
+      error: expect.stringContaining('non sérialisable'),
     });
   });
 

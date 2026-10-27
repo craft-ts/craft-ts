@@ -90,6 +90,13 @@ type ActiveProviderResolution = {
 
 const activeProviderResolutions: ActiveProviderResolution[] = [];
 
+/**
+ * Injectors created without providers or parent. The app, test and component
+ * roots are environment injectors placed right under one of these: that
+ * environment, not the empty root, owns `providedIn: 'root'` defaults.
+ */
+const bareInjectors = new WeakSet<CraftInjector>();
+
 export function createCraftInjector(
   providers: readonly CraftProvider[],
 ): CraftInjector {
@@ -142,11 +149,17 @@ function createNativeCraftInjector(
   let destroyed = false;
   const resolveDefault = (token: object): unknown | typeof ɵNOT_FOUND => {
     if (defaultValues.has(token)) return defaultValues.get(token);
-    const value = lookupDefaultFactory(token);
+    // Built where it is kept: a default asked for by a child (a token defined
+    // after this injector, in a lazy route) must not take the child's host,
+    // providers or lifetime.
+    const value = craftInjector.run(() => lookupDefaultFactory(token));
     if (value !== ɵNOT_FOUND) defaultValues.set(token, value);
     return value;
   };
   const destroyCallbacks: Array<() => void> = [];
+  // A default built in the empty root would not see the app's providers (its
+  // registry, its router): the environment right below it owns them instead.
+  const ownsDefaults = parent !== null && bareInjectors.has(parent);
   const craftInjector: CraftInjector = {
     get<T>(token: object, notFoundValue?: T): T {
       if (token === craftInjector) {
@@ -165,6 +178,10 @@ function createNativeCraftInjector(
           ] as T;
         }
         return value as T;
+      }
+      if (ownsDefaults) {
+        const own = resolveDefault(token);
+        if (own !== ɵNOT_FOUND) return own as T;
       }
       if (parent) {
         if (arguments.length >= 2) {
@@ -210,6 +227,10 @@ function createNativeCraftInjector(
           ] as T;
         }
         return value as T;
+      }
+      if (ownsDefaults) {
+        const own = resolveDefault(token);
+        if (own !== ɵNOT_FOUND) return own as T;
       }
       if (parent) {
         const inherited = parent.getOptional(token);
@@ -266,6 +287,7 @@ function createNativeCraftInjector(
     addProviderRecord(records, provider, craftInjector);
   }
 
+  if (parent === null && providers.length === 0) bareInjectors.add(craftInjector);
   return craftInjector;
 }
 

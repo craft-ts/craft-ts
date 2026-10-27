@@ -139,13 +139,40 @@ export function launchDebugApp(
 }
 
 /**
+ * Opens the app on a resume point the AI froze: the tab restores it by itself
+ * and checks its probes, no dashboard or AI needed.
+ */
+export function openResumeCheckpoint(
+  checkpoint: Readonly<{ id: string; origin: string; route?: string }>,
+): void {
+  const url = new URL(checkpoint.route ?? '/', checkpoint.origin);
+  url.searchParams.set('craft-resume-checkpoint', checkpoint.id);
+  const tab = openLinkedTab(url.href);
+  status.set(
+    tab
+      ? 'Point de reprise rouvert ; l’onglet vérifie qu’il tient toujours.'
+      : 'Le navigateur a bloqué l’ouverture de l’onglet. Autorise les fenêtres surgissantes pour ce dashboard.',
+  );
+}
+
+/**
  * The state the replay is at: just before the next action it will run, or the
  * end of the recording once it has run them all.
  */
 export function launchDebugAppAtReplay(): void {
+  const point = replayPoint();
+  launchDebugApp(point.beforeSequence, point.participantId);
+}
+
+/** Where the replay is: before the next action, in the tab that will run it. */
+export function replayPoint(): Readonly<{
+  beforeSequence?: number;
+  participantId?: string;
+}> {
   const next = replayableEvents()[replayIndex()];
-  launchDebugApp(
-    next?.sequence,
-    next?.participantId ?? activeReplayParticipantId(),
-  );
+  const participantId = next?.participantId ?? activeReplayParticipantId();
+  return {
+    ...(next?.sequence === undefined ? {} : { beforeSequence: next.sequence }),
+    ...(participantId === undefined ? {} : { participantId }),
+  };
 }

@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "craft-logs": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "npm --silent run build --workspace @craft-ts/log-mcp >&2 && exec node packages/log-mcp/dist/main.js"
+      ],
+      "env": {
+        "LOG_SERVER_URL": "${LOG_SERVER_URL:-http://127.0.0.1:4319}",
+        "LOG_SERVER_DIR": "${LOG_SERVER_DIR:-apps/log-server/.logs}"
+      }
+    },
+    "craft-registry": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "npm --silent run build --workspace @craft-ts/function-registry-mcp >&2 && exec node packages/function-registry-mcp/dist/main.js"
+      ],
+      "env": {
+        "REGISTRY_BRIDGE_PORT": "${REGISTRY_BRIDGE_PORT:-3333}",
+        "LOG_SERVER_URL": "${LOG_SERVER_URL:-http://127.0.0.1:4319}"
+      }
+    }
+  }
+}

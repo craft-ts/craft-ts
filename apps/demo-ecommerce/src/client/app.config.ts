@@ -1,6 +1,7 @@
 import {
   provideCraftDebugReplayBridge,
   provideCraftDebugSessionCapture,
+  provideCraftGuidedResume,
   provideCraftRootComponent,
 } from '@craft-ts/component';
 import {
@@ -33,6 +34,9 @@ export const appConfig = craftAppConfig({
       ? [
           ...provideCraftDevTools({
             logServerUrl: `${localLogServerUrl}/logs`,
+            ...(import.meta.env['VITE_CRAFT_MCP_BRIDGE_URL']
+              ? { mcpBridgeUrl: import.meta.env['VITE_CRAFT_MCP_BRIDGE_URL'] }
+              : {}),
           }),
           provideCraftDebugSessionCapture({
             webSocketUrl: `${localLogServerUrl.replace(/^http/, 'ws')}/sessions/ws`,
@@ -45,6 +49,8 @@ export const appConfig = craftAppConfig({
               debounceMs: 120,
             },
           }),
+          // An AI resumes a recorded session through the registry MCP.
+          ...provideCraftGuidedResume({ logServerUrl: localLogServerUrl }),
           provideCraftDebugReplayBridge({
             parentOrigins: [
               localReplayDashboardOrigin,

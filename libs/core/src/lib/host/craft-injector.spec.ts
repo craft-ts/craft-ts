@@ -140,4 +140,21 @@ describe('CraftInjector', () => {
     expect(second.get(Value)).toBe(second.get(Value));
     expect(first.get(Value)).not.toBe(second.get(Value));
   });
+  it('builds a default token inside the injector that keeps it, not the one that asked', () => {
+    // A token defined after the app root was created (a lazy route's module)
+    // has no record there: the app root — the environment under the empty
+    // root — builds it on demand, in its own context. Built in the asking
+    // child, it would take that child's host and lifetime; built in the
+    // empty root, it would not see the app's providers.
+    const root = createCraftInjector([]).createChild([]);
+    const Context = new InjectionToken<object>('BuiltIn', {
+      providedIn: 'root',
+      factory: () => getCurrentCraftInjector(),
+    });
+    const leaf = root.createChild([]).createChild([]);
+
+    expect(leaf.get(Context)).toBe(root);
+    expect(leaf.getOptional(Context)).toBe(root);
+    expect(root.get(Context)).toBe(root);
+  });
 });

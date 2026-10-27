@@ -124,6 +124,8 @@ export {
   ɵinjectComponentRegister,
 } from './lib/component-register';
 export * from './lib/dev-tools';
+export * from './lib/dev-tools-bridge-methods';
+export * from './lib/dev-tools-page-actor';
 export {
   CraftCircularDependencyError,
   createCraftInjector,

@@ -6,6 +6,9 @@ import {
   type ServiceRuntimeOverride,
 } from './craft-service';
 import type { ConsoleServiceApi } from './browser-boundaries';
+import { ɵanswerCraftBridgeRequest } from './dev-tools-bridge-methods';
+import { collectCraftPageControls } from './dev-tools-page-actor';
+import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
 import {
   DestroyRef,
   inject,
@@ -121,11 +124,20 @@ function provideCraftMcpPageBridge(url: string): Provider {
   return provideAppInitializer(() => {
     if (!isBrowser() || typeof globalThis.WebSocket === 'undefined') return;
     const destroyRef = inject(DestroyRef);
-    destroyRef.onDestroy(startMcpPageBridge(url, getClientId()));
+    const router = ɵinjectCraftRouterRuntime();
+    const navigate = async (path: string): Promise<void> => {
+      if (router) await router.navigateByUrl(path);
+      else globalThis.location.assign(path);
+    };
+    destroyRef.onDestroy(startMcpPageBridge(url, getClientId(), navigate));
   });
 }
 
-function startMcpPageBridge(url: string, initialClientId: string): () => void {
+function startMcpPageBridge(
+  url: string,
+  initialClientId: string,
+  navigate: (path: string) => Promise<void>,
+): () => void {
   let socket: WebSocket | undefined;
   let clientId = initialClientId;
   let stopped = false;
@@ -134,15 +146,7 @@ function startMcpPageBridge(url: string, initialClientId: string): () => void {
     pageUrl: globalThis.location.href,
     pageTitle: globalThis.document.title,
   });
-  const controls = () => Array.from(
-    globalThis.document.querySelectorAll<HTMLElement>('[data-craft-name]'),
-  ).map((element, index) => ({
-    id: element.dataset['craftName'] ?? '',
-    role: element.getAttribute('role') ?? element.tagName.toLowerCase(),
-    name: element.getAttribute('aria-label') ?? element.textContent?.trim() ?? '',
-    enabled: !element.hasAttribute('disabled'),
-    index,
-  }));
+  const controls = () => collectCraftPageControls(globalThis.document);
   const publish = () => {
     if (socket?.readyState !== WebSocket.OPEN) return;
     const info = pageInfo();
@@ -172,15 +176,35 @@ function startMcpPageBridge(url: string, initialClientId: string): () => void {
       return;
     }
     if (record['type'] !== 'request' || typeof record['callId'] !== 'string') return;
-    const result = record['method'] === 'page'
-      ? { ...pageInfo(), status: 'ready', controls: controls() }
-      : undefined;
-    socket?.send(JSON.stringify({
-      type: 'response', callId: record['callId'],
-      ...(result === undefined
-        ? { error: { message: 'This app exposes only the page MCP surface.' } }
-        : { result }),
-    }));
+    const callId = record['callId'];
+    const method = String(record['method']);
+    const params = isPlainRecord(record['params']) ? record['params'] : {};
+    void answer(method, params).then(
+      (result) => respond(callId, { result: result ?? null }),
+      (error: unknown) =>
+        respond(callId, {
+          error: { message: error instanceof Error ? error.message : String(error) },
+        }),
+    );
+  };
+  const respond = (callId: string, body: Record<string, unknown>): void => {
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    try {
+      socket.send(JSON.stringify({ type: 'response', callId, ...body }));
+    } catch (error) {
+      socket.send(JSON.stringify({
+        type: 'response', callId,
+        error: { message: `The answer is not serialisable: ${String(error)}` },
+      }));
+    }
+  };
+  const answer = async (
+    method: string,
+    params: Readonly<Record<string, unknown>>,
+  ): Promise<unknown> => {
+    const result = await ɵanswerCraftBridgeRequest(method, params, navigate);
+    if (method === 'page') publish();
+    return result;
   };
   const connect = () => {
     if (stopped) return;
@@ -219,6 +243,10 @@ function getClientId(): string {
   const id = globalThis.crypto.randomUUID();
   globalThis.sessionStorage.setItem(CLIENT_ID_KEY, id);
   return id;
+}
+
+function isPlainRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isBrowser(): boolean {

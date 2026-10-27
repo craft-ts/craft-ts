@@ -66,6 +66,13 @@ describe('logs MCP server', () => {
       'logs.stats',
       'logs.clear',
       'sessions.compare',
+      'resume.request',
+      'resume.say',
+      'resume.replies',
+      'session.story',
+      'session.target',
+      'session.prerequisites',
+      'session.recordedCall',
     ]);
   });
 
