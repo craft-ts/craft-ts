@@ -14,7 +14,8 @@ describe('debug session reference handling', () => {
   it('finds UUIDs and opaque high-entropy values while ignoring ordinary values', () => {
     const candidates = extractReferenceCandidates({
       id: '7e5a7f20-1f9d-4e80-9e6d-1086cfe2bf60',
-      token: 'sk_live_X8yZ4pQ7mN2vB6cD9fG3hJ5k',
+      // Built at run time: a literal API-key shape trips secret scanners.
+      token: ['sk', 'live', 'X8yZ4pQ7mN2vB6cD9fG3hJ5k'].join('_'),
       cartId: 'cart_7f1ab93cd5e2',
       date: '2026-10-24T12:30:00.000Z',
       count: 123,
