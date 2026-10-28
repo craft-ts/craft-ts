@@ -123,6 +123,7 @@ export type ResumeCheckpointSummary = Readonly<{
   expired: boolean;
   expiresAt: string;
   ttlReason: string;
+  recipeId?: string;
 }>;
 
 function isResumeCheckpointSummary(value: unknown): value is ResumeCheckpointSummary {
@@ -144,6 +145,39 @@ const checkpointListDecoder = {
     return Array.isArray(checkpoints)
       ? checkpoints.filter(isResumeCheckpointSummary)
       : [];
+  },
+};
+
+export type ResumeRecipeSummary = Readonly<{
+  id: string;
+  sessionId: string;
+  beforeSequence?: number;
+  origin: string;
+  objective: Readonly<{ goal: string }>;
+  strategy: 'autonomous' | 'existing';
+  updatedAt: string;
+  runs: readonly Readonly<{
+    id: string;
+    startedAt: string;
+    status: 'running' | 'waiting-human' | 'waiting-ai' | 'completed' | 'failed' | 'cancelled';
+    currentStep?: number;
+    supervised: boolean;
+  }>[];
+}>;
+
+function isResumeRecipeSummary(value: unknown): value is ResumeRecipeSummary {
+  return isRecord(value) && typeof value['id'] === 'string' && typeof value['sessionId'] === 'string' &&
+    typeof value['origin'] === 'string' && typeof value['updatedAt'] === 'string' &&
+    (value['strategy'] === 'autonomous' || value['strategy'] === 'existing') &&
+    isRecord(value['objective']) && typeof value['objective']['goal'] === 'string' &&
+    Array.isArray(value['runs']) && value['runs'].every((run) => isRecord(run) && typeof run['id'] === 'string' && typeof run['startedAt'] === 'string' && typeof run['status'] === 'string' && typeof run['supervised'] === 'boolean') &&
+    (value['beforeSequence'] === undefined || typeof value['beforeSequence'] === 'number');
+}
+
+const recipeListDecoder = {
+  decode(input: unknown): readonly ResumeRecipeSummary[] {
+    const recipes = isRecord(input) ? input['recipes'] : undefined;
+    return Array.isArray(recipes) ? recipes.filter(isResumeRecipeSummary) : [];
   },
 };
 
@@ -276,8 +310,24 @@ export const { SessionArchive } = craftService(
       },
       () => ({}),
     );
+    const resumeRecipes = yield* query(
+      'resumeRecipes',
+      {
+        method: (sessionId: string) => sessionId,
+        loader: function* ({ params: sessionId }) {
+          return yield* CraftHttpClient.get(({ response }) => ({
+            url: `${SESSION_ARCHIVE_URL}/sessions/recipes?${new URLSearchParams({ sessionId })}`,
+            success: response(recipeListDecoder),
+          }));
+        },
+      },
+      () => ({}),
+    );
     yield* craftComputed('resumeCheckpointList', function* () {
       return (yield* resumeCheckpoints.value()) ?? [];
+    });
+    yield* craftComputed('resumeRecipeList', function* () {
+      return (yield* resumeRecipes.value()) ?? [];
     });
 
     yield* craftComputed('savedSessions', function* () {

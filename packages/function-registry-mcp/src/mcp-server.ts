@@ -137,6 +137,7 @@ export function createRegistryMcpServer(
 
   registerGuidedResumeTools(server, bridge);
   registerCheckpointTools(server, bridge, options);
+  registerRecipeTools(server, bridge, options);
 
   return server;
 }
@@ -309,6 +310,7 @@ function registerCheckpointTools(
           .max(500)
           .optional()
           .describe('What the person wants to observe from this point, as they said it'),
+        recipeId: z.string().uuid().optional().describe('Recipe that produced this checkpoint'),
         ttlMs: z.number().int().min(60_000).max(30 * 24 * 60 * 60_000),
         ttlReason: z.string().min(1).max(300),
         probes: z.array(probe).max(20).optional(),
@@ -394,6 +396,76 @@ function registerCheckpointTools(
       if (forget)
         await json(`/sessions/checkpoints/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return toolResult({ cleaned, forgotten: forget });
+    },
+  );
+}
+
+function registerRecipeTools(
+  server: McpServer,
+  bridge: RegistryRequester,
+  options: RegistryMcpServerOptions,
+): void {
+  const http = options.fetch ?? fetch;
+  const base = () =>
+    (options.logServerUrl ?? process.env['LOG_SERVER_URL'] ?? 'http://127.0.0.1:4319').replace(/\/$/, '');
+  const json = async (path: string, init?: RequestInit) => {
+    const response = await http(`${base()}${path}`, init);
+    const body = (await response.json()) as Record<string, unknown>;
+    if (!response.ok) throw new Error(String(body['error'] ?? `HTTP ${response.status}`));
+    return body;
+  };
+  const clientId = z.string().min(1).optional();
+  const step = z.record(z.string(), z.unknown()).describe('One typed recipe step; secrets belong in handoff steps, never in fields.');
+  const call = z.record(z.string(), z.unknown()).describe('A Craft method address and its arguments.');
+
+  server.registerTool(
+    'recipe.save',
+    {
+      description: 'Save or revise a guided-resume recipe in the local log server. Save objective interview answers, autonomous preparation by default, expectations, remedies, human handoffs, and reverse-order cleanup. Never include secrets; route credentials through handoff.',
+      inputSchema: {
+        id: z.string().uuid().optional(),
+        sessionId: z.string().uuid(),
+        beforeSequence: z.number().int().nonnegative().optional(),
+        origin: z.string().url(),
+        objective: z.object({ goal: z.string().min(1).max(500), exact: z.array(z.string()), approximate: z.array(z.string()), mayWrite: z.boolean() }),
+        strategy: z.enum(['autonomous', 'existing']),
+        steps: z.array(step).min(1).max(200),
+        cleanup: z.array(call).max(200),
+        revisions: z.array(z.object({ at: z.string(), by: z.enum(['ai', 'person']), reason: z.string() })),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async (params) => toolResult((await json('/sessions/recipes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(params),
+    }))['recipe']),
+  );
+
+  registerTool(server, bridge, 'recipe.run', 'app/recipe/run',
+    'Execute a stored recipe in the connected tab. The tab runs each step until its condition, records progress in the dashboard thread, and performs cleanup on failure. Set supervised to stop after each step and return control to the AI.',
+    { clientId, id: z.string().uuid(), runId: z.string().uuid().optional(), supervised: z.boolean().optional(), timeoutMs: z.number().int().positive().max(120_000).optional() }, true);
+
+  server.registerTool(
+    'recipe.repair',
+    {
+      description: 'Replace a recipe from the failed step onward, record the reason in revisions, persist the recipe, and update the connected tab runner.',
+      inputSchema: { clientId, id: z.string().uuid(), runId: z.string().uuid().optional(), fromStep: z.number().int().nonnegative(), steps: z.array(step).min(1).max(200), reason: z.string().min(1).max(500) },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async ({ clientId: target, id, runId, fromStep, steps, reason }) => {
+      const loaded = await json(`/sessions/recipes/${encodeURIComponent(id)}`);
+      const recipe = loaded['recipe'] as Record<string, unknown> | undefined;
+      const previousSteps = recipe?.['steps'];
+      if (!recipe || !Array.isArray(previousSteps) || fromStep > previousSteps.length)
+        throw new Error('Recipe or failed step not found.');
+      const revisions = Array.isArray(recipe['revisions']) ? recipe['revisions'] as unknown[] : [];
+      const repaired = await json('/sessions/recipes', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...recipe, steps: [...previousSteps.slice(0, fromStep), ...steps], revisions: [...revisions, { at: new Date().toISOString(), by: 'ai', reason }] }),
+      });
+      const applied = await bridge.request('app/recipe/repair', { ...(target === undefined ? {} : { clientId: target }), id, ...(runId === undefined ? {} : { runId }), fromStep, steps, reason });
+      return toolResult({ recipe: repaired['recipe'], applied });
     },
   );
 }

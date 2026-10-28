@@ -7,9 +7,14 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Page } from '@playwright/test';
 // The two MCP servers run in this process, from source: the test plays the AI
 // through real MCP clients, without a model.
+// This e2e hosts the two MCP servers in-process to exercise the real protocol.
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { LogReader } from '../../../packages/log-mcp/src/log-reader';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { createLogMcpServer } from '../../../packages/log-mcp/src/mcp-server';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { RegistryBridgeBroker } from '../../../packages/function-registry-mcp/src/bridge-broker';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { createRegistryMcpServer } from '../../../packages/function-registry-mcp/src/mcp-server';
 import { craftSession, expect, test } from './fixtures';
 
@@ -194,6 +199,87 @@ test.describe('reprise guidée par une IA simulée', () => {
     });
     const validity = await tool<{ valid: boolean }>(registry, 'checkpoint.validate', { id: saved.id });
     expect(validity.valid).toBe(true);
+
+    // A reusable recipe creates its own product, edits its Craft draft, checks
+    // the expectation in the tab, and freezes a point linked to the recipe.
+    const recipe = await tool<{ id: string }>(registry, 'recipe.save', {
+      sessionId,
+      beforeSequence,
+      origin: new URL(await tab.url()).origin,
+      objective: {
+        goal: 'Vérifier le brouillon de prix d’un Espresso créé par la recette',
+        exact: ['brouillon à 4,83 €'],
+        approximate: ['identifiant et ordre de la liste'],
+        mayWrite: true,
+      },
+      strategy: 'autonomous',
+      steps: [
+        { type: 'handoff', message: 'Connecte-toi avec un compte admin.', until: prerequisites.session.signedInWhen },
+        { type: 'goto', route: '/' },
+        { type: 'goto', route: '/admin' },
+        {
+          type: 'ensure',
+          timeoutMs: 1_000,
+          condition: {
+            address: 'component:EcommerceAppShell / component:CraftRouterOutlet / service:craftRouterOutletState / route:admin / component:EcommerceAdminPage / component:EcommerceAdminDashboard / service:adminView / query:adminStore / query:adminStore',
+            path: 'products', matches: 'reprise-fixed',
+          },
+          remedy: [
+            {
+              type: 'create', address: 'ecommerce.product.save', as: 'referenceProduct',
+              input: {
+                token: `{{state ${holder} token}}`,
+                product: { kind: 'simple', id: 'reprise-fixed', name: 'Reprise · Référence', description: 'Produit recréé par le remède.', categoryId: 'coffee', price: 2.5, stock: 1 },
+              },
+            },
+            { type: 'goto', route: '/' },
+            { type: 'goto', route: '/admin' },
+          ],
+        },
+        {
+          type: 'create',
+          address: 'ecommerce.product.save',
+          input: {
+            token: `{{state ${holder} token}}`,
+            product: {
+              kind: 'simple', id: 'reprise-{{run}}', name: 'Reprise {{run}} · Espresso',
+              description: 'Produit créé par une recette de reprise.', categoryId: 'coffee', price: 3.5, stock: 32,
+            },
+          },
+          as: 'product',
+        },
+        { type: 'goto', route: '/' },
+        { type: 'goto', route: '/admin' },
+        { type: 'act', action: { id: 'edit-product', match: { track: '{{created.product.id}}' } } },
+        { type: 'act', action: { id: 'product-price', fill: '4.83' } },
+        { type: 'expect', level: 'essential', condition: { address: 'service:adminDesk / state:productDraft / state:productDraft', path: 'price', equals: '4.83' } },
+        { type: 'checkpoint', ttlMs: 60 * 60_000, ttlReason: 'Session de démo e2e valable une heure.', probes: [whoAmIProbe(whoAmI, holder, 'admin')] },
+      ],
+      cleanup: [
+        { address: 'ecommerce.product.delete', input: { token: `{{state ${holder} token}}`, id: '{{created.product.id}}' } },
+        { address: 'ecommerce.product.delete', input: { token: `{{state ${holder} token}}`, id: 'reprise-fixed' } },
+      ],
+      revisions: [{ at: new Date().toISOString(), by: 'ai', reason: 'Première recette générée pendant la reprise guidée.' }],
+    });
+    let run = await tool<{ runId: string; nextStep: number; status?: string }>(registry, 'recipe.run', { id: recipe.id, supervised: true });
+    while (run.nextStep < 8) run = await tool(registry, 'recipe.run', { id: recipe.id, runId: run.runId, supervised: true });
+    const pageState = await tool<{ controls: { id: string; name: string; track?: string }[] }>(registry, 'page');
+    expect(pageState.controls).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'edit-product', track: `reprise-${run.runId}` })]));
+    let completed = run;
+    while (completed.nextStep < 11) completed = await tool(registry, 'recipe.run', { id: recipe.id, runId: completed.runId, supervised: true });
+    completed = await tool(registry, 'recipe.run', { id: recipe.id, runId: completed.runId, supervised: true });
+    expect(completed).toMatchObject({ status: 'completed' });
+    page.once('dialog', (dialog) => { void dialog.accept(); });
+    await tool(registry, 'page', { act: [{ id: 'delete-product', match: { track: 'reprise-fixed' } }] });
+    const autonomous = await tool<{ runId: string; status: string }>(registry, 'recipe.run', { id: recipe.id });
+    expect(autonomous).toMatchObject({ status: 'completed' });
+    const stored = await tool<{ recipe: { id: string }; runs: { id: string; status: string; events: { kind: string }[] }[] }>(logs, 'recipe.get', { id: recipe.id });
+    expect(stored.recipe).toMatchObject({ id: recipe.id });
+    expect(stored.runs).toHaveLength(2);
+    expect(stored.runs.every((item) => item.status === 'completed')).toBe(true);
+    expect(stored.runs.some((item) => item.events.some((event) => event.kind === 'remedy-applied'))).toBe(true);
+    const recipePoints = await tool<{ id: string; recipeId?: string }[]>(registry, 'checkpoint.list', { sessionId, beforeSequence });
+    expect(recipePoints).toEqual(expect.arrayContaining([expect.objectContaining({ recipeId: recipe.id })]));
     await resumeContext.close();
 
     // 7. Sans IA : le point se rouvre seul et ses sondes passent.

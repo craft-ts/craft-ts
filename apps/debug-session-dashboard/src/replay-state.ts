@@ -398,6 +398,17 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     pageWriter.bind(
       yield* state('page', pageBridge.initialValue, pageWriter.insertion),
     );
+    const activeRouteSessionIdWriter = createStateWriter(
+      'activeRouteSessionId',
+      activeRouteSessionIdBridge,
+    );
+    activeRouteSessionIdWriter.bind(
+      yield* state(
+        'activeRouteSessionId',
+        activeRouteSessionIdBridge.initialValue,
+        activeRouteSessionIdWriter.insertion,
+      ),
+    );
     const importOpenWriter = createStateWriter('importOpen', importOpenBridge);
     importOpenWriter.bind(
       yield* state('importOpen', false, importOpenWriter.insertion),
@@ -805,6 +816,17 @@ export const participantStates = new Map<
 >();
 
 /* ── the route ──────────────────────────────────────────────────────────── */
+
+const activeRouteSessionIdBridge = createStateBridge<string | undefined>(
+  'activeRouteSessionId',
+  undefined,
+);
+/** Reactive route id for view computations; `routeSessionId()` remains the synchronous URL reader. */
+export const activeRouteSessionId = activeRouteSessionIdBridge.value;
+
+export function syncActiveRouteSessionId(): void {
+  activeRouteSessionId.set(routeSessionId());
+}
 
 export function sessionRoute(id: string): string {
   return `#/sessions/${encodeURIComponent(id)}`;

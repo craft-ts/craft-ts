@@ -4,6 +4,7 @@ import { createLogHttpServer } from './http-server.js';
 import { LogStore } from './log-store.js';
 import { DebugSessionStore } from './debug-session-store.js';
 import { ResumeCheckpointStore } from './resume-checkpoints.js';
+import { ResumeRecipeStore } from './resume-recipes.js';
 import { createPlaywrightCapturer } from './thumbnails/playwright-capturer.js';
 import { ThumbnailService } from './thumbnails/thumbnail-service.js';
 import { ThumbnailStore } from './thumbnails/thumbnail-store.js';
@@ -59,6 +60,7 @@ const server = createLogHttpServer({
   ...(e2eSessionRoots ? { e2eSessionRoots } : {}),
   thumbnails,
   checkpoints: new ResumeCheckpointStore(resolve(sessionDirectory, 'checkpoints')),
+  recipes: new ResumeRecipeStore(resolve(sessionDirectory, 'recipes')),
   ...(allowedOrigins ? { allowedOrigins } : {}),
   onIngest: (count) => {
     if (!quiet && count > 0) {

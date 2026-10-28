@@ -42,6 +42,7 @@ type StoredCheckpoint = Readonly<{
   expiresAt: string;
   ttlReason: string;
   snapshot: unknown;
+  recipeId?: string;
   probes?: readonly ResumeProbe[];
   created?: readonly Readonly<{ kind: string; id: string; cleanup?: ResumeProbe }>[];
 }>;
@@ -126,11 +127,21 @@ export async function cleanUpCheckpoint(
 export async function reopenCheckpointFromUrl(
   logServerUrl: string,
   options: DebugSnapshotRestoreOptions,
+  fallbackRecipe?: (id: string) => Promise<unknown>,
 ): Promise<void> {
   const id = new URLSearchParams(location.search).get(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM);
   if (!id) return;
+  let checkpoint: StoredCheckpoint | undefined;
+  let fallbackStarted = false;
+  const runFallback = async () => {
+    if (!checkpoint?.recipeId || !fallbackRecipe || fallbackStarted) return;
+    fallbackStarted = true;
+    showResumeNotice('Le point ne tient plus ; sa recette liée démarre.');
+    try { await fallbackRecipe(checkpoint.recipeId); }
+    catch (error) { showResumeNotice(`La recette liée a échoué : ${error instanceof Error ? error.message : String(error)}`); }
+  };
   try {
-    const checkpoint = await fetchCheckpoint(logServerUrl, id);
+    checkpoint = await fetchCheckpoint(logServerUrl, id);
     const ahead = await validateCheckpoint({ ...checkpoint, probes: [] }, options.registry);
     if (!ahead.valid)
       throw new Error(
@@ -147,20 +158,24 @@ export async function reopenCheckpointFromUrl(
     );
     if (restored === 'reloading') return new Promise<void>(() => undefined);
     // Probes run once the app has started and holds its session again.
+    const restoredCheckpoint = checkpoint;
     setTimeout(() => {
-      void validateCheckpoint(checkpoint, options.registry).then((validity) => {
+      void validateCheckpoint(restoredCheckpoint, options.registry).then(async (validity) => {
         writeLastCheckpoint(validity);
-        if (!validity.valid)
-          showNotice(
+        if (!validity.valid) {
+          showResumeNotice(
             `Ce point de reprise ne tient plus : ${validity.probes
               .filter((probe) => !probe.ok)
               .map((probe) => probe.request)
-              .join(', ')}. Demande à l’IA de le réparer.`,
+              .join(', ')}.`,
           );
+          await runFallback();
+        }
       });
     }, PROBE_DELAY_MS);
   } catch (error) {
-    showNotice(error instanceof Error ? error.message : String(error));
+    showResumeNotice(error instanceof Error ? error.message : String(error));
+    await runFallback();
   }
   const url = new URL(location.href);
   url.searchParams.delete(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM);
@@ -315,7 +330,7 @@ function ordinalFree(address: string): string {
     .join(' / ');
 }
 
-function showNotice(message: string): void {
+export function showResumeNotice(message: string): void {
   const document = globalThis.document;
   const notice = document.createElement('aside');
   notice.setAttribute('data-craft-ai-overlay', '');

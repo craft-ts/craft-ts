@@ -17,7 +17,10 @@ export type DebugSessionExportMigration = (
 export const DEBUG_SESSION_EXPORT_MIGRATIONS: ReadonlyMap<
   number,
   DebugSessionExportMigration
-> = new Map([[6, (value) => ({ ...value, version: 7 })]]);
+> = new Map([
+  [6, (value) => ({ ...value, version: 7 })],
+  [7, (value) => ({ ...value, version: 8, transportEventVersion: 1 })],
+]);
 
 /** Replay versions this dashboard explicitly promises to support. */
 export const SUPPORTED_DEBUG_SESSION_REPLAY_VERSIONS: ReadonlySet<number> =

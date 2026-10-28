@@ -10,6 +10,7 @@ import { LogReader } from './log-reader.js';
 import { createLogMcpServer } from './mcp-server.js';
 
 const SESSION = '00000000-0000-4000-8000-000000000001';
+const RECIPE = '00000000-0000-4000-8000-000000000002';
 const archive = JSON.parse(
   gunzipSync(
     readFileSync(
@@ -23,6 +24,7 @@ describe('resume tools', () => {
   let client: Client;
   let request: Record<string, unknown> | null;
   let thread: Record<string, unknown>[];
+  let recipeRuns: Record<string, unknown>[];
   let previousFetch: typeof fetch;
   let previousUrl: string | undefined;
 
@@ -33,9 +35,20 @@ describe('resume tools', () => {
     process.env['LOG_SERVER_URL'] = 'http://log.test';
     request = { id: 'r1', sessionId: SESSION, beforeSequence: 40, createdAt: '2026-10-26T10:00:00.000Z' };
     thread = [];
+    recipeRuns = [{ id: 'run-1', status: 'completed', startedAt: '2026-10-27T10:00:00.000Z' }];
     globalThis.fetch = async (input, init) => {
       const url = new URL(String(input));
       if (url.pathname === '/sessions/resume-requests/latest') return Response.json({ request });
+      if (url.pathname === '/sessions/recipes') return Response.json({ recipes: [{ id: RECIPE, sessionId: SESSION, runs: recipeRuns }] });
+      if (url.pathname === `/sessions/recipes/${RECIPE}`) return Response.json({ recipe: {
+        id: RECIPE, origin: 'http://app.test', objective: { goal: 'Edit a product' },
+        steps: [
+          { type: 'goto', route: '/admin' },
+          { type: 'handoff', message: 'Sign in as admin.' },
+          { type: 'act', action: { id: 'save-product', fill: '4.83' } },
+        ],
+      } });
+      if (url.pathname === `/sessions/recipes/${RECIPE}/runs`) return Response.json({ runs: [{ id: 'run-1', status: 'completed' }] });
       if (url.pathname === '/sessions/resume-requests/r1/messages') {
         if (init?.method === 'POST') {
           const body = JSON.parse(String(init.body)) as Record<string, unknown>;
@@ -64,7 +77,9 @@ describe('resume tools', () => {
 
   async function call(name: string, args: Record<string, unknown> = {}) {
     const result = await client.callTool({ name, arguments: args });
-    return (result.structuredContent as { result: Record<string, unknown> }).result;
+    const structured = result.structuredContent as { result?: Record<string, unknown> } | undefined;
+    if (!structured?.result) throw new Error(`No structured result for ${name}: ${JSON.stringify(result)}`);
+    return structured.result;
   }
 
   it('reads the latest request with a summary of its session', async () => {
@@ -73,12 +88,23 @@ describe('resume tools', () => {
       session: { events: archive.events.length },
       // Reading the request is enough to know what comes next.
       method: expect.arrayContaining([
-        expect.stringContaining('objectif'),
         expect.stringContaining('resume.doctor'),
-        expect.stringContaining('app.launch'),
+        expect.stringContaining('recipe.list'),
+        expect.stringContaining('autonome'),
         expect.stringContaining('app.handoff'),
         expect.stringContaining('checkpoint.save'),
       ]),
+    });
+  });
+
+  it('returns a failed recipe run alongside the request as a repair handoff', async () => {
+    recipeRuns = [{
+      id: 'run-2', status: 'failed', startedAt: '2026-10-27T11:00:00.000Z', currentStep: 3,
+      events: [{ kind: 'failed', step: 3, detail: 'essential expectation failed' }],
+    }];
+    await expect(call('resume.request')).resolves.toMatchObject({
+      repair: { recipeId: RECIPE, runId: 'run-2', failedStep: 3, failure: { kind: 'failed' } },
+      method: expect.arrayContaining([expect.stringContaining('resume.request.repair')]),
     });
   });
 
@@ -87,6 +113,25 @@ describe('resume tools', () => {
     const expected = resumeStory(archive, { beforeSequence: 40 });
     expect(story['point']).toEqual({ sessionId: SESSION, beforeSequence: 40, requestId: 'r1' });
     expect(story['steps']).toEqual(JSON.parse(JSON.stringify(expected.steps)));
+  });
+
+  it('lists recipes and reads a recipe with its execution history', async () => {
+    await expect(call('recipe.list', { sessionId: SESSION, beforeSequence: 40 })).resolves.toMatchObject({
+      recipes: [{ id: RECIPE, sessionId: SESSION }],
+    });
+    await expect(call('recipe.get', { id: RECIPE })).resolves.toMatchObject({
+      recipe: { objective: { goal: 'Edit a product' } },
+      runs: [{ id: 'run-1', status: 'completed' }],
+    });
+  });
+
+  it('exports an exploratory Playwright scaffold and marks human steps for review', async () => {
+    await expect(call('recipe.exportPlaywright', { id: RECIPE })).resolves.toMatchObject({
+      recipeId: RECIPE,
+      fileName: 'edit-a-product.spec.ts',
+      manualSteps: [1],
+      source: expect.stringContaining("await page.goto(new URL(\"/admin\", baseURL).toString())"),
+    });
   });
 
   it('lets the call override the point and name the session', async () => {
@@ -122,13 +167,15 @@ describe('resume tools', () => {
     const prompt = await client.getPrompt({ name: 'reprise-guidee', arguments: { sessionId: SESSION } });
     const text = (prompt.messages[0]?.content as { text: string }).text;
     expect(text).toContain('app.handoff');
-    // The goal comes before any action, the setup check right after.
-    const goal = text.indexOf('2. Demander l\'objectif');
-    const setup = text.indexOf('3. Mettre en place : resume.doctor');
-    expect(goal).toBeGreaterThan(0);
-    expect(goal).toBeLessThan(setup);
-    expect(setup).toBeLessThan(text.indexOf('app.launch, app.diff'));
+    // Doctor and read-only discovery precede the goal interview; app actions follow it.
+    const doctor = text.indexOf('1. Commencer par resume.doctor');
+    const goal = text.indexOf('2. Avant toute action dans l\'app');
+    const drive = text.indexOf('4. Vérifier d\'abord');
+    expect(doctor).toBeGreaterThan(0);
+    expect(goal).toBeGreaterThan(doctor);
+    expect(drive).toBeGreaterThan(goal);
     expect(text).toContain('checkpoint.save');
+    expect(text).toContain('recipe.save');
     expect(text).toContain(SESSION);
   });
   it('writes in the dashboard thread and returns what the person answered since', async () => {

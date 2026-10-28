@@ -265,7 +265,11 @@ export function validateDebugSessionExport(json: string): ReplayValidation {
     { sequence: number; elapsedMs: number; transportId: string; kind: string }
   >();
   for (const event of validEvents) {
-    if (event.kind !== 'transport') continue;
+    if (
+      event.kind !== 'transport' ||
+      isNetworkCoverageFailureEvent(event)
+    )
+      continue;
     const transportEvent = event.payload;
     if (!isCraftReplayTransportEvent(transportEvent))
       return {
@@ -655,6 +659,20 @@ function isReplayEvent(value: unknown): value is SendContextEvent {
   );
 }
 
+export function isNetworkCoverageFailureEvent(
+  event: SendContextEvent,
+): boolean {
+  const payload = isRecord(event.payload) ? event.payload : undefined;
+  return (
+    event.kind === 'transport' &&
+    event.phase === 'failed' &&
+    typeof event.name === 'string' &&
+    event.name.startsWith('network-coverage:') &&
+    typeof payload?.['api'] === 'string' &&
+    typeof payload['reason'] === 'string'
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -665,7 +683,9 @@ function ownerOfAddress(address: string): string {
 }
 
 function stateOwner(event: SendContextEvent): string {
-  const address = isRecord(event.payload) ? event.payload['address'] : undefined;
+  const address = isRecord(event.payload)
+    ? event.payload['address']
+    : undefined;
   return typeof address === 'string' ? ownerOfAddress(address) : '';
 }
 
@@ -709,7 +729,12 @@ function replaySnapshotValueMatches(
 ): boolean {
   // Session exports replace repeated references and over-deep values with
   // these markers. They describe serialization limits, not the live value.
-  if (expected === '[Circular]' || expected === '[Depth limit]' || expected === '[REDACTED]') return true;
+  if (
+    expected === '[Circular]' ||
+    expected === '[Depth limit]' ||
+    expected === '[REDACTED]'
+  )
+    return true;
   if (Array.isArray(expected))
     return (
       Array.isArray(actual) &&
@@ -1630,7 +1655,8 @@ export function createReplayController(
           candidate.kind === 'custom' &&
           candidate.phase === 'emitted' &&
           candidate.source === 'source$') ||
-        candidate.kind === 'transport' ||
+        (candidate.kind === 'transport' &&
+          !isNetworkCoverageFailureEvent(candidate)) ||
         (useInvocationReplay && candidate.kind === 'route-load') ||
         (useInvocationReplay && candidate.kind === 'pending') ||
         (useInvocationReplay && candidate.kind === 'http') ||
@@ -3220,6 +3246,9 @@ export function installReplayNetworkGuard(
     request: Request,
   ) => Response | undefined | Promise<Response | undefined>,
   onUnmatched?: (request: Request) => void,
+  fallback?: (
+    request: Request,
+  ) => Response | undefined | Promise<Response | undefined>,
 ): () => void {
   const original = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -3237,7 +3266,8 @@ export function installReplayNetworkGuard(
         headers: { 'content-type': 'application/json' },
       });
     }
-    const response = await resolve(request);
+    let response = await resolve(request);
+    if (!response && fallback) response = await fallback(request);
     if (!response) {
       onUnmatched?.(request);
       throw new Error(
@@ -3295,6 +3325,7 @@ export function createRecordedResponseResolver(
     started: SendContextEvent,
     request: Request,
     requestBody: string,
+    matchServerFunctionId = true,
   ): boolean => {
     if (!started.operationId || !isRecord(started.payload)) return false;
     const payload = started.payload;
@@ -3322,6 +3353,18 @@ export function createRecordedResponseResolver(
     )
       return false;
     const rawBody = payload['body'];
+    if (
+      !scenario &&
+      matchServerFunctionId &&
+      request.method.toUpperCase() === 'POST' &&
+      new URL(request.url).pathname.replace(/\/$/, '') === '/__server-functions'
+    ) {
+      const requestFunctionId = readServerFunctionId(requestBody);
+      return (
+        requestFunctionId !== undefined &&
+        readServerFunctionId(rawBody) === requestFunctionId
+      );
+    }
     return rawBody === undefined
       ? requestBody === ''
       : scenario
@@ -3375,9 +3418,16 @@ export function createRecordedResponseResolver(
       const repeated = scenario
         ? undefined
         : // The latest answer to the same request first.
-          [...initialStarts, ...starts.filter((_, candidateIndex) => consumed.has(candidateIndex))]
+          [
+            ...initialStarts,
+            ...starts.filter((_, candidateIndex) =>
+              consumed.has(candidateIndex),
+            ),
+          ]
             .reverse()
-            .find((candidate) => matches(candidate, request, requestBody));
+            .find((candidate) =>
+              matches(candidate, request, requestBody, false),
+            );
       const repeatedFinish = repeated && finishOf(repeated);
       if (!repeatedFinish) return undefined;
       const repeatedResponse = recordedFetchResponse(repeatedFinish);
@@ -3391,7 +3441,20 @@ export function createRecordedResponseResolver(
     const response = recordedFetchResponse(finish);
     const dueMs =
       finish.globalElapsedMs ?? finish.elapsedMs ?? finish.timestamp;
-    if (!timelineEnabled || dueMs <= currentElapsedMs) {
+    const isServerFunctionRequest =
+      request.method.toUpperCase() === 'POST' &&
+      new URL(request.url).pathname.replace(/\/$/, '') ===
+        '/__server-functions';
+    // Server functions are awaited inside replayed Craft invocations. Waiting
+    // for their future virtual response time can deadlock the invocation
+    // against the event that must advance the replay clock, so deliver the
+    // recorded response immediately and let the recorded state events retain
+    // their own timeline positions.
+    if (
+      !timelineEnabled ||
+      dueMs <= currentElapsedMs ||
+      isServerFunctionRequest
+    ) {
       if (response instanceof Error) throw response;
       return response;
     }
@@ -4158,11 +4221,27 @@ function bodyMatches(expected: unknown, actual: string): boolean {
   }
 }
 
+function readServerFunctionId(body: unknown): string | undefined {
+  try {
+    const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+    return isRecord(parsed) && typeof parsed['id'] === 'string'
+      ? parsed['id']
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function matchesRedacted(expected: unknown, actual: unknown): boolean {
-  // Redacted when recorded, or sent by the replayed app from a recorded state
-  // that was redacted (a session token restored as `[REDACTED]`): either way
-  // the real value is unknown and cannot be compared.
-  if (expected === '[REDACTED]' || actual === '[REDACTED]') return true;
+  // Redacted values are unknown and cannot be compared. `craft-ref:` values
+  // are session-local fingerprints: during replay, the app may hold the real
+  // identifier while the recorded request/response stores only its marker.
+  if (
+    expected === '[REDACTED]' ||
+    actual === '[REDACTED]' ||
+    (typeof expected === 'string' && isCraftReferencePlaceholder(expected))
+  )
+    return true;
   if (Array.isArray(expected))
     return (
       Array.isArray(actual) &&
@@ -4177,4 +4256,8 @@ function matchesRedacted(expected: unknown, actual: unknown): boolean {
       )
     );
   return expected === actual;
+}
+
+function isCraftReferencePlaceholder(value: string): boolean {
+  return /^craft-ref:[a-f0-9]{16}$/i.test(value);
 }

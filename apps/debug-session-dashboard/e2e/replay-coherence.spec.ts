@@ -111,6 +111,63 @@ test('captures browser environment and acknowledges page-close completion', asyn
   await context.close();
 });
 
+test('opens an archived replay after the frame grid mounts and ignores Vite HMR coverage diagnostics', async ({
+  page,
+}) => {
+  const sessionId = '810978c1-a911-42b1-bc5c-75142723adb3';
+  const recordedAt = Date.now();
+  await page.route(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`, (route) =>
+    route.fulfill({
+      json: {
+        format: 'craft-debug-session',
+        version: 8,
+        transportEventVersion: 1,
+        startUrl: `${DEMO_ORIGIN}/`,
+        exportedAt: recordedAt + 1,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'vite-hmr-coverage',
+            sequence: 1,
+            timestamp: recordedAt,
+            elapsedMs: 0,
+            kind: 'transport',
+            phase: 'failed',
+            name: 'network-coverage:websocket',
+            payload: { api: 'websocket', reason: 'no-matching-adapter' },
+          },
+          {
+            id: 'recorded-add-user-click',
+            sequence: 2,
+            timestamp: recordedAt + 1,
+            elapsedMs: 1,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: {
+              selector: '[data-testid="add-user"]',
+              action: 'click',
+              interactionName: 'button:add-user',
+            },
+          },
+        ],
+      },
+    }),
+  );
+
+  await page.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
+  await expect(page.locator('[data-lab="detail-page"]')).toBeVisible();
+  await expect(page.locator('[data-lab="status"]').first()).toContainText(
+    'Replay · ready',
+  );
+  await expect(page.locator('#replay-target')).toBeAttached();
+
+  await page.getByRole('button', { name: 'Lecture à vitesse réelle' }).click();
+  await expect(page.locator('[data-lab="replay-progress"]')).toContainText(
+    /1 \/ 1 étapes · terminé/,
+  );
+});
+
 test('restores browser storage before the replay application boots', async ({
   browser,
   browserName,

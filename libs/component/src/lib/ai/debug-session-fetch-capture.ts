@@ -17,6 +17,10 @@ export function connectDebugSessionFetchCapture(
 ): () => void {
   if (typeof window === 'undefined') return () => undefined;
   const originalFetch = window.fetch;
+  const markerTarget = globalThis as unknown as Record<string, unknown>;
+  const previousRecorderMarker =
+    markerTarget['__craftDebugSessionFetchCaptureInstalled'];
+  markerTarget['__craftDebugSessionFetchCaptureInstalled'] = true;
   const sessionSalt = getDebugSessionReferenceSalt(session);
   let sequence = 0;
   const wrappedFetch: typeof fetch = async (input, init) => {
@@ -115,7 +119,7 @@ export function connectDebugSessionFetchCapture(
               sessionSalt,
               'response.body',
               'in',
-                );
+            );
       const serializedResponseBody = isFormResponse
         ? redactedResponseBody.value
         : parsedResponseBody === undefined
@@ -149,6 +153,13 @@ export function connectDebugSessionFetchCapture(
 
   return () => {
     if (window.fetch === wrappedFetch) window.fetch = originalFetch;
+    if (markerTarget['__craftDebugSessionFetchCaptureInstalled'] === true) {
+      if (previousRecorderMarker === undefined)
+        delete markerTarget['__craftDebugSessionFetchCaptureInstalled'];
+      else
+        markerTarget['__craftDebugSessionFetchCaptureInstalled'] =
+          previousRecorderMarker;
+    }
   };
 }
 

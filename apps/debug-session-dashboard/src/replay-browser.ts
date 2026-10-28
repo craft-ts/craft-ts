@@ -589,7 +589,9 @@ export type TilePaint = Readonly<{
   /** The tab the next action runs in. */
   action: boolean;
   badge: string;
-  veil: Readonly<{ message: string; dim: boolean }> | undefined;
+  veil:
+    | Readonly<{ message: string; dim: boolean; collapsible: boolean }>
+    | undefined;
 }>;
 
 export function paintTiles(tiles: readonly TilePaint[]): void {
@@ -627,6 +629,8 @@ export function paintTiles(tiles: readonly TilePaint[]): void {
         veil.setAttribute('aria-label', tile.veil.message);
       }
       const toggle = veil.querySelector('[data-lab="replay-visibility-toggle"]');
+      if (toggle instanceof HTMLElement)
+        toggle.hidden = tile.veil?.collapsible !== true;
       syncVisibilityToggle(toggle, veil.getAttribute('data-veil') === 'compact');
     }
   }

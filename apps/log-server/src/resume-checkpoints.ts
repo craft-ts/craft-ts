@@ -33,6 +33,8 @@ export type ResumeCheckpoint = Readonly<{
   label?: string;
   /** What the person wanted to observe from the point, asked before the resume. */
   goal?: string;
+  /** Recipe whose runner produced this state, when applicable. */
+  recipeId?: string;
   /** The app origin the point was taken on; it reopens only there. */
   origin: string;
   createdAt: string;
@@ -186,11 +188,15 @@ export function parseResumeCheckpointInput(
   const goal = value['goal'];
   if (goal !== undefined && (typeof goal !== 'string' || goal.length > 500))
     return 'goal must be a sentence of 500 characters at most.';
+  const recipeId = value['recipeId'];
+  if (recipeId !== undefined && (typeof recipeId !== 'string' || !ID_PATTERN.test(recipeId)))
+    return 'recipeId must be a recipe UUID.';
   return {
     sessionId,
     ...(beforeSequence === undefined ? {} : { beforeSequence }),
     ...(typeof label === 'string' ? { label } : {}),
     ...(typeof goal === 'string' && goal.trim() ? { goal: goal.trim() } : {}),
+    ...(typeof recipeId === 'string' ? { recipeId } : {}),
     origin,
     expiresAt: new Date(expiresAt).toISOString(),
     ttlReason,

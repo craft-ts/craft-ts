@@ -3,6 +3,12 @@ import { createSendContextSession } from './send-context-to-ai.tokens';
 import {
   craftWebSocketReplay,
   craftWorkerReplay,
+  craftReplayAdapter,
+  craftFetchReplay,
+  craftXhrReplay,
+  craftEventSourceReplay,
+  craftSendBeaconReplay,
+  captureCraftReplayTransportEvent,
   connectCraftReplayTransportCapture,
   installCraftReplayTransports,
   isCraftReplayTransportEvent,
@@ -11,10 +17,454 @@ import {
 
 const originalWebSocket = globalThis.WebSocket;
 const originalWorker = globalThis.Worker;
+const originalFetch = globalThis.fetch;
+const originalXhr = globalThis.XMLHttpRequest;
 
 afterEach(() => {
   globalThis.WebSocket = originalWebSocket;
   globalThis.Worker = originalWorker;
+  globalThis.fetch = originalFetch;
+  globalThis.XMLHttpRequest = originalXhr;
+});
+
+describe('custom replay transports', () => {
+  it('archives only hook-redacted data and calls the app replay hook', () => {
+    const session = createSendContextSession();
+    const replayed = vi.fn();
+    const adapter = craftReplayAdapter({
+      id: 'app:stream',
+      match: (url) => url.includes('/stream'),
+      record: ({ data }) => ({
+        safe: (data as { secret: string }).secret.length,
+      }),
+      replay: replayed,
+    });
+    captureCraftReplayTransportEvent(session, adapter, {
+      id: 'custom-1',
+      url: 'https://example.test/stream?token=secret',
+      direction: 'incoming',
+      messageType: 'data',
+      data: { secret: 'private-value' },
+      elapsedMs: 2,
+    });
+    const events = session.events.filter((event) => event.kind === 'transport');
+    expect(JSON.stringify(events)).not.toContain('private-value');
+    expect(JSON.stringify(events)).not.toContain('token=secret');
+    const replay = installCraftReplayTransports(
+      [adapter],
+      events,
+      () => undefined,
+    );
+    replay.advanceTo(2);
+    expect(replayed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { safe: 13 },
+        messageType: 'data',
+      }),
+    );
+    replay.restore();
+  });
+});
+
+describe('network coverage and replay guards', () => {
+  it('records and replays an adapted direct fetch without calling live fetch twice', async () => {
+    const session = createSendContextSession();
+    const nativeFetch = vi.fn(
+      async () => new Response('live-response', { status: 201 }),
+    );
+    globalThis.fetch = nativeFetch as typeof fetch;
+    const adapter = craftFetchReplay({
+      id: 'api:catalog',
+      match: (url) => new URL(url).pathname === '/catalog',
+      record: ({ direction, data }) =>
+        direction === 'incoming'
+          ? {
+              status: (data as { status: number }).status,
+              body: 'sanitized-response',
+            }
+          : { method: (data as { method: string }).method },
+      replay: ({ data }) => {
+        const response = data as { status: number; body: string };
+        return new Response(response.body, { status: response.status });
+      },
+    });
+    const cleanup = connectCraftReplayTransportCapture(session, [adapter]);
+    const live = await fetch('https://example.test/catalog?token=secret');
+    expect(live.status).toBe(201);
+    cleanup();
+
+    const transportEvents = session.events.filter(
+      (event) => event.kind === 'transport',
+    );
+    expect(transportEvents).toHaveLength(2);
+    expect(JSON.stringify(transportEvents)).not.toContain('secret');
+    expect(JSON.stringify(transportEvents)).not.toContain('live-response');
+    const replay = installCraftReplayTransports(
+      [adapter],
+      transportEvents,
+      () => undefined,
+    );
+    const result = await fetch('https://example.test/catalog?token=other');
+    expect(result.status).toBe(201);
+    await expect(result.text()).resolves.toBe('sanitized-response');
+    expect(nativeFetch).toHaveBeenCalledOnce();
+    replay.restore();
+  });
+
+  it('records and replays an adapted direct XHR without sending the replay request', async () => {
+    const g = globalThis as unknown as Record<string, unknown>;
+    const originalXhr = g['XMLHttpRequest'];
+    const nativeSends: string[] = [];
+    class FakeXhr extends EventTarget {
+      status = 202;
+      statusText = 'Accepted';
+      responseText = 'live-xhr-body';
+      response: unknown = 'live-xhr-body';
+      readyState = 1;
+      open(_method: string, _url: string): void {}
+      send(): void {
+        nativeSends.push('send');
+        this.dispatchEvent(new Event('load'));
+      }
+    }
+    g['XMLHttpRequest'] = FakeXhr;
+    const adapter = craftXhrReplay({
+      id: 'api:xhr',
+      match: (url) => new URL(url).pathname === '/xhr',
+      record: ({ direction, data }) =>
+        direction === 'incoming'
+          ? { status: (data as { status: number }).status, body: 'safe-xhr' }
+          : { method: (data as { method: string }).method },
+      replay: ({ data }) => data,
+    });
+    const session = createSendContextSession();
+    const cleanup = connectCraftReplayTransportCapture(session, [adapter]);
+    const live = new XMLHttpRequest();
+    live.open('GET', 'https://example.test/xhr?secret=hidden');
+    live.send();
+    cleanup();
+    const events = session.events.filter((event) => event.kind === 'transport');
+    expect(events).toHaveLength(2);
+    expect(JSON.stringify(events)).not.toContain('hidden');
+
+    const replay = installCraftReplayTransports(
+      [adapter],
+      events,
+      () => undefined,
+    );
+    const replayed = new XMLHttpRequest();
+    replayed.open('GET', 'https://example.test/xhr?secret=other');
+    const loaded = new Promise<void>((resolve) =>
+      replayed.addEventListener('load', () => resolve(), { once: true }),
+    );
+    replayed.send();
+    await loaded;
+    expect(replayed.status).toBe(202);
+    expect(replayed.responseText).toBe('safe-xhr');
+    expect(nativeSends).toEqual(['send']);
+    replay.restore();
+    g['XMLHttpRequest'] = originalXhr;
+  });
+
+  it('records EventSource messages and replays them without opening a stream', async () => {
+    const g = globalThis as unknown as Record<string, unknown>;
+    const original = g['EventSource'];
+    let nativeConnections = 0;
+    class FakeEventSource extends EventTarget {
+      constructor(readonly url: string) {
+        super();
+        nativeConnections++;
+      }
+      close(): void {}
+    }
+    g['EventSource'] = FakeEventSource;
+    const adapter = craftEventSourceReplay({
+      id: 'api:events',
+      match: (url) => new URL(url).pathname === '/events',
+      record: ({ data }) => ({
+        safe: String((data as { value: string }).value).toUpperCase(),
+      }),
+      replay: ({ data }) => (data as { safe: string }).safe,
+    });
+    const session = createSendContextSession();
+    const cleanup = connectCraftReplayTransportCapture(session, [adapter]);
+    const live = new EventSource('https://example.test/events?token=secret');
+    live.dispatchEvent(
+      new MessageEvent('message', { data: { value: 'private' } }),
+    );
+    cleanup();
+    const events = session.events.filter((event) => event.kind === 'transport');
+    expect(events).toHaveLength(2);
+    expect(JSON.stringify(events)).not.toContain('secret');
+    expect(JSON.stringify(events)).not.toContain('private');
+
+    const replay = installCraftReplayTransports(
+      [adapter],
+      events,
+      () => undefined,
+    );
+    const replayed = new EventSource('https://example.test/events?token=other');
+    const message = new Promise<string>((resolve) =>
+      replayed.addEventListener(
+        'message',
+        (event) => resolve((event as MessageEvent).data),
+        { once: true },
+      ),
+    );
+    await expect(message).resolves.toBe('PRIVATE');
+    expect(nativeConnections).toBe(1);
+    replay.restore();
+    g['EventSource'] = original;
+  });
+
+  it('records a beacon and replays its adapter hook without calling native sendBeacon', () => {
+    const navigatorObject = globalThis.navigator as Navigator &
+      Record<string, unknown>;
+    const oldBeacon = Object.getOwnPropertyDescriptor(
+      navigatorObject,
+      'sendBeacon',
+    );
+    const native = vi.fn(() => true);
+    Object.defineProperty(navigatorObject, 'sendBeacon', {
+      configurable: true,
+      value: native,
+    });
+    const adapter = craftSendBeaconReplay({
+      id: 'api:beacon',
+      match: () => true,
+      record: ({ data }) => ({ size: String(data).length }),
+      replay: () => true,
+    });
+    const session = createSendContextSession();
+    const cleanup = connectCraftReplayTransportCapture(session, [adapter]);
+    expect(
+      navigator.sendBeacon('https://example.test/finish', 'payload-secret'),
+    ).toBe(true);
+    cleanup();
+    const events = session.events.filter((event) => event.kind === 'transport');
+    expect(JSON.stringify(events)).not.toContain('payload-secret');
+    const replay = installCraftReplayTransports(
+      [adapter],
+      events,
+      () => undefined,
+    );
+    expect(
+      navigator.sendBeacon('https://example.test/finish', 'other-payload'),
+    ).toBe(true);
+    expect(native).toHaveBeenCalledOnce();
+    replay.restore();
+    if (oldBeacon)
+      Object.defineProperty(navigatorObject, 'sendBeacon', oldBeacon);
+    else delete navigatorObject['sendBeacon'];
+  });
+
+  it('marks every unadapted browser transport without archiving its URL', async () => {
+    const session = createSendContextSession();
+    const g = globalThis as unknown as Record<string, unknown>;
+    const old = new Map(
+      [
+        'fetch',
+        'XMLHttpRequest',
+        'WebSocket',
+        'Worker',
+        'EventSource',
+        'WebTransport',
+      ].map((key) => [key, g[key]]),
+    );
+    const navigatorObject = globalThis.navigator as Navigator &
+      Record<string, unknown>;
+    const oldBeacon = Object.getOwnPropertyDescriptor(
+      navigatorObject,
+      'sendBeacon',
+    );
+    class FakeXhr {
+      open(): void {}
+      send(): void {}
+    }
+    class FakeSocket extends EventTarget {
+      send(): void {}
+      close(): void {}
+    }
+    class FakeWorker extends EventTarget {
+      postMessage(): void {}
+      terminate(): void {}
+    }
+    class FakeEventSource extends EventTarget {}
+    class FakeWebTransport {}
+    globalThis.fetch = vi.fn(async () => new Response('ok')) as typeof fetch;
+    g['XMLHttpRequest'] = FakeXhr;
+    g['WebSocket'] = FakeSocket;
+    g['Worker'] = FakeWorker;
+    g['EventSource'] = FakeEventSource;
+    g['WebTransport'] = FakeWebTransport;
+    Object.defineProperty(navigatorObject, 'sendBeacon', {
+      configurable: true,
+      value: vi.fn(() => true),
+    });
+    const restore = connectCraftReplayTransportCapture(session, []);
+    try {
+      await fetch('https://example.test/?token=hidden');
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', 'https://example.test/private');
+      xhr.send();
+      new WebSocket('ws://example.test/private');
+      new Worker('https://example.test/private');
+      new EventSource('https://example.test/private');
+      navigator.sendBeacon('https://example.test/private', 'secret');
+      new (g['WebTransport'] as new (url: string) => object)(
+        'https://example.test/private',
+      );
+    } finally {
+      restore();
+      for (const [key, value] of old) g[key] = value;
+      if (oldBeacon)
+        Object.defineProperty(navigatorObject, 'sendBeacon', oldBeacon);
+      else delete navigatorObject['sendBeacon'];
+    }
+    const coverage = session.events.filter(
+      (event) =>
+        event.phase === 'failed' && event.name?.startsWith('network-coverage:'),
+    );
+    expect(coverage.map((event) => event.name).sort()).toEqual([
+      'network-coverage:eventsource',
+      'network-coverage:fetch',
+      'network-coverage:sendBeacon',
+      'network-coverage:websocket',
+      'network-coverage:webtransport',
+      'network-coverage:worker',
+      'network-coverage:xhr',
+    ]);
+    expect(JSON.stringify(coverage)).not.toContain('example.test');
+    expect(JSON.stringify(coverage)).not.toContain('hidden');
+  });
+
+  it('records a content-free coverage error for direct fetch calls', async () => {
+    const session = createSendContextSession();
+    const native = vi.fn(async () => new Response('ok'));
+    globalThis.fetch = native as typeof fetch;
+    delete (globalThis as unknown as Record<string, unknown>)[
+      '__craftDebugSessionFetchCaptureInstalled'
+    ];
+    const restore = connectCraftReplayTransportCapture(session, []);
+    await fetch('https://example.test/private?token=hidden');
+    restore();
+    expect(native).toHaveBeenCalledOnce();
+    expect(session.events).toContainEqual(
+      expect.objectContaining({
+        kind: 'transport',
+        phase: 'failed',
+        name: 'network-coverage:fetch',
+        payload: { api: 'fetch', reason: 'no-recorded-adapter' },
+      }),
+    );
+    expect(JSON.stringify(session.events)).not.toContain('hidden');
+  });
+
+  it('blocks unmatched fetch during replay without calling the native fetch', async () => {
+    const native = vi.fn(async () => new Response('live'));
+    globalThis.fetch = native as typeof fetch;
+    const differences: unknown[] = [];
+    const replay = installCraftReplayTransports([], [], (difference) =>
+      differences.push(difference),
+    );
+    await expect(fetch('https://example.test/secret')).rejects.toThrow(
+      'no live network request was sent',
+    );
+    expect(native).not.toHaveBeenCalled();
+    expect(differences).toHaveLength(1);
+    replay.restore();
+  });
+
+  it('blocks every supported unmatched API and still advances replay time', async () => {
+    const g = globalThis as unknown as Record<string, unknown>;
+    const original = new Map(
+      [
+        'fetch',
+        'XMLHttpRequest',
+        'WebSocket',
+        'Worker',
+        'EventSource',
+        'WebTransport',
+      ].map((key) => [key, g[key]]),
+    );
+    const navigatorObject = globalThis.navigator as Navigator &
+      Record<string, unknown>;
+    const oldBeacon = Object.getOwnPropertyDescriptor(
+      navigatorObject,
+      'sendBeacon',
+    );
+    const nativeCalls: string[] = [];
+    class FakeXhr {
+      send(): void {
+        nativeCalls.push('xhr');
+      }
+    }
+    class FakeSocket extends EventTarget {
+      constructor() {
+        super();
+        nativeCalls.push('websocket');
+      }
+    }
+    class FakeWorker extends EventTarget {
+      constructor() {
+        super();
+        nativeCalls.push('worker');
+      }
+    }
+    class FakeEventSource {
+      constructor() {
+        nativeCalls.push('eventsource');
+      }
+    }
+    class FakeWebTransport {
+      constructor() {
+        nativeCalls.push('webtransport');
+      }
+    }
+    globalThis.fetch = vi.fn(async () => {
+      nativeCalls.push('fetch');
+      return new Response();
+    }) as typeof fetch;
+    g['XMLHttpRequest'] = FakeXhr;
+    g['WebSocket'] = FakeSocket;
+    g['Worker'] = FakeWorker;
+    g['EventSource'] = FakeEventSource;
+    g['WebTransport'] = FakeWebTransport;
+    Object.defineProperty(navigatorObject, 'sendBeacon', {
+      configurable: true,
+      value: () => {
+        nativeCalls.push('sendBeacon');
+        return true;
+      },
+    });
+    const differences: unknown[] = [];
+    const replay = installCraftReplayTransports([], [], (difference) =>
+      differences.push(difference),
+    );
+    try {
+      await expect(fetch('https://example.test')).rejects.toThrow();
+      expect(() => new XMLHttpRequest().send()).toThrow();
+      new WebSocket('ws://example.test');
+      new Worker('https://example.test');
+      expect(() => new EventSource('https://example.test')).toThrow();
+      expect(navigator.sendBeacon('https://example.test')).toBe(false);
+      expect(
+        () =>
+          new (g['WebTransport'] as new (url: string) => object)(
+            'https://example.test',
+          ),
+      ).toThrow();
+      replay.advanceTo(100);
+      expect(differences.length).toBeGreaterThanOrEqual(7);
+      expect(nativeCalls).toEqual([]);
+    } finally {
+      replay.restore();
+      for (const [key, value] of original) g[key] = value;
+      if (oldBeacon)
+        Object.defineProperty(navigatorObject, 'sendBeacon', oldBeacon);
+      else delete navigatorObject['sendBeacon'];
+    }
+  });
 });
 
 describe('replay transport definitions', () => {

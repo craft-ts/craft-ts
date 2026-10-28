@@ -7,6 +7,17 @@ import { ɵcraftValueService } from './craft-service';
 import type { SendContextSession } from './send-context-to-ai.tokens';
 import { ɵinjectCorrelationIdService } from './correlation-id';
 import { isCraftReplaying } from './craft-replay';
+import { ɵisCraftHttpTransportActive } from './craft-http-trace';
+
+export type CraftReplayTransportKind =
+  | 'websocket'
+  | 'worker'
+  | 'fetch'
+  | 'xhr'
+  | 'eventsource'
+  | 'sendbeacon'
+  | 'webtransport'
+  | 'custom';
 
 /** JSON-safe representation produced by an application-owned transport codec. */
 export type CraftReplayTransportValue =
@@ -16,7 +27,7 @@ export type CraftReplayTransportValue =
 
 export type CraftReplayTransportDefinition = Readonly<{
   id: string;
-  kind: 'websocket' | 'worker';
+  kind: CraftReplayTransportKind;
   match: (url: string) => boolean;
   serialize?: (value: unknown) => CraftReplayTransportValue;
   deserialize?: (value: CraftReplayTransportValue) => unknown;
@@ -24,16 +35,35 @@ export type CraftReplayTransportDefinition = Readonly<{
     value: CraftReplayTransportValue,
   ) => CraftReplayTransportValue | undefined;
   maxMessageBytes?: number;
+  /** Application-owned capture/replay hooks for custom transports. */
+  record?: (context: CraftReplayTransportHookContext) => unknown;
+  replay?: (context: CraftReplayTransportHookContext) => unknown;
+}>;
+
+export type CraftReplayTransportHookContext = Readonly<{
+  id: string;
+  url: string;
+  direction: 'outgoing' | 'incoming' | 'lifecycle';
+  messageType: string;
+  data?: unknown;
+  elapsedMs: number;
 }>;
 
 export type CraftWebSocketReplayOptions = Omit<
   CraftReplayTransportDefinition,
-  'kind'
->;
+  'kind' | 'record' | 'replay'
+> &
+  Partial<Pick<CraftReplayTransportDefinition, 'record' | 'replay'>>;
 export type CraftWorkerReplayOptions = Omit<
   CraftReplayTransportDefinition,
-  'kind'
->;
+  'kind' | 'record' | 'replay'
+> &
+  Partial<Pick<CraftReplayTransportDefinition, 'record' | 'replay'>>;
+export type CraftReplayAdapterOptions = Omit<
+  CraftReplayTransportDefinition,
+  'kind' | 'record' | 'replay'
+> &
+  Required<Pick<CraftReplayTransportDefinition, 'record' | 'replay'>>;
 
 export function craftWebSocketReplay(
   options: CraftWebSocketReplayOptions,
@@ -45,6 +75,39 @@ export function craftWorkerReplay(
   options: CraftWorkerReplayOptions,
 ): CraftReplayTransportDefinition {
   return defineTransport('worker', options);
+}
+
+export function craftFetchReplay(
+  options: CraftReplayAdapterOptions,
+): CraftReplayTransportDefinition {
+  return defineTransport('fetch', options);
+}
+export function craftXhrReplay(
+  options: CraftReplayAdapterOptions,
+): CraftReplayTransportDefinition {
+  return defineTransport('xhr', options);
+}
+export function craftEventSourceReplay(
+  options: CraftReplayAdapterOptions,
+): CraftReplayTransportDefinition {
+  return defineTransport('eventsource', options);
+}
+export function craftSendBeaconReplay(
+  options: CraftReplayAdapterOptions,
+): CraftReplayTransportDefinition {
+  return defineTransport('sendbeacon', options);
+}
+export function craftWebTransportReplay(
+  options: CraftReplayAdapterOptions,
+): CraftReplayTransportDefinition {
+  return defineTransport('webtransport', options);
+}
+
+/** Declares an application transport. Its hooks stay in application code. */
+export function craftReplayAdapter(
+  options: CraftReplayAdapterOptions,
+): CraftReplayTransportDefinition {
+  return defineTransport('custom', options);
 }
 
 function defineTransport(
@@ -136,7 +199,7 @@ export function injectCraftReplayTransports(
 
 export interface CraftReplayTransportEvent {
   readonly transportId: string;
-  readonly transport: 'websocket' | 'worker';
+  readonly transport: CraftReplayTransportKind;
   readonly instanceId: string;
   readonly direction: 'outgoing' | 'incoming' | 'lifecycle';
   readonly messageType: string;
@@ -156,7 +219,16 @@ export function isCraftReplayTransportEvent(
     typeof value['transportId'] === 'string' &&
     value['transportId'].length > 0 &&
     value['transportId'].length <= 128 &&
-    (value['transport'] === 'websocket' || value['transport'] === 'worker') &&
+    [
+      'websocket',
+      'worker',
+      'fetch',
+      'xhr',
+      'eventsource',
+      'sendbeacon',
+      'webtransport',
+      'custom',
+    ].includes(String(value['transport'])) &&
     typeof value['instanceId'] === 'string' &&
     value['instanceId'].length > 0 &&
     value['instanceId'].length <= 200 &&
@@ -215,7 +287,7 @@ export function connectCraftReplayTransportCapture(
   };
   const sockets = definitions.filter((entry) => entry.kind === 'websocket');
   const workers = definitions.filter((entry) => entry.kind === 'worker');
-  if (sockets.length) {
+  if (typeof globalThis.WebSocket === 'function') {
     const Native = globalThis.WebSocket;
     const Wrapped = new Proxy(Native, {
       construct(target, args, newTarget) {
@@ -223,6 +295,8 @@ export function connectCraftReplayTransportCapture(
         if (isCraftReplaying())
           return Reflect.construct(target, args, newTarget);
         const adapter = findMatching(sockets, url);
+        if (!adapter)
+          captureCoverageFailure(session, 'websocket', 'no-matching-adapter');
         const socket = Reflect.construct(target, args, newTarget) as WebSocket;
         if (adapter) observeSocket(session, adapter, url, socket);
         return socket;
@@ -230,7 +304,7 @@ export function connectCraftReplayTransportCapture(
     });
     restoreGlobal('WebSocket', Wrapped);
   }
-  if (workers.length) {
+  if (typeof globalThis.Worker === 'function') {
     const Native = globalThis.Worker;
     const Wrapped = new Proxy(Native, {
       construct(target, args, newTarget) {
@@ -238,6 +312,8 @@ export function connectCraftReplayTransportCapture(
         if (isCraftReplaying())
           return Reflect.construct(target, args, newTarget);
         const adapter = findMatching(workers, url);
+        if (!adapter)
+          captureCoverageFailure(session, 'worker', 'no-matching-adapter');
         const worker = Reflect.construct(target, args, newTarget) as Worker;
         if (adapter)
           observeWorker(
@@ -252,9 +328,363 @@ export function connectCraftReplayTransportCapture(
     });
     restoreGlobal('Worker', Wrapped);
   }
+  installCoverageCapture(session, definitions, cleanups);
   return () => {
     for (const cleanup of cleanups.reverse()) cleanup();
   };
+}
+
+/** Records an application-owned transport event after applying its app codec and redactor. */
+export function captureCraftReplayTransportEvent(
+  session: SendContextSession,
+  adapter: CraftReplayTransportDefinition,
+  context: Omit<CraftReplayTransportHookContext, 'elapsedMs'> & {
+    elapsedMs?: number;
+  },
+): void {
+  const elapsedMs = context.elapsedMs ?? session.elapsedTime();
+  let sequences = customTransportSequences.get(session);
+  if (!sequences) {
+    sequences = new Map();
+    customTransportSequences.set(session, sequences);
+  }
+  const sequence = (sequences.get(context.id) ?? 0) + 1;
+  sequences.set(context.id, sequence);
+  let data = context.data;
+  try {
+    if (adapter.record && context.data !== undefined)
+      data = adapter.record({ ...context, elapsedMs });
+  } catch {
+    captureTransport(
+      session,
+      adapter,
+      context.id,
+      sequence,
+      context.direction,
+      context.messageType,
+      undefined,
+      { replayable: false, reason: 'record-hook-failed' },
+    );
+    return;
+  }
+  if (context.data !== undefined && data === undefined) {
+    captureCoverageFailure(session, adapter.kind, 'record-hook-redacted-data');
+    return;
+  }
+  captureTransport(
+    session,
+    adapter,
+    context.id,
+    sequence,
+    context.direction,
+    context.messageType,
+    data,
+  );
+}
+
+const customTransportSequences = new WeakMap<
+  SendContextSession,
+  Map<string, number>
+>();
+
+/** Browser APIs without a registered deterministic codec are explicitly marked. */
+function installCoverageCapture(
+  session: SendContextSession,
+  definitions: readonly CraftReplayTransportDefinition[],
+  cleanups: Array<() => void>,
+): void {
+  const report = (api: string, reason: string) =>
+    captureCoverageFailure(session, api, reason);
+  const replace = (object: object, key: string, wrapper: unknown) => {
+    const target = object as Record<string, unknown>;
+    const original = target[key];
+    if (typeof original !== 'function') return;
+    const ownDescriptor = Object.getOwnPropertyDescriptor(object, key);
+    try {
+      Object.defineProperty(object, key, {
+        configurable: true,
+        writable: true,
+        value: wrapper,
+      });
+    } catch {
+      return;
+    }
+    cleanups.push(() => {
+      if (target[key] !== wrapper) return;
+      if (ownDescriptor) Object.defineProperty(object, key, ownDescriptor);
+      else delete target[key];
+    });
+    return original as (...args: unknown[]) => unknown;
+  };
+  const nativeFetch = globalThis.fetch;
+  if (typeof nativeFetch === 'function')
+    replace(
+      globalThis,
+      'fetch',
+      async function (this: unknown, ...args: unknown[]) {
+        if (isCraftReplaying() || ɵisCraftHttpTransportActive())
+          return Reflect.apply(nativeFetch, this, args);
+        let request: Request | undefined;
+        try {
+          request = new Request(
+            args[0] as RequestInfo | URL,
+            args[1] as RequestInit | undefined,
+          );
+        } catch {
+          /* Let native fetch report invalid input. */
+        }
+        const adapter =
+          request &&
+          findMatching(
+            definitions.filter((item) => item.kind === 'fetch'),
+            request.url,
+          );
+        const hasRecorder = Boolean(
+          (globalThis as unknown as Record<string, unknown>)[
+            '__craftDebugSessionFetchCaptureInstalled'
+          ],
+        );
+        if (!adapter && !hasRecorder) report('fetch', 'no-recorded-adapter');
+        if (!adapter || !request)
+          return Reflect.apply(
+            nativeFetch,
+            this,
+            request ? [request.clone()] : args,
+          );
+        const id = randomTransportId();
+        const body = await request
+          .clone()
+          .text()
+          .catch(() => undefined);
+        captureCraftReplayTransportEvent(session, adapter, {
+          id,
+          url: request.url,
+          direction: 'outgoing',
+          messageType: 'request',
+          data: {
+            method: request.method,
+            ...(body === undefined ? {} : { body }),
+          },
+        });
+        try {
+          const response = (await Reflect.apply(nativeFetch, this, [
+            request.clone(),
+          ])) as Response;
+          const clone = response.clone();
+          const responseBody = await clone.text().catch(() => '');
+          captureCraftReplayTransportEvent(session, adapter, {
+            id,
+            url: request.url,
+            direction: 'incoming',
+            messageType: 'response',
+            data: {
+              status: response.status,
+              statusText: response.statusText,
+              headers: [...response.headers],
+              body: responseBody,
+            },
+          });
+          return response;
+        } catch (error) {
+          captureCraftReplayTransportEvent(session, adapter, {
+            id,
+            url: request.url,
+            direction: 'lifecycle',
+            messageType: 'failure',
+            data:
+              error instanceof Error
+                ? { name: error.name, message: error.message }
+                : { name: 'Error' },
+          });
+          throw error;
+        }
+      },
+    );
+  const xhrPrototype = globalThis.XMLHttpRequest?.prototype;
+  if (xhrPrototype) {
+    const open = xhrPrototype.open;
+    replace(
+      xhrPrototype,
+      'open',
+      function (this: XMLHttpRequest, ...args: unknown[]) {
+        const xhr = this as XMLHttpRequest & {
+          __craftReplayUrl?: string;
+          __craftReplayMethod?: string;
+          __craftReplayAdapter?: CraftReplayTransportDefinition;
+          __craftReplayId?: string;
+        };
+        xhr.__craftReplayUrl = String(args[1] ?? '');
+        xhr.__craftReplayMethod = String(args[0] ?? 'GET');
+        xhr.__craftReplayAdapter = findMatching(
+          definitions.filter((item) => item.kind === 'xhr'),
+          xhr.__craftReplayUrl,
+        );
+        xhr.__craftReplayId = randomTransportId();
+        return Reflect.apply(open, this, args);
+      },
+    );
+    const send = xhrPrototype.send;
+    replace(
+      xhrPrototype,
+      'send',
+      function (this: XMLHttpRequest, ...args: unknown[]) {
+        if (isCraftReplaying()) return Reflect.apply(send, this, args);
+        const xhr = this as XMLHttpRequest & {
+          __craftReplayUrl?: string;
+          __craftReplayMethod?: string;
+          __craftReplayAdapter?: CraftReplayTransportDefinition;
+          __craftReplayId?: string;
+        };
+        const adapter = xhr.__craftReplayAdapter;
+        if (!adapter) {
+          report('xhr', 'no-recorded-adapter');
+          return Reflect.apply(send, this, args);
+        }
+        const id = xhr.__craftReplayId ?? randomTransportId();
+        captureCraftReplayTransportEvent(session, adapter, {
+          id,
+          url: xhr.__craftReplayUrl ?? '',
+          direction: 'outgoing',
+          messageType: 'request',
+          data: {
+            method: xhr.__craftReplayMethod ?? 'GET',
+            ...(args[0] === undefined ? {} : { body: args[0] }),
+          },
+        });
+        const finish = (
+          direction: 'incoming' | 'lifecycle',
+          messageType: string,
+          data?: unknown,
+        ) =>
+          captureCraftReplayTransportEvent(session, adapter, {
+            id,
+            url: xhr.__craftReplayUrl ?? '',
+            direction,
+            messageType,
+            data,
+          });
+        xhr.addEventListener(
+          'load',
+          () =>
+            finish('incoming', 'response', {
+              status: xhr.status,
+              statusText: xhr.statusText,
+              body:
+                typeof xhr.responseText === 'string'
+                  ? xhr.responseText
+                  : undefined,
+            }),
+          { once: true },
+        );
+        xhr.addEventListener('error', () => finish('lifecycle', 'failure'), {
+          once: true,
+        });
+        return Reflect.apply(send, this, args);
+      },
+    );
+  }
+  const beacon = globalThis.navigator?.sendBeacon;
+  if (typeof beacon === 'function')
+    replace(
+      globalThis.navigator,
+      'sendBeacon',
+      function (this: Navigator, ...args: unknown[]) {
+        if (isCraftReplaying()) return false;
+        const url = String(args[0] ?? '');
+        const adapter = findMatching(
+          definitions.filter((item) => item.kind === 'sendbeacon'),
+          url,
+        );
+        if (!adapter) {
+          report('sendBeacon', 'no-recorded-adapter');
+          return Reflect.apply(beacon, this, args);
+        }
+        captureCraftReplayTransportEvent(session, adapter, {
+          id: randomTransportId(),
+          url,
+          direction: 'outgoing',
+          messageType: 'send',
+          ...(args[1] === undefined ? {} : { data: args[1] }),
+        });
+        return Reflect.apply(beacon, this, args);
+      },
+    );
+  for (const [api, key] of [
+    ['EventSource', 'EventSource'],
+    ['WebTransport', 'WebTransport'],
+  ] as const) {
+    const target = globalThis as unknown as Record<string, unknown>;
+    const Native = target[key];
+    if (typeof Native !== 'function') continue;
+    const Wrapped = new Proxy(Native as new (...args: unknown[]) => object, {
+      construct(original, args, newTarget) {
+        if (isCraftReplaying())
+          return Reflect.construct(original, args, newTarget);
+        const url = String(args[0] ?? '');
+        const kind = api === 'EventSource' ? 'eventsource' : 'webtransport';
+        const adapter = findMatching(
+          definitions.filter((item) => item.kind === kind),
+          url,
+        );
+        if (!adapter) report(kind, 'no-recorded-adapter');
+        const instance = Reflect.construct(
+          original,
+          args,
+          newTarget,
+        ) as EventTarget;
+        if (adapter) {
+          const id = randomTransportId();
+          captureCraftReplayTransportEvent(session, adapter, {
+            id,
+            url,
+            direction: 'lifecycle',
+            messageType: 'created',
+          });
+          if (api === 'EventSource') {
+            instance.addEventListener('message', (event) =>
+              captureCraftReplayTransportEvent(session, adapter, {
+                id,
+                url,
+                direction: 'incoming',
+                messageType: 'message',
+                data: (event as MessageEvent).data,
+              }),
+            );
+            instance.addEventListener('error', () =>
+              captureCraftReplayTransportEvent(session, adapter, {
+                id,
+                url,
+                direction: 'lifecycle',
+                messageType: 'error',
+              }),
+            );
+          } else {
+            captureCoverageFailure(
+              session,
+              'webtransport',
+              'stream-io-requires-application-hook',
+            );
+          }
+        }
+        return instance;
+      },
+    });
+    target[key] = Wrapped;
+    cleanups.push(() => {
+      if (target[key] === Wrapped) target[key] = Native;
+    });
+  }
+}
+
+function captureCoverageFailure(
+  session: SendContextSession,
+  api: string,
+  reason: string,
+): void {
+  session.capture('transport', 'failed', {
+    name: `network-coverage:${api}`,
+    payload: { api, reason },
+  });
 }
 
 function findMatching(
@@ -461,6 +891,12 @@ function captureTransport(
         : {}),
     } satisfies CraftReplayTransportEvent,
   });
+  if (!replayable)
+    captureCoverageFailure(
+      session,
+      adapter.kind,
+      reason ?? 'unsupported-transport-data',
+    );
 }
 
 function defaultTransportSerialize(value: unknown): CraftReplayTransportValue {
@@ -753,10 +1189,29 @@ export function installCraftReplayTransports(
     const instance = orderedInstances.filter(
       (entry) => entry.kind === kind && entry.adapterId === adapter?.id,
     )[indexForAdapter(orderedInstances, adapter?.id, kind, index)];
-    if (!adapter || !instance || instance.adapterId !== adapter.id)
-      throw new Error(
-        `Replay stopped: no recorded ${kind} instance for ${url}.`,
-      );
+    if (!adapter || !instance || instance.adapterId !== adapter.id) {
+      const synthetic: ReplayTransportInstance = {
+        id: randomTransportId(),
+        adapterId: `network:${kind}`,
+        kind,
+        events: [],
+        cursor: 0,
+        outgoingCursor: 0,
+        lifecycleCursor: 0,
+        createdAt: elapsedMs,
+        blocked: true,
+      };
+      onDivergence({
+        transportId: synthetic.adapterId,
+        instanceId: synthetic.id,
+        direction: 'outgoing',
+        sequence: 1,
+        expected: '[no recorded transport]',
+        observed: '[blocked]',
+        message: `Replay blocked an unmatched ${kind} transport.`,
+      });
+      return synthetic;
+    }
     return instance;
   }
   const WrappedWebSocket = new Proxy(
@@ -773,6 +1228,12 @@ export function installCraftReplayTransports(
   );
   target['WebSocket'] = WrappedWebSocket;
   target['Worker'] = WrappedWorker;
+  const networkRestores = installReplayNetworkGuards(
+    target,
+    definitions,
+    orderedInstances,
+    onDivergence,
+  );
 
   const advanceTo = (nextElapsedMs: number) => {
     elapsedMs = Math.max(elapsedMs, nextElapsedMs);
@@ -781,13 +1242,43 @@ export function installCraftReplayTransports(
         | ReplayWebSocket
         | ReplayWorker
         | undefined;
-      if (!endpoint || instance.blocked) continue;
+      if (instance.blocked) continue;
       while (
         instance.cursor < instance.events.length &&
         instance.events[instance.cursor]!.time <= elapsedMs
       ) {
         const entry = instance.events[instance.cursor++]!;
         const { transport } = entry;
+        if (instance.kind === 'custom') {
+          const adapter = definitionsById.get(instance.adapterId);
+          if (adapter?.replay) {
+            const context: CraftReplayTransportHookContext = {
+              id: instance.id,
+              url: String(transport.metadata?.['url'] ?? ''),
+              direction: transport.direction,
+              messageType: transport.messageType,
+              ...(transport.data
+                ? { data: decodeForAdapter(adapter, transport.data) }
+                : {}),
+              elapsedMs: entry.time,
+            };
+            try {
+              adapter.replay(context);
+            } catch {
+              onDivergence({
+                transportId: `network:${instance.kind}`,
+                instanceId: instance.id,
+                direction: 'outgoing',
+                sequence: transport.sequence,
+                expected: '[adapter replay hook]',
+                observed: '[hook failed]',
+                message: `Replay adapter ${adapter.id} failed.`,
+              });
+            }
+          }
+          continue;
+        }
+        if (!endpoint) continue;
         if (
           transport.direction !== 'outgoing' &&
           transport.messageType !== 'created' &&
@@ -861,12 +1352,371 @@ export function installCraftReplayTransports(
       this.assertDue(Number.POSITIVE_INFINITY);
     },
     restore() {
+      for (const restore of networkRestores.reverse()) restore();
       if (target['WebSocket'] === WrappedWebSocket)
         target['WebSocket'] = nativeWebSocket;
       if (target['Worker'] === WrappedWorker) target['Worker'] = nativeWorker;
       activeInstances.clear();
     },
   };
+}
+
+function installReplayNetworkGuards(
+  target: Record<string, unknown>,
+  definitions: readonly CraftReplayTransportDefinition[],
+  instances: readonly ReplayTransportInstance[],
+  onDivergence: (difference: CraftReplayTransportDifference) => void,
+): Array<() => void> {
+  const restores: Array<() => void> = [];
+  let sequence = 0;
+  const consumed = new Map<string, number>();
+  const blocked = (api: string): Error => {
+    const difference: CraftReplayTransportDifference = {
+      transportId: `network:${api}`,
+      instanceId: `unmatched-${++sequence}`,
+      direction: 'outgoing',
+      sequence,
+      expected: '[recorded response or adapter]',
+      observed: '[blocked before network]',
+      message: `Replay blocked an unmatched ${api} call; no live network request was sent.`,
+    };
+    onDivergence(difference);
+    return new Error(difference.message);
+  };
+  const replace = (
+    object: Record<string, unknown>,
+    key: string,
+    value: unknown,
+  ) => {
+    const original = object[key];
+    if (typeof original !== 'function') return;
+    const ownDescriptor = Object.getOwnPropertyDescriptor(object, key);
+    try {
+      Object.defineProperty(object, key, {
+        configurable: true,
+        writable: true,
+        value,
+      });
+    } catch {
+      return;
+    }
+    restores.push(() => {
+      if (object[key] !== value) return;
+      if (ownDescriptor) Object.defineProperty(object, key, ownDescriptor);
+      else delete object[key];
+    });
+    return original as (...args: unknown[]) => unknown;
+  };
+  const nativeFetch = target['fetch'];
+  if (typeof nativeFetch === 'function')
+    replace(
+      target,
+      'fetch',
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        let request: Request;
+        try {
+          request = new Request(input, init);
+        } catch {
+          throw blocked('fetch');
+        }
+        const adapter = findMatching(
+          definitions.filter((item) => item.kind === 'fetch'),
+          request.url,
+        );
+        const instance = adapter
+          ? takeInstance('fetch', adapter, request.url)
+          : undefined;
+        const responseEvent = instance?.events.find(
+          (entry) =>
+            entry.transport.direction === 'incoming' &&
+            entry.transport.messageType === 'response',
+        );
+        if (!adapter || !instance || !responseEvent) throw blocked('fetch');
+        const stored = responseEvent.transport.data
+          ? decodeForAdapter(adapter, responseEvent.transport.data)
+          : undefined;
+        try {
+          const result = await adapter.replay?.({
+            id: instance.id,
+            url: request.url,
+            direction: 'incoming',
+            messageType: 'response',
+            data: stored,
+            elapsedMs: responseEvent.time,
+          });
+          if (result instanceof Response) return result;
+          if (isRecord(result) && typeof result['body'] === 'string')
+            return new Response(result['body'], {
+              status:
+                typeof result['status'] === 'number' ? result['status'] : 200,
+              statusText:
+                typeof result['statusText'] === 'string'
+                  ? result['statusText']
+                  : '',
+              headers: isRecord(result['headers'])
+                ? (result['headers'] as HeadersInit)
+                : undefined,
+            });
+        } catch {
+          /* The adapter failure is reported below. */
+        }
+        throw blocked('fetch');
+      },
+    );
+  const xhr = target['XMLHttpRequest'];
+  const xhrPrototype =
+    typeof xhr === 'function'
+      ? (xhr as { prototype?: Record<string, unknown> }).prototype
+      : undefined;
+  if (xhrPrototype) {
+    const nativeOpen = xhrPrototype['open'];
+    if (typeof nativeOpen === 'function')
+      replace(
+        xhrPrototype,
+        'open',
+        function (this: XMLHttpRequest, ...args: unknown[]) {
+          const xhr = this as XMLHttpRequest & {
+            __craftReplayUrl?: string;
+            __craftReplayMethod?: string;
+          };
+          xhr.__craftReplayMethod = String(args[0] ?? 'GET');
+          xhr.__craftReplayUrl = String(args[1] ?? '');
+          return Reflect.apply(nativeOpen, this, args);
+        },
+      );
+    replace(
+      xhrPrototype,
+      'send',
+      function (this: XMLHttpRequest, ...args: unknown[]) {
+        const xhr = this as XMLHttpRequest & {
+          __craftReplayUrl?: string;
+          __craftReplayMethod?: string;
+        };
+        const url = xhr.__craftReplayUrl ?? '';
+        const adapter = findMatching(
+          definitions.filter((item) => item.kind === 'xhr'),
+          url,
+        );
+        const instance = adapter
+          ? takeInstance('xhr', adapter, url)
+          : undefined;
+        const responseEvent = instance?.events.find(
+          (entry) =>
+            entry.transport.direction === 'incoming' &&
+            entry.transport.messageType === 'response',
+        );
+        if (!adapter || !instance || !responseEvent) throw blocked('xhr');
+        const stored = responseEvent.transport.data
+          ? decodeForAdapter(adapter, responseEvent.transport.data)
+          : undefined;
+        Promise.resolve(
+          adapter.replay?.({
+            id: instance.id,
+            url,
+            direction: 'incoming',
+            messageType: 'response',
+            data: stored,
+            elapsedMs: responseEvent.time,
+          }),
+        )
+          .then((result) => {
+            const value: Record<string, unknown> = isRecord(result)
+              ? result
+              : isRecord(stored)
+                ? stored
+                : {};
+            const complete = (
+              responseText: string,
+              status: number,
+              statusText: string,
+            ) => {
+              try {
+                Object.defineProperties(xhr, {
+                  status: { configurable: true, value: status },
+                  statusText: { configurable: true, value: statusText },
+                  responseText: { configurable: true, value: responseText },
+                  response: { configurable: true, value: responseText },
+                  readyState: { configurable: true, value: 4 },
+                });
+              } catch {
+                /* Browser-native readonly fields vary by engine. */
+              }
+              xhr.dispatchEvent(new Event('readystatechange'));
+              xhr.dispatchEvent(new Event('load'));
+              xhr.dispatchEvent(new Event('loadend'));
+            };
+            if (result instanceof Response)
+              void result
+                .text()
+                .then((body) =>
+                  complete(body, result.status, result.statusText),
+                );
+            else
+              complete(
+                String(value['body'] ?? ''),
+                Number(value['status'] ?? 200),
+                String(value['statusText'] ?? ''),
+              );
+          })
+          .catch(() => {
+            onDivergence(blockedDifference('xhr'));
+          });
+      },
+    );
+  }
+  const navigator = target['navigator'] as Record<string, unknown> | undefined;
+  if (navigator && typeof navigator['sendBeacon'] === 'function')
+    replace(navigator, 'sendBeacon', (rawUrl: string | URL) => {
+      const url = String(rawUrl);
+      const adapter = findMatching(
+        definitions.filter((item) => item.kind === 'sendbeacon'),
+        url,
+      );
+      const instance = adapter
+        ? takeInstance('sendbeacon', adapter, url)
+        : undefined;
+      const outgoing = instance?.events.find(
+        (entry) => entry.transport.direction === 'outgoing',
+      );
+      if (!adapter || !instance || !outgoing) {
+        blocked('sendBeacon');
+        return false;
+      }
+      try {
+        return (
+          adapter.replay?.({
+            id: instance.id,
+            url,
+            direction: 'outgoing',
+            messageType: outgoing.transport.messageType,
+            data: outgoing.transport.data
+              ? decodeForAdapter(adapter, outgoing.transport.data)
+              : undefined,
+            elapsedMs: outgoing.time,
+          }) === true
+        );
+      } catch {
+        blocked('sendBeacon');
+        return false;
+      }
+    });
+  for (const api of ['EventSource', 'WebTransport'] as const) {
+    const Native = target[api];
+    if (typeof Native !== 'function') continue;
+    const Guard = new Proxy(Native as new (...args: unknown[]) => object, {
+      construct(_original, args) {
+        const url = String(args[0] ?? '');
+        const kind = api === 'EventSource' ? 'eventsource' : 'webtransport';
+        const adapter = findMatching(
+          definitions.filter((item) => item.kind === kind),
+          url,
+        );
+        const instance = adapter ? takeInstance(kind, adapter, url) : undefined;
+        if (!adapter || !instance) throw blocked(kind);
+        if (api === 'EventSource') {
+          const endpoint = new EventTarget() as EventTarget & {
+            url: string;
+            readyState: number;
+            close(): void;
+            onmessage: ((event: MessageEvent) => unknown) | null;
+            onerror: ((event: Event) => unknown) | null;
+          };
+          endpoint.url = url;
+          endpoint.readyState = 1;
+          endpoint.onmessage = null;
+          endpoint.onerror = null;
+          endpoint.close = () => {
+            endpoint.readyState = 2;
+          };
+          for (const event of instance.events.filter(
+            (entry) =>
+              entry.transport.direction === 'incoming' ||
+              (entry.transport.direction === 'lifecycle' &&
+                entry.transport.messageType === 'error'),
+          ))
+            queueMicrotask(async () => {
+              const data = event.transport.data
+                ? decodeForAdapter(adapter, event.transport.data)
+                : undefined;
+              let replayed: unknown;
+              try {
+                replayed = await adapter.replay?.({
+                  id: instance.id,
+                  url,
+                  direction: event.transport.direction,
+                  messageType: event.transport.messageType,
+                  data,
+                  elapsedMs: event.time,
+                });
+              } catch {
+                onDivergence(blockedDifference(kind));
+                return;
+              }
+              if (event.transport.messageType === 'error') {
+                const error = new Event('error');
+                endpoint.dispatchEvent(error);
+                endpoint.onerror?.(error);
+                return;
+              }
+              const message =
+                replayed instanceof MessageEvent
+                  ? replayed
+                  : new MessageEvent('message', { data: replayed ?? data });
+              endpoint.dispatchEvent(message);
+              endpoint.onmessage?.(message);
+            });
+          return endpoint;
+        }
+        const lifecycle = instance.events.find(
+          (entry) => entry.transport.messageType === 'created',
+        );
+        try {
+          return (
+            adapter.replay?.({
+              id: instance.id,
+              url,
+              direction: 'lifecycle',
+              messageType: 'created',
+              elapsedMs: lifecycle?.time ?? 0,
+            }) ??
+            (() => {
+              throw blocked(kind);
+            })()
+          );
+        } catch {
+          throw blocked(kind);
+        }
+      },
+    });
+    target[api] = Guard;
+    restores.push(() => {
+      if (target[api] === Guard) target[api] = Native;
+    });
+  }
+  function takeInstance(
+    kind: CraftReplayTransportKind,
+    adapter: CraftReplayTransportDefinition,
+    _url: string,
+  ): ReplayTransportInstance | undefined {
+    const key = `${kind}:${adapter.id}`;
+    const index = consumed.get(key) ?? 0;
+    consumed.set(key, index + 1);
+    return instances.filter(
+      (entry) => entry.kind === kind && entry.adapterId === adapter.id,
+    )[index];
+  }
+  function blockedDifference(api: string): CraftReplayTransportDifference {
+    return {
+      transportId: `network:${api}`,
+      instanceId: `unmatched-${sequence}`,
+      direction: 'outgoing',
+      sequence,
+      expected: '[recorded response or adapter]',
+      observed: '[blocked before network]',
+      message: `Replay blocked an unmatched ${api} call; no live network request was sent.`,
+    };
+  }
+  return restores;
 }
 
 export type CraftReplayTransportDifference = Readonly<{
@@ -881,7 +1731,7 @@ export type CraftReplayTransportDifference = Readonly<{
 type ReplayTransportInstance = {
   id: string;
   adapterId: string;
-  kind: 'websocket' | 'worker';
+  kind: CraftReplayTransportKind;
   events: Array<{ time: number; transport: CraftReplayTransportEvent }>;
   cursor: number;
   outgoingCursor: number;
@@ -901,10 +1751,11 @@ function safeMatch(
     return false;
   }
 }
+
 function indexForAdapter(
   instances: ReplayTransportInstance[],
   adapterId: string | undefined,
-  kind: 'websocket' | 'worker',
+  kind: CraftReplayTransportKind,
   index: number,
 ): number {
   return (

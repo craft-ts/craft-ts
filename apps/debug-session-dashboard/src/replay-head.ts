@@ -1,6 +1,7 @@
 import {
   button,
   craftComponent,
+  content,
   div,
   forNode,
   heading,
@@ -10,12 +11,14 @@ import {
   span,
 } from '@craft-ts/component';
 import { craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { DocTooltip } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { goToHash, requestFrameFullscreen } from './replay-browser';
 import {
   launchDebugAppAtReplay,
   openResumeCheckpoint,
+  openResumeRecipe,
   replayPoint,
 } from './replay-debug';
 import { sessionDate } from './replay-labels';
@@ -27,6 +30,7 @@ import {
 import { selectParticipant } from './replay-session';
 import {
   connected,
+  activeRouteSessionId,
   differenceHistoryOpen,
   errorCount,
   isReplayErrorNote,
@@ -46,6 +50,7 @@ import { copyResumePrompt, resumePrompt } from './resume-prompt';
 import {
   SessionArchive,
   type ResumeCheckpointSummary,
+  type ResumeRecipeSummary,
 } from './session-archive.service';
 import { eventValue } from './view-helpers';
 
@@ -63,6 +68,20 @@ function readyCheckpointFor(
       !checkpoint.expired &&
       checkpoint.origin === origin &&
       checkpoint.beforeSequence === beforeSequence,
+  );
+}
+
+function readyRecipeFor(
+  recipes: readonly ResumeRecipeSummary[],
+  sessionId: string | undefined,
+  target: string,
+  beforeSequence: number | undefined,
+): ResumeRecipeSummary | undefined {
+  const parsed = parseLocalTarget(target.trim());
+  if (!parsed.ok || !sessionId) return undefined;
+  return recipes.find((recipe) =>
+    recipe.sessionId === sessionId && recipe.origin === parsed.url.origin &&
+    recipe.beforeSequence === beforeSequence,
   );
 }
 
@@ -217,6 +236,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
   const resumeRequestSending = rawReactiveValue(archive.resumeRequestSending);
   const resumeRequestFailed = rawReactiveValue(archive.resumeRequestFailed);
   const resumeCheckpoints = rawReactiveValue(archive.resumeCheckpointList);
+  const resumeRecipes = rawReactiveValue(archive.resumeRecipeList);
   const readyCheckpoint = yield* craftComputed('readyCheckpoint', () =>
     readyCheckpointFor(
       resumeCheckpoints(),
@@ -224,9 +244,29 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       replayPoint().beforeSequence,
     ),
   );
+  const readyRecipe = yield* craftComputed('readyRecipe', () =>
+    readyRecipeFor(resumeRecipes(), routeSessionId(), targetUrl(), replayPoint().beforeSequence),
+  );
   const resumeDisabled = yield* craftComputed(
     'resumeDisabled',
-    () => routeSessionId() === undefined || resumeRequestSending(),
+    () => activeRouteSessionId() === undefined || resumeRequestSending(),
+  );
+  const resumeTooltip = yield* craftComputed(
+    'resumeTooltip',
+    function* () {
+      if (yield* resumeDisabled()) {
+        return resumeRequestSending()
+          ? 'Une demande de reprise est déjà en cours d’envoi.'
+          : 'Le dashboard n’identifie pas la session ouverte. Revenez à la liste des sessions et rouvrez-la.';
+      }
+      const ready = yield* readyCheckpoint();
+      if (ready)
+        return `Rouvre le point de reprise enregistré (valide jusqu’au ${new Date(ready.expiresAt).toLocaleString('fr-FR')} : ${ready.ttlReason}).`;
+      const recipe = yield* readyRecipe();
+      return recipe
+        ? `Exécute la recette « ${recipe.objective.goal} » dans l’application.`
+        : 'Publie ce point pour l’IA (outil resume.request) et copie l’invite à lui donner.';
+    },
   );
   const resume = button(
     'resumeHere',
@@ -238,12 +278,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       'aria-label': 'Reprendre ici',
       'aria-description':
         'Demande à l’IA de ramener l’application vivante au point du replay.',
-      'data-tooltip': yield* craftComputed('resumeTooltip', function* () {
-        const ready = yield* readyCheckpoint();
-        return ready
-          ? `Rouvre le point de reprise enregistré (valide jusqu’au ${new Date(ready.expiresAt).toLocaleString('fr-FR')} : ${ready.ttlReason}).`
-          : 'Publie ce point pour l’IA (outil resume.request) et copie l’invite à lui donner.';
-      }),
+      'aria-describedby': 'resume-here-tip',
       disabled: resumeDisabled,
       click: function* () {
         const ready = yield* readyCheckpoint();
@@ -254,6 +289,13 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
         const sessionId = routeSessionId();
         if (sessionId === undefined) return;
         const point = replayPoint();
+        const recipe = yield* readyRecipe();
+        if (recipe) {
+          const target = parseLocalTarget(targetUrl().trim());
+          const route = target.ok ? `${target.url.pathname}${target.url.search}${target.url.hash}` : '/';
+          openResumeRecipe(recipe, route);
+          return;
+        }
         const prompt = resumePrompt(sessionId, point.beforeSequence);
         copyResumePrompt(prompt);
         yield* archive.requestResume({ sessionId, ...point }, prompt);
@@ -261,13 +303,36 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     },
     yield* craftComputed('resumeLabel', function* () {
       const ready = yield* readyCheckpoint();
+      const recipe = yield* readyRecipe();
       return resumeRequestFailed()
         ? 'Reprise : archive injoignable'
         : ready
           ? 'Reprendre ici · point prêt'
-          : 'Reprendre ici';
+          : recipe
+            ? 'Reprendre ici · recette prête'
+            : 'Reprendre ici';
     }),
   );
+  const resumeWithTooltip = DocTooltip({
+    tip: resumeTooltip,
+    tipId: 'resume-here-tip',
+    body: content(() =>
+      span(
+        {
+          tabindex: function* () {
+            return (yield* resumeDisabled()) ? 0 : undefined;
+          },
+          'aria-label': function* () {
+            return (yield* resumeDisabled())
+              ? 'Reprendre ici, indisponible'
+              : undefined;
+          },
+          'aria-describedby': 'resume-here-tip',
+        },
+        resume,
+      ),
+    ),
+  });
 
   const journal = button(
     'toggleJournal',
@@ -350,7 +415,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     div({ class: ui.headTools }, [
       tabs,
       debug,
-      resume,
+      resumeWithTooltip,
       fullscreen,
       notes,
       differences,

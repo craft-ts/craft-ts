@@ -1,6 +1,6 @@
 ---
 name: craft-ts-guided-resume
-description: Resume a recorded CraftTS debug session in the live app. First ask what the person wants to observe from that point and what must be faithful, then check and fix the setup (resume.doctor), bring an app tab to the point (app.launch, app.diff), hand sign-ins back (app.handoff), and freeze a resume point whose probes match the goal (checkpoint.save). Use when the person clicked « Reprendre ici » in the debug session dashboard, pastes a « Reprends la session de debug … » sentence, or asks to resume, reproduce from, or reopen a recorded session at an event.
+description: Resume a recorded CraftTS debug session through a valid point, a replayable recipe, or a guided run that writes a recipe. Begin with resume.doctor, interview the person about the objective, then drive Craft state or named page controls, hand secrets back, and save expectations and cleanup. Use when the person clicked « Reprendre ici » in the dashboard or asks to resume, reproduce from, or reopen a recorded session event.
 ---
 
 # Guided resume
@@ -21,17 +21,22 @@ concluding they are missing. If neither server is there at all, say so in one
 sentence and ask the person to approve the project MCP servers and open a new
 session; do not edit global configuration.
 
-## 1. Read the point (no question yet)
+## 1. Check setup, then read the point (no app action)
+
+Call `resume.doctor` first. Repair checks you can fix yourself; for anything
+that requires the person, ask for one precise action. Do not launch or mutate
+the app until the goal interview below is complete.
 
 `resume.request` (the session and the point; its `method` repeats these steps),
 then `session.story` up to the point **and a few steps after it**
 (`session.story` without `beforeSequence`, look at what follows): what the
 person did next is usually what they want to look at. `session.prerequisites`
-(identity, `signedInWhen`, entities, writes, ready `probes`). `checkpoint.list`
-for this point: a valid one is reopened with `checkpoint.restore` +
-`checkpoint.validate`, and the resume is done unless the goal changed.
+(identity, `signedInWhen`, entities, writes, ready `probes`). Then inspect
+`checkpoint.list` and `recipe.list` for this session and event. Choose the
+best available path, but do not restore a point, execute a recipe, or mutate
+the app until the goal interview is complete.
 
-## 2. Ask for the goal — one message, before any action
+## 2. Ask for the goal — one message, before any app action
 
 Ask at most four short questions, each with answers you propose from the
 recording, so the person can reply in a few words. Skip a question the request
@@ -59,10 +64,11 @@ server write without asking, a point valid for the working session.
 Restate the goal in one sentence before going on. Everything after this
 serves it.
 
-## 3. Set up — `resume.doctor`
+## 3. Finish setup checks
 
-Call `resume.doctor`. For each failed check, fix it yourself when you can and
-say it in one line; otherwise ask the person one precise thing.
+Use the `resume.doctor` result from step 1. For each failed check, fix it
+yourself when you can and say it in one line; otherwise ask the person one
+precise thing. Rerun it after a fix.
 
 - **log-server** down: ask to start it (`npm run logs:server`, same port as
   `LOG_SERVER_URL`).
@@ -77,16 +83,22 @@ say it in one line; otherwise ask the person one precise thing.
 
 Never kill a process or edit the person's configuration to get there; ask.
 
-## 4. Check what the goal depends on, then drive
+## 4. Choose the path, check dependencies, then drive
+
+For this event, restore a valid checkpoint with `checkpoint.restore` and
+`checkpoint.validate` first. If there is no valid point, execute its recipe
+with `recipe.run`. Start a guided resume only when neither is available or
+the person's objective changed.
 
 Before rebuilding the screen, check the data the goal needs on the live server:
 compare `session.recordedCall` answers with what the app reads now (`page`,
 `registry.*`). If they differ and writes are allowed, fix them first (reset,
 recreate); otherwise tell the person what will differ and why it matters.
 
-Then `app.launch` (point, `participantId`, `clientId`), `app.diff`, and close
-the gap with `page` (goto, fill, click), `app.replay` (a recorded gesture with
-arguments fitted to live data) and `registry.*`. Write each step in the thread
+Then prefer Craft state and methods: `registry.*` and `app.replay`, with
+`app.diff` to compare. Use `page` with named controls when the interface itself
+is part of the scenario. Use the browser only to inspect or show the page;
+never use screenshots or browser clicks to act. Write each step in the thread
 (`resume.say`, one sentence).
 
 ## 5. Hand back what only the person may do
@@ -118,6 +130,14 @@ resume wrote; a held write to a third party never goes out without consent.
 
 Then `checkpoint.validate`. A failing probe is repaired from the point, not by
 starting over.
+
+Save a `ResumeRecipe` for a repeatable path with `recipe.save`. Include the
+objective interview answers, autonomous data setup by default, named
+expectations and remedies, human hand-offs for secrets, and reverse-order
+cleanup for every created entity. Use `recipe.run` on later resumes. The tab's
+runner executes conditions and steps; do not re-ask the AI to replay a healthy
+recipe. A failed essential expectation without a remedy is repaired from that
+step with `recipe.repair`.
 
 ## 8. Conclude
 

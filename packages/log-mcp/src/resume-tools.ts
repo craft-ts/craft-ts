@@ -7,6 +7,7 @@ import {
   resumeTarget,
   type ResumeArchive,
 } from '@craft-ts/session-trace';
+import { exportResumeRecipeToPlaywright } from './resume-playwright-export.js';
 
 type ResumeRequest = Readonly<{
   id: string;
@@ -54,7 +55,7 @@ export function registerResumeTools(server: McpServer): void {
     'resume.request',
     {
       description:
-        'Read the latest "resume here" left from the debug session dashboard: which session and which point the person wants to resume from, and a summary of that session. Call it first when asked to resume a session; the session.* tools use it when no sessionId is given.',
+        'Read the latest "resume here" left from the debug session dashboard: which session and which point the person wants to resume from, a summary of that session, and any failed recipe run that needs repair. Call it first when asked to resume a session; the session.* tools use it when no sessionId is given.',
       inputSchema: {
         sessionId: z.string().uuid().optional().describe('Only a request for this session'),
       },
@@ -65,8 +66,26 @@ export function registerResumeTools(server: McpServer): void {
         const request = await latestRequest(sessionId);
         if (!request) return { request: null, hint: NO_REQUEST_HINT };
         const archive = await fetchArchive(request.sessionId);
+        const recipeQuery = new URLSearchParams({ sessionId: request.sessionId });
+        if (request.beforeSequence !== undefined) recipeQuery.set('beforeSequence', String(request.beforeSequence));
+        const recipeResponse = await fetch(`${logServerUrl()}/sessions/recipes?${recipeQuery}`);
+        let repair: Readonly<Record<string, unknown>> | null = null;
+        if (recipeResponse.ok) {
+          const recipes = (await recipeResponse.json() as { recipes?: unknown }).recipes;
+          const failed = Array.isArray(recipes) ? recipes.flatMap((value) => {
+            if (!isRecord(value) || !Array.isArray(value['runs'])) return [];
+            return value['runs'].flatMap((run) => {
+              if (!isRecord(run) || run['status'] !== 'failed') return [];
+              const events = Array.isArray(run['events']) ? run['events'] : [];
+              const failure = [...events].reverse().find((event) => isRecord(event) && event['kind'] === 'failed');
+              return [{ recipeId: value['id'], runId: run['id'], failedStep: run['currentStep'], startedAt: run['startedAt'], failure }];
+            });
+          }) : [];
+          repair = failed.sort((left, right) => String(right['startedAt']).localeCompare(String(left['startedAt'])))[0] ?? null;
+        }
         return {
           request,
+          repair,
           session: {
             startUrl: archive.startUrl,
             events: archive.events.length,
@@ -75,6 +94,62 @@ export function registerResumeTools(server: McpServer): void {
           method: RESUME_METHOD,
         };
       }),
+  );
+
+  server.registerTool(
+    'recipe.list',
+    {
+      description: 'List durable guided-resume recipes, optionally for one session and event, newest revision first.',
+      inputSchema: {
+        sessionId: z.string().uuid().optional(),
+        beforeSequence: z.number().int().nonnegative().optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ sessionId, beforeSequence }) => guarded(async () => {
+      const query = new URLSearchParams({
+        ...(sessionId === undefined ? {} : { sessionId }),
+        ...(beforeSequence === undefined ? {} : { beforeSequence: String(beforeSequence) }),
+      });
+      const response = await fetch(`${logServerUrl()}/sessions/recipes${query.size ? `?${query}` : ''}`);
+      if (!response.ok) throw new Error(`Could not list recipes (HTTP ${response.status}).`);
+      return (await response.json()) as unknown;
+    }),
+  );
+
+  server.registerTool(
+    'recipe.get',
+    {
+      description: 'Read one guided-resume recipe and the recorded runs for it.',
+      inputSchema: { id: z.string().uuid() },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ id }) => guarded(async () => {
+      const base = logServerUrl();
+      const [recipeResponse, runsResponse] = await Promise.all([
+        fetch(`${base}/sessions/recipes/${encodeURIComponent(id)}`),
+        fetch(`${base}/sessions/recipes/${encodeURIComponent(id)}/runs`),
+      ]);
+      if (!recipeResponse.ok) throw new Error(`Could not read recipe (HTTP ${recipeResponse.status}).`);
+      if (!runsResponse.ok) throw new Error(`Could not read recipe runs (HTTP ${runsResponse.status}).`);
+      return { ...(await recipeResponse.json() as Record<string, unknown>), ...(await runsResponse.json() as Record<string, unknown>) };
+    }),
+  );
+
+  server.registerTool(
+    'recipe.exportPlaywright',
+    {
+      description: 'Export a recipe as an exploratory Playwright TypeScript scaffold. Human handoffs, server operations, Craft expectations and checkpoints are marked as TODOs; no secret values are exported.',
+      inputSchema: { id: z.string().uuid() },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ id }) => guarded(async () => {
+      const response = await fetch(`${logServerUrl()}/sessions/recipes/${encodeURIComponent(id)}`);
+      if (!response.ok) throw new Error(`Could not read recipe (HTTP ${response.status}).`);
+      const body = await response.json() as { recipe?: unknown };
+      if (!body.recipe) throw new Error('Recipe not found.');
+      return { recipeId: id, ...exportResumeRecipeToPlaywright(body.recipe) };
+    }),
   );
 
   server.registerTool(
@@ -209,13 +284,14 @@ export function registerResumeTools(server: McpServer): void {
  * does not mean they are unavailable.
  */
 export const RESUME_METHOD: readonly string[] = [
-  'Les outils resume.doctor, app.*, checkpoint.* et page viennent du serveur MCP du registre ; resume.* et session.* de celui des logs. Si ton hôte diffère le chargement des outils MCP, charge-les avant de conclure qu’ils manquent.',
-  'Lire sans rien faire : session.story jusqu’au point et ce qui le suit, session.prerequisites, checkpoint.list (un point valide se rouvre avec checkpoint.restore puis checkpoint.validate).',
-  'Demander l’objectif avant toute action, en un message avec des réponses proposées depuis l’enregistrement : ce que la personne veut observer, ce qui doit être identique, si tu peux écrire sur le serveur, si le point servira une fois ou plusieurs. Le reste sert cet objectif.',
-  'Mettre en place : resume.doctor, puis corriger ou demander une chose précise par vérification en échec (ouvrir l’app, choisir l’onglet…). Ne tuer aucun processus, ne modifier aucune configuration sans accord.',
-  'Vérifier d’abord les données dont l’objectif dépend sur le serveur vivant, puis app.launch et app.diff, combler avec page, app.replay, registry.* ; chaque étape dans le fil avec resume.say.',
+  'Les outils resume.doctor, app.*, checkpoint.*, recipe.* et page viennent du serveur MCP du registre ; resume.*, session.*, recipe.list/get et resume.request viennent de celui des logs. Si ton hôte diffère le chargement des outils MCP, charge-les avant de conclure qu’ils manquent.',
+  'Commencer par resume.doctor. Lire ensuite sans agir : session.story jusqu’au point et les quelques étapes qui le suivent, session.prerequisites, checkpoint.list et recipe.list. Choisir le meilleur chemin pour cet événement, sans encore le restaurer ni l’exécuter.',
+  'Avant toute action dans l’app, faire l’entretien d’objectif en un message avec des réponses proposées depuis l’enregistrement : ce que la personne veut observer, ce qui doit être exact ou peut différer, si les écritures serveur sont permises, et si le parcours sera réutilisé. La stratégie autonome est le défaut sauf si le bug dépend d’une donnée précise existante. Écrire ces réponses dans la recette.',
+  'Après l’entretien, restaurer et valider le point figé valide ; sinon exécuter la recette existante avec recipe.run ; seulement sans point ni recette appropriés, conduire une reprise guidée. Vérifier les données nécessaires sur le serveur vivant. Préférer les primitives et méthodes Craft via registry.* et app.replay ; utiliser page avec des contrôles nommés quand l’interface fait partie du scénario. Le navigateur et les captures servent à regarder ou montrer, jamais à agir. Raconter chaque étape avec resume.say.',
   'Rendre la main pour un secret : app.handoff avec until = session.prerequisites.session.signedInWhen, en disant où se connecter ; relancer si le délai expire.',
-  'Figer : checkpoint.save avec goal, ttlMs/ttlReason, probes (session.prerequisites.probes plus une pour les données de l’objectif), created, deviations ; puis checkpoint.validate et resume.say kind done.',
+  'Écrire une recette autonome par défaut avec recipe.save : préparation et scénario séparés, attentes minimales essentielles/accessoires, remèdes, étapes humaines pour les secrets, variables vivantes, et nettoyage inverse de chaque création. Puis checkpoint.save avec goal, ttlMs/ttlReason, probes (session.prerequisites.probes plus une pour les données de l’objectif), created, deviations ; checkpoint.validate et resume.say kind done.',
+  'À l’échec d’une attente essentielle sans remède, la recette s’arrête et nettoie les créations. Réparer depuis l’étape en échec avec recipe.repair ; ne pas rejouer tout le parcours. Les attentes accessoires violées sont consignées comme écarts.',
+  'Si resume.request.repair indique une exécution échouée, lire la recette et son journal, réparer à partir de failedStep avec recipe.repair, puis relancer avec le runId fourni.',
 ];
 
 type ResumeMessage = Readonly<{
@@ -318,4 +394,8 @@ function toolResult(result: unknown) {
     content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
     structuredContent: { result },
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

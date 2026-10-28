@@ -25,7 +25,10 @@ import {
 import type { Provider } from '../host-runtime';
 import {
   createReplayController,
+  createRecordedResponseResolver,
   getReplaySteps,
+  installReplayNetworkGuard,
+  isNetworkCoverageFailureEvent,
   type ReplayValidation,
   validateReplayExport,
 } from './debug-session-replay';
@@ -162,6 +165,10 @@ export function provideCraftDebugReplayBridge(
       let replayInteractionCount = 0;
       let activeReplayRunId: string | undefined;
       let restoreCraftHttpReplay: (() => void) | undefined;
+      let restoreReplayFetch: (() => void) | undefined;
+      let replayFetchResolver:
+        | ReturnType<typeof createRecordedResponseResolver>
+        | undefined;
       let replayTransports:
         | ReturnType<typeof installCraftReplayTransports>
         | undefined = isCraftDebugReplayLaunch()
@@ -234,7 +241,11 @@ export function provideCraftDebugReplayBridge(
             ]),
           );
           const missingTransport = validation.session.events.find((entry) => {
-            if (entry.kind !== 'transport' || !isRecord(entry.payload))
+            if (
+              entry.kind !== 'transport' ||
+              isNetworkCoverageFailureEvent(entry) ||
+              !isRecord(entry.payload)
+            )
               return false;
             const definition =
               typeof entry.payload['transportId'] === 'string'
@@ -300,6 +311,8 @@ export function provideCraftDebugReplayBridge(
           ɵclearCraftPrimitiveReplaySnapshots(registry);
           ɵsetCraftReplayMode(true);
           restoreCraftHttpReplay?.();
+          restoreReplayFetch?.();
+          replayFetchResolver?.dispose();
           replayTransports?.restore();
           replayTransports = installCraftReplayTransports(
             replayTransportDefinitions,
@@ -307,7 +320,6 @@ export function provideCraftDebugReplayBridge(
               (event) => event.kind === 'transport',
             ),
             (difference) => {
-              replay?.pause();
               send(event.origin, 'difference', {
                 difference: {
                   ...difference,
@@ -325,6 +337,29 @@ export function provideCraftDebugReplayBridge(
           restoreCraftHttpReplay = ɵinstallCraftHttpReplay(
             craftHttpReplayOutcomes(validation.session.events),
           );
+          replayFetchResolver = createRecordedResponseResolver(
+            validation.session,
+          );
+          const replayTransportFetch = globalThis.fetch.bind(globalThis);
+          restoreReplayFetch = installReplayNetworkGuard(
+            replayFetchResolver,
+            () => {
+              send(event.origin, 'difference', {
+                difference: {
+                  expected: '[recorded browser fetch response]',
+                  actual: '[blocked before network]',
+                  transport: {
+                    transportId: 'network:fetch',
+                    instanceId: 'unmatched-fetch',
+                    direction: 'outgoing',
+                    sequence: 1,
+                    message: 'Replay blocked an unmatched fetch request.',
+                  },
+                },
+              });
+            },
+            (request) => replayTransportFetch(request),
+          );
           restoreDialogs();
           restoreDialogs = startDebugSessionDialogReplay(
             validation.session.events,
@@ -336,7 +371,8 @@ export function provideCraftDebugReplayBridge(
           ).length;
           replayFailed = false;
           replay = createReplayController(validation.session, {
-            mode: message['mode'] === 'diagnostic' ? 'diagnostic' : 'invocation',
+            mode:
+              message['mode'] === 'diagnostic' ? 'diagnostic' : 'invocation',
             verifyRecordedState: message['verifyState'] === true,
             resolveTarget: createReplayTargetResolver(
               methodReplayRegistry,
@@ -373,6 +409,7 @@ export function provideCraftDebugReplayBridge(
               registry.restore(state, metadata);
             },
             onTimelineAdvance: async (elapsedMs) => {
+              replayFetchResolver?.advanceTo(elapsedMs);
               ɵadvanceCraftHttpReplay(elapsedMs);
               replayTransports?.advanceTo(elapsedMs);
               await Promise.resolve();
@@ -488,6 +525,10 @@ export function provideCraftDebugReplayBridge(
               ɵclearCraftPrimitiveReplaySnapshots(registry);
               restoreCraftHttpReplay?.();
               restoreCraftHttpReplay = undefined;
+              restoreReplayFetch?.();
+              restoreReplayFetch = undefined;
+              replayFetchResolver?.dispose();
+              replayFetchResolver = undefined;
               replayTransports?.restore();
               replayTransports = undefined;
               send(event.origin, 'error', { message: error });
@@ -598,6 +639,10 @@ export function provideCraftDebugReplayBridge(
               if (state === 'completed') {
                 restoreCraftHttpReplay?.();
                 restoreCraftHttpReplay = undefined;
+                restoreReplayFetch?.();
+                restoreReplayFetch = undefined;
+                replayFetchResolver?.dispose();
+                replayFetchResolver = undefined;
                 replayTransports?.restore();
                 replayTransports = undefined;
               }

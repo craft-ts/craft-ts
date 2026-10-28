@@ -31,7 +31,7 @@ export const appConfig = craftAppConfig({
     // The chat UI needs the session service even when the dashboard itself
     // must not record a second session. `recording: false` provides the
     // session without starting a capture clip.
-    provideSendContextToAi({ recording: false }),
+    provideSendContextToAi({ recording: true }),
     // The chat's panel is dragged by a pointer gesture, which reads the clock
     // from the injector and has no fallback: without it the panel stays empty.
     provideCraftTemporalRuntime(new RealCraftTemporalRuntime()),

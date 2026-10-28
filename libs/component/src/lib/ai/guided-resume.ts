@@ -2,6 +2,7 @@ import {
   provideAppInitializer,
   ɵinjectCraftMethodReplayRegistry,
   ɵinjectCraftPrimitiveRegistry,
+  ɵinjectCraftRouterRuntime,
   ɵinjectPersistedStorageSnapshotRegistry,
   ɵregisterCraftMcpBridgeMethod,
   type SendContextReplayExport,
@@ -19,9 +20,15 @@ import {
   fetchCheckpoint,
   readLastCheckpointValidity,
   reopenCheckpointFromUrl,
+  showResumeNotice,
   validateCheckpoint,
 } from './guided-resume-checkpoints';
 import { handOff, parseHandoffRequest } from './guided-resume-handoff';
+import {
+  CRAFT_RESUME_RECIPE_QUERY_PARAM,
+  repairResumeRecipeRun,
+  runResumeRecipe,
+} from './guided-resume-recipes';
 import { ɵreviveReplayArgument } from './debug-session-replay-bridge';
 import {
   restoreDebugAppSnapshot,
@@ -95,6 +102,20 @@ export function provideCraftGuidedResume(
         methods: ɵinjectCraftMethodReplayRegistry(),
         reviveArgument: ɵreviveReplayArgument,
       };
+      if (new URLSearchParams(location.search).has(CRAFT_RESUME_RECIPE_QUERY_PARAM))
+        writeJson(MODE_KEY, true);
+      const craftRouter = ɵinjectCraftRouterRuntime();
+      const recipeRuntime = {
+        logServerUrl,
+        registry: restoreOptions.registry,
+        methods: restoreOptions.methods,
+        checkpoint: restoreOptions,
+        navigate: async (url: string) => {
+          if (craftRouter) return craftRouter.navigateByUrl(url);
+          location.assign(new URL(url, location.href).href);
+          return true;
+        },
+      };
       // The launch URL carries the mode: restoring the recorded origin
       // storage replaces this tab's sessionStorage, mode included.
       if (new URLSearchParams(location.search).has(CRAFT_GUIDED_RESUME_QUERY_PARAM))
@@ -143,6 +164,12 @@ export function provideCraftGuidedResume(
           restoreOptions.registry,
         ),
       );
+      ɵregisterCraftMcpBridgeMethod('app/recipe/run', (params) =>
+        runResumeRecipe(params, recipeRuntime),
+      );
+      ɵregisterCraftMcpBridgeMethod('app/recipe/repair', (params) =>
+        repairResumeRecipeRun(params),
+      );
       ɵregisterCraftMcpBridgeMethod('app/checkpoint/restore', async (params) => {
         const id = requireId(params);
         const checkpoint = await fetchCheckpoint(logServerUrl, id);
@@ -156,7 +183,26 @@ export function provideCraftGuidedResume(
         return { reloading: true, url: url.href, next: 'Call checkpoint.validate once the tab is back.' };
       });
       if (new URLSearchParams(location.search).has(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM))
-        return reopenCheckpointFromUrl(logServerUrl, restoreOptions);
+        return reopenCheckpointFromUrl(logServerUrl, restoreOptions, async (id) => {
+          writeJson(MODE_KEY, true);
+          ɵinstallGuidedResumeWriteBarrier(logServerUrl);
+          return runResumeRecipe({ id }, recipeRuntime);
+        });
+      const recipeId = new URLSearchParams(location.search).get(CRAFT_RESUME_RECIPE_QUERY_PARAM);
+      if (recipeId) {
+        writeJson(MODE_KEY, true);
+        setTimeout(() => {
+          void runResumeRecipe({ id: recipeId }, recipeRuntime).catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            document.dispatchEvent(new CustomEvent('craft-resume-recipe-error', { detail: message }));
+            showResumeNotice(`La recette de reprise a échoué : ${message}`);
+          });
+        }, 0);
+        const url = new URL(location.href);
+        url.searchParams.delete(CRAFT_RESUME_RECIPE_QUERY_PARAM);
+        history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+        return;
+      }
       return launchFromUrl(archives, restoreOptions);
     }),
   ];

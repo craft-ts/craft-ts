@@ -207,6 +207,7 @@ export function updateReplayTileIndicators(): void {
             : {
                 message,
                 dim: state === 'hidden' && replayState() !== 'paused',
+                collapsible: state === 'hidden',
               },
       };
     }),

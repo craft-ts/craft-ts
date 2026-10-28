@@ -24,6 +24,7 @@ import {
   cursor,
   darkOf,
   definePalette,
+  defineStateAxis,
   display,
   fontFamily,
   fontSize,
@@ -212,6 +213,12 @@ const THEME = [
   [ai['launcher-shadow'], craftAi.effect.launcherShadow],
 ] as const;
 
+/** Lets an embedding application pin the overlay to its own colour mode. */
+export const aiColorScheme = defineStateAxis('craftAiScheme', [
+  'light',
+  'dark',
+] as const);
+
 export const aiTheme = craftStyles(
   'craftAiTheme',
   {
@@ -219,6 +226,14 @@ export const aiTheme = craftStyles(
       ...THEME.map(([token, value]) => set(token, value)),
       when(
         scheme.dark,
+        THEME.map(([token, value]) => set(token, darkOf(value))),
+      ),
+      when(
+        aiColorScheme.light,
+        THEME.map(([token, value]) => set(token, value)),
+      ),
+      when(
+        aiColorScheme.dark,
         THEME.map(([token, value]) => set(token, darkOf(value))),
       ),
       // The foundation draws the focus ring; inside the overlay it is the

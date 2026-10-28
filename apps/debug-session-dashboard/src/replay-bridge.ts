@@ -53,6 +53,7 @@ import {
   seekHooks,
   warningIndexes,
   autoSkipDifferences,
+  events,
   recordReplayDifference,
   resolveLatestReplayDifference,
   selectedParticipantId,
@@ -207,12 +208,7 @@ function onInteraction(
     return;
   }
   if (data['kind'] === 'hover') {
-    if (
-      action === 'enter' &&
-      data['pointerId'] === -1 &&
-      x === 0 &&
-      y === 0
-    ) {
+    if (action === 'enter' && data['pointerId'] === -1 && x === 0 && y === 0) {
       // Keyboard focus uses a synthetic pointer id and has no mouse location.
       hideClickMarker(participantId);
       return;
@@ -284,15 +280,45 @@ function onDifference(
   data: Readonly<Record<string, unknown>>,
   first: ReplayDifference,
 ): void {
-  setNextActionCountdown(undefined);
+  const coverageFailure =
+    first.transport?.transportId.startsWith('network:') ?? false;
+  if (!coverageFailure) setNextActionCountdown(undefined);
   difference.set(first);
-  registers.playbackRequested = false;
+  if (!coverageFailure) registers.playbackRequested = false;
   registers.differenceParticipantId = connection.participantId;
   recordReplayDifference(connection.participantId, first);
+  if (first.transport?.transportId.startsWith('network:')) {
+    const api = first.transport.transportId.slice('network:'.length);
+    const currentEvents = events();
+    const id = `replay-network-coverage-${connection.participantId}-${first.transport.instanceId}`;
+    if (!currentEvents.some((event) => event.id === id)) {
+      events.set([
+        ...currentEvents,
+        {
+          id,
+          sequence:
+            Math.max(0, ...currentEvents.map((event) => event.sequence)) + 1,
+          timestamp: Date.now(),
+          kind: 'transport',
+          phase: 'failed',
+          name: `network-coverage:${api}`,
+          participantId: connection.participantId,
+          payload: { api, reason: 'no-recorded-response' },
+        },
+      ]);
+    }
+  }
   if (typeof data['index'] === 'number')
     updateGlobalProgress(connection.participantId, data['index']);
   if (typeof data['state'] === 'string') replayState.set(data['state']);
-  if (replayState() !== 'playing') freezeReplayVisibilityClock();
+  if (!coverageFailure && replayState() !== 'playing')
+    freezeReplayVisibilityClock();
+  if (coverageFailure) {
+    status.set(
+      `Appel ${first.transport?.transportId.slice('network:'.length)} bloqué · aucune requête réelle envoyée · le replay continue.`,
+    );
+    return;
+  }
   if (autoSkipDifferences() && first.skip) {
     status.set(
       `Décalage à l’événement ${first.eventId ?? '?'} · reprise automatique au checkpoint ${first.skip.checkpointEventId}.`,

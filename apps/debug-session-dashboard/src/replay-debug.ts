@@ -155,6 +155,18 @@ export function openResumeCheckpoint(
   );
 }
 
+/** Opens the app and lets its in-tab runner execute a stored recipe. */
+export function openResumeRecipe(recipe: Readonly<{ id: string; origin: string }>, target = '/'): void {
+  const url = new URL(target, recipe.origin);
+  url.searchParams.set('craft-resume-recipe', recipe.id);
+  const tab = openLinkedTab(url.href);
+  status.set(
+    tab
+      ? 'Recette lancée dans l’onglet de l’application.'
+      : 'Le navigateur a bloqué l’ouverture de l’onglet. Autorise les fenêtres surgissantes pour ce dashboard.',
+  );
+}
+
 /**
  * The state the replay is at: just before the next action it will run, or the
  * end of the recording once it has run them all.

@@ -1,15 +1,24 @@
 ---
 name: craft-ts-logs-mcp
-description: Read, filter, and reason about craft-ts demo application logs captured by the local log server through the logs MCP bridge. Use when a user reports a bug, an error, or unexpected behavior in the demo and wants it diagnosed from actual runtime logs; asks what was logged, by which component, or during which correlated flow; wants a clean reproduction; or needs to diagnose why logs.search, logs.tail, logs.stats, logs.clear, the log server, or the Console.* forwarding is returning nothing or failing.
+description: Inspect session recordings and application logs exposed by the CraftTS log server. Prefer session archive tools for a session shown in the debug dashboard; use logs.* for Console.* application telemetry. Use when a user refers to a recorded/replayable session, asks what the app logged, or needs to diagnose either data source.
 ---
 
 # NG Craft Logs MCP
 
-Read what the demo application actually logged, instead of guessing from source. The pipeline is documented in [apps/log-server/README.md](../../../apps/log-server/README.md) and [packages/log-mcp/README.md](../../../packages/log-mcp/README.md); read them before changing the mechanism or explaining implementation details.
+The local log server exposes two distinct evidence sources: archived debug sessions (the event timeline used by the dashboard's replay) and application log entries forwarded through Craft `Console.*`. Both are accessed through the log MCP, but they are not the same data. The archive is usually the right starting point when a user points to a session or asks to reproduce what happened; `logs.*` is for emitted application telemetry. A replay failure such as “no recorded response” belongs to the session replay path and must be checked against the archived HTTP events, not inferred from `logs.stats`.
 
-## Fast path: diagnose a reported bug
+The pipelines are documented in [apps/log-server/README.md](../../../apps/log-server/README.md), [packages/log-mcp/README.md](../../../packages/log-mcp/README.md), and [the guided-resume guide](../../../apps/docs/guide/ai/guided-resume.md). Read them before changing a mechanism or explaining its implementation.
 
-Use this path when the user reports something broken in the demo. This is an investigation of runtime evidence, not a source review: do **not** read source files before you have looked at the logs.
+## Choose the evidence source
+
+- **Dashboard session / replay / reproduction:** use the session archive tools first. `session.story` reconstructs the recorded interactions, routes, calls and errors; `session.recordedCall` inspects a particular recorded request and response. Use `sessions.compare` only when the project and matching test are known. If the user wants to watch the recording again, the dashboard owns playback. If they want to resume the live app from a point, use the `craft-ts-guided-resume` skill. Do not start with `logs.stats` or treat application logs as the session timeline.
+- **Application logging / Console errors / correlated runtime flow:** use the `logs.*` path below. These entries only include calls forwarded through Craft `Console.*` and have their own retention and time range.
+
+The log server hosts both sources, so a session can exist even when `logs.stats` reports no logs for its time range, and application logs do not prove that the session archive contains a replayable response.
+
+## Fast path: diagnose application logs
+
+Use this path when the user asks about application logs or runtime telemetry. For a bug report that points to a recorded dashboard session, use **Choose the evidence source** first. This path reads runtime log evidence, not source code: do **not** read source files before checking the relevant logs.
 
 1. `logs.stats` first. It tells you the total, the levels present, the emitting host tags (`byFrom`), the connected `clients`, and the covered time range. If `total` is `0`, jump to "No logs at all" below rather than searching.
 2. `logs.search` with `level: ["error", "warn"]` to see failures before anything else.

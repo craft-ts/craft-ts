@@ -160,10 +160,25 @@ export function importJson(
 
 /** Starts the replay on the next turn, once the tabs it needs are drawn. */
 export function scheduleReplayPreparation(): void {
-  after(0, () => {
+  const expectedSession = session();
+  const expectedRoute = routeSessionId();
+  let attempts = 0;
+  const prepare = (): void => {
+    if (
+      session() !== expectedSession ||
+      routeSessionId() !== expectedRoute
+    )
+      return;
+    if (!hasFrameGrid()) {
+      attempts += 1;
+      if (attempts < 120) after(16, prepare);
+      else endReplayLoadingIndicator();
+      return;
+    }
     if (canReplaySelectedSession()) startReplay();
     else endReplayLoadingIndicator();
-  });
+  };
+  after(0, prepare);
 }
 
 /** An archived session was asked for: clear what the last one left. */
@@ -211,7 +226,7 @@ export function completeSessionLoad(id: string, archived: unknown): void {
       endReplayLoadingIndicator();
       return;
     }
-    startReplay();
+    scheduleReplayPreparation();
   });
 }
 

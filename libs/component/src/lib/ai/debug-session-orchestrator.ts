@@ -674,6 +674,7 @@ export function compileReplayPlan(
     if (
       event.kind === 'transport' &&
       isRecord(event.payload) &&
+      !isNetworkCoverageFailureEvent(event) &&
       event.payload['replayable'] !== true
     )
       issues.push({
@@ -704,6 +705,18 @@ export function compileReplayPlan(
     observations,
     issues: uniqueIssues,
   };
+}
+
+function isNetworkCoverageFailureEvent(event: SendContextEvent): boolean {
+  const payload = isRecord(event.payload) ? event.payload : undefined;
+  return (
+    event.kind === 'transport' &&
+    event.phase === 'failed' &&
+    typeof event.name === 'string' &&
+    event.name.startsWith('network-coverage:') &&
+    typeof payload?.['api'] === 'string' &&
+    typeof payload['reason'] === 'string'
+  );
 }
 
 function isReplayCommandEvent(event: SendContextEvent): boolean {

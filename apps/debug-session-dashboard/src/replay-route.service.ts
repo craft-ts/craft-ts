@@ -28,6 +28,7 @@ import {
   ReplayState,
   registers,
   routeSessionId,
+  syncActiveRouteSessionId,
   thumbnailManifest,
 } from './replay-state';
 import { installReplayWorkerSurface } from './replay-worker';
@@ -148,6 +149,7 @@ export const { ReplayRoute } = craftService(
     });
 
     const handleHashChange = (): void => {
+      syncActiveRouteSessionId();
       const id = routeSessionId();
       const importedSession = currentHash() === '#/import';
       const comparison = currentHash().startsWith('#/compare?');

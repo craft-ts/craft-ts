@@ -82,9 +82,11 @@ the AI panel's **Copy prompt** action produces the context for an assistant.
 
 Pass partial light and dark palettes with `theme`. Each colour accepts a CSS
 colour, a CSS variable reference, or a typed Craft style colour token. Unspecified
-colours keep their defaults; dark values override the light palette when the
-browser prefers dark mode. The palette applies to the launcher, context menu,
-and panel.
+colours keep their defaults; dark values override the light palette for the
+selected colour scheme. By default, the overlay follows the document's
+`data-mode` attribute when present, then falls back to the browser preference.
+Set `colorScheme` to `system`, `light`, or `dark` to choose explicitly. The
+palette applies to the launcher, context menu, and panel.
 
 <<< @/tests/snippets/guide/ai/send-context-webhook.spec.ts#theme
 

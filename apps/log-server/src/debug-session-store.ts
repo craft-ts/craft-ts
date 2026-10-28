@@ -13,8 +13,9 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 
 /** Portable recording schema accepted by this standalone archive server. */
-export const PORTABLE_DEBUG_SESSION_VERSION = 7 as const;
-export const PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION = 6 as const;
+export const PORTABLE_DEBUG_SESSION_VERSION = 8 as const;
+export const PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION = 7 as const;
+export const LEGACY_PORTABLE_DEBUG_SESSION_VERSION = 6 as const;
 /** Format version written by archive indexes before recordingVersion was stored. */
 const LEGACY_RECORDING_VERSION = 6;
 
@@ -86,8 +87,10 @@ export type PortableDebugSession = Readonly<{
   format: 'craft-debug-session';
   version:
     | typeof PORTABLE_DEBUG_SESSION_VERSION
-    | typeof PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION;
+    | typeof PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION
+    | typeof LEGACY_PORTABLE_DEBUG_SESSION_VERSION;
   referenceCaptureVersion?: 1;
+  transportEventVersion?: 1;
   replayVersion?: number;
   startUrl: string;
   viewport?: Readonly<{ width: number; height: number }>;
@@ -617,12 +620,16 @@ export class DebugSessionStore {
     });
     return {
       format: 'craft-debug-session',
-      version:
-        stored.recordingVersion === PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION
+      version: stored.recordingVersion === PORTABLE_DEBUG_SESSION_VERSION
+        ? PORTABLE_DEBUG_SESSION_VERSION
+        : stored.recordingVersion === PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION
           ? PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION
-          : PORTABLE_DEBUG_SESSION_VERSION,
-      ...(stored.recordingVersion === PORTABLE_DEBUG_SESSION_VERSION
+          : LEGACY_PORTABLE_DEBUG_SESSION_VERSION,
+      ...(stored.recordingVersion >= PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION
         ? { referenceCaptureVersion: 1 as const }
+        : {}),
+      ...(stored.recordingVersion >= PORTABLE_DEBUG_SESSION_VERSION
+        ? { transportEventVersion: 1 as const }
         : {}),
       replayVersion: stored.replayVersion ?? 1,
       startUrl: stored.startUrl,
@@ -825,7 +832,10 @@ function assertPortableSession(
     !isRecord(value) ||
     value['format'] !== 'craft-debug-session' ||
     (value['version'] !== PORTABLE_DEBUG_SESSION_VERSION &&
-      value['version'] !== PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION) ||
+      value['version'] !== PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION &&
+      value['version'] !== LEGACY_PORTABLE_DEBUG_SESSION_VERSION) ||
+    (value['referenceCaptureVersion'] !== undefined && value['referenceCaptureVersion'] !== 1) ||
+    (value['transportEventVersion'] !== undefined && value['transportEventVersion'] !== 1) ||
     (value['replayVersion'] !== undefined &&
       (!Number.isSafeInteger(value['replayVersion']) ||
         (value['replayVersion'] as number) < 1)) ||

@@ -19,6 +19,7 @@ import { isDebugSessionTestMetadata } from './debug-session-store.js';
 import {
   PORTABLE_DEBUG_SESSION_VERSION,
   PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION,
+  LEGACY_PORTABLE_DEBUG_SESSION_VERSION,
 } from './debug-session-store.js';
 import {
   compareSessionTraces,
@@ -39,6 +40,11 @@ import {
   parseResumeRequestInput,
   ResumeRequestBoard,
 } from './resume-requests.js';
+import {
+  parseResumeRecipeInput,
+  ResumeRecipeStore,
+  type ResumeRecipeRun,
+} from './resume-recipes.js';
 import type { ThumbnailManifest } from './thumbnails/thumbnail-store.js';
 
 export type LogHttpServerOptions = {
@@ -52,6 +58,8 @@ export type LogHttpServerOptions = {
   readonly resumeRequests?: ResumeRequestBoard;
   /** Frozen resume points, on disk next to the sessions. */
   readonly checkpoints?: ResumeCheckpointStore;
+  /** Replayable guided-resume recipes and their execution journals. */
+  readonly recipes?: ResumeRecipeStore;
   readonly host?: string;
   readonly port?: number;
   /** Reject bodies larger than this, in bytes. */
@@ -192,7 +200,9 @@ async function handleRequest(
         retentionDays: options.sessionStore?.retentionDays ?? 30,
         storageBytes:
           (options.sessionStore?.storageBytes ?? 0) +
-          (options.thumbnails?.storageBytes ?? 0),
+          (options.thumbnails?.storageBytes ?? 0) +
+          (options.checkpoints?.storageBytes ?? 0) +
+          (options.recipes?.storageBytes ?? 0),
       },
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
     );
@@ -270,6 +280,96 @@ async function handleRequest(
         return;
       }
     }
+  }
+
+  if (url.pathname === '/sessions/recipes' || url.pathname.startsWith('/sessions/recipes/')) {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    const store = options.recipes;
+    if (!store) {
+      sendJson(response, 404, { error: 'Resume recipes are unavailable.' }, headers);
+      return;
+    }
+    if (url.pathname === '/sessions/recipes') {
+      if (request.method === 'GET') {
+        const before = url.searchParams.get('beforeSequence');
+        const recipes = store.list({
+          ...(url.searchParams.has('sessionId') ? { sessionId: url.searchParams.get('sessionId')! } : {}),
+          ...(before !== null && /^\\d+$/.test(before) ? { beforeSequence: Number(before) } : {}),
+        }).map((recipe) => ({ ...recipe, runs: store.listRuns(recipe.id) }));
+        sendJson(response, 200, { recipes }, headers);
+        return;
+      }
+      if (request.method === 'POST') {
+        let recipe;
+        try { recipe = parseResumeRecipeInput(JSON.parse(await readBody(request, maxBodySize))); }
+        catch { recipe = 'Invalid recipe payload.'; }
+        if (typeof recipe === 'string') {
+          sendJson(response, 400, { error: recipe }, headers);
+          return;
+        }
+        try { sendJson(response, 201, { recipe: store.save(recipe) }, headers); }
+        catch (error) { sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) }, headers); }
+        return;
+      }
+    }
+    const suffix = url.pathname.slice('/sessions/recipes/'.length).split('/');
+    const recipeId = suffix[0] ?? '';
+    const recipe = store.get(recipeId);
+    if (!recipe) {
+      sendJson(response, 404, { error: 'Recipe not found.' }, headers);
+      return;
+    }
+    if (suffix.length === 1 && request.method === 'GET') {
+      sendJson(response, 200, { recipe }, headers);
+      return;
+    }
+    if (suffix[1] === 'runs' && suffix.length === 2) {
+      if (request.method === 'GET') {
+        sendJson(response, 200, { runs: store.listRuns(recipeId) }, headers);
+        return;
+      }
+      if (request.method === 'POST') {
+        let input: unknown;
+        try { input = JSON.parse(await readBody(request, Math.min(maxBodySize, 64_000))); }
+        catch { input = undefined; }
+        const supervised = isRecord(input) ? input['supervised'] : undefined;
+        if (supervised !== undefined && typeof supervised !== 'boolean') {
+          sendJson(response, 400, { error: 'supervised must be a boolean.' }, headers);
+          return;
+        }
+        const run = store.saveRun({ recipeId, status: 'running', supervised: supervised === true, events: [] });
+        sendJson(response, 201, { run }, headers);
+        return;
+      }
+    }
+    if (suffix[1] === 'runs' && suffix.length === 3 && request.method === 'POST') {
+      const runId = suffix[2] ?? '';
+      const previous = store.getRun(runId);
+      if (!previous || previous.recipeId !== recipeId) {
+        sendJson(response, 404, { error: 'Recipe run not found.' }, headers);
+        return;
+      }
+      let input: unknown;
+      try { input = JSON.parse(await readBody(request, Math.min(maxBodySize, 128_000))); }
+      catch { input = undefined; }
+      if (!isRecord(input)) {
+        sendJson(response, 400, { error: 'Invalid recipe run update.' }, headers);
+        return;
+      }
+      const statuses = ['running', 'waiting-human', 'waiting-ai', 'completed', 'failed', 'cancelled'];
+      const status = input['status'] ?? previous.status;
+      const currentStep = input['currentStep'] ?? previous.currentStep;
+      const addedEvents = input['events'] ?? [];
+      if (!statuses.includes(String(status)) || (currentStep !== undefined && (!Number.isInteger(currentStep) || (currentStep as number) < 0)) || !Array.isArray(addedEvents) || addedEvents.length > 100 || !addedEvents.every(isRecipeRunEvent)) {
+        sendJson(response, 400, { error: 'Invalid recipe run status, step or events.' }, headers);
+        return;
+      }
+      const updated = store.saveRun({ ...previous, status: status as ResumeRecipeRun['status'], ...(currentStep === undefined ? {} : { currentStep: currentStep as number }), events: [...previous.events, ...addedEvents].slice(-500) });
+      sendJson(response, 200, { run: updated }, headers);
+      return;
+    }
+    sendJson(response, 405, { error: 'Method not allowed.' }, headers);
+    return;
   }
 
   if (
@@ -742,7 +842,12 @@ function isPortableSession(value: unknown): value is PortableDebugSession {
     isRecord(value) &&
     value['format'] === 'craft-debug-session' &&
     (value['version'] === PORTABLE_DEBUG_SESSION_VERSION ||
-      value['version'] === PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION) &&
+      value['version'] === PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION ||
+      value['version'] === LEGACY_PORTABLE_DEBUG_SESSION_VERSION) &&
+    (value['referenceCaptureVersion'] === undefined ||
+      value['referenceCaptureVersion'] === 1) &&
+    (value['transportEventVersion'] === undefined ||
+      value['transportEventVersion'] === 1) &&
     (value['replayVersion'] === undefined ||
       (Number.isSafeInteger(value['replayVersion']) &&
         (value['replayVersion'] as number) >= 1)) &&
@@ -848,6 +953,15 @@ function sendSocketError(socket: WebSocket, message: string): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isRecipeRunEvent(value: unknown): value is ResumeRecipeRun['events'][number] {
+  return isRecord(value) &&
+    typeof value['at'] === 'string' &&
+    typeof value['kind'] === 'string' &&
+    value['kind'].length > 0 && value['kind'].length <= 80 &&
+    (value['step'] === undefined || (Number.isInteger(value['step']) && (value['step'] as number) >= 0)) &&
+    (value['detail'] === undefined || (typeof value['detail'] === 'string' && value['detail'].length <= 2_000));
 }
 
 

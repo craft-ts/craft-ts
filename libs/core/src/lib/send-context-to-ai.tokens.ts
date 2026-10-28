@@ -142,7 +142,7 @@ export interface SendContextSessionParticipant {
 }
 
 /** Current portable recording schema. Bump only with an explicit replay migration decision. */
-export const DEBUG_SESSION_EXPORT_VERSION = 7 as const;
+export const DEBUG_SESSION_EXPORT_VERSION = 8 as const;
 /** Bump when replay semantics change incompatibly with previously captured sessions. */
 export const DEBUG_SESSION_REPLAY_VERSION = 1 as const;
 
@@ -155,6 +155,8 @@ export interface SendContextReplayExport {
   readonly replayVersion?: number;
   /** Reference redaction/provenance schema; absent on migrated v6 archives. */
   readonly referenceCaptureVersion?: 1;
+  /** Contract used by transport adapter events. Absent on legacy exports. */
+  readonly transportEventVersion?: 1;
   /** Seed used by CraftRandomRuntime while recording clips are active. */
   readonly randomSeed?: number;
   readonly startUrl: string;
@@ -882,6 +884,7 @@ export function createSendContextSession(
         version: DEBUG_SESSION_EXPORT_VERSION,
         replayVersion: DEBUG_SESSION_REPLAY_VERSION,
         referenceCaptureVersion: 1,
+        transportEventVersion: 1,
         ...(randomSeed === undefined ? {} : { randomSeed }),
         startUrl,
         ...(viewport ? { viewport } : {}),
