@@ -524,6 +524,35 @@ function registerRecipeTools(
     endpoint: z.string().optional(),
     serverFunction: z.boolean().optional(),
   });
+  const mockCase = z.discriminatedUnion('kind', [
+    z.object({
+      id: z.string().min(1).max(100),
+      kind: z.literal('success'),
+      response: z.any(),
+    }),
+    z.object({
+      id: z.string().min(1).max(100),
+      kind: z.literal('exception'),
+      tag: z.string().min(1).max(100),
+      scope: z.string().optional(),
+      payload: z.any().optional(),
+    }),
+    z.object({
+      id: z.string().min(1).max(100),
+      kind: z.literal('failure'),
+      message: z.string().min(1).max(2_000),
+    }),
+  ]);
+  const recipeNetwork = z.object({
+    mode: z.enum(['functional', 'mocked']),
+    mocks: z.array(
+      z.object({
+        call: z.string().min(1).max(200),
+        defaultCaseId: z.string().min(1).max(100).optional(),
+        cases: z.array(mockCase).min(1).max(50),
+      }),
+    ).max(200),
+  });
   const pageMatch = z
     .object({
       index: z.number().int().nonnegative().optional(),
@@ -610,15 +639,19 @@ function registerRecipeTools(
       ttlReason: z.string().optional(),
       probes: z.array(probe).optional(),
     }),
+    z.object({
+      type: z.literal('network'),
+      mode: z.enum(['functional', 'mocked']),
+    }),
   ]).describe(
-    'Use typed steps: prepare with goto/create, pause with handoff until live state holds, continue with act/invoke, verify with expect, and end with checkpoint. Never put credentials in a step.',
+    'Use typed steps: prepare with goto/create, pause with handoff until live state holds, select functional or mocked API handling with network, continue with act/invoke, verify with expect, and end with checkpoint. Never put credentials in a step.',
   );
 
   server.registerTool(
     'recipe.save',
     {
       description:
-        'Save or revise a guided-resume recipe in the local log server. Build steps with the typed step schema: goto/create, human handoff until a live condition, act/invoke, expect, checkpoint. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
+        'Save or revise a guided-resume recipe in the local log server. Build steps with the typed step schema: goto/create, human handoff until a live condition, network mode selection, act/invoke, expect, checkpoint. A mocked profile names success and failure cases; defaultCaseId remembers a choice. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
       inputSchema: {
         id: z.string().uuid().optional(),
         sessionId: z.string().uuid(),
@@ -631,6 +664,7 @@ function registerRecipeTools(
           mayWrite: z.boolean().default(false),
         }),
         strategy: z.enum(['autonomous', 'existing']).default('autonomous'),
+        network: recipeNetwork.optional(),
         steps: z.array(step).min(1).max(200),
         cleanup: z.array(recipeCall).max(200).default([]),
         revisions: z.array(
@@ -659,12 +693,15 @@ function registerRecipeTools(
     'recipe.run',
     {
       description:
-        'Execute a stored recipe in the connected tab. The tab runs each step until its condition, records progress in the dashboard thread, and performs cleanup on failure. Human hand-offs wait up to five minutes by default; the tool call allows up to fifteen minutes for the person to finish. Set supervised to stop after each step and return control to the AI.',
+        'Execute a stored recipe in the connected tab. The tab runs each step until its condition, records progress in the dashboard thread, and performs cleanup on failure. Pass mockChoices for a one-run case selection; saved defaultCaseId values apply otherwise. Human hand-offs wait up to five minutes by default; the tool call allows up to fifteen minutes for the person to finish. Set supervised to stop after each step and return control to the AI.',
       inputSchema: {
         clientId,
         id: z.string().uuid(),
         runId: z.string().uuid().optional(),
         supervised: z.boolean().optional(),
+        mockChoices: z.record(z.string(), z.string()).optional().describe(
+          'One-run mock case overrides keyed by Craft call id. Leave out defaultCaseId in the saved recipe to ask for a choice on each run; set defaultCaseId to remember it.',
+        ),
         timeoutMs: z
           .number()
           .int()
@@ -677,14 +714,37 @@ function registerRecipeTools(
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ clientId: target, id, runId, supervised, timeoutMs }) =>
+    async ({ clientId: target, id, runId, supervised, mockChoices, timeoutMs }) =>
       toolResult(
         await bridge.request('app/recipe/run', {
           ...(target === undefined ? {} : { clientId: target }),
           id,
           ...(runId === undefined ? {} : { runId }),
           ...(supervised === undefined ? {} : { supervised }),
+          ...(mockChoices === undefined ? {} : { mockChoices }),
           timeoutMs: timeoutMs ?? 15 * 60_000,
+        }),
+      ),
+  );
+
+  server.registerTool(
+    'recipe.network',
+    {
+      description:
+        'Activate a saved recipe network profile in the current app tab without rerunning its setup steps. In mocked mode, every Craft HTTP call must have a selected case; unconfigured calls are blocked. Omit saved defaultCaseId values to require mockChoices on each activation, or save defaults to repeat the same datasets.',
+      inputSchema: {
+        clientId,
+        id: z.string().uuid(),
+        mockChoices: z.record(z.string(), z.string()).optional(),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async ({ clientId: target, id, mockChoices }) =>
+      toolResult(
+        await bridge.request('app/recipe/network', {
+          ...(target === undefined ? {} : { clientId: target }),
+          id,
+          ...(mockChoices === undefined ? {} : { mockChoices }),
         }),
       ),
   );

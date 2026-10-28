@@ -65,6 +65,27 @@ export function ɵinstallCraftHttpResumeBarrier(
   };
 }
 
+/** Apply the active resume barrier without installing HTTP trace capture. */
+export function ɵexecuteCraftHttpResumeBarrier<Result>(
+  context: CraftHttpTraceContext,
+  next: () => Promise<Result>,
+): Promise<Result> | undefined {
+  const barrier = activeResumeBarrier;
+  if (!barrier) return undefined;
+  return Promise.resolve(barrier.decide(context)).then((decision) => {
+    switch (decision.kind) {
+      case 'live':
+        return next();
+      case 'live+patch':
+        return next().then(decision.patch) as Promise<Result>;
+      case 'recorded':
+        return decision.response as Result;
+      case 'held':
+        return decision.wait as Promise<Result>;
+    }
+  });
+}
+
 /** Runs only the synchronous transport-start portion of a Craft HTTP request. */
 export function ɵinvokeCraftHttpTransport<Result>(start: () => Result): Result {
   craftHttpTransportDepth++;
@@ -224,21 +245,8 @@ export function executeCraftHttpTrace<Value>(
   context: CraftHttpTraceContext,
   next: () => Promise<Value>,
 ): Promise<Value> {
-  const barrier = activeResumeBarrier;
-  if (barrier) {
-    return Promise.resolve(barrier.decide(context)).then((decision) => {
-      switch (decision.kind) {
-        case 'live':
-          return next();
-        case 'live+patch':
-          return next().then(decision.patch) as Promise<Value>;
-        case 'recorded':
-          return decision.response as Value;
-        case 'held':
-          return decision.wait as Promise<Value>;
-      }
-    });
-  }
+  const resumed = ɵexecuteCraftHttpResumeBarrier(context, next);
+  if (resumed) return resumed;
   // Replay safety applies independently of the app's development mode. If a
   // replay has no matching response, do not fall through to a live server.
   if (isCraftReplaying()) return replayOrNext(context, next);

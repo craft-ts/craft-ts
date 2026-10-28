@@ -3,10 +3,13 @@
 Resume a recorded debug session in the live app: an AI reads what the person
 did up to an event, brings a fresh tab to the same state, hands the tab back
 for what only the person can do (signing in), then freezes the point so it
-reopens later without the AI.
+reopens later without the AI. First choose the intent: a functional resume uses
+the current server, while a behavioral test uses recorded responses to reach
+the point and named mock cases for later Craft HTTP calls.
 
 **Use it when** a recording shows a bug in the middle of a long path and you
-want to investigate from that exact point, with a real backend.
+want to investigate from that exact point, either against current server data
+or in an isolated behavioral test.
 **Not when** you only want to watch it again — the replay in the debug session
 dashboard does that without touching a server.
 
@@ -79,6 +82,7 @@ the prompt `reprise-guidee` of the logs MCP says the same:
 | `app.writes`                                                                       | registry | writes made since the resume started, allowed or held                                                                           |
 | `checkpoint.save`, `list`, `restore`, `validate`, `cleanup`                        | registry | freeze, find, reopen, check and clean up a resume point                                                                         |
 | `recipe.save`, `recipe.run`, `recipe.repair`                                       | registry | save a deterministic path, execute it in the tab, or repair it from a failed step                                               |
+| `recipe.network`                                                                   | registry | activate a recipe's functional or mocked HTTP mode after restoring its linked checkpoint                                        |
 | `recipe.list`, `recipe.get`, `recipe.exportPlaywright`                             | logs     | list and read recipes stored with the session archive, or export an exploratory Playwright scaffold                             |
 
 ## Safety
@@ -93,6 +97,13 @@ the prompt `reprise-guidee` of the logs MCP says the same:
   `XMLHttpRequest` with a body) to another origin than its own or loopback,
   and journals the others; a server function named like a read is counted,
   not listed.
+- **Mocked behavior.** A recipe can name decoded success values, typed Craft
+  exceptions and transport failures for Craft server functions. Every run must
+  select one case per function, either through `mockChoices` or a saved
+  `defaultCaseId`. An unconfigured Craft call fails closed. Non-Craft app
+  `fetch` and XHR requests are blocked while this mode is active; the local log
+  server stays available for recipe progress. The selection is active in the
+  current tab until another recipe mode is activated or the tab reloads.
 - **Resume points stay local.** They hold a test session's storage, tokens
   included, under `<DEBUG_SESSION_DIR>/checkpoints`, out of git. Probes only
   reach the app's own origin.
@@ -166,6 +177,37 @@ live registry and `session.prerequisites`. The example below shows the human
 boundary; replace the session, origin, state address, route, and probe with
 values read from the current app. Empty objective lists, `mayWrite: false`,
 `strategy: "autonomous"`, cleanup, and revision history are the defaults.
+For a behavioral test, add `network: { mode: "mocked", mocks: [...] }` with
+one entry per Craft server function and its named cases. Leave out
+`defaultCaseId` to choose on every run; set it to remember a case. A
+`recipe.network` activation applies that profile after a valid checkpoint has
+been restored, without replaying the recipe's setup steps. The log server
+requires at least one success and one failure case per mocked call; exception
+cases preserve their Craft discriminant. The success `response` is the value
+the app's server-function client receives (often a JSON string in this repo).
+To sign in against the live server and then isolate the behavior under test,
+put `{ "type": "network", "mode": "mocked" }` after the `handoff` step and
+before the tested actions. Without a `network` step, the recipe's mode starts
+at the first recipe step.
+
+```json
+{
+  "network": {
+    "mode": "mocked",
+    "mocks": [
+      {
+        "call": "ecommerce.cart.addLine",
+        "defaultCaseId": "added",
+        "cases": [
+          { "id": "added", "kind": "success", "response": "{\"id\":\"cart-1\"}" },
+          { "id": "store-error", "kind": "exception", "tag": "StoreError", "payload": { "code": "STORE_ERROR", "status": 400, "message": "Cart is full" } },
+          { "id": "offline", "kind": "failure", "message": "Simulated offline transport" }
+        ]
+      }
+    ]
+  }
+}
+```
 
 ```json
 {

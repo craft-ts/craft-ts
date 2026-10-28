@@ -31,6 +31,7 @@ import {
 } from './craft-service';
 import { craftUse } from './craft-use';
 import { craftException, type CraftExceptionResult } from './craft-exception';
+import { ɵexecuteCraftHttpResumeBarrier } from './craft-http-trace';
 import {
   CRAFT_PROMISE_AWAIT_REQUEST_MARKER,
   type RuntimePromiseAwaitRequest,
@@ -324,7 +325,7 @@ function* invokeServerFunction(
 
   if (middlewares.length === 0) {
     return yield* awaitServerFunctionResult(
-      invokeServerFunctionTransport(transport, { id, input }),
+      invokeServerFunctionRequest(transport, { id, input }),
     );
   }
 
@@ -340,7 +341,7 @@ function* invokeServerFunction(
     validateClientContext(id, providedSchemas, context),
   );
   return yield* awaitServerFunctionResult(
-    invokeServerFunctionTransport(transport, {
+    invokeServerFunctionRequest(transport, {
       id,
       input,
       context,
@@ -360,6 +361,23 @@ function invokeServerFunctionTransport(
   } catch (error) {
     return Promise.resolve(toServerFunctionHttpError(request, error));
   }
+}
+
+function invokeServerFunctionRequest(
+  transport: ServerFunctionTransport,
+  request: ServerFunctionRequest,
+): Promise<unknown> {
+  const next = () => invokeServerFunctionTransport(transport, request);
+  const result =
+    ɵexecuteCraftHttpResumeBarrier(
+      {
+        method: 'POST',
+        url: '/__server-functions',
+        payload: request,
+      },
+      next,
+    ) ?? next();
+  return result.catch((error) => toServerFunctionHttpError(request, error));
 }
 
 function* awaitServerFunctionResult<Result>(

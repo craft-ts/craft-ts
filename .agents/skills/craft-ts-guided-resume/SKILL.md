@@ -53,14 +53,21 @@ same `requestId` for progress, hand-offs, and completion.
    propose the next recorded gesture (« ce qui se passe quand Camille clique
    Enregistrer avec le prix à 4,83 € »), a bug the story shows (an error, a
    4xx/5xx), or « juste retrouver l'écran ».
-2. **What must be exact.** « Qu'est-ce qui doit être identique à
+2. **How to test it.** « Tu veux une reprise fonctionnelle sur le serveur
+   actuel, ou tester le comportement sans appeler les API réelles ? » — the
+   functional mode uses current server data and the existing write barrier;
+   mocked behavior reuses recorded outcomes to reach the point, then uses
+   selected cases for future Craft HTTP calls. An unconfigured call fails
+   closed and never reaches a real server.
+3. **What must be exact.** « Qu'est-ce qui doit être identique à
    l'enregistrement ? » — the account and role, the server data the next step
    reads or writes (name the entity: « l'espresso à 3,50 € »), the form or
    draft; the rest may differ.
-3. **Server writes.** « Puis-je écrire sur le serveur pour y arriver ? » —
+4. **Server writes.** « Puis-je écrire sur le serveur pour y arriver ? » —
    reset demo data, recreate an entity, redo a recorded write; or touch nothing
-   and note the differences.
-4. **Use of the point.** « Une fois, ou un point à rouvrir plusieurs fois ? » —
+   and note the differences. A mocked success response is not consent to write
+   to a real server.
+5. **Use of the point.** « Une fois, ou un point à rouvrir plusieurs fois ? » —
    this sets the validity you will choose and how strict its probes are.
 
 If the person answers « fais au mieux », take: the next gesture as the goal,
@@ -69,6 +76,24 @@ server write without asking, a point valid for the working session.
 
 If the person does not answer whether they want to repeat the path, keep the
 result session-only. Do not call a temporary checkpoint a reusable script.
+
+In mocked behavior mode, ask which named case to use for each relevant Craft
+server function. Save the cases on the recipe's `network` profile. Pass
+`mockChoices` to `recipe.run` for a one-run override. Keep `defaultCaseId` out
+to ask for a choice on each run; save it only when the person wants the same
+case remembered. A `success` case returns its decoded value, an `exception`
+case constructs a typed Craft exception, and a `failure` case simulates a
+transport failure. Any unconfigured Craft call and any non-Craft app fetch or
+XHR is blocked while mocked mode is active. The local log server remains
+available for recipe progress.
+After restoring a still-valid checkpoint, call `recipe.network` with the saved
+recipe id and the chosen `mockChoices`; this activates the mock profile without
+replaying setup steps. If an override is omitted, the recipe's saved defaults
+apply. A one-run override remains active only in that tab until reload.
+When a repeatable recipe must sign in against the live server, put a typed
+`{ "type": "network", "mode": "mocked" }` step after the login `handoff` and
+before the behavior under test. Without that step, the recipe mode applies
+from its first step.
 
 Restate the goal in one sentence before going on. Everything after this
 serves it.
@@ -151,13 +176,16 @@ created entity. The tool accepts typed `goto`, `create`, `ensure`, `handoff`,
 `act`, `invoke`, `expect`, and `checkpoint` steps. Empty objective lists,
 `mayWrite: false`, `strategy: autonomous`, cleanup, and revision history have
 safe defaults; provide them only when the objective needs different values.
-Prepare the route and data before the `handoff`; wait on the live condition
+Set the recipe's network mode from the test-intent answer. Prepare the route
+and data before the `handoff`; wait on the live condition
 from `session.prerequisites`, then continue with named actions and essential
 expectations. Never include credentials.
 
 Verify the recipe itself with `recipe.run` from the intended starting state,
 complete each human hand-off, and confirm the run is `completed` and the goal's
-essential state holds. Then freeze the point with `checkpoint.save`, including
+essential state holds. In mocked mode, choose cases through `mockChoices` or
+persist a chosen `defaultCaseId` in the recipe. Then freeze the point with
+`checkpoint.save`, including
 `recipeId` from the saved recipe, and validate it. This link lets an expired or
 invalid point start the recipe again. Use `recipe.run` on later resumes; the
 tab runner executes conditions and steps, so do not ask the AI to replay a

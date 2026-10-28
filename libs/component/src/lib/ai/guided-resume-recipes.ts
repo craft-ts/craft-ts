@@ -11,6 +11,10 @@ import {
   handoffConditionHolds,
   type HandoffCondition,
 } from './guided-resume-handoff';
+import {
+  resolveGuidedResumeServerFunctionMock,
+  type GuidedResumeNetwork,
+} from './guided-resume-network';
 
 export const CRAFT_RESUME_RECIPE_QUERY_PARAM = 'craft-resume-recipe';
 const RUN_STATE_PREFIX = 'craft-ts.guided-resume.recipe-run.';
@@ -33,6 +37,7 @@ type Recipe = Readonly<{
     mayWrite: boolean;
   }>;
   strategy: 'autonomous' | 'existing';
+  network?: GuidedResumeNetwork;
   steps: readonly RecipeStep[];
   cleanup: readonly RecipeCall[];
 }>;
@@ -44,6 +49,10 @@ type RecipeRuntime = Readonly<{
   methods: ReturnType<typeof ɵinjectCraftMethodReplayRegistry>;
   navigate: (url: string) => Promise<unknown>;
   checkpoint: DebugSnapshotRestoreOptions;
+  setNetwork?: (
+    network: GuidedResumeNetwork | undefined,
+    choices: Readonly<Record<string, string>>,
+  ) => void;
 }>;
 type RunContext = {
   runId: string;
@@ -52,6 +61,7 @@ type RunContext = {
   created: Record<string, unknown>;
   cleanup: RecipeCall[];
   deviations: string[];
+  mockChoices: Record<string, string>;
 };
 
 /** Execute one or all steps of a stored recipe without involving a model. */
@@ -73,7 +83,18 @@ export async function runResumeRecipe(
   let context = existingRunId ? readRunState(existingRunId) : undefined;
   if (existingRunId && !context)
     throw new Error(`Recipe run ${existingRunId} cannot resume in this tab.`);
-  if (!context) {
+  const requestedChoices = readMockChoices(params['mockChoices']);
+  if (context) {
+    context.mockChoices = resolveNetworkChoices(
+      recipe.network,
+      requestedChoices,
+      context.mockChoices,
+    );
+  } else {
+    const mockChoices = resolveNetworkChoices(
+      recipe.network,
+      requestedChoices,
+    );
     const response = await fetch(
       `${runtime.logServerUrl}/sessions/recipes/${encodeURIComponent(recipeId)}/runs`,
       {
@@ -99,6 +120,7 @@ export async function runResumeRecipe(
       created: {},
       cleanup: [],
       deviations: [],
+      mockChoices,
     };
     writeRunState(context);
     await announce(
@@ -107,6 +129,12 @@ export async function runResumeRecipe(
       `Recette démarrée : ${recipe.objective.goal}.`,
     );
   }
+  if (!context) throw new Error('Recipe run context could not be created.');
+  const networkMode = recipeNetworkModeAt(recipe, context.nextStep);
+  runtime.setNetwork?.(
+    networkMode === 'mocked' ? recipe.network : undefined,
+    networkMode === 'mocked' ? context.mockChoices : {},
+  );
   await updateRun(runtime.logServerUrl, recipe.id, context.runId, {
     status: 'running',
     currentStep: context.nextStep,
@@ -205,6 +233,32 @@ export async function runResumeRecipe(
       repairRequired: true,
     };
   }
+}
+
+/** Activate a saved recipe's network mode after restoring its linked checkpoint. */
+export async function configureResumeRecipeNetwork(
+  params: Readonly<Record<string, unknown>>,
+  runtime: RecipeRuntime,
+): Promise<unknown> {
+  const recipeId = params['id'];
+  if (typeof recipeId !== 'string' || !recipeId)
+    throw new Error('id is required.');
+  const recipe = await fetchRecipe(runtime.logServerUrl, recipeId);
+  if (recipe.origin !== location.origin)
+    throw new Error(
+      `Recipe belongs to ${recipe.origin}, but this tab is ${location.origin}.`,
+    );
+  const choices = resolveNetworkChoices(
+    recipe.network,
+    readMockChoices(params['mockChoices']),
+  );
+  runtime.setNetwork?.(recipe.network, choices);
+  return {
+    active: recipe.network?.mode === 'mocked',
+    mode: recipe.network?.mode ?? 'functional',
+    choices,
+    next: 'The selected network mode remains active in this tab until another recipe network mode is activated or the tab reloads.',
+  };
 }
 
 /** Make a supervised/failed run resume from the repaired step boundary. */
@@ -412,6 +466,20 @@ async function executeStep(
     case 'checkpoint':
       await saveRecipeCheckpoint(recipe, context, runtime, step);
       return;
+    case 'network': {
+      const mode = step['mode'];
+      if (mode !== 'functional' && mode !== 'mocked')
+        throw new Error('network.mode must be functional or mocked.');
+      if (mode === 'mocked' && recipe.network?.mode !== 'mocked')
+        throw new Error(
+          'A mocked network step needs a mocked recipe network profile.',
+        );
+      runtime.setNetwork?.(
+        mode === 'mocked' ? recipe.network : undefined,
+        mode === 'mocked' ? context.mockChoices : {},
+      );
+      return;
+    }
     default:
       throw new Error(`Type d’étape inconnu : ${step.type}.`);
   }
@@ -443,6 +511,25 @@ async function recordRemedy(
 function normalizeRemedy(value: unknown): readonly Record<string, unknown>[] {
   if (isRecord(value)) return [value];
   return Array.isArray(value) && value.every(isRecord) ? value : [];
+}
+
+function recipeNetworkModeAt(
+  recipe: Recipe,
+  completedSteps: number,
+): 'functional' | 'mocked' {
+  const hasNetworkStep = recipe.steps.some((step) => step.type === 'network');
+  let mode: 'functional' | 'mocked' = hasNetworkStep
+    ? 'functional'
+    : (recipe.network?.mode ?? 'functional');
+  for (let index = 0; index < Math.min(completedSteps, recipe.steps.length); index++) {
+    const step = recipe.steps[index];
+    if (
+      step?.type === 'network' &&
+      (step['mode'] === 'functional' || step['mode'] === 'mocked')
+    )
+      mode = step['mode'];
+  }
+  return mode;
 }
 
 async function waitForPageAction(
@@ -514,6 +601,11 @@ async function invokeServerFunction(
     throw new Error(
       'Recipe server-function calls must stay on the app origin.',
     );
+  const mock = resolveGuidedResumeServerFunctionMock(address, input);
+  if (mock.active) {
+    if ('error' in mock) throw mock.error;
+    return mock.value;
+  }
   const response = await withTimeout(
     fetch(url.href, {
       method: 'POST',
@@ -889,10 +981,77 @@ function readRunState(runId: string): RunContext | undefined {
     const value = JSON.parse(
       sessionStorage.getItem(`${RUN_STATE_PREFIX}${runId}`) ?? 'null',
     );
-    return isRecord(value) ? (value as RunContext) : undefined;
+    if (
+      !isRecord(value) ||
+      typeof value['runId'] !== 'string' ||
+      typeof value['nextStep'] !== 'number' ||
+      !isRecord(value['variables']) ||
+      !isRecord(value['created']) ||
+      !Array.isArray(value['cleanup']) ||
+      !Array.isArray(value['deviations'])
+    )
+      return undefined;
+    const mockChoices = isRecord(value['mockChoices'])
+      ? Object.fromEntries(
+          Object.entries(value['mockChoices']).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+          ),
+        )
+      : {};
+    return { ...value, mockChoices } as unknown as RunContext;
   } catch {
     return undefined;
   }
+}
+
+function readMockChoices(value: unknown): Record<string, string> {
+  if (value === undefined) return {};
+  if (
+    !isRecord(value) ||
+    Object.entries(value).some(
+      ([call, caseId]) => !call.trim() || typeof caseId !== 'string' || !caseId,
+    )
+  )
+    throw new Error('mockChoices must map Craft call ids to case ids.');
+  return Object.fromEntries(
+    Object.entries(value).map(([call, caseId]) => [call, caseId as string]),
+  );
+}
+
+function resolveNetworkChoices(
+  network: GuidedResumeNetwork | undefined,
+  overrides: Readonly<Record<string, string>>,
+  previous: Readonly<Record<string, string>> = {},
+): Record<string, string> {
+  if (network?.mode !== 'mocked') {
+    if (Object.keys(overrides).length)
+      throw new Error('mockChoices require a recipe in mocked network mode.');
+    return {};
+  }
+  const byCall = new Map(network.mocks.map((mock) => [mock.call, mock]));
+  const unknownCalls = Object.keys(overrides).filter((call) => !byCall.has(call));
+  if (unknownCalls.length)
+    throw new Error(`Unknown mocked Craft calls: ${unknownCalls.join(', ')}.`);
+
+  const choices: Record<string, string> = {};
+  for (const mock of network.mocks) {
+    const requested = overrides[mock.call];
+    const saved = previous[mock.call];
+    const selectedId =
+      requested ??
+      saved ??
+      mock.defaultCaseId ??
+      (mock.cases.length === 1 ? mock.cases[0]?.id : undefined);
+    const selected = mock.cases.find((candidate) => candidate.id === selectedId);
+    if (!selected) {
+      const available = mock.cases.map((candidate) => candidate.id).join(', ');
+      throw new Error(
+        `Choisis un jeu pour ${mock.call} avec mockChoices (ou définis defaultCaseId pour le mémoriser). Cas disponibles : ${available}.`,
+      );
+    }
+    choices[mock.call] = selected.id;
+  }
+  return choices;
 }
 function writeRunState(context: RunContext): void {
   try {

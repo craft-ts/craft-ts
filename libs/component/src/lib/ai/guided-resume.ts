@@ -25,7 +25,12 @@ import {
 } from './guided-resume-checkpoints';
 import { handOff, parseHandoffRequest } from './guided-resume-handoff';
 import {
+  isGuidedResumeNetworkMocked,
+  setGuidedResumeNetwork,
+} from './guided-resume-network';
+import {
   CRAFT_RESUME_RECIPE_QUERY_PARAM,
+  configureResumeRecipeNetwork,
   repairResumeRecipeRun,
   runResumeRecipe,
 } from './guided-resume-recipes';
@@ -120,6 +125,7 @@ export function provideCraftGuidedResume(
         registry: restoreOptions.registry,
         methods: restoreOptions.methods,
         checkpoint: restoreOptions,
+        setNetwork: setGuidedResumeNetwork,
         navigate: async (url: string) => {
           if (craftRouter) return craftRouter.navigateByUrl(url);
           location.assign(new URL(url, location.href).href);
@@ -181,6 +187,9 @@ export function provideCraftGuidedResume(
       );
       ɵregisterCraftMcpBridgeMethod('app/recipe/run', (params) =>
         runResumeRecipe(params, recipeRuntime),
+      );
+      ɵregisterCraftMcpBridgeMethod('app/recipe/network', (params) =>
+        configureResumeRecipeNetwork(params, recipeRuntime),
       );
       ɵregisterCraftMcpBridgeMethod('app/recipe/repair', (params) =>
         repairResumeRecipeRun(params),
@@ -673,6 +682,15 @@ function guardFetch(quiet: string): void {
       isRequest ? input.url : input instanceof URL ? input.href : String(input),
       location.href,
     );
+    if (
+      isGuidedResumeNetworkMocked() &&
+      !isResumeInfrastructureRequest(url, quiet)
+    )
+      return Promise.reject(
+        new TypeError(
+          `Reprise mockée : appel réseau non-Craft bloqué (${method} ${url.origin}${url.pathname}).`,
+        ),
+      );
     const headers = new Headers(
       init?.headers ?? (isRequest ? input.headers : undefined),
     );
@@ -734,16 +752,18 @@ function guardXhr(quiet: string): void {
     const request = pending.get(this);
     if (
       request &&
-      holdsRequest(
-        {
-          method: request.method,
-          url: request.url,
-          header: (name) => request.headers.get(name.toLowerCase()) ?? null,
-          body,
-          transport: 'xhr',
-        },
-        quiet,
-      )
+      (isGuidedResumeNetworkMocked()
+        ? !isResumeInfrastructureRequest(request.url, quiet)
+        : holdsRequest(
+            {
+              method: request.method,
+              url: request.url,
+              header: (name) => request.headers.get(name.toLowerCase()) ?? null,
+              body,
+              transport: 'xhr',
+            },
+            quiet,
+          ))
     ) {
       // Like a network failure: the request never leaves.
       setTimeout(() => {
@@ -754,6 +774,13 @@ function guardXhr(quiet: string): void {
     }
     return nativeSend.call(this, body);
   };
+}
+
+function isResumeInfrastructureRequest(url: URL, quiet: string): boolean {
+  return (
+    url.origin === quiet ||
+    (url.origin === location.origin && url.pathname === '/__demo/typecheck')
+  );
 }
 
 function isLoopback(hostname: string): boolean {
