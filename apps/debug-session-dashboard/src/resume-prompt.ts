@@ -1,17 +1,34 @@
-/**
- * What to give the AI host for a resume point. It names the method and its
- * tools: an AI that only read the point would stop at looking at the app.
- */
-export function resumePrompt(sessionId: string, beforeSequence?: number): string {
+/** What to give the AI host for one exact guided-resume request. */
+export function resumePrompt(
+  input: Readonly<{
+    sessionId: string;
+    beforeSequence?: number;
+    participantId?: string;
+    requestId: string;
+    appUrl: string;
+  }>,
+): string {
   const point =
-    beforeSequence === undefined
+    input.beforeSequence === undefined
       ? 'à la fin de l’enregistrement'
-      : `juste avant l’événement ${beforeSequence}`;
+      : `juste avant l’événement ${input.beforeSequence}`;
+  const tab = input.appUrl
+    ? `URL de l’onglet dédié : ${input.appUrl}.`
+    : `Ouvre un onglet d’application dédié dont l’URL contient craft-resume-request=${input.requestId}.`;
   return [
-    `Reprends la session de debug ${sessionId} ${point}, en reprise guidée (skill craft-ts-guided-resume, invite MCP reprise-guidee).`,
-    'Commence par lire le point (resume.request, session.*) puis demande-moi ce que je veux y observer avant d’agir ; vérifie la mise en place avec resume.doctor.',
-    'Ces outils viennent des serveurs MCP de reprise (logs et registre) : charge-les s’ils ne sont pas encore listés.',
-  ].join(' ');
+    `Reprends la session de debug ${input.sessionId} ${point} pour la demande ${input.requestId}, en reprise guidée (skill craft-ts-guided-resume, invite MCP reprise-guidee).`,
+    `Lis cette demande exacte avec resume.request(requestId: "${input.requestId}") avant session.story, session.prerequisites et session.target.`,
+    `${tab} Pilote l’onglet dont l’URL contient craft-resume-request=${input.requestId} ; laisse le dashboard de replay ouvert.`,
+    'Demande-moi ici, dans cette conversation, ce que je veux observer avant de modifier l’application ; ne duplique pas les questions dans le dashboard. Utilise resume.doctor(requestId: "' +
+      input.requestId +
+      '") pour vérifier l’onglet cible.',
+    input.participantId
+      ? `Onglet enregistré à suivre : ${input.participantId}.`
+      : '',
+    'Les outils viennent des serveurs MCP de reprise (logs et registre) ; charge-les s’ils ne sont pas encore listés.',
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 /** Best effort: the notice shows the sentence too, for when the copy fails. */

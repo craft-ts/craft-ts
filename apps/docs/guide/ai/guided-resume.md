@@ -13,15 +13,17 @@ dashboard does that without touching a server.
 ## What the person does
 
 1. In the debug session dashboard, on an event of the replay: **Reprendre ici**.
-2. The AI checks the setup and asks what you want to observe before acting.
-3. A valid resume point for that event opens first. Otherwise the saved recipe
-   runs in the app tab without an AI deciding each step.
-4. If neither exists, the dashboard publishes the point and copies a sentence
-   to paste into the AI host (Claude Code, Codex…). The AI drives the tab and
-   shows an « À vous » banner when it needs the person, with the field highlighted.
-5. The **Reprise** tab of the replay's side panel shows the thread, saved
-   recipes and their latest executions, with a field to answer the AI without
-   leaving the dashboard.
+   The replay stays open. The dashboard opens a fresh application tab on the
+   recorded route, marks it with an immutable request id and copies a prompt
+   naming the exact session, event, request and tab—even when a checkpoint or
+   recipe already exists.
+2. Paste the prompt into the agent conversation. The agent reads the recording,
+   asks what you want to observe in that conversation, then chooses whether to
+   restore a checkpoint, run a recipe or rebuild the state. Answer there; the
+   dashboard remains the replay and progress view. The AI shows an « À vous »
+   banner when it needs the person, with the field highlighted.
+3. The **Reprise** tab of the dashboard shows progress, saved recipes and
+   their latest runs.
 
 ## Install
 
@@ -46,36 +48,38 @@ built from the repo on start. `LOG_SERVER_URL` and `REGISTRY_BRIDGE_PORT`
 override their defaults. Several AI sessions can run them at once: the first
 registry server holds the bridge port, the next ones relay to it.
 
-The skill `.claude/skills/craft-ts-guided-resume` gives the AI the method, and
+The skill `.agents/skills/craft-ts-guided-resume` gives the AI the method, and
 the prompt `reprise-guidee` of the logs MCP says the same:
 
-1. run `resume.doctor`, then read the point and any saved recipe without acting
-   in the app;
-2. **ask the person what they want to observe** from it, what must be exact,
-   whether server writes are allowed, and how the point will be used;
+1. run `resume.doctor({ requestId })` to select the marked app tab, then read
+   `resume.request({ requestId })` and the point without acting in the app;
+2. **ask the person what they want to observe** in the active agent
+   conversation, proposing what must be exact and whether the server can be
+   written; use only questions the conversation has not already answered;
 3. restore a valid point, or execute its recipe, before starting a guided
    resume;
 4. check the data the goal depends on, then use Craft state/methods first,
    `page` with named controls when the interface is part of the scenario;
-5. hand sign-ins back, saying where;
+5. pass the same `requestId` to `session.*`, `app.*`, and `resume.say`; never
+   replace it with a “latest” request. Hand sign-ins back, saying where;
 6. save a replayable recipe with expectations and cleanup, then freeze a point
    that records the goal, with probes that prove it holds.
 
 ## Tools
 
-| Tool | Server | Role |
-|---|---|---|
-| `resume.request` | log-mcp | the point left by **Reprendre ici** |
-| `resume.say`, `resume.replies` | log-mcp | write a step, question or hand-off in the dashboard thread; read the person's answers |
-| `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | log-mcp | what happened, the state to reach, the identity, entities and ready probes it needs, one recorded call |
-| `resume.doctor` | registry | check the log server, the bridge, one tab with the guided resume; say what to fix |
-| `app.launch`, `app.diff` | registry | reload the tab on the recorded state; compare it with the point |
-| `app.replay` | registry | invoke a recorded gesture with arguments adapted to live data |
-| `app.handoff` | registry | « À vous » banner, highlighted field, wait for a condition on the live state |
-| `app.writes` | registry | writes made since the resume started, allowed or held |
-| `checkpoint.save`, `list`, `restore`, `validate`, `cleanup` | registry | freeze, find, reopen, check and clean up a resume point |
-| `recipe.save`, `recipe.run`, `recipe.repair` | registry | save a deterministic path, execute it in the tab, or repair it from a failed step |
-| `recipe.list`, `recipe.get`, `recipe.exportPlaywright` | logs | list and read recipes stored with the session archive, or export an exploratory Playwright scaffold |
+| Tool                                                                               | Server   | Role                                                                                                                            |
+| ---------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `resume.request`                                                                   | log-mcp  | read the exact request id copied from **Reprendre ici**, or the latest as a fallback                                            |
+| `resume.say`, `resume.replies`                                                     | log-mcp  | write progress, hand-offs and completion to the dashboard thread; keep the goal interview and answers in the agent conversation |
+| `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | log-mcp  | inspect the exact request's history, state, identity, entities, probes and calls                                                |
+| `resume.doctor`                                                                    | registry | check the log server and bridge, and select the app tab marked with this request id                                             |
+| `app.launch`, `app.diff`                                                           | registry | reload the tab on the recorded state; compare it with the point                                                                 |
+| `app.replay`                                                                       | registry | invoke a recorded gesture with arguments adapted to live data                                                                   |
+| `app.handoff`                                                                      | registry | « À vous » banner, highlighted field, wait for a condition on the live state                                                    |
+| `app.writes`                                                                       | registry | writes made since the resume started, allowed or held                                                                           |
+| `checkpoint.save`, `list`, `restore`, `validate`, `cleanup`                        | registry | freeze, find, reopen, check and clean up a resume point                                                                         |
+| `recipe.save`, `recipe.run`, `recipe.repair`                                       | registry | save a deterministic path, execute it in the tab, or repair it from a failed step                                               |
+| `recipe.list`, `recipe.get`, `recipe.exportPlaywright`                             | logs     | list and read recipes stored with the session archive, or export an exploratory Playwright scaffold                             |
 
 ## Safety
 
@@ -113,7 +117,12 @@ deviations accepted. Probe strings may read the live state:
 {
   "method": "POST",
   "url": "/api/server-functions",
-  "body": { "id": "ecommerce.auth.me", "input": { "token": "{{state service:session / query:signInProcess token}}" } },
+  "body": {
+    "id": "ecommerce.auth.me",
+    "input": {
+      "token": "{{state service:session / query:signInProcess token}}"
+    }
+  },
   "expect": { "status": 200, "match": ["admin"] }
 }
 ```
@@ -142,5 +151,72 @@ run so the AI can repair it from the failing step. The Playwright export is a
 reviewable scaffold: human hand-offs and Craft-specific operations are marked
 as TODOs for a test-specific implementation.
 
+For a repeatable resume, the recipe is the script and the checkpoint is only
+the temporary fast path. A typical flow opens `/connexion`, waits at a
+`handoff` until `session.prerequisites.session.signedInWhen` becomes true, then
+continues through named actions and state expectations. The runner waits five
+minutes for a human step by default (up to fifteen minutes when configured).
+After the recipe reaches the target, its checkpoint is linked to the recipe:
+reopens use the snapshot while its expiry and probes pass; when they no longer
+pass, the app starts the linked recipe, which prepares the page and asks for
+sign-in again if needed.
+
+`recipe.save` exposes typed steps so an agent can build the sequence from the
+live registry and `session.prerequisites`. The example below shows the human
+boundary; replace the session, origin, state address, route, and probe with
+values read from the current app. Empty objective lists, `mayWrite: false`,
+`strategy: "autonomous"`, cleanup, and revision history are the defaults.
+
+```json
+{
+  "sessionId": "<session UUID>",
+  "beforeSequence": 175,
+  "origin": "https://shop.example",
+  "objective": {
+    "goal": "Revenir à la formule choisie, avant l’ajout au panier."
+  },
+  "steps": [
+    { "type": "goto", "route": "/connexion" },
+    {
+      "type": "handoff",
+      "message": "Connecte-toi dans cet onglet ; je poursuis dès que la session est ouverte.",
+      "field": "sign-in-password",
+      "until": {
+        "address": "service:session / query:currentUser",
+        "path": "token",
+        "unmasked": true
+      }
+    },
+    { "type": "goto", "route": "/formule/pause-cafe" },
+    {
+      "type": "expect",
+      "level": "essential",
+      "condition": {
+        "address": "service:composition / state:selection",
+        "path": "items",
+        "equals": ["croissant", "donut"]
+      }
+    },
+    {
+      "type": "checkpoint",
+      "ttlMs": 1800000,
+      "ttlReason": "Le point dépend de la session de connexion."
+    }
+  ]
+}
+```
+
+The checkpoint step captures the successful result and links it to the saved
+recipe automatically. On a later open, a valid snapshot restores immediately;
+an expired session starts the same recipe at `/connexion`, waits for the person,
+then verifies the selected items again.
+
 Limits: `HttpOnly` cookies are not captured, and a value that is not JSON
 (`Date`, `Map`) loses its shape in a point.
+
+The end-to-end demonstration in `apps/demo-ecommerce/e2e/guided-resume.spec.ts`
+uses this full path: the recipe opens the login page, pauses for a human sign-in,
+continues the admin scenario, checks its essential state, and creates a linked
+checkpoint. It also runs the recipe again without another sign-in, reopens the
+valid snapshot without an agent, reports a failed probe, and simulates expiry
+to show the linked recipe returning to the login hand-off before it continues.

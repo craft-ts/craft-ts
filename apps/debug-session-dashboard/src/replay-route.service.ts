@@ -96,7 +96,8 @@ export const { ReplayRoute } = craftService(
       beginSessionLoad(id);
       archive.archived.call(id);
       archive.resumeCheckpoints.call(id);
-      if (!workerMode) resumeThread.watch(id);
+      archive.resumeRecipes.call(id);
+      if (!workerMode) resumeThread.watchSession(id);
     };
 
     const remove = (id: string): void => {

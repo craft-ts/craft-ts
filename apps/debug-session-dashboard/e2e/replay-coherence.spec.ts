@@ -168,6 +168,144 @@ test('opens an archived replay after the frame grid mounts and ignores Vite HMR 
   );
 });
 
+test('opens a dedicated app tab and copies a request-bound guided-resume prompt', async ({
+  page,
+}) => {
+  const sessionId = '810978c1-a911-42b1-bc5c-75142723adb4';
+  const participantId = 'recorded-app-tab';
+  const recordedAt = Date.now();
+  let postedRequest: Record<string, unknown> | undefined;
+  await page.route(`${SESSION_SERVER_ORIGIN}/sessions`, (route) =>
+    route.fulfill({
+      json: { sessions: [], retentionDays: 30, storageBytes: 0 },
+    }),
+  );
+  await page.route(`${SESSION_SERVER_ORIGIN}/sessions/checkpoints**`, (route) =>
+    route.fulfill({
+      json: {
+        checkpoints: [
+          {
+            id: '1a2c4b77-cd17-4bc2-8705-dd578ee88e20',
+            sessionId,
+            beforeSequence: 7,
+            origin: DEMO_ORIGIN,
+            route: '/',
+            expired: false,
+            expiresAt: new Date(recordedAt + 60_000).toISOString(),
+            ttlReason: 'Pour cette session de test.',
+          },
+        ],
+      },
+    }),
+  );
+  await page.route(`${SESSION_SERVER_ORIGIN}/sessions/recipes**`, (route) =>
+    route.fulfill({
+      json: {
+        recipes: [
+          {
+            id: '87f64a26-224d-49c5-a25e-6ec561b0c142',
+            sessionId,
+            beforeSequence: 7,
+            origin: DEMO_ORIGIN,
+            objective: { goal: 'Rejouer ce parcours.' },
+            strategy: 'autonomous',
+            updatedAt: new Date(recordedAt).toISOString(),
+            runs: [],
+          },
+        ],
+      },
+    }),
+  );
+  await page.route(
+    `${SESSION_SERVER_ORIGIN}/sessions/resume-requests`,
+    async (route) => {
+      postedRequest = route.request().postDataJSON() as Record<string, unknown>;
+      await route.fulfill({
+        status: 201,
+        json: {
+          request: {
+            ...postedRequest,
+            createdAt: new Date(recordedAt).toISOString(),
+          },
+        },
+      });
+    },
+  );
+  await page.route(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`, (route) =>
+    route.fulfill({
+      json: {
+        format: 'craft-debug-session',
+        version: 8,
+        transportEventVersion: 1,
+        startUrl: `${DEMO_ORIGIN}/`,
+        exportedAt: recordedAt,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'resume-point-event',
+            sequence: 7,
+            timestamp: recordedAt,
+            elapsedMs: 0,
+            kind: 'dom',
+            phase: 'emitted',
+            participantId,
+            payload: {
+              selector: '[data-testid="add-user"]',
+              action: 'click',
+              interactionName: 'button:add-user',
+            },
+          },
+        ],
+        participants: [
+          {
+            id: participantId,
+            title: 'Application',
+            startUrl: `${DEMO_ORIGIN}/`,
+            state: 'visible',
+            status: 'completed',
+            createdAt: new Date(recordedAt).toISOString(),
+            updatedAt: new Date(recordedAt).toISOString(),
+          },
+        ],
+      },
+    }),
+  );
+
+  await page.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
+  await expect(page.locator('[data-lab="detail-page"]')).toBeVisible();
+  const openedPage = page.context().waitForEvent('page');
+  await page.getByRole('button', { name: 'Reprendre ici' }).click();
+  const appTab = await openedPage;
+  await expect(appTab).toHaveURL(/craft-resume-request=[0-9a-f-]{36}/);
+  expect(
+    new URL(await appTab.url()).searchParams.has('craft-debug-replay'),
+  ).toBe(false);
+  await expect(page.locator('[data-lab="resume-requested"]')).toBeVisible();
+  await expect(page.locator('[data-lab="resume-prompt"]')).toContainText(
+    /resume\.request\(requestId:/,
+  );
+  await expect(
+    page.getByRole('button', { name: 'Copier le prompt' }),
+  ).toBeVisible();
+  await expect
+    .poll(() => postedRequest)
+    .toMatchObject({
+      sessionId,
+      beforeSequence: 7,
+      participantId,
+      id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    });
+  const requestId = String(postedRequest?.['id']);
+  expect(
+    new URL(await appTab.url()).searchParams.get('craft-resume-request'),
+  ).toBe(requestId);
+  await expect(page.locator('[data-lab="resume-prompt"]')).toContainText(
+    requestId,
+  );
+  await appTab.close();
+});
+
 test('restores browser storage before the replay application boots', async ({
   browser,
   browserName,
@@ -476,8 +614,7 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
       ).json()) as StoredSession;
       return archived.events.some(
         (event) =>
-          event.kind === 'storage' &&
-          event.name === 'browser-storage-initial',
+          event.kind === 'storage' && event.name === 'browser-storage-initial',
       );
     })
     .toBe(true);
@@ -1896,9 +2033,7 @@ test('replays the recorded Craft HTTP result without calling the live service', 
     .getByTestId('nav-panel')
     .getByRole('link', { name: 'Craft Lazy Layout', exact: true })
     .click();
-  await expect(demo).toHaveURL(
-    `${DEMO_ORIGIN}/craft/lazy-layout/100/users/42`,
-  );
+  await expect(demo).toHaveURL(`${DEMO_ORIGIN}/craft/lazy-layout/100/users/42`);
   await expect(demo.getByText('Query status: resolved')).toBeVisible({
     timeout: 15_000,
   });
@@ -2359,7 +2494,10 @@ test('opens the app live in its own tab from the replay position and from a jour
   await fromReplay.close();
 
   // From the journal: the state just before an event of the list.
-  const toggle = dashboard.getByRole('button', { name: 'Journal', exact: true });
+  const toggle = dashboard.getByRole('button', {
+    name: 'Journal',
+    exact: true,
+  });
   if ((await toggle.getAttribute('aria-expanded')) !== 'true')
     await toggle.evaluate((button) => (button as HTMLButtonElement).click());
   await dashboard
@@ -2398,9 +2536,7 @@ test('relaunches the call whose request was still in flight at the chosen event'
   const demo = await context.newPage();
   await demo.goto(`${DEMO_ORIGIN}/`);
   const removeButtons = demo.getByRole('button', { name: /^Remove User/ });
-  await expect(
-    demo.getByRole('button', { name: 'Add a user' }),
-  ).toBeVisible();
+  await expect(demo.getByRole('button', { name: 'Add a user' })).toBeVisible();
   const initialUsers = await removeButtons.count();
   await demo.getByRole('button', { name: 'Add a user' }).click();
   await expect(removeButtons).toHaveCount(initialUsers + 1);
@@ -2463,7 +2599,11 @@ test('relaunches the call whose request was still in flight at the chosen event'
         correlationId,
         payload: { method: 'POST', url: `${DEMO_ORIGIN}/users` },
       }),
-      synthetic(last + 2, { kind: 'custom', phase: 'emitted', name: 'e2e-end' }),
+      synthetic(last + 2, {
+        kind: 'custom',
+        phase: 'emitted',
+        name: 'e2e-end',
+      }),
     ],
   };
 
@@ -2475,7 +2615,10 @@ test('relaunches the call whose request was still in flight at the chosen event'
     .fill(JSON.stringify(imported));
   await dashboard.getByRole('button', { name: 'Valider la session' }).click();
   await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
-  const toggle = dashboard.getByRole('button', { name: 'Journal', exact: true });
+  const toggle = dashboard.getByRole('button', {
+    name: 'Journal',
+    exact: true,
+  });
   if ((await toggle.getAttribute('aria-expanded')) !== 'true')
     await toggle.evaluate((button) => (button as HTMLButtonElement).click());
   await dashboard

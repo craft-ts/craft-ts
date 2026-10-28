@@ -1,8 +1,15 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "f6d62e524b62981d",
-  "routes": [],
+  "graphHash": "afd6027a80ad0402",
+  "routes": [
+    "",
+    ":sessionId",
+    "compare",
+    "e2e-replay",
+    "import",
+    "sessions"
+  ],
   "services": [
     "CraftFieldCheckboxControl",
     "CraftFieldValueControl",
@@ -86,6 +93,7 @@ export const architectureCatalog = {
   "primitives": [
     "activeReplayEventIdState",
     "activeReplayParticipantId",
+    "activeRouteSessionId",
     "archived",
     "ariaDisabled",
     "ariaValueMax",
@@ -122,7 +130,6 @@ export const architectureCatalog = {
     "differenceHistoryOpen",
     "differenceMessage",
     "dismissedWarnings",
-    "draft",
     "emptyHidden",
     "environmentWarningHidden",
     "environmentWarningState",
@@ -172,7 +179,7 @@ export const architectureCatalog = {
     "nextActionTimingHidden",
     "nextActionTimingText",
     "nextDisabled",
-    "noResumeRequest",
+    "noRecipesHidden",
     "notesHidden",
     "open",
     "openArchivedSession",
@@ -203,6 +210,7 @@ export const architectureCatalog = {
     "pruneSessions",
     "reachable",
     "readyCheckpoint",
+    "readyRecipe",
     "recordingLabel",
     "renderedMarks",
     "replayActionOffsetsMsState",
@@ -217,23 +225,27 @@ export const architectureCatalog = {
     "replayWarnings",
     "replayableEventsState",
     "replayableParticipantsState",
-    "reply",
     "reportText",
     "restartDisabled",
+    "resumeAppUrlMissing",
     "resumeCheckpointList",
     "resumeCheckpoints",
     "resumeDisabled",
     "resumeEmptyHidden",
     "resumeEmptyText",
+    "resumeHandoffText",
     "resumeLabel",
     "resumeMessages",
     "resumeNotice",
     "resumeNoticeHidden",
     "resumePromptText",
+    "resumeRecipeList",
+    "resumeRecipes",
+    "resumeRecipesEmpty",
     "resumeRequest",
     "resumeRequestFailed",
+    "resumeRequestIdText",
     "resumeRequestSending",
-    "resumeSendDisabled",
     "resumeTooltip",
     "retentionDays",
     "retryHidden",
@@ -251,6 +263,7 @@ export const architectureCatalog = {
     "sendDialogPromptOptions",
     "session",
     "sessionParticipants",
+    "sessionResumeRecipes",
     "sessionStartUrl",
     "sessionText",
     "sessionTitleText",
@@ -332,11 +345,15 @@ export const architectureCatalog = {
     },
     {
       "method": "GET",
-      "url": "*/sessions/resume-requests/latest?*"
+      "url": "*/sessions/recipes?*"
     },
     {
       "method": "GET",
       "url": "<unresolved:e2e-replay-route.service.ts:26>"
+    },
+    {
+      "method": "GET",
+      "url": "<unresolved:resume-thread.service.ts:80>"
     },
     {
       "method": "POST",
@@ -353,10 +370,6 @@ export const architectureCatalog = {
     {
       "method": "POST",
       "url": "*/sessions/resume-requests"
-    },
-    {
-      "method": "POST",
-      "url": "*/sessions/resume-requests/*/messages"
     },
     {
       "method": "POST",
@@ -484,7 +497,15 @@ export const architectureCatalog = {
       ]
     },
     "components": {},
-    "routes": {}
+    "routes": {
+      "": [
+        "apps/debug-session-dashboard/src/app.routes.ts",
+        "apps/debug-session-dashboard/src/comparison.routes.ts",
+        "apps/debug-session-dashboard/src/e2e-replay.routes.ts",
+        "apps/debug-session-dashboard/src/replay.routes.ts",
+        "apps/debug-session-dashboard/src/sessions.routes.ts"
+      ]
+    }
   },
   "browserBoundaryServices": [],
   "scopes": {

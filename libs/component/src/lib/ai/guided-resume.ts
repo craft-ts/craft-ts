@@ -50,6 +50,8 @@ export type CraftGuidedResumeOptions = Readonly<{
 }>;
 
 export const CRAFT_GUIDED_RESUME_QUERY_PARAM = 'craft-resume';
+/** Identifies the dedicated app tab created by the replay dashboard. */
+export const CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM = 'craft-resume-request';
 const BEFORE_PARAM = 'craft-resume-before';
 const PARTICIPANT_PARAM = 'craft-resume-participant';
 const MODE_KEY = 'craft-ts.guided-resume.mode';
@@ -80,6 +82,7 @@ export type GuidedResumePoint = Readonly<{
   sessionId: string;
   beforeSequence?: number;
   participantId?: string;
+  requestId?: string;
 }>;
 
 export type GuidedResumeDifference = Readonly<{
@@ -92,7 +95,10 @@ export type GuidedResumeDifference = Readonly<{
 export function provideCraftGuidedResume(
   options: CraftGuidedResumeOptions = {},
 ): Provider[] {
-  const logServerUrl = (options.logServerUrl ?? DEFAULT_LOG_SERVER_URL).replace(/\/$/, '');
+  const logServerUrl = (options.logServerUrl ?? DEFAULT_LOG_SERVER_URL).replace(
+    /\/$/,
+    '',
+  );
   return [
     provideAppInitializer(() => {
       if (typeof window === 'undefined') return;
@@ -102,7 +108,11 @@ export function provideCraftGuidedResume(
         methods: ɵinjectCraftMethodReplayRegistry(),
         reviveArgument: ɵreviveReplayArgument,
       };
-      if (new URLSearchParams(location.search).has(CRAFT_RESUME_RECIPE_QUERY_PARAM))
+      if (
+        new URLSearchParams(location.search).has(
+          CRAFT_RESUME_RECIPE_QUERY_PARAM,
+        )
+      )
         writeJson(MODE_KEY, true);
       const craftRouter = ɵinjectCraftRouterRuntime();
       const recipeRuntime = {
@@ -118,10 +128,15 @@ export function provideCraftGuidedResume(
       };
       // The launch URL carries the mode: restoring the recorded origin
       // storage replaces this tab's sessionStorage, mode included.
-      if (new URLSearchParams(location.search).has(CRAFT_GUIDED_RESUME_QUERY_PARAM))
+      if (
+        new URLSearchParams(location.search).has(
+          CRAFT_GUIDED_RESUME_QUERY_PARAM,
+        )
+      )
         writeJson(MODE_KEY, true);
       if (readMode()) ɵinstallGuidedResumeWriteBarrier(logServerUrl);
-      const archives = (sessionId: string) => fetchArchive(logServerUrl, sessionId);
+      const archives = (sessionId: string) =>
+        fetchArchive(logServerUrl, sessionId);
       ɵregisterCraftMcpBridgeMethod('app/launch', (params) =>
         launch(params, archives),
       );
@@ -170,37 +185,66 @@ export function provideCraftGuidedResume(
       ɵregisterCraftMcpBridgeMethod('app/recipe/repair', (params) =>
         repairResumeRecipeRun(params),
       );
-      ɵregisterCraftMcpBridgeMethod('app/checkpoint/restore', async (params) => {
-        const id = requireId(params);
-        const checkpoint = await fetchCheckpoint(logServerUrl, id);
-        const route =
-          isRecord(checkpoint.snapshot) && typeof checkpoint.snapshot['route'] === 'string'
-            ? checkpoint.snapshot['route']
-            : '/';
-        const url = new URL(route, location.href);
-        url.searchParams.set(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM, id);
-        setTimeout(() => location.assign(url.href), 50);
-        return { reloading: true, url: url.href, next: 'Call checkpoint.validate once the tab is back.' };
-      });
-      if (new URLSearchParams(location.search).has(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM))
-        return reopenCheckpointFromUrl(logServerUrl, restoreOptions, async (id) => {
-          writeJson(MODE_KEY, true);
-          ɵinstallGuidedResumeWriteBarrier(logServerUrl);
-          return runResumeRecipe({ id }, recipeRuntime);
-        });
-      const recipeId = new URLSearchParams(location.search).get(CRAFT_RESUME_RECIPE_QUERY_PARAM);
+      ɵregisterCraftMcpBridgeMethod(
+        'app/checkpoint/restore',
+        async (params) => {
+          const id = requireId(params);
+          const checkpoint = await fetchCheckpoint(logServerUrl, id);
+          const route =
+            isRecord(checkpoint.snapshot) &&
+            typeof checkpoint.snapshot['route'] === 'string'
+              ? checkpoint.snapshot['route']
+              : '/';
+          const url = new URL(route, location.href);
+          url.searchParams.set(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM, id);
+          setTimeout(() => location.assign(url.href), 50);
+          return {
+            reloading: true,
+            url: url.href,
+            next: 'Call checkpoint.validate once the tab is back.',
+          };
+        },
+      );
+      if (
+        new URLSearchParams(location.search).has(
+          CRAFT_RESUME_CHECKPOINT_QUERY_PARAM,
+        )
+      )
+        return reopenCheckpointFromUrl(
+          logServerUrl,
+          restoreOptions,
+          async (id) => {
+            writeJson(MODE_KEY, true);
+            ɵinstallGuidedResumeWriteBarrier(logServerUrl);
+            return runResumeRecipe({ id }, recipeRuntime);
+          },
+        );
+      const recipeId = new URLSearchParams(location.search).get(
+        CRAFT_RESUME_RECIPE_QUERY_PARAM,
+      );
       if (recipeId) {
         writeJson(MODE_KEY, true);
         setTimeout(() => {
-          void runResumeRecipe({ id: recipeId }, recipeRuntime).catch((error) => {
-            const message = error instanceof Error ? error.message : String(error);
-            document.dispatchEvent(new CustomEvent('craft-resume-recipe-error', { detail: message }));
-            showResumeNotice(`La recette de reprise a échoué : ${message}`);
-          });
+          void runResumeRecipe({ id: recipeId }, recipeRuntime).catch(
+            (error) => {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              document.dispatchEvent(
+                new CustomEvent('craft-resume-recipe-error', {
+                  detail: message,
+                }),
+              );
+              showResumeNotice(`La recette de reprise a échoué : ${message}`);
+            },
+          );
         }, 0);
         const url = new URL(location.href);
         url.searchParams.delete(CRAFT_RESUME_RECIPE_QUERY_PARAM);
-        history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+        history.replaceState(
+          history.state,
+          '',
+          `${url.pathname}${url.search}${url.hash}`,
+        );
         return;
       }
       return launchFromUrl(archives, restoreOptions);
@@ -231,6 +275,11 @@ async function launch(
       url.searchParams.set(BEFORE_PARAM, String(point.beforeSequence));
     if (point.participantId !== undefined)
       url.searchParams.set(PARTICIPANT_PARAM, point.participantId);
+    if (point.requestId !== undefined)
+      url.searchParams.set(
+        CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM,
+        point.requestId,
+      );
   }
   // Answer first: the reload closes the bridge socket.
   setTimeout(() => location.assign(url.href), 50);
@@ -252,10 +301,14 @@ async function launchFromUrl(
   if (!sessionId) return;
   const before = search.get(BEFORE_PARAM);
   const participantId = search.get(PARTICIPANT_PARAM);
+  const requestId = search.get(CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM);
   const point: GuidedResumePoint = {
     sessionId,
-    ...(before !== null && /^\d+$/.test(before) ? { beforeSequence: Number(before) } : {}),
+    ...(before !== null && /^\d+$/.test(before)
+      ? { beforeSequence: Number(before) }
+      : {}),
     ...(participantId ? { participantId } : {}),
+    ...(requestId ? { requestId } : {}),
   };
   try {
     const snapshot = await targetSnapshot(point, archives);
@@ -264,7 +317,11 @@ async function launchFromUrl(
     if (restored === 'reloading') return new Promise<void>(() => undefined);
     writeJson(LAST_LAUNCH_KEY, { ...point, warnings: restored.warnings });
     void restored.inFlight?.then((result) =>
-      writeJson(LAST_LAUNCH_KEY, { ...point, warnings: restored.warnings, inFlight: result }),
+      writeJson(LAST_LAUNCH_KEY, {
+        ...point,
+        warnings: restored.warnings,
+        inFlight: result,
+      }),
     );
   } catch (error) {
     writeJson(LAST_LAUNCH_KEY, {
@@ -273,27 +330,40 @@ async function launchFromUrl(
     });
   }
   const url = new URL(location.href);
-  for (const name of [CRAFT_GUIDED_RESUME_QUERY_PARAM, BEFORE_PARAM, PARTICIPANT_PARAM])
+  for (const name of [
+    CRAFT_GUIDED_RESUME_QUERY_PARAM,
+    BEFORE_PARAM,
+    PARTICIPANT_PARAM,
+  ])
     url.searchParams.delete(name);
-  history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  history.replaceState(
+    history.state,
+    '',
+    `${url.pathname}${url.search}${url.hash}`,
+  );
 }
 
 function requireId(params: Readonly<Record<string, unknown>>): string {
   const id = params['id'];
-  if (typeof id !== 'string' || id.length === 0) throw new Error('id is required.');
+  if (typeof id !== 'string' || id.length === 0)
+    throw new Error('id is required.');
   return id;
 }
 
-function parsePoint(params: Readonly<Record<string, unknown>>): GuidedResumePoint {
+function parsePoint(
+  params: Readonly<Record<string, unknown>>,
+): GuidedResumePoint {
   const sessionId = params['sessionId'];
   if (typeof sessionId !== 'string' || sessionId.length === 0)
     throw new Error('sessionId is required.');
   const before = params['beforeSequence'];
   const participantId = params['participantId'];
+  const requestId = params['requestId'];
   return {
     sessionId,
     ...(typeof before === 'number' ? { beforeSequence: before } : {}),
     ...(typeof participantId === 'string' ? { participantId } : {}),
+    ...(typeof requestId === 'string' ? { requestId } : {}),
   };
 }
 
@@ -301,8 +371,13 @@ async function fetchArchive(
   logServerUrl: string,
   sessionId: string,
 ): Promise<SendContextReplayExport> {
-  const response = await fetch(`${logServerUrl}/sessions/${encodeURIComponent(sessionId)}`);
-  if (!response.ok) throw new Error(`Session ${sessionId} not found (HTTP ${response.status}).`);
+  const response = await fetch(
+    `${logServerUrl}/sessions/${encodeURIComponent(sessionId)}`,
+  );
+  if (!response.ok)
+    throw new Error(
+      `Session ${sessionId} not found (HTTP ${response.status}).`,
+    );
   const validation = validateDebugSessionExport(await response.text());
   if (!validation.ok) throw new Error(validation.error);
   return validation.session;
@@ -334,20 +409,24 @@ export function participantArchive(
     archive.events
       .filter(
         (event) =>
-          point.beforeSequence === undefined || event.sequence < point.beforeSequence,
+          point.beforeSequence === undefined ||
+          event.sequence < point.beforeSequence,
       )
-      .reduce<string | undefined>(
-        (last, event) => event.participantId ?? last,
-        undefined,
-      );
+      .reduce<
+        string | undefined
+      >((last, event) => event.participantId ?? last, undefined);
   const participant = participants.find((item) => item.id === owner);
   if (!participant) return archive;
   const { initialSnapshot: _initialSnapshot, ...base } = archive;
   return {
     ...base,
     startUrl: participant.startUrl,
-    ...(participant.initialSnapshot ? { initialSnapshot: participant.initialSnapshot } : {}),
-    events: archive.events.filter((event) => event.participantId === participant.id),
+    ...(participant.initialSnapshot
+      ? { initialSnapshot: participant.initialSnapshot }
+      : {}),
+    events: archive.events.filter(
+      (event) => event.participantId === participant.id,
+    ),
   };
 }
 
@@ -364,7 +443,11 @@ export function diffWithPoint(
   let equal = 0;
   for (const [address, value] of expected) {
     if (!live.has(address)) {
-      differences.push({ address, status: 'missing', expected: summarize(value) });
+      differences.push({
+        address,
+        status: 'missing',
+        expected: summarize(value),
+      });
       continue;
     }
     const actual = live.get(address);
@@ -396,7 +479,12 @@ export function diffWithPoint(
 
 function liveRoute(): string {
   const url = new URL(location.href);
-  for (const name of [CRAFT_GUIDED_RESUME_QUERY_PARAM, BEFORE_PARAM, PARTICIPANT_PARAM])
+  for (const name of [
+    CRAFT_GUIDED_RESUME_QUERY_PARAM,
+    CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM,
+    BEFORE_PARAM,
+    PARTICIPANT_PARAM,
+  ])
     url.searchParams.delete(name);
   return `${url.pathname}${url.search}${url.hash}`;
 }
@@ -433,7 +521,10 @@ function byOrdinalFreeAddress(
  * stands for any value: the live app has its own ids.
  */
 function equivalent(expected: unknown, actual: unknown): boolean {
-  if (typeof expected === 'string' && expected.startsWith(REFERENCE_PLACEHOLDER))
+  if (
+    typeof expected === 'string' &&
+    expected.startsWith(REFERENCE_PLACEHOLDER)
+  )
     return actual !== undefined;
   if (Array.isArray(expected))
     return (
@@ -531,7 +622,8 @@ function holdsRequest(request: OutgoingRequest, quiet: string): boolean {
   if (request.url.origin === quiet) return false;
   const held =
     request.url.origin !== location.origin && !isLoopback(request.url.hostname);
-  const call = request.header(SERVER_FUNCTION_HEADER) ?? serverFunctionIn(request.body);
+  const call =
+    request.header(SERVER_FUNCTION_HEADER) ?? serverFunctionIn(request.body);
   appendJournal({
     at: new Date().toISOString(),
     method: request.method,
@@ -553,7 +645,9 @@ function serverFunctionIn(body: unknown): string | undefined {
   if (typeof body !== 'string') return undefined;
   try {
     const parsed: unknown = JSON.parse(body);
-    return isRecord(parsed) && typeof parsed['id'] === 'string' && 'input' in parsed
+    return isRecord(parsed) &&
+      typeof parsed['id'] === 'string' &&
+      'input' in parsed
       ? parsed['id']
       : undefined;
   } catch {
@@ -570,13 +664,18 @@ function heldError(method: string, url: URL): TypeError {
 function guardFetch(quiet: string): void {
   const nativeFetch = globalThis.fetch.bind(globalThis);
   globalThis.fetch = (input, init) => {
-    const isRequest = typeof Request !== 'undefined' && input instanceof Request;
-    const method = (init?.method ?? (isRequest ? input.method : 'GET')).toUpperCase();
+    const isRequest =
+      typeof Request !== 'undefined' && input instanceof Request;
+    const method = (
+      init?.method ?? (isRequest ? input.method : 'GET')
+    ).toUpperCase();
     const url = new URL(
       isRequest ? input.url : input instanceof URL ? input.href : String(input),
       location.href,
     );
-    const headers = new Headers(init?.headers ?? (isRequest ? input.headers : undefined));
+    const headers = new Headers(
+      init?.headers ?? (isRequest ? input.headers : undefined),
+    );
     const held = holdsRequest(
       {
         method,
@@ -587,7 +686,9 @@ function guardFetch(quiet: string): void {
       },
       quiet,
     );
-    return held ? Promise.reject(heldError(method, url)) : nativeFetch(input, init);
+    return held
+      ? Promise.reject(heldError(method, url))
+      : nativeFetch(input, init);
   };
 }
 
@@ -611,9 +712,18 @@ function guardXhr(quiet: string): void {
       url: new URL(String(url), location.href),
       headers: new Map(),
     });
-    return (nativeOpen as (...args: unknown[]) => void).call(this, method, url, ...rest);
+    return (nativeOpen as (...args: unknown[]) => void).call(
+      this,
+      method,
+      url,
+      ...rest,
+    );
   } as typeof prototype.open;
-  prototype.setRequestHeader = function (this: XMLHttpRequest, name: string, value: string) {
+  prototype.setRequestHeader = function (
+    this: XMLHttpRequest,
+    name: string,
+    value: string,
+  ) {
     pending.get(this)?.headers.set(name.toLowerCase(), value);
     return nativeSetRequestHeader.call(this, name, value);
   };

@@ -126,7 +126,9 @@ export type ResumeCheckpointSummary = Readonly<{
   recipeId?: string;
 }>;
 
-function isResumeCheckpointSummary(value: unknown): value is ResumeCheckpointSummary {
+function isResumeCheckpointSummary(
+  value: unknown,
+): value is ResumeCheckpointSummary {
   return (
     isRecord(value) &&
     typeof value['id'] === 'string' &&
@@ -134,7 +136,8 @@ function isResumeCheckpointSummary(value: unknown): value is ResumeCheckpointSum
     typeof value['expired'] === 'boolean' &&
     typeof value['expiresAt'] === 'string' &&
     typeof value['ttlReason'] === 'string' &&
-    (value['beforeSequence'] === undefined || typeof value['beforeSequence'] === 'number') &&
+    (value['beforeSequence'] === undefined ||
+      typeof value['beforeSequence'] === 'number') &&
     (value['route'] === undefined || typeof value['route'] === 'string')
   );
 }
@@ -159,19 +162,40 @@ export type ResumeRecipeSummary = Readonly<{
   runs: readonly Readonly<{
     id: string;
     startedAt: string;
-    status: 'running' | 'waiting-human' | 'waiting-ai' | 'completed' | 'failed' | 'cancelled';
+    status:
+      | 'running'
+      | 'waiting-human'
+      | 'waiting-ai'
+      | 'completed'
+      | 'failed'
+      | 'cancelled';
     currentStep?: number;
     supervised: boolean;
   }>[];
 }>;
 
 function isResumeRecipeSummary(value: unknown): value is ResumeRecipeSummary {
-  return isRecord(value) && typeof value['id'] === 'string' && typeof value['sessionId'] === 'string' &&
-    typeof value['origin'] === 'string' && typeof value['updatedAt'] === 'string' &&
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    typeof value['sessionId'] === 'string' &&
+    typeof value['origin'] === 'string' &&
+    typeof value['updatedAt'] === 'string' &&
     (value['strategy'] === 'autonomous' || value['strategy'] === 'existing') &&
-    isRecord(value['objective']) && typeof value['objective']['goal'] === 'string' &&
-    Array.isArray(value['runs']) && value['runs'].every((run) => isRecord(run) && typeof run['id'] === 'string' && typeof run['startedAt'] === 'string' && typeof run['status'] === 'string' && typeof run['supervised'] === 'boolean') &&
-    (value['beforeSequence'] === undefined || typeof value['beforeSequence'] === 'number');
+    isRecord(value['objective']) &&
+    typeof value['objective']['goal'] === 'string' &&
+    Array.isArray(value['runs']) &&
+    value['runs'].every(
+      (run) =>
+        isRecord(run) &&
+        typeof run['id'] === 'string' &&
+        typeof run['startedAt'] === 'string' &&
+        typeof run['status'] === 'string' &&
+        typeof run['supervised'] === 'boolean',
+    ) &&
+    (value['beforeSequence'] === undefined ||
+      typeof value['beforeSequence'] === 'number')
+  );
 }
 
 const recipeListDecoder = {
@@ -181,7 +205,13 @@ const recipeListDecoder = {
   },
 };
 
-export type ResumeNotice = Readonly<{ sessionId: string; prompt: string }>;
+export type ResumeNotice = Readonly<{
+  sessionId: string;
+  requestId: string;
+  prompt: string;
+  appUrl: string;
+  appTabOpened: boolean;
+}>;
 
 /** Why a request to the archive failed, in a few words. */
 export function httpFailureReason(exception: unknown): string {
@@ -240,13 +270,14 @@ export const { SessionArchive } = craftService(
     });
 
     // "Reprendre ici": the archive keeps the point for the AI's
-    // `resume.request` tool, so the person only has to say "reprends".
+    // `resume.request` tool, bound to the id copied into the prompt.
     const resumeRequest = yield* mutation('resumeRequest', {
-      method: (point: ResumePoint) => point,
-      loader: function* ({ params: point }) {
+      method: (input: Readonly<{ point: ResumePoint; requestId: string }>) =>
+        input,
+      loader: function* ({ params: input }) {
         return yield* CraftHttpClient.post(({ response }) => ({
           url: `${SESSION_ARCHIVE_URL}/sessions/resume-requests`,
-          payload: point,
+          payload: { ...input.point, id: input.requestId },
           success: response(resumeRequestDecoder),
         }));
       },
@@ -367,12 +398,30 @@ export const { SessionArchive } = craftService(
         dismiss: () => set(undefined),
       }),
     );
-    yield* craftExpose('requestResume', function* (point: ResumePoint, prompt: string) {
-      resumeNotice.dismiss();
-      yield* resumeRequest.mutate(point);
-      if (!(yield* resumeRequest.hasException()))
-        resumeNotice.show({ sessionId: point.sessionId, prompt });
-    });
+    yield* craftExpose(
+      'requestResume',
+      function* (
+        point: ResumePoint,
+        requestId: string,
+        prompt: string,
+        appUrl: string,
+        appTabOpened: boolean,
+      ) {
+        resumeNotice.dismiss();
+        yield* resumeRequest.mutate({ point, requestId });
+        const sent = !(yield* resumeRequest.hasException());
+        if (sent) {
+          resumeNotice.show({
+            sessionId: point.sessionId,
+            requestId,
+            prompt,
+            appUrl,
+            appTabOpened,
+          });
+        }
+        return sent;
+      },
+    );
     yield* craftExpose('pruneExpired', function* () {
       yield* pruneSessions.mutate(true);
     });

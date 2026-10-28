@@ -14,11 +14,10 @@ import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { DocTooltip } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import { goToHash, requestFrameFullscreen } from './replay-browser';
+import { goToHash, newUuid, requestFrameFullscreen } from './replay-browser';
 import {
   launchDebugAppAtReplay,
-  openResumeCheckpoint,
-  openResumeRecipe,
+  launchGuidedResumeTab,
   replayPoint,
 } from './replay-debug';
 import { sessionDate } from './replay-labels';
@@ -47,6 +46,7 @@ import {
   targetUrl,
 } from './replay-state';
 import { copyResumePrompt, resumePrompt } from './resume-prompt';
+import { ResumeThread } from './resume-thread.service';
 import {
   SessionArchive,
   type ResumeCheckpointSummary,
@@ -79,15 +79,18 @@ function readyRecipeFor(
 ): ResumeRecipeSummary | undefined {
   const parsed = parseLocalTarget(target.trim());
   if (!parsed.ok || !sessionId) return undefined;
-  return recipes.find((recipe) =>
-    recipe.sessionId === sessionId && recipe.origin === parsed.url.origin &&
-    recipe.beforeSequence === beforeSequence,
+  return recipes.find(
+    (recipe) =>
+      recipe.sessionId === sessionId &&
+      recipe.origin === parsed.url.origin &&
+      recipe.beforeSequence === beforeSequence,
   );
 }
 
 /** The head of the replay page: the way back, which session, and the tools. */
 export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
   const archive = yield* SessionArchive();
+  const resumeThread = yield* ResumeThread();
   const savedSessions = rawReactiveValue(archive.savedSessions);
   const sessionTitle = () => {
     const selected = savedSessions().find(
@@ -142,9 +145,8 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     'notesHidden',
     () => replayWarnings().length === 0,
   );
-  const hasReplayErrorNote = yield* craftComputed(
-    'hasReplayErrorNote',
-    () => replayWarnings().some(isReplayErrorNote),
+  const hasReplayErrorNote = yield* craftComputed('hasReplayErrorNote', () =>
+    replayWarnings().some(isReplayErrorNote),
   );
   const warningCount = yield* craftComputed('warningCount', () =>
     String(replayWarnings().length),
@@ -245,29 +247,31 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     ),
   );
   const readyRecipe = yield* craftComputed('readyRecipe', () =>
-    readyRecipeFor(resumeRecipes(), routeSessionId(), targetUrl(), replayPoint().beforeSequence),
+    readyRecipeFor(
+      resumeRecipes(),
+      routeSessionId(),
+      targetUrl(),
+      replayPoint().beforeSequence,
+    ),
   );
   const resumeDisabled = yield* craftComputed(
     'resumeDisabled',
     () => activeRouteSessionId() === undefined || resumeRequestSending(),
   );
-  const resumeTooltip = yield* craftComputed(
-    'resumeTooltip',
-    function* () {
-      if (yield* resumeDisabled()) {
-        return resumeRequestSending()
-          ? 'Une demande de reprise est déjà en cours d’envoi.'
-          : 'Le dashboard n’identifie pas la session ouverte. Revenez à la liste des sessions et rouvrez-la.';
-      }
-      const ready = yield* readyCheckpoint();
-      if (ready)
-        return `Rouvre le point de reprise enregistré (valide jusqu’au ${new Date(ready.expiresAt).toLocaleString('fr-FR')} : ${ready.ttlReason}).`;
-      const recipe = yield* readyRecipe();
-      return recipe
-        ? `Exécute la recette « ${recipe.objective.goal} » dans l’application.`
-        : 'Publie ce point pour l’IA (outil resume.request) et copie l’invite à lui donner.';
-    },
-  );
+  const resumeTooltip = yield* craftComputed('resumeTooltip', function* () {
+    if (yield* resumeDisabled()) {
+      return resumeRequestSending()
+        ? 'Une demande de reprise est déjà en cours d’envoi.'
+        : 'Le dashboard n’identifie pas la session ouverte. Revenez à la liste des sessions et rouvrez-la.';
+    }
+    const ready = yield* readyCheckpoint();
+    if (ready)
+      return `Un point de reprise est disponible jusqu’au ${new Date(ready.expiresAt).toLocaleString('fr-FR')} (${ready.ttlReason}). L’agent le choisira après avoir confirmé ton objectif.`;
+    const recipe = yield* readyRecipe();
+    return recipe
+      ? `La recette « ${recipe.objective.goal} » est disponible. L’agent la choisira après avoir confirmé ton objectif.`
+      : 'Ouvre un onglet d’application dédié, publie ce point et copie le prompt à coller dans la conversation de l’agent.';
+  });
   const resume = button(
     'resumeHere',
     {
@@ -281,24 +285,32 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       'aria-describedby': 'resume-here-tip',
       disabled: resumeDisabled,
       click: function* () {
-        const ready = yield* readyCheckpoint();
-        if (ready) {
-          openResumeCheckpoint(ready);
-          return;
-        }
         const sessionId = routeSessionId();
         if (sessionId === undefined) return;
         const point = replayPoint();
-        const recipe = yield* readyRecipe();
-        if (recipe) {
-          const target = parseLocalTarget(targetUrl().trim());
-          const route = target.ok ? `${target.url.pathname}${target.url.search}${target.url.hash}` : '/';
-          openResumeRecipe(recipe, route);
-          return;
-        }
-        const prompt = resumePrompt(sessionId, point.beforeSequence);
+        const requestId = newUuid();
+        const appTab = launchGuidedResumeTab(
+          point.beforeSequence,
+          point.participantId,
+          requestId,
+        );
+        const prompt = resumePrompt({
+          sessionId,
+          beforeSequence: point.beforeSequence,
+          participantId: point.participantId,
+          requestId,
+          appUrl: appTab.url,
+        });
         copyResumePrompt(prompt);
-        yield* archive.requestResume({ sessionId, ...point }, prompt);
+        const sent = yield* archive.requestResume(
+          { sessionId, ...point },
+          requestId,
+          prompt,
+          appTab.url,
+          appTab.opened,
+        );
+        if (!sent) appTab.tab?.close();
+        else resumeThread.watchRequest(requestId);
       },
     },
     yield* craftComputed('resumeLabel', function* () {
@@ -307,9 +319,9 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       return resumeRequestFailed()
         ? 'Reprise : archive injoignable'
         : ready
-          ? 'Reprendre ici · point prêt'
+          ? 'Reprendre ici · point disponible'
           : recipe
-            ? 'Reprendre ici · recette prête'
+            ? 'Reprendre ici · recette disponible'
             : 'Reprendre ici';
     }),
   );

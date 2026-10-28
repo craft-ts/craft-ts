@@ -62,6 +62,19 @@ describe('guided resume', () => {
     });
   });
 
+  it('ignores the dashboard request marker when comparing the recorded route', () => {
+    history.replaceState(
+      null,
+      '',
+      '/admin?craft-resume-request=00000000-0000-4000-8000-000000000006&craft-resume=session',
+    );
+    const diff = diffWithPoint(snapshot('/admin', {}), {
+      registry: registry({}),
+    } as never);
+
+    expect(diff).toMatchObject({ route: { expected: '/admin', actual: '/admin', equal: true } });
+  });
+
   it('follows the tab that acted last before the point', () => {
     const event = (sequence: number, participantId: string): SendContextEvent => ({
       id: `e${sequence}`,

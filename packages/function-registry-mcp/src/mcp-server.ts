@@ -159,8 +159,19 @@ function registerGuidedResumeTools(
       .int()
       .nonnegative()
       .optional()
-      .describe('The point is just before this event; the end of the session when omitted'),
-    participantId: z.string().min(1).optional().describe('The recorded tab to follow'),
+      .describe(
+        'The point is just before this event; the end of the session when omitted',
+      ),
+    participantId: z
+      .string()
+      .min(1)
+      .optional()
+      .describe('The recorded tab to follow'),
+    requestId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe('Keep this launch attached to the dashboard request and tab'),
     timeoutMs: z.number().int().positive().max(120_000).optional(),
   };
   registerTool(
@@ -197,7 +208,11 @@ function registerGuidedResumeTools(
   const condition = z.union([
     z.object({
       address: z.string().min(1).describe('Primitive address, ordinal-free'),
-      path: z.string().min(1).optional().describe('Dot path in the value, e.g. user.role'),
+      path: z
+        .string()
+        .min(1)
+        .optional()
+        .describe('Dot path in the value, e.g. user.role'),
       equals: z.unknown().optional(),
       notEquals: z.unknown().optional(),
       exists: z.boolean().optional(),
@@ -209,7 +224,9 @@ function registerGuidedResumeTools(
       unmasked: z
         .boolean()
         .optional()
-        .describe('true: a real value, not a recording mask ([REDACTED], craft-ref:…); see session.prerequisites signedInWhen'),
+        .describe(
+          'true: a real value, not a recording mask ([REDACTED], craft-ref:…); see session.prerequisites signedInWhen',
+        ),
     }),
     z.object({ route: z.string().min(1).describe('Route prefix to reach') }),
   ]);
@@ -221,9 +238,18 @@ function registerGuidedResumeTools(
       inputSchema: {
         clientId: z.string().min(1).optional(),
         message: z.string().min(1).max(500),
-        field: z.string().min(1).optional().describe('Control id to highlight (page controls)'),
+        field: z
+          .string()
+          .min(1)
+          .optional()
+          .describe('Control id to highlight (page controls)'),
         until: condition.optional(),
-        timeoutMs: z.number().int().positive().max(15 * 60_000).optional(),
+        timeoutMs: z
+          .number()
+          .int()
+          .positive()
+          .max(15 * 60_000)
+          .optional(),
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
@@ -247,12 +273,18 @@ function registerGuidedResumeTools(
 
 const probe = z.object({
   method: z.string().min(1).optional(),
-  url: z.string().min(1).describe('Same-origin path; may use {{state <address> <path>}}'),
+  url: z
+    .string()
+    .min(1)
+    .describe('Same-origin path; may use {{state <address> <path>}}'),
   headers: z.record(z.string(), z.string()).optional(),
   body: z.unknown().optional(),
   expect: z.object({
     status: z.number().int().optional(),
-    match: z.array(z.string()).optional().describe('Substrings the answer must contain'),
+    match: z
+      .array(z.string())
+      .optional()
+      .describe('Substrings the answer must contain'),
   }),
 });
 
@@ -267,11 +299,16 @@ function registerCheckpointTools(
 ): void {
   const http = options.fetch ?? fetch;
   const base = () =>
-    (options.logServerUrl ?? process.env['LOG_SERVER_URL'] ?? 'http://127.0.0.1:4319').replace(/\/$/, '');
+    (
+      options.logServerUrl ??
+      process.env['LOG_SERVER_URL'] ??
+      'http://127.0.0.1:4319'
+    ).replace(/\/$/, '');
   const json = async (path: string, init?: RequestInit) => {
     const response = await http(`${base()}${path}`, init);
     const body = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) throw new Error(String(body['error'] ?? `HTTP ${response.status}`));
+    if (!response.ok)
+      throw new Error(String(body['error'] ?? `HTTP ${response.status}`));
     return body;
   };
   const clientId = z.string().min(1).optional();
@@ -280,15 +317,23 @@ function registerCheckpointTools(
     'resume.doctor',
     {
       description:
-        'Check in one call everything a guided resume needs: the log server, the resume request, the bridge (held here or relayed to another session), exactly one app tab on it, the guided resume installed in that tab. Each failed check says what to do: repair it or ask the person in one sentence. Call it before app.launch, and again after fixing something.',
+        'Check in one call everything a guided resume needs. Pass requestId from the dashboard prompt to select its dedicated app tab even when other tabs are open. Each failed check says what to do. Call it before app.launch, and again after fixing something.',
+      inputSchema: {
+        requestId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe('The exact dashboard request to resume'),
+      },
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
-    async () =>
+    async ({ requestId }) =>
       toolResult(
         await diagnoseGuidedResume({
           request: (method, params) => bridge.request(method, params),
           fetch: http,
           logServerUrl: base(),
+          ...(requestId ? { requestId } : {}),
           ...(options.bridge ? { bridge: options.bridge } : {}),
         }),
       ),
@@ -309,13 +354,29 @@ function registerCheckpointTools(
           .min(1)
           .max(500)
           .optional()
-          .describe('What the person wants to observe from this point, as they said it'),
-        recipeId: z.string().uuid().optional().describe('Recipe that produced this checkpoint'),
-        ttlMs: z.number().int().min(60_000).max(30 * 24 * 60 * 60_000),
+          .describe(
+            'What the person wants to observe from this point, as they said it',
+          ),
+        recipeId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe('Recipe that produced this checkpoint'),
+        ttlMs: z
+          .number()
+          .int()
+          .min(60_000)
+          .max(30 * 24 * 60 * 60_000),
         ttlReason: z.string().min(1).max(300),
         probes: z.array(probe).max(20).optional(),
         created: z
-          .array(z.object({ kind: z.string().min(1), id: z.string().min(1), cleanup: probe.optional() }))
+          .array(
+            z.object({
+              kind: z.string().min(1),
+              id: z.string().min(1),
+              cleanup: probe.optional(),
+            }),
+          )
           .max(50)
           .optional(),
         deviations: z.array(z.string().min(1).max(300)).max(30).optional(),
@@ -354,9 +415,13 @@ function registerCheckpointTools(
     async ({ sessionId, beforeSequence }) => {
       const query = new URLSearchParams({
         ...(sessionId === undefined ? {} : { sessionId }),
-        ...(beforeSequence === undefined ? {} : { beforeSequence: String(beforeSequence) }),
+        ...(beforeSequence === undefined
+          ? {}
+          : { beforeSequence: String(beforeSequence) }),
       });
-      const listed = await json(`/sessions/checkpoints${query.size ? `?${query}` : ''}`);
+      const listed = await json(
+        `/sessions/checkpoints${query.size ? `?${query}` : ''}`,
+      );
       return toolResult(listed['checkpoints']);
     },
   );
@@ -367,7 +432,11 @@ function registerCheckpointTools(
     'checkpoint.restore',
     'app/checkpoint/restore',
     'Reload the connected tab on a resume point (state and origin storage). Then call checkpoint.validate.',
-    { clientId, id: z.string().uuid(), timeoutMs: z.number().int().positive().max(120_000).optional() },
+    {
+      clientId,
+      id: z.string().uuid(),
+      timeoutMs: z.number().int().positive().max(120_000).optional(),
+    },
     true,
   );
   registerTool(
@@ -376,7 +445,11 @@ function registerCheckpointTools(
     'checkpoint.validate',
     'app/checkpoint/validate',
     'Check a resume point from the connected tab: not expired, same origin, and every probe answers as expected. A failing probe tells what to repair, starting from the point.',
-    { clientId, id: z.string().uuid(), timeoutMs: z.number().int().positive().max(120_000).optional() },
+    {
+      clientId,
+      id: z.string().uuid(),
+      timeoutMs: z.number().int().positive().max(120_000).optional(),
+    },
   );
 
   server.registerTool(
@@ -384,7 +457,11 @@ function registerCheckpointTools(
     {
       description:
         'Delete what the resume created (the cleanup request of each created entity, sent from the connected tab), then forget the point unless keep is true.',
-      inputSchema: { clientId, id: z.string().uuid(), keep: z.boolean().optional() },
+      inputSchema: {
+        clientId,
+        id: z.string().uuid(),
+        keep: z.boolean().optional(),
+      },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
     async ({ clientId: target, id, keep }) => {
@@ -394,7 +471,9 @@ function registerCheckpointTools(
       })) as readonly { ok: boolean }[];
       const forget = keep !== true && cleaned.every((result) => result.ok);
       if (forget)
-        await json(`/sessions/checkpoints/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await json(`/sessions/checkpoints/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        });
       return toolResult({ cleaned, forgotten: forget });
     },
   );
@@ -407,64 +486,257 @@ function registerRecipeTools(
 ): void {
   const http = options.fetch ?? fetch;
   const base = () =>
-    (options.logServerUrl ?? process.env['LOG_SERVER_URL'] ?? 'http://127.0.0.1:4319').replace(/\/$/, '');
+    (
+      options.logServerUrl ??
+      process.env['LOG_SERVER_URL'] ??
+      'http://127.0.0.1:4319'
+    ).replace(/\/$/, '');
   const json = async (path: string, init?: RequestInit) => {
     const response = await http(`${base()}${path}`, init);
     const body = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) throw new Error(String(body['error'] ?? `HTTP ${response.status}`));
+    if (!response.ok)
+      throw new Error(String(body['error'] ?? `HTTP ${response.status}`));
     return body;
   };
   const clientId = z.string().min(1).optional();
-  const step = z.record(z.string(), z.unknown()).describe('One typed recipe step; secrets belong in handoff steps, never in fields.');
-  const call = z.record(z.string(), z.unknown()).describe('A Craft method address and its arguments.');
+  const timeoutMs = z.number().int().positive().optional();
+  const condition = z.union([
+    z.object({
+      route: z.string().min(1).describe('Route prefix that must be active.'),
+    }),
+    z.object({
+      address: z.string().min(1).describe('Ordinal-free Craft state address.'),
+      path: z.string().min(1).optional().describe('Dot path in that state.'),
+      equals: z.unknown().optional(),
+      notEquals: z.unknown().optional(),
+      exists: z.boolean().optional(),
+      matches: z.string().optional(),
+      unmasked: z
+        .boolean()
+        .optional()
+        .describe('True when a redacted token has been replaced by a live value.'),
+    }),
+  ]);
+  const recipeCall = z.object({
+    address: z.string().min(1).describe('Craft method or server function.'),
+    args: z.array(z.unknown()).optional(),
+    input: z.unknown().optional(),
+    endpoint: z.string().optional(),
+    serverFunction: z.boolean().optional(),
+  });
+  const pageMatch = z
+    .object({
+      index: z.number().int().nonnegative().optional(),
+      track: z.string().min(1).optional(),
+    })
+    .optional();
+  const pageAction = z.union([
+    z.object({ goto: z.string().min(1) }),
+    z.object({ id: z.string().min(1), fill: z.unknown(), match: pageMatch }),
+    z.object({ id: z.string().min(1), press: z.string(), match: pageMatch }),
+    z.object({ id: z.string().min(1), match: pageMatch }),
+  ]);
+  const conditionRemedy = z.union([
+    z.record(z.string(), z.unknown()),
+    z.array(z.record(z.string(), z.unknown())),
+  ]).optional();
+  const probe = z.object({
+    method: z.string().optional(),
+    url: z.string().min(1),
+    headers: z.record(z.string(), z.string()).optional(),
+    body: z.unknown().optional(),
+    expect: z.object({
+      status: z.number().int().optional(),
+      match: z.array(z.string()).optional(),
+    }),
+  });
+  const step = z.discriminatedUnion('type', [
+    z.object({
+      type: z.literal('handoff'),
+      message: z.string().min(1),
+      field: z.string().optional(),
+      until: condition.optional(),
+      reuseMs: z.number().int().positive().optional(),
+      timeoutMs,
+    }),
+    z.object({
+      type: z.literal('goto'),
+      route: z.string().min(1),
+      timeoutMs,
+    }),
+    z.object({
+      type: z.literal('create'),
+      address: z.string().min(1),
+      function: z.string().min(1).optional(),
+      serverFunction: z.boolean().optional(),
+      input: z.unknown().optional(),
+      args: z.array(z.unknown()).optional(),
+      as: z.string().optional(),
+      resultPath: z.string().optional(),
+      cleanup: recipeCall.optional(),
+      waitFor: condition.optional(),
+      timeoutMs,
+    }),
+    z.object({
+      type: z.literal('ensure'),
+      condition,
+      remedy: conditionRemedy,
+      timeoutMs,
+    }),
+    z.object({
+      type: z.literal('invoke'),
+      address: z.string().min(1),
+      args: z.array(z.unknown()).optional(),
+      as: z.string().optional(),
+      waitFor: condition.optional(),
+      timeoutMs,
+    }),
+    z.object({
+      type: z.literal('act'),
+      action: pageAction,
+      waitFor: condition.optional(),
+      timeoutMs,
+    }),
+    z.object({
+      type: z.literal('expect'),
+      level: z.enum(['essential', 'accessory']),
+      condition,
+      remedy: conditionRemedy,
+      timeoutMs,
+    }),
+    z.object({
+      type: z.literal('checkpoint'),
+      ttlMs: z.number().int().positive().optional(),
+      ttlReason: z.string().optional(),
+      probes: z.array(probe).optional(),
+    }),
+  ]).describe(
+    'Use typed steps: prepare with goto/create, pause with handoff until live state holds, continue with act/invoke, verify with expect, and end with checkpoint. Never put credentials in a step.',
+  );
 
   server.registerTool(
     'recipe.save',
     {
-      description: 'Save or revise a guided-resume recipe in the local log server. Save objective interview answers, autonomous preparation by default, expectations, remedies, human handoffs, and reverse-order cleanup. Never include secrets; route credentials through handoff.',
+      description:
+        'Save or revise a guided-resume recipe in the local log server. Build steps with the typed step schema: goto/create, human handoff until a live condition, act/invoke, expect, checkpoint. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
       inputSchema: {
         id: z.string().uuid().optional(),
         sessionId: z.string().uuid(),
         beforeSequence: z.number().int().nonnegative().optional(),
         origin: z.string().url(),
-        objective: z.object({ goal: z.string().min(1).max(500), exact: z.array(z.string()), approximate: z.array(z.string()), mayWrite: z.boolean() }),
-        strategy: z.enum(['autonomous', 'existing']),
+        objective: z.object({
+          goal: z.string().min(1).max(500),
+          exact: z.array(z.string()).default([]),
+          approximate: z.array(z.string()).default([]),
+          mayWrite: z.boolean().default(false),
+        }),
+        strategy: z.enum(['autonomous', 'existing']).default('autonomous'),
         steps: z.array(step).min(1).max(200),
-        cleanup: z.array(call).max(200),
-        revisions: z.array(z.object({ at: z.string(), by: z.enum(['ai', 'person']), reason: z.string() })),
+        cleanup: z.array(recipeCall).max(200).default([]),
+        revisions: z.array(
+          z.object({
+            at: z.string(),
+            by: z.enum(['ai', 'person']),
+            reason: z.string(),
+          }),
+        ).default([]),
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    async (params) => toolResult((await json('/sessions/recipes', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(params),
-    }))['recipe']),
+    async (params) =>
+      toolResult(
+        (
+          await json('/sessions/recipes', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(params),
+          })
+        )['recipe'],
+      ),
   );
 
-  registerTool(server, bridge, 'recipe.run', 'app/recipe/run',
-    'Execute a stored recipe in the connected tab. The tab runs each step until its condition, records progress in the dashboard thread, and performs cleanup on failure. Set supervised to stop after each step and return control to the AI.',
-    { clientId, id: z.string().uuid(), runId: z.string().uuid().optional(), supervised: z.boolean().optional(), timeoutMs: z.number().int().positive().max(120_000).optional() }, true);
+  server.registerTool(
+    'recipe.run',
+    {
+      description:
+        'Execute a stored recipe in the connected tab. The tab runs each step until its condition, records progress in the dashboard thread, and performs cleanup on failure. Human hand-offs wait up to five minutes by default; the tool call allows up to fifteen minutes for the person to finish. Set supervised to stop after each step and return control to the AI.',
+      inputSchema: {
+        clientId,
+        id: z.string().uuid(),
+        runId: z.string().uuid().optional(),
+        supervised: z.boolean().optional(),
+        timeoutMs: z
+          .number()
+          .int()
+          .positive()
+          .max(15 * 60_000)
+          .optional()
+          .describe(
+            'Maximum time to wait for this recipe run; defaults to 15 minutes to allow human hand-offs.',
+          ),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true },
+    },
+    async ({ clientId: target, id, runId, supervised, timeoutMs }) =>
+      toolResult(
+        await bridge.request('app/recipe/run', {
+          ...(target === undefined ? {} : { clientId: target }),
+          id,
+          ...(runId === undefined ? {} : { runId }),
+          ...(supervised === undefined ? {} : { supervised }),
+          timeoutMs: timeoutMs ?? 15 * 60_000,
+        }),
+      ),
+  );
 
   server.registerTool(
     'recipe.repair',
     {
-      description: 'Replace a recipe from the failed step onward, record the reason in revisions, persist the recipe, and update the connected tab runner.',
-      inputSchema: { clientId, id: z.string().uuid(), runId: z.string().uuid().optional(), fromStep: z.number().int().nonnegative(), steps: z.array(step).min(1).max(200), reason: z.string().min(1).max(500) },
+      description:
+        'Replace a recipe from the failed step onward, record the reason in revisions, persist the recipe, and update the connected tab runner.',
+      inputSchema: {
+        clientId,
+        id: z.string().uuid(),
+        runId: z.string().uuid().optional(),
+        fromStep: z.number().int().nonnegative(),
+        steps: z.array(step).min(1).max(200),
+        reason: z.string().min(1).max(500),
+      },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async ({ clientId: target, id, runId, fromStep, steps, reason }) => {
       const loaded = await json(`/sessions/recipes/${encodeURIComponent(id)}`);
       const recipe = loaded['recipe'] as Record<string, unknown> | undefined;
       const previousSteps = recipe?.['steps'];
-      if (!recipe || !Array.isArray(previousSteps) || fromStep > previousSteps.length)
+      if (
+        !recipe ||
+        !Array.isArray(previousSteps) ||
+        fromStep > previousSteps.length
+      )
         throw new Error('Recipe or failed step not found.');
-      const revisions = Array.isArray(recipe['revisions']) ? recipe['revisions'] as unknown[] : [];
+      const revisions = Array.isArray(recipe['revisions'])
+        ? (recipe['revisions'] as unknown[])
+        : [];
       const repaired = await json('/sessions/recipes', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...recipe, steps: [...previousSteps.slice(0, fromStep), ...steps], revisions: [...revisions, { at: new Date().toISOString(), by: 'ai', reason }] }),
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ...recipe,
+          steps: [...previousSteps.slice(0, fromStep), ...steps],
+          revisions: [
+            ...revisions,
+            { at: new Date().toISOString(), by: 'ai', reason },
+          ],
+        }),
       });
-      const applied = await bridge.request('app/recipe/repair', { ...(target === undefined ? {} : { clientId: target }), id, ...(runId === undefined ? {} : { runId }), fromStep, steps, reason });
+      const applied = await bridge.request('app/recipe/repair', {
+        ...(target === undefined ? {} : { clientId: target }),
+        id,
+        ...(runId === undefined ? {} : { runId }),
+        fromStep,
+        steps,
+        reason,
+      });
       return toolResult({ recipe: repaired['recipe'], applied });
     },
   );

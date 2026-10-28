@@ -17,6 +17,7 @@ import { DocCallout } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { copyResumePrompt } from './resume-prompt';
+import { openLinkedTab } from './replay-browser';
 import { SessionArchive } from './session-archive.service';
 import {
   forceReplayRecovery,
@@ -73,7 +74,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       'data-lab': 'diff',
       role: 'region',
       'aria-label': 'Décalage du replay',
-      hidden: yield* craftComputed('hiddenSrcReplayNotices', () => !hasDifference()),
+      hidden: yield* craftComputed(
+        'hiddenSrcReplayNotices',
+        () => !hasDifference(),
+      ),
     },
     [
       p(
@@ -124,7 +128,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             class: buttonUi.root,
             'data-variant': 'secondary',
             'data-lab': 'force-recovery',
-            hidden: yield* craftComputed('hiddenSrcReplayNotices4', () => !canForceRecovery()),
+            hidden: yield* craftComputed(
+              'hiddenSrcReplayNotices4',
+              () => !canForceRecovery(),
+            ),
             click: forceReplayRecovery,
           },
           'Forcer l’état attendu',
@@ -155,7 +162,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     {
       class: ui.gap,
       'data-lab': 'difference-history',
-      hidden: yield* craftComputed('hiddenSrcReplayNotices7', () => !differenceHistoryOpen()),
+      hidden: yield* craftComputed(
+        'hiddenSrcReplayNotices7',
+        () => !differenceHistoryOpen(),
+      ),
     },
     [
       p(
@@ -171,7 +181,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'secondary',
-          hidden: yield* craftComputed('hiddenSrcReplayNotices8', () => !autoSkipDifferences()),
+          hidden: yield* craftComputed(
+            'hiddenSrcReplayNotices8',
+            () => !autoSkipDifferences(),
+          ),
           click: () => rememberAutoSkipDifferences(false),
         },
         'Désactiver le passage automatique',
@@ -258,6 +271,22 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     'resumePromptText',
     () => resumeNotice()?.prompt ?? '',
   );
+  const resumeHandoffText = yield* craftComputed(
+    'resumeHandoffText',
+    () =>
+      resumeNotice()?.appTabOpened
+        ? 'Le replay reste ouvert ici ; un onglet dédié à la reprise vient de s’ouvrir. Colle la phrase dans la conversation de ton agent. Réponds à ses questions dans cette conversation.'
+        : 'Le replay reste ouvert ici. Le navigateur a bloqué l’onglet dédié : ouvre-le avec le bouton ci-dessous, puis colle la phrase dans la conversation de ton agent. Réponds à ses questions dans cette conversation.',
+  );
+  const resumeRequestIdText = yield* craftComputed(
+    'resumeRequestIdText',
+    () =>
+      `Demande ${resumeNotice()?.requestId ?? ''} · le point est figé pour cet événement.`,
+  );
+  const resumeAppUrlMissing = yield* craftComputed(
+    'resumeAppUrlMissing',
+    () => !resumeNotice()?.appUrl,
+  );
   const resumed = div(
     {
       class: ui.gap,
@@ -272,10 +301,12 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
         tone: lit('tip'),
         caption: lit('Reprise demandée'),
         body: content(() => [
-          p(
-            'Le point publié est la position actuelle du replay : avance-le jusqu’au moment voulu avant de cliquer. Colle cette phrase dans ton hôte IA (Claude Code, Codex…) connecté aux MCP de reprise, puis suis la reprise dans Journal › Reprise :',
+          p(resumeHandoffText),
+          p({ 'aria-live': 'polite' }, resumeRequestIdText),
+          pre(
+            { class: ui.code, 'data-lab': 'resume-prompt' },
+            resumePromptText,
           ),
-          pre({ class: ui.code, 'data-lab': 'resume-prompt' }, resumePromptText),
           div({ class: ui.gapActions }, [
             button(
               'copyResumePromptAgain',
@@ -285,7 +316,21 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
                 'data-variant': 'primary',
                 click: () => copyResumePrompt(resumeNotice()?.prompt ?? ''),
               },
-              'Copier la phrase',
+              'Copier le prompt',
+            ),
+            button(
+              'openResumeAppTab',
+              {
+                type: 'button',
+                class: buttonUi.root,
+                'data-variant': 'secondary',
+                hidden: resumeAppUrlMissing,
+                click: () => {
+                  const href = resumeNotice()?.appUrl;
+                  if (href) openLinkedTab(href);
+                },
+              },
+              'Ouvrir l’onglet de reprise',
             ),
             button(
               'dismissResumeNotice',
@@ -401,7 +446,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       'data-lab': 'warning-history',
       role: 'region',
       'aria-label': 'Toutes les notes du replay',
-      hidden: yield* craftComputed('hiddenSrcReplayNotices13', () => !warningHistoryOpen()),
+      hidden: yield* craftComputed(
+        'hiddenSrcReplayNotices13',
+        () => !warningHistoryOpen(),
+      ),
     },
     [
       p(

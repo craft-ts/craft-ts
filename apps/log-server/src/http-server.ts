@@ -141,14 +141,18 @@ export function createLogHttpServer(options: LogHttpServerOptions): Server {
 async function handleRequest(
   request: IncomingMessage,
   response: ServerResponse,
-  options: LogHttpServerOptions & { readonly resumeRequests: ResumeRequestBoard },
+  options: LogHttpServerOptions & {
+    readonly resumeRequests: ResumeRequestBoard;
+  },
   maxBodySize: number,
   allowedOrigins: ReadonlySet<string>,
 ): Promise<void> {
   const url = new URL(request.url ?? '/', 'http://localhost');
   const isSessionRoute =
     url.pathname === '/sessions' || url.pathname.startsWith('/sessions/');
-  const isE2eSessionRoute = url.pathname === '/e2e-sessions' || url.pathname.startsWith('/e2e-sessions/');
+  const isE2eSessionRoute =
+    url.pathname === '/e2e-sessions' ||
+    url.pathname.startsWith('/e2e-sessions/');
 
   const isLogsRoute = url.pathname === '/logs';
   if (
@@ -183,7 +187,12 @@ async function handleRequest(
   }
 
   if (request.method === 'GET' && isE2eSessionRoute) {
-    handleE2eSessionRequest(url, response, options, sessionCorsHeaders(request.headers.origin, allowedOrigins));
+    handleE2eSessionRequest(
+      url,
+      response,
+      options,
+      sessionCorsHeaders(request.headers.origin, allowedOrigins),
+    );
     return;
   }
 
@@ -193,10 +202,15 @@ async function handleRequest(
       response,
       200,
       {
-        sessions: options.sessionStore?.list({
-          ...(url.searchParams.has('testId') ? { testId: url.searchParams.get('testId')! } : {}),
-          ...(url.searchParams.has('runId') ? { runId: url.searchParams.get('runId')! } : {}),
-        }) ?? [],
+        sessions:
+          options.sessionStore?.list({
+            ...(url.searchParams.has('testId')
+              ? { testId: url.searchParams.get('testId')! }
+              : {}),
+            ...(url.searchParams.has('runId')
+              ? { runId: url.searchParams.get('runId')! }
+              : {}),
+          }) ?? [],
         retentionDays: options.sessionStore?.retentionDays ?? 30,
         storageBytes:
           (options.sessionStore?.storageBytes ?? 0) +
@@ -212,7 +226,10 @@ async function handleRequest(
   if (url.pathname.startsWith('/sessions/resume-requests')) {
     const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
     const board = options.resumeRequests;
-    if (request.method === 'POST' && url.pathname === '/sessions/resume-requests') {
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/sessions/resume-requests'
+    ) {
       let input;
       try {
         input = parseResumeRequestInput(
@@ -225,11 +242,43 @@ async function handleRequest(
         sendJson(response, 400, { error: 'Invalid resume request.' }, headers);
         return;
       }
-      sendJson(response, 201, { request: board.add(input) }, headers);
+      try {
+        sendJson(response, 201, { request: board.add(input) }, headers);
+      } catch (error) {
+        sendJson(
+          response,
+          409,
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Resume request conflict.',
+          },
+          headers,
+        );
+      }
       return;
     }
-    if (request.method === 'GET' && url.pathname === '/sessions/resume-requests') {
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/sessions/resume-requests'
+    ) {
       sendJson(response, 200, { requests: board.list() }, headers);
+      return;
+    }
+    const requestMatch = /^\/sessions\/resume-requests\/([0-9a-f-]{36})$/i.exec(
+      url.pathname,
+    );
+    if (request.method === 'GET' && requestMatch) {
+      const saved = board.get(requestMatch[1]!);
+      sendJson(
+        response,
+        saved ? 200 : 404,
+        saved
+          ? { request: saved, messages: board.messages(saved.id) }
+          : { error: 'Resume request not found.' },
+        headers,
+      );
       return;
     }
     if (
@@ -241,14 +290,18 @@ async function handleRequest(
       sendJson(
         response,
         200,
-        { request: latest ?? null, messages: latest ? board.messages(latest.id) : [] },
+        {
+          request: latest ?? null,
+          messages: latest ? board.messages(latest.id) : [],
+        },
         headers,
       );
       return;
     }
-    const threadMatch = /^\/sessions\/resume-requests\/([0-9a-f-]{36})\/messages$/i.exec(
-      url.pathname,
-    );
+    const threadMatch =
+      /^\/sessions\/resume-requests\/([0-9a-f-]{36})\/messages$/i.exec(
+        url.pathname,
+      );
     if (threadMatch) {
       const requestId = threadMatch[1]!;
       if (request.method === 'GET') {
@@ -256,7 +309,12 @@ async function handleRequest(
         sendJson(
           response,
           200,
-          { messages: board.messages(requestId, Number.isFinite(since) ? since : 0) },
+          {
+            messages: board.messages(
+              requestId,
+              Number.isFinite(since) ? since : 0,
+            ),
+          },
           headers,
         );
         return;
@@ -271,44 +329,82 @@ async function handleRequest(
           input = undefined;
         }
         if (!input) {
-          sendJson(response, 400, { error: 'Invalid resume message.' }, headers);
+          sendJson(
+            response,
+            400,
+            { error: 'Invalid resume message.' },
+            headers,
+          );
           return;
         }
         const message = board.say(requestId, input);
-        if (!message) sendJson(response, 404, { error: 'Resume request not found.' }, headers);
+        if (!message)
+          sendJson(
+            response,
+            404,
+            { error: 'Resume request not found.' },
+            headers,
+          );
         else sendJson(response, 201, { message }, headers);
         return;
       }
     }
   }
 
-  if (url.pathname === '/sessions/recipes' || url.pathname.startsWith('/sessions/recipes/')) {
+  if (
+    url.pathname === '/sessions/recipes' ||
+    url.pathname.startsWith('/sessions/recipes/')
+  ) {
     const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
     const store = options.recipes;
     if (!store) {
-      sendJson(response, 404, { error: 'Resume recipes are unavailable.' }, headers);
+      sendJson(
+        response,
+        404,
+        { error: 'Resume recipes are unavailable.' },
+        headers,
+      );
       return;
     }
     if (url.pathname === '/sessions/recipes') {
       if (request.method === 'GET') {
         const before = url.searchParams.get('beforeSequence');
-        const recipes = store.list({
-          ...(url.searchParams.has('sessionId') ? { sessionId: url.searchParams.get('sessionId')! } : {}),
-          ...(before !== null && /^\\d+$/.test(before) ? { beforeSequence: Number(before) } : {}),
-        }).map((recipe) => ({ ...recipe, runs: store.listRuns(recipe.id) }));
+        const recipes = store
+          .list({
+            ...(url.searchParams.has('sessionId')
+              ? { sessionId: url.searchParams.get('sessionId')! }
+              : {}),
+            ...(before !== null && /^\\d+$/.test(before)
+              ? { beforeSequence: Number(before) }
+              : {}),
+          })
+          .map((recipe) => ({ ...recipe, runs: store.listRuns(recipe.id) }));
         sendJson(response, 200, { recipes }, headers);
         return;
       }
       if (request.method === 'POST') {
         let recipe;
-        try { recipe = parseResumeRecipeInput(JSON.parse(await readBody(request, maxBodySize))); }
-        catch { recipe = 'Invalid recipe payload.'; }
+        try {
+          recipe = parseResumeRecipeInput(
+            JSON.parse(await readBody(request, maxBodySize)),
+          );
+        } catch {
+          recipe = 'Invalid recipe payload.';
+        }
         if (typeof recipe === 'string') {
           sendJson(response, 400, { error: recipe }, headers);
           return;
         }
-        try { sendJson(response, 201, { recipe: store.save(recipe) }, headers); }
-        catch (error) { sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) }, headers); }
+        try {
+          sendJson(response, 201, { recipe: store.save(recipe) }, headers);
+        } catch (error) {
+          sendJson(
+            response,
+            400,
+            { error: error instanceof Error ? error.message : String(error) },
+            headers,
+          );
+        }
         return;
       }
     }
@@ -330,19 +426,38 @@ async function handleRequest(
       }
       if (request.method === 'POST') {
         let input: unknown;
-        try { input = JSON.parse(await readBody(request, Math.min(maxBodySize, 64_000))); }
-        catch { input = undefined; }
+        try {
+          input = JSON.parse(
+            await readBody(request, Math.min(maxBodySize, 64_000)),
+          );
+        } catch {
+          input = undefined;
+        }
         const supervised = isRecord(input) ? input['supervised'] : undefined;
         if (supervised !== undefined && typeof supervised !== 'boolean') {
-          sendJson(response, 400, { error: 'supervised must be a boolean.' }, headers);
+          sendJson(
+            response,
+            400,
+            { error: 'supervised must be a boolean.' },
+            headers,
+          );
           return;
         }
-        const run = store.saveRun({ recipeId, status: 'running', supervised: supervised === true, events: [] });
+        const run = store.saveRun({
+          recipeId,
+          status: 'running',
+          supervised: supervised === true,
+          events: [],
+        });
         sendJson(response, 201, { run }, headers);
         return;
       }
     }
-    if (suffix[1] === 'runs' && suffix.length === 3 && request.method === 'POST') {
+    if (
+      suffix[1] === 'runs' &&
+      suffix.length === 3 &&
+      request.method === 'POST'
+    ) {
       const runId = suffix[2] ?? '';
       const previous = store.getRun(runId);
       if (!previous || previous.recipeId !== recipeId) {
@@ -350,21 +465,57 @@ async function handleRequest(
         return;
       }
       let input: unknown;
-      try { input = JSON.parse(await readBody(request, Math.min(maxBodySize, 128_000))); }
-      catch { input = undefined; }
+      try {
+        input = JSON.parse(
+          await readBody(request, Math.min(maxBodySize, 128_000)),
+        );
+      } catch {
+        input = undefined;
+      }
       if (!isRecord(input)) {
-        sendJson(response, 400, { error: 'Invalid recipe run update.' }, headers);
+        sendJson(
+          response,
+          400,
+          { error: 'Invalid recipe run update.' },
+          headers,
+        );
         return;
       }
-      const statuses = ['running', 'waiting-human', 'waiting-ai', 'completed', 'failed', 'cancelled'];
+      const statuses = [
+        'running',
+        'waiting-human',
+        'waiting-ai',
+        'completed',
+        'failed',
+        'cancelled',
+      ];
       const status = input['status'] ?? previous.status;
       const currentStep = input['currentStep'] ?? previous.currentStep;
       const addedEvents = input['events'] ?? [];
-      if (!statuses.includes(String(status)) || (currentStep !== undefined && (!Number.isInteger(currentStep) || (currentStep as number) < 0)) || !Array.isArray(addedEvents) || addedEvents.length > 100 || !addedEvents.every(isRecipeRunEvent)) {
-        sendJson(response, 400, { error: 'Invalid recipe run status, step or events.' }, headers);
+      if (
+        !statuses.includes(String(status)) ||
+        (currentStep !== undefined &&
+          (!Number.isInteger(currentStep) || (currentStep as number) < 0)) ||
+        !Array.isArray(addedEvents) ||
+        addedEvents.length > 100 ||
+        !addedEvents.every(isRecipeRunEvent)
+      ) {
+        sendJson(
+          response,
+          400,
+          { error: 'Invalid recipe run status, step or events.' },
+          headers,
+        );
         return;
       }
-      const updated = store.saveRun({ ...previous, status: status as ResumeRecipeRun['status'], ...(currentStep === undefined ? {} : { currentStep: currentStep as number }), events: [...previous.events, ...addedEvents].slice(-500) });
+      const updated = store.saveRun({
+        ...previous,
+        status: status as ResumeRecipeRun['status'],
+        ...(currentStep === undefined
+          ? {}
+          : { currentStep: currentStep as number }),
+        events: [...previous.events, ...addedEvents].slice(-500),
+      });
       sendJson(response, 200, { run: updated }, headers);
       return;
     }
@@ -379,7 +530,12 @@ async function handleRequest(
     const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
     const store = options.checkpoints;
     if (!store) {
-      sendJson(response, 404, { error: 'Resume checkpoints are unavailable.' }, headers);
+      sendJson(
+        response,
+        404,
+        { error: 'Resume checkpoints are unavailable.' },
+        headers,
+      );
       return;
     }
     if (url.pathname === '/sessions/checkpoints') {
@@ -405,7 +561,9 @@ async function handleRequest(
       if (request.method === 'POST') {
         let input: ReturnType<typeof parseResumeCheckpointInput>;
         try {
-          input = parseResumeCheckpointInput(JSON.parse(await readBody(request, maxBodySize)));
+          input = parseResumeCheckpointInput(
+            JSON.parse(await readBody(request, maxBodySize)),
+          );
         } catch {
           input = 'Invalid checkpoint payload.';
         }
@@ -425,7 +583,8 @@ async function handleRequest(
     const id = url.pathname.slice('/sessions/checkpoints/'.length);
     if (request.method === 'GET') {
       const checkpoint = store.get(id);
-      if (!checkpoint) sendJson(response, 404, { error: 'Checkpoint not found.' }, headers);
+      if (!checkpoint)
+        sendJson(response, 404, { error: 'Checkpoint not found.' }, headers);
       else sendJson(response, 200, { checkpoint }, headers);
       return;
     }
@@ -721,21 +880,32 @@ function handleSessionSocket(
           sendSocketError(socket, 'Invalid session sync message.');
           return;
         }
-        const test = isDebugSessionTestMetadata(message['test']) ? message['test'] : undefined;
-        activeSessionId = store.begin(id, test ? { ...session, test } : session, createdAt, participantId, {
-          ...(typeof participant['title'] === 'string'
-            ? { title: participant['title'] }
-            : {}),
-          ...(typeof participant['state'] === 'string' &&
-          ['visible', 'hidden', 'blurred'].includes(participant['state'])
-            ? {
-                state: participant['state'] as 'visible' | 'hidden' | 'blurred',
-              }
-            : {}),
-          ...(isEnvironmentProfile(participant['environment'])
-            ? { environment: participant['environment'] }
-            : {}),
-        });
+        const test = isDebugSessionTestMetadata(message['test'])
+          ? message['test']
+          : undefined;
+        activeSessionId = store.begin(
+          id,
+          test ? { ...session, test } : session,
+          createdAt,
+          participantId,
+          {
+            ...(typeof participant['title'] === 'string'
+              ? { title: participant['title'] }
+              : {}),
+            ...(typeof participant['state'] === 'string' &&
+            ['visible', 'hidden', 'blurred'].includes(participant['state'])
+              ? {
+                  state: participant['state'] as
+                    | 'visible'
+                    | 'hidden'
+                    | 'blurred',
+                }
+              : {}),
+            ...(isEnvironmentProfile(participant['environment'])
+              ? { environment: participant['environment'] }
+              : {}),
+          },
+        );
         activeParticipantId = participantId;
         socket.send(
           JSON.stringify({
@@ -854,7 +1024,8 @@ function isPortableSession(value: unknown): value is PortableDebugSession {
     typeof value['startUrl'] === 'string' &&
     Array.isArray(value['events']) &&
     Array.isArray(value['clips']) &&
-    (value['test'] === undefined || isDebugSessionTestMetadata(value['test'])) &&
+    (value['test'] === undefined ||
+      isDebugSessionTestMetadata(value['test'])) &&
     typeof value['truncated'] === 'boolean'
   );
 }
@@ -955,40 +1126,66 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isRecipeRunEvent(value: unknown): value is ResumeRecipeRun['events'][number] {
-  return isRecord(value) &&
+function isRecipeRunEvent(
+  value: unknown,
+): value is ResumeRecipeRun['events'][number] {
+  return (
+    isRecord(value) &&
     typeof value['at'] === 'string' &&
     typeof value['kind'] === 'string' &&
-    value['kind'].length > 0 && value['kind'].length <= 80 &&
-    (value['step'] === undefined || (Number.isInteger(value['step']) && (value['step'] as number) >= 0)) &&
-    (value['detail'] === undefined || (typeof value['detail'] === 'string' && value['detail'].length <= 2_000));
+    value['kind'].length > 0 &&
+    value['kind'].length <= 80 &&
+    (value['step'] === undefined ||
+      (Number.isInteger(value['step']) && (value['step'] as number) >= 0)) &&
+    (value['detail'] === undefined ||
+      (typeof value['detail'] === 'string' && value['detail'].length <= 2_000))
+  );
 }
 
-
-function selectedE2eRoot(url: URL, roots: readonly string[]): { index: number; path: string } | undefined {
-  const rawIndex = url.searchParams.get('root') ?? (roots.length === 1 ? '0' : undefined);
+function selectedE2eRoot(
+  url: URL,
+  roots: readonly string[],
+): { index: number; path: string } | undefined {
+  const rawIndex =
+    url.searchParams.get('root') ?? (roots.length === 1 ? '0' : undefined);
   if (rawIndex === undefined || !/^\d+$/.test(rawIndex)) return undefined;
   const index = Number(rawIndex);
   const path = roots[index];
   return path ? { index, path: resolve(path) } : undefined;
 }
 
-function listE2eHistories(root: string): Array<Pick<SessionHistory, 'id' | 'project' | 'keep' | 'runs'>> {
+function listE2eHistories(
+  root: string,
+): Array<Pick<SessionHistory, 'id' | 'project' | 'keep' | 'runs'>> {
   if (!existsSync(root)) return [];
-  const histories: Array<Pick<SessionHistory, 'id' | 'project' | 'keep' | 'runs'>> = [];
+  const histories: Array<
+    Pick<SessionHistory, 'id' | 'project' | 'keep' | 'runs'>
+  > = [];
   for (const testEntry of readdirSync(root, { withFileTypes: true })) {
     if (!testEntry.isDirectory() || !validE2eTestId(testEntry.name)) continue;
-    for (const projectEntry of readdirSync(join(root, testEntry.name), { withFileTypes: true })) {
-      if (!projectEntry.isDirectory() || !validE2eProject(projectEntry.name)) continue;
+    for (const projectEntry of readdirSync(join(root, testEntry.name), {
+      withFileTypes: true,
+    })) {
+      if (!projectEntry.isDirectory() || !validE2eProject(projectEntry.name))
+        continue;
       const history = readE2eHistory(root, testEntry.name, projectEntry.name);
-      if (history) histories.push({ id: history.id, project: history.project, keep: history.keep, runs: history.runs });
+      if (history)
+        histories.push({
+          id: history.id,
+          project: history.project,
+          keep: history.keep,
+          runs: history.runs,
+        });
     }
   }
   return histories;
 }
 
 function validE2eTestId(value: string): boolean {
-  return /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$/.test(value) && value.length <= 80;
+  return (
+    /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$/.test(value) &&
+    value.length <= 80
+  );
 }
 
 /** One rule for every endpoint: a Playwright project name that is a safe directory name. */
@@ -997,26 +1194,58 @@ function validE2eProject(value: string): boolean {
 }
 
 /** The history of one test and project, or undefined when its files are not trusted. */
-function readE2eHistory(root: string, testId: string, project: string): SessionHistory | undefined {
+function readE2eHistory(
+  root: string,
+  testId: string,
+  project: string,
+): SessionHistory | undefined {
   const directory = resolve(root, testId, project);
-  if (!directory.startsWith(`${resolve(root)}/`) || !isPlainDirectory(directory)) return undefined;
+  if (
+    !directory.startsWith(`${resolve(root)}/`) ||
+    !isPlainDirectory(directory)
+  )
+    return undefined;
   const path = join(directory, 'history.json');
   if (!isPlainFile(path)) return undefined;
   try {
     const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
-    return isSessionHistory(value) && value.id === testId && value.project === project ? value : undefined;
-  } catch { return undefined; }
+    return isSessionHistory(value) &&
+      value.id === testId &&
+      value.project === project
+      ? value
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
-function readE2eRunSession(root: string, history: SessionHistory, file: string): Buffer | undefined {
+function readE2eRunSession(
+  root: string,
+  history: SessionHistory,
+  file: string,
+): Buffer | undefined {
   if (!history.runs.some((run) => run.file === file)) return undefined;
   const directory = resolve(root, history.id, history.project);
   const path = resolve(directory, file);
-  return path.startsWith(`${directory}/`) && isPlainFile(path) ? readFileSync(path) : undefined;
+  return path.startsWith(`${directory}/`) && isPlainFile(path)
+    ? readFileSync(path)
+    : undefined;
 }
 
-function isPlainDirectory(path: string): boolean { return existsSync(path) && !lstatSync(path).isSymbolicLink() && lstatSync(path).isDirectory(); }
-function isPlainFile(path: string): boolean { return existsSync(path) && !lstatSync(path).isSymbolicLink() && lstatSync(path).isFile(); }
+function isPlainDirectory(path: string): boolean {
+  return (
+    existsSync(path) &&
+    !lstatSync(path).isSymbolicLink() &&
+    lstatSync(path).isDirectory()
+  );
+}
+function isPlainFile(path: string): boolean {
+  return (
+    existsSync(path) &&
+    !lstatSync(path).isSymbolicLink() &&
+    lstatSync(path).isFile()
+  );
+}
 
 function handleE2eSessionRequest(
   url: URL,
@@ -1026,14 +1255,42 @@ function handleE2eSessionRequest(
 ): void {
   const roots = options.e2eSessionRoots ?? [];
   const rootParam = url.searchParams.get('root');
-  const candidates = rootParam === null
-    ? roots.map((path, index) => ({ index, path: resolve(path) }))
-    : [selectedE2eRoot(url, roots)].filter((value): value is { index: number; path: string } => value !== undefined);
+  const candidates =
+    rootParam === null
+      ? roots.map((path, index) => ({ index, path: resolve(path) }))
+      : [selectedE2eRoot(url, roots)].filter(
+          (value): value is { index: number; path: string } =>
+            value !== undefined,
+        );
 
   if (url.pathname === '/e2e-sessions') {
-    if (candidates.length === 0) { sendJson(response, 404, { error: 'E2E session history root is unavailable.' }, cors); return; }
-    const sessions = candidates.flatMap((root) => listE2eHistories(root.path).map((history) => ({ root: root.index, ...history })));
-    sendJson(response, 200, { roots: candidates.map((root) => ({ index: root.index, name: basename(root.path) })), sessions }, cors);
+    if (candidates.length === 0) {
+      sendJson(
+        response,
+        404,
+        { error: 'E2E session history root is unavailable.' },
+        cors,
+      );
+      return;
+    }
+    const sessions = candidates.flatMap((root) =>
+      listE2eHistories(root.path).map((history) => ({
+        root: root.index,
+        ...history,
+      })),
+    );
+    sendJson(
+      response,
+      200,
+      {
+        roots: candidates.map((root) => ({
+          index: root.index,
+          name: basename(root.path),
+        })),
+        sessions,
+      },
+      cors,
+    );
     return;
   }
 
@@ -1041,57 +1298,138 @@ function handleE2eSessionRequest(
     const testId = url.searchParams.get('test') ?? '';
     const project = url.searchParams.get('project') ?? '';
     const sessionId = url.searchParams.get('run') ?? '';
-    if (!validE2eTestId(testId) || !validE2eProject(project) || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
-      sendJson(response, 400, { error: 'Invalid E2E comparison request.' }, cors);
+    if (
+      !validE2eTestId(testId) ||
+      !validE2eProject(project) ||
+      !/^[0-9a-f-]{36}$/i.test(sessionId)
+    ) {
+      sendJson(
+        response,
+        400,
+        { error: 'Invalid E2E comparison request.' },
+        cors,
+      );
       return;
     }
     const selected = candidates.flatMap((root) => {
       const history = readE2eHistory(root.path, testId, project);
       return history ? [{ root, history }] : [];
     })[0];
-    if (!selected || !options.sessionStore) { sendJson(response, 404, { error: 'E2E comparison history not found.' }, cors); return; }
+    if (!selected || !options.sessionStore) {
+      sendJson(
+        response,
+        404,
+        { error: 'E2E comparison history not found.' },
+        cors,
+      );
+      return;
+    }
     const observed = options.sessionStore.get(sessionId);
-    if (!observed) { sendJson(response, 404, { error: 'Observed E2E session not found.' }, cors); return; }
+    if (!observed) {
+      sendJson(
+        response,
+        404,
+        { error: 'Observed E2E session not found.' },
+        cors,
+      );
+      return;
+    }
     const baselines = selected.history.runs.flatMap((run) => {
-      const compressed = readE2eRunSession(selected.root.path, selected.history, run.file);
+      const compressed = readE2eRunSession(
+        selected.root.path,
+        selected.history,
+        run.file,
+      );
       if (!compressed) return [];
       const source = `/e2e-sessions/${encodeURIComponent(testId)}/${encodeURIComponent(project)}/${encodeURIComponent(run.file)}?root=${selected.root.index}&decompress=1`;
-      return [{ source, file: run.file, markers: run.markers ?? [], session: JSON.parse(gunzipSync(compressed).toString('utf8')) as unknown }];
+      return [
+        {
+          source,
+          file: run.file,
+          markers: run.markers ?? [],
+          session: JSON.parse(
+            gunzipSync(compressed).toString('utf8'),
+          ) as unknown,
+        },
+      ];
     });
     // The same module as the fixture and the MCP: every reader shows the same findings.
     const comparison = compareSessionTraces(
       normalizeSessionTrace(asPortableSession(observed)),
-      baselines.map((baseline) => normalizeSessionTrace(asPortableSession(baseline.session), { markers: baseline.markers })),
+      baselines.map((baseline) =>
+        normalizeSessionTrace(asPortableSession(baseline.session), {
+          markers: baseline.markers,
+        }),
+      ),
     );
-    sendJson(response, 200, {
-      testId,
-      project,
-      sessionId,
-      observed,
-      observedSource: `/sessions/${encodeURIComponent(sessionId)}`,
-      baselines: baselines.map(({ source, session }) => ({ source, session })),
-      comparison,
-    }, cors);
+    sendJson(
+      response,
+      200,
+      {
+        testId,
+        project,
+        sessionId,
+        observed,
+        observedSource: `/sessions/${encodeURIComponent(sessionId)}`,
+        baselines: baselines.map(({ source, session }) => ({
+          source,
+          session,
+        })),
+        comparison,
+      },
+      cors,
+    );
     return;
   }
 
-  const fileMatch = /^\/e2e-sessions\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+  const fileMatch = /^\/e2e-sessions\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(
+    url.pathname,
+  );
   const [testId, project, file] = fileMatch?.slice(1).map(safeDecode) ?? [];
   const root = selectedE2eRoot(url, roots);
-  const history = root && testId && project && validE2eTestId(testId) && validE2eProject(project) ? readE2eHistory(root.path, testId, project) : undefined;
-  const compressed = root && history && file && SESSION_HISTORY_FILE.test(file) ? readE2eRunSession(root.path, history, file) : undefined;
-  if (!compressed) { sendJson(response, 404, { error: 'E2E session history file not found.' }, cors); return; }
+  const history =
+    root &&
+    testId &&
+    project &&
+    validE2eTestId(testId) &&
+    validE2eProject(project)
+      ? readE2eHistory(root.path, testId, project)
+      : undefined;
+  const compressed =
+    root && history && file && SESSION_HISTORY_FILE.test(file)
+      ? readE2eRunSession(root.path, history, file)
+      : undefined;
+  if (!compressed) {
+    sendJson(
+      response,
+      404,
+      { error: 'E2E session history file not found.' },
+      cors,
+    );
+    return;
+  }
   const decompress = url.searchParams.get('decompress') === '1';
-  response.writeHead(200, { ...cors, 'content-type': decompress ? 'application/json' : 'application/gzip', 'cache-control': 'no-store' });
+  response.writeHead(200, {
+    ...cors,
+    'content-type': decompress ? 'application/json' : 'application/gzip',
+    'cache-control': 'no-store',
+  });
   response.end(decompress ? gunzipSync(compressed) : compressed);
 }
 
 function safeDecode(value: string): string | undefined {
-  try { return decodeURIComponent(value); } catch { return undefined; }
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return undefined;
+  }
 }
 
 function asPortableSession(value: unknown): PortableSessionForTrace {
-  const events = isRecord(value) && Array.isArray(value['events']) ? value['events'].filter(isRecord) : [];
+  const events =
+    isRecord(value) && Array.isArray(value['events'])
+      ? value['events'].filter(isRecord)
+      : [];
   return { events };
 }
 

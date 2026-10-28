@@ -175,7 +175,10 @@ export async function reopenCheckpointFromUrl(
     }, PROBE_DELAY_MS);
   } catch (error) {
     showResumeNotice(error instanceof Error ? error.message : String(error));
-    await runFallback();
+    // Do not keep application bootstrap waiting for a recipe that may need a
+    // person to sign in. Start it now; the login route and UI must be usable
+    // while the recipe's hand-off is pending.
+    setTimeout(() => { void runFallback(); }, 0);
   }
   const url = new URL(location.href);
   url.searchParams.delete(CRAFT_RESUME_CHECKPOINT_QUERY_PARAM);

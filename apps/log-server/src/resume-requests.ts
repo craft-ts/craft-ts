@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 /**
  * A point of a recorded session someone asked to resume from. The dashboard
- * posts it; the AI reads the latest one through the `resume.request` tool, so
- * "reprends ici" needs no copied identifiers.
+ * assigns its id before opening the app tab and posting the request, so the
+ * copied prompt and the agent's tab lookup stay bound to this exact point.
  */
 export type ResumeRequest = Readonly<{
   id: string;
@@ -16,11 +16,12 @@ export type ResumeRequest = Readonly<{
   createdAt: string;
 }>;
 
-export type ResumeRequestInput = Omit<ResumeRequest, 'id' | 'createdAt'>;
+export type ResumeRequestInput = Omit<ResumeRequest, 'id' | 'createdAt'> &
+  Readonly<{ id?: string }>;
 
 /**
- * The thread of one resume, shown in the dashboard next to the replay: the AI
- * says its steps and hand-offs, the person may answer there.
+ * The progress thread of one resume, shown beside the replay. The agent writes
+ * steps and hand-offs here; the person's goal answers stay in the agent chat.
  */
 export type ResumeMessage = Readonly<{
   id: number;
@@ -32,7 +33,13 @@ export type ResumeMessage = Readonly<{
 
 export type ResumeMessageInput = Pick<ResumeMessage, 'from' | 'kind' | 'text'>;
 
-const MESSAGE_KINDS = new Set<ResumeMessage['kind']>(['step', 'question', 'handoff', 'done', 'reply']);
+const MESSAGE_KINDS = new Set<ResumeMessage['kind']>([
+  'step',
+  'question',
+  'handoff',
+  'done',
+  'reply',
+]);
 const MAX_MESSAGES = 200;
 
 const SESSION_ID_PATTERN =
@@ -53,9 +60,20 @@ export class ResumeRequestBoard {
   }
 
   add(input: ResumeRequestInput): ResumeRequest {
+    const existing = input.id
+      ? this.#requests.find((request) => request.id === input.id)
+      : undefined;
+    if (existing) {
+      const samePoint =
+        existing.sessionId === input.sessionId &&
+        existing.beforeSequence === input.beforeSequence &&
+        existing.participantId === input.participantId;
+      if (samePoint) return existing;
+      throw new Error('Resume request id is already used for another point.');
+    }
     const request: ResumeRequest = {
       ...input,
-      id: randomUUID(),
+      id: input.id ?? randomUUID(),
       createdAt: this.#now().toISOString(),
     };
     this.#requests.unshift(request);
@@ -66,7 +84,8 @@ export class ResumeRequestBoard {
 
   /** Adds to the thread of a request; undefined when the request is gone. */
   say(requestId: string, input: ResumeMessageInput): ResumeMessage | undefined {
-    if (!this.#requests.some((request) => request.id === requestId)) return undefined;
+    if (!this.#requests.some((request) => request.id === requestId))
+      return undefined;
     const message: ResumeMessage = {
       ...input,
       id: ++this.#nextMessageId,
@@ -81,13 +100,19 @@ export class ResumeRequestBoard {
 
   /** The messages of a request after `since` (a message id), oldest first. */
   messages(requestId: string, since = 0): readonly ResumeMessage[] {
-    return (this.#threads.get(requestId) ?? []).filter((message) => message.id > since);
+    return (this.#threads.get(requestId) ?? []).filter(
+      (message) => message.id > since,
+    );
   }
 
   latest(sessionId?: string): ResumeRequest | undefined {
     return this.#requests.find(
       (request) => sessionId === undefined || request.sessionId === sessionId,
     );
+  }
+
+  get(id: string): ResumeRequest | undefined {
+    return this.#requests.find((request) => request.id === id);
   }
 
   list(): readonly ResumeRequest[] {
@@ -103,6 +128,12 @@ export function parseResumeRequestInput(
   const record = value as Record<string, unknown>;
   const sessionId = record['sessionId'];
   if (typeof sessionId !== 'string' || !SESSION_ID_PATTERN.test(sessionId))
+    return undefined;
+  const id = record['id'];
+  if (
+    id !== undefined &&
+    (typeof id !== 'string' || !SESSION_ID_PATTERN.test(id))
+  )
     return undefined;
   const beforeSequence = record['beforeSequence'];
   if (
@@ -121,21 +152,32 @@ export function parseResumeRequestInput(
   }
   return {
     sessionId,
+    ...(typeof id === 'string' ? { id } : {}),
     ...(beforeSequence === undefined ? {} : { beforeSequence }),
     ...texts,
   };
 }
 
-export function parseResumeMessageInput(value: unknown): ResumeMessageInput | undefined {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+export function parseResumeMessageInput(
+  value: unknown,
+): ResumeMessageInput | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return undefined;
   const record = value as Record<string, unknown>;
   const from = record['from'];
   if (from !== 'ai' && from !== 'person') return undefined;
   const text = record['text'];
-  if (typeof text !== 'string' || text.trim().length === 0 || text.length > MAX_TEXT)
+  if (
+    typeof text !== 'string' ||
+    text.trim().length === 0 ||
+    text.length > MAX_TEXT
+  )
     return undefined;
   const kind = record['kind'] ?? (from === 'ai' ? 'step' : 'reply');
-  if (typeof kind !== 'string' || !MESSAGE_KINDS.has(kind as ResumeMessage['kind']))
+  if (
+    typeof kind !== 'string' ||
+    !MESSAGE_KINDS.has(kind as ResumeMessage['kind'])
+  )
     return undefined;
   return { from, kind: kind as ResumeMessage['kind'], text: text.trim() };
 }

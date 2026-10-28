@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   cleanUpCheckpoint,
+  reopenCheckpointFromUrl,
   decodedAnswer,
   fillTemplate,
   runProbes,
@@ -42,6 +43,8 @@ describe('resume checkpoints in the tab', () => {
   const nativeFetch = globalThis.fetch;
   afterEach(() => {
     globalThis.fetch = nativeFetch;
+    history.replaceState(null, '', '/');
+    document.querySelectorAll('[data-craft-resume-checkpoint-notice]').forEach((notice) => notice.remove());
   });
 
   it('fills probes from the live state', () => {
@@ -87,6 +90,35 @@ describe('resume checkpoints in the tab', () => {
     await expect(
       validateCheckpoint(checkpoint({ origin: 'https://staging.example.com' }), registry),
     ).resolves.toMatchObject({ valid: false, originMatches: false });
+  });
+
+  it('lets application startup finish while an expired point starts its linked recipe', async () => {
+    history.replaceState(null, '', '/admin?craft-resume-checkpoint=c1');
+    globalThis.fetch = async () => Response.json({
+      checkpoint: checkpoint({
+        id: 'c1',
+        expiresAt: '2001-01-01T00:00:00.000Z',
+        recipeId: 'recipe-1',
+      }),
+    });
+    let finishRecipe!: () => void;
+    const recipeWait = new Promise<void>((resolve) => { finishRecipe = resolve; });
+    let startedRecipe = false;
+
+    await reopenCheckpointFromUrl(
+      'http://log.test',
+      { registry, storageRegistry: { capture: async () => [] } } as never,
+      async (id) => {
+        expect(id).toBe('recipe-1');
+        startedRecipe = true;
+        await recipeWait;
+      },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(startedRecipe).toBe(true);
+    expect(location.search).toBe('');
+    finishRecipe();
   });
 
   it('cleans up what the resume created', async () => {

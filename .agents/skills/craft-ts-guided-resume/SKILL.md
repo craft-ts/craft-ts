@@ -23,25 +23,31 @@ session; do not edit global configuration.
 
 ## 1. Check setup, then read the point (no app action)
 
-Call `resume.doctor` first. Repair checks you can fix yourself; for anything
-that requires the person, ask for one precise action. Do not launch or mutate
-the app until the goal interview below is complete.
+The prompt copied from the dashboard includes a `requestId` and opens a fresh
+application tab marked with that id; the replay dashboard stays open. Call
+`resume.doctor({ requestId })` first so it selects that tab even when other
+tabs are open. Then call `resume.request({ requestId })` and pass the same id
+to `session.*`, `resume.say`, and `app.*`. Never resolve this request through a
+mutable “latest” lookup or use the dashboard thread to collect the goal
+interview. Repair checks you can fix yourself; for
+anything that requires the person, ask for one precise action. Do not launch
+or mutate the app until the goal interview below is complete.
 
-`resume.request` (the session and the point; its `method` repeats these steps),
-then `session.story` up to the point **and a few steps after it**
-(`session.story` without `beforeSequence`, look at what follows): what the
-person did next is usually what they want to look at. `session.prerequisites`
-(identity, `signedInWhen`, entities, writes, ready `probes`). Then inspect
-`checkpoint.list` and `recipe.list` for this session and event. Choose the
-best available path, but do not restore a point, execute a recipe, or mutate
-the app until the goal interview is complete.
+Read `session.story` up to the point **and a few steps after it**: what the
+person did next is usually what they want to look at. Read
+`session.prerequisites` (identity, `signedInWhen`, entities, writes, probes),
+then inspect `checkpoint.list` and `recipe.list` for the exact session and
+event returned by `resume.request`. Choose the best available path, but do not
+restore a point, execute a recipe, or mutate the app until the goal interview
+is complete.
 
 ## 2. Ask for the goal — one message, before any app action
 
-Ask at most four short questions, each with answers you propose from the
-recording, so the person can reply in a few words. Skip a question the request
-or the conversation already answered. Write the same questions in the dashboard
-thread (`resume.say`, kind `question`) and wait for the answer in the chat.
+Ask only what remains unclear, with short answers proposed from the recording,
+in the active agent conversation. Skip anything the request or conversation
+already answered. Do not duplicate questions in the dashboard thread; the
+person answers here, in the active conversation. Use `resume.say` with the
+same `requestId` for progress, hand-offs, and completion.
 
 1. **What to observe.** « Que veux-tu regarder à partir de ce point ? » —
    propose the next recorded gesture (« ce qui se passe quand Camille clique
@@ -61,6 +67,9 @@ If the person answers « fais au mieux », take: the next gesture as the goal,
 route + identity + the primitives that gesture uses as what must be exact, no
 server write without asking, a point valid for the working session.
 
+If the person does not answer whether they want to repeat the path, keep the
+result session-only. Do not call a temporary checkpoint a reusable script.
+
 Restate the goal in one sentence before going on. Everything after this
 serves it.
 
@@ -75,8 +84,9 @@ precise thing. Rerun it after a fix.
 - **tab** missing: open `appUrl` in a browser you drive (your own browser pane
   if the host has one) and show it to the person; else give them the URL.
   Run `resume.doctor` again.
-- **tab** several: pick the one to drive and pass its `clientId` to `app.*` and
-  `page`, or ask to close the others. A dashboard replay counts as a tab.
+- **tab** several: `resume.doctor({ requestId })` selects the application tab
+  whose URL carries this request id. Pass its `clientId` to `app.*` and `page`;
+  leave the replay dashboard open and do not drive it as the target app.
 - **guided-resume** missing in the app: say which provider to add
   (`provideCraftGuidedResume` next to `provideCraftDevTools`) and stop there.
 - **bridge** held by another session: nothing to do, calls are relayed.
@@ -98,8 +108,9 @@ recreate); otherwise tell the person what will differ and why it matters.
 Then prefer Craft state and methods: `registry.*` and `app.replay`, with
 `app.diff` to compare. Use `page` with named controls when the interface itself
 is part of the scenario. Use the browser only to inspect or show the page;
-never use screenshots or browser clicks to act. Write each step in the thread
-(`resume.say`, one sentence).
+never use screenshots or browser clicks to act. Pass the same `requestId` to
+`app.launch` and `app.diff` so the new tab remains tied to this request. Write
+each step in the dashboard thread (`resume.say`, one sentence).
 
 ## 5. Hand back what only the person may do
 
@@ -116,9 +127,10 @@ times out, ask once more in the chat and call it again; do not give up.
 irrelevant to the goal or accepted by the person. `app.writes` tells what the
 resume wrote; a held write to a third party never goes out without consent.
 
-## 7. Freeze
+## 7. Freeze and make repeatable
 
-`checkpoint.save` with:
+For a one-time observation, `checkpoint.save` with:
+
 - `goal`: the sentence from step 2;
 - `ttlMs` + `ttlReason`: from what expires (token lifetime, data reset) and how
   the point will be used;
@@ -131,13 +143,28 @@ resume wrote; a held write to a third party never goes out without consent.
 Then `checkpoint.validate`. A failing probe is repaired from the point, not by
 starting over.
 
-Save a `ResumeRecipe` for a repeatable path with `recipe.save`. Include the
-objective interview answers, autonomous data setup by default, named
-expectations and remedies, human hand-offs for secrets, and reverse-order
-cleanup for every created entity. Use `recipe.run` on later resumes. The tab's
-runner executes conditions and steps; do not re-ask the AI to replay a healthy
-recipe. A failed essential expectation without a remedy is repaired from that
-step with `recipe.repair`.
+When the person wants to repeat or reopen the path, a checkpoint alone is not
+completion. First save a `ResumeRecipe` with `recipe.save`, including the
+objective answers, autonomous data setup by default, named expectations and
+remedies, human hand-offs for secrets, and reverse-order cleanup for every
+created entity. The tool accepts typed `goto`, `create`, `ensure`, `handoff`,
+`act`, `invoke`, `expect`, and `checkpoint` steps. Empty objective lists,
+`mayWrite: false`, `strategy: autonomous`, cleanup, and revision history have
+safe defaults; provide them only when the objective needs different values.
+Prepare the route and data before the `handoff`; wait on the live condition
+from `session.prerequisites`, then continue with named actions and essential
+expectations. Never include credentials.
+
+Verify the recipe itself with `recipe.run` from the intended starting state,
+complete each human hand-off, and confirm the run is `completed` and the goal's
+essential state holds. Then freeze the point with `checkpoint.save`, including
+`recipeId` from the saved recipe, and validate it. This link lets an expired or
+invalid point start the recipe again. Use `recipe.run` on later resumes; the
+tab runner executes conditions and steps, so do not ask the AI to replay a
+healthy recipe. Repair a failed essential expectation from that step with
+`recipe.repair`. If saving or verifying the recipe fails, say the result is
+only a temporary checkpoint and give the concrete failure; do not claim the
+path is repeatable.
 
 ## 8. Conclude
 

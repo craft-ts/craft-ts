@@ -1,5 +1,4 @@
 import {
-  button,
   craftComponent,
   div,
   forNode,
@@ -7,16 +6,13 @@ import {
   li,
   p,
   span,
-  textarea,
   ul,
 } from '@craft-ts/component';
 import { craftComputed, rawReactiveValue } from '@craft-ts/core';
-import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { ResumeThread, type ResumeMessage } from './resume-thread.service';
 import { SessionArchive } from './session-archive.service';
 import { routeSessionId } from './replay-state';
-import { eventValue } from './view-helpers';
 
 const KIND_LABELS: Readonly<Record<ResumeMessage['kind'], string>> = {
   step: 'Étape',
@@ -47,8 +43,8 @@ const RUN_STATUS: Readonly<Record<string, string>> = {
 };
 
 /**
- * The guided resume, followed from the replay: what the AI says it does
- * (`resume.say`), and a field to answer it without leaving the dashboard.
+ * Progress from the agent's guided resume, shown beside the replay. The
+ * person answers questions in the agent conversation where the prompt was pasted.
  */
 export const ReplayResumeThread = craftComponent(
   'ReplayResumeThread',
@@ -57,45 +53,49 @@ export const ReplayResumeThread = craftComponent(
     const resume = yield* ResumeThread();
     const archive = yield* SessionArchive();
     const threadValue = rawReactiveValue(resume.thread.value);
-    const draft = rawReactiveValue(resume.draft);
     const savedRecipes = rawReactiveValue(archive.resumeRecipeList);
 
     const resumeMessages = yield* craftComputed(
       'resumeMessages',
       () => threadValue()?.messages ?? [],
     );
-    const noResumeRequest = yield* craftComputed(
-      'noResumeRequest',
-      () => threadValue()?.requestId === undefined,
-    );
     const resumeEmptyText = yield* craftComputed('resumeEmptyText', () =>
       threadValue()?.requestId === undefined
         ? 'Aucune reprise demandée pour cette session. « Reprendre ici » en publie une pour l’IA.'
-        : 'Reprise demandée : l’IA écrira ici ses étapes et ce qu’elle attend de vous.',
+        : 'L’agent y publie les étapes et le résultat. Réponds à ses questions dans la conversation où tu as collé le prompt.',
     );
     const resumeEmptyHidden = yield* craftComputed(
       'resumeEmptyHidden',
       () => (threadValue()?.messages.length ?? 0) > 0,
     );
-    const resumeSendDisabled = yield* craftComputed(
-      'resumeSendDisabled',
-      () => threadValue()?.requestId === undefined || draft().trim() === '',
-    );
     const recipes = yield* craftComputed('sessionResumeRecipes', () =>
       routeSessionId() ? savedRecipes() : [],
     );
-    const recipesEmpty = yield* craftComputed('resumeRecipesEmpty', () => recipes().length === 0);
+    const recipesEmpty = yield* craftComputed(
+      'resumeRecipesEmpty',
+      () => !routeSessionId() || savedRecipes().length === 0,
+    );
 
     const recipeHistory = div({ class: ui.scroll }, [
       heading({ class: ui.factLabel }, 'Recettes enregistrées'),
-      p({ class: ui.lede, hidden: yield* craftComputed('noRecipesHidden', () => !recipesEmpty()) },
-        'Aucune recette pour cette session.'),
+      p(
+        {
+          class: ui.lede,
+          hidden: yield* craftComputed(
+            'noRecipesHidden',
+            () => !recipesEmpty(),
+          ),
+        },
+        'Aucune recette pour cette session.',
+      ),
       ul(
         { class: ui.events, 'data-lab': 'resume-recipes' },
         forNode(recipes, { track: (recipe) => recipe.id }, (recipe) =>
           li({ class: ui.event }, [
             div({ class: ui.eventInfo }, [
-              span({ class: ui.eventName }, function* () { return (yield* recipe()).objective.goal; }),
+              span({ class: ui.eventName }, function* () {
+                return (yield* recipe()).objective.goal;
+              }),
               span({ class: ui.eventMeta }, function* () {
                 const runs = (yield* recipe()).runs;
                 const latest = runs[0];
@@ -134,31 +134,6 @@ export const ReplayResumeThread = craftComponent(
       ),
     ]);
 
-    const answer = div({ class: ui.importFields, hidden: noResumeRequest }, [
-      textarea('resumeReply', {
-        class: ui.importText,
-        rows: 3,
-        placeholder: 'Répondre à l’IA…',
-        value: resume.draft,
-        input: (event: Event) => resume.draft.write(eventValue(event)),
-        'aria-label': 'Réponse à l’IA',
-      }),
-      div({ class: ui.importActions }, [
-        button(
-          'sendResumeReply',
-          {
-            type: 'button',
-            class: buttonUi.root,
-            'data-variant': 'primary',
-            'data-lab': 'send-resume-reply',
-            disabled: resumeSendDisabled,
-            click: () => resume.send(),
-          },
-          'Envoyer',
-        ),
-      ]),
-    ]);
-
-    return div({ class: ui.sideBody }, [list, answer, recipeHistory]);
+    return div({ class: ui.sideBody }, [list, recipeHistory]);
   },
 );

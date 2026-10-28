@@ -53,6 +53,9 @@ describe('registry MCP server', () => {
       'checkpoint.restore',
       'checkpoint.validate',
       'checkpoint.cleanup',
+      'recipe.save',
+      'recipe.run',
+      'recipe.repair',
     ]);
 
     await client.callTool({
@@ -205,41 +208,161 @@ describe('registry MCP server', () => {
     const request = vi.fn(async () => ({ outcome: 'condition', waitedMs: 10 }));
     const server = createRegistryMcpServer({ request });
     const client = new Client({ name: 'test-client', version: '1.0.0' });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
 
     await client.callTool({
       name: 'app.handoff',
       arguments: {
         message: 'Connecte-toi en product-manager.',
         field: 'sign-in-password',
-        until: { address: 'service:session / query:currentUser', path: 'role', equals: 'product-manager' },
+        until: {
+          address: 'service:session / query:currentUser',
+          path: 'role',
+          equals: 'product-manager',
+        },
       },
     });
 
     expect(request).toHaveBeenCalledWith('app/handoff', {
       message: 'Connecte-toi en product-manager.',
       field: 'sign-in-password',
-      until: { address: 'service:session / query:currentUser', path: 'role', equals: 'product-manager' },
+      until: {
+        address: 'service:session / query:currentUser',
+        path: 'role',
+        equals: 'product-manager',
+      },
       timeoutMs: 300_000,
+    });
+    await client.close();
+  });
+  it('guides recipe authoring with typed hand-off steps and safe defaults', async () => {
+    const posted: Record<string, unknown>[] = [];
+    const fetchStub = (async (_url: string | URL | Request, init?: RequestInit) => {
+      posted.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return Response.json({ recipe: { id: '00000000-0000-4000-8000-000000000021' } });
+    }) as typeof fetch;
+    const server = createRegistryMcpServer(
+      { request: vi.fn(async () => ({})) },
+      { logServerUrl: 'http://log.test', fetch: fetchStub },
+    );
+    const client = new Client({ name: 'recipe-authoring-test', version: '1.0.0' });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const listed = await client.listTools();
+    const recipeSave = listed.tools.find(({ name }) => name === 'recipe.save');
+    expect(recipeSave?.description).toContain('typed step schema');
+    await client.callTool({
+      name: 'recipe.save',
+      arguments: {
+        sessionId: '00000000-0000-4000-8000-000000000001',
+        beforeSequence: 40,
+        origin: 'http://localhost:4300',
+        objective: { goal: 'Reprendre après connexion' },
+        steps: [
+          { type: 'goto', route: '/connexion' },
+          {
+            type: 'handoff',
+            message: 'Connecte-toi, puis je continue.',
+            field: 'sign-in-password',
+            until: {
+              address: 'service:session / query:currentUser',
+              path: 'token',
+              unmasked: true,
+            },
+          },
+          { type: 'checkpoint', ttlReason: 'Session de démonstration.' },
+        ],
+      },
+    });
+
+    expect(posted[0]).toMatchObject({
+      objective: {
+        goal: 'Reprendre après connexion',
+        exact: [],
+        approximate: [],
+        mayWrite: false,
+      },
+      strategy: 'autonomous',
+      steps: [
+        { type: 'goto', route: '/connexion' },
+        {
+          type: 'handoff',
+          field: 'sign-in-password',
+          until: { path: 'token', unmasked: true },
+        },
+        { type: 'checkpoint' },
+      ],
+      cleanup: [],
+      revisions: [],
+    });
+    await client.close();
+  });
+  it('keeps the recipe tool call open long enough for a human hand-off', async () => {
+    const recipeId = '00000000-0000-4000-8000-000000000011';
+    const request = vi.fn(async () => ({
+      runId: '00000000-0000-4000-8000-000000000012',
+      status: 'completed',
+    }));
+    const server = createRegistryMcpServer({ request });
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    await client.callTool({ name: 'recipe.run', arguments: { id: recipeId } });
+
+    expect(request).toHaveBeenCalledWith('app/recipe/run', {
+      id: recipeId,
+      timeoutMs: 15 * 60_000,
     });
     await client.close();
   });
   it('freezes the tab state with the expiry the AI chose', async () => {
     const request = vi.fn(async (method: string) =>
       method === 'app/checkpoint/capture'
-        ? { origin: 'http://localhost:4300', snapshot: { format: 'craft-debug-app-snapshot', route: '/admin' } }
+        ? {
+            origin: 'http://localhost:4300',
+            snapshot: { format: 'craft-debug-app-snapshot', route: '/admin' },
+          }
         : [{ ok: true }],
     );
     const posted: Array<{ url: string; method?: string; body?: unknown }> = [];
     const fetchStub = (async (url: string, init?: RequestInit) => {
-      posted.push({ url, ...(init?.method ? { method: init.method } : {}), ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) });
-      return Response.json(init?.method === 'POST' ? { checkpoint: { id: 'c1' } } : { deleted: true });
+      posted.push({
+        url,
+        ...(init?.method ? { method: init.method } : {}),
+        ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}),
+      });
+      return Response.json(
+        init?.method === 'POST'
+          ? { checkpoint: { id: 'c1' } }
+          : { deleted: true },
+      );
     }) as typeof fetch;
-    const server = createRegistryMcpServer({ request }, { logServerUrl: 'http://log.test/', fetch: fetchStub });
+    const server = createRegistryMcpServer(
+      { request },
+      { logServerUrl: 'http://log.test/', fetch: fetchStub },
+    );
     const client = new Client({ name: 'test-client', version: '1.0.0' });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
 
     const before = Date.now();
     const saved = await client.callTool({
@@ -263,11 +386,21 @@ describe('registry MCP server', () => {
       snapshot: { route: '/admin' },
       ttlReason: 'jeton de session valable deux heures',
     });
-    expect(Date.parse(String(body['expiresAt'])) - before).toBeGreaterThanOrEqual(2 * 60 * 60_000 - 1_000);
+    expect(
+      Date.parse(String(body['expiresAt'])) - before,
+    ).toBeGreaterThanOrEqual(2 * 60 * 60_000 - 1_000);
 
-    const cleaned = await client.callTool({ name: 'checkpoint.cleanup', arguments: { id: '00000000-0000-4000-8000-0000000000c1' } });
-    expect(cleaned.structuredContent).toEqual({ result: { cleaned: [{ ok: true }], forgotten: true } });
-    expect(posted.at(-1)).toEqual({ url: 'http://log.test/sessions/checkpoints/00000000-0000-4000-8000-0000000000c1', method: 'DELETE' });
+    const cleaned = await client.callTool({
+      name: 'checkpoint.cleanup',
+      arguments: { id: '00000000-0000-4000-8000-0000000000c1' },
+    });
+    expect(cleaned.structuredContent).toEqual({
+      result: { cleaned: [{ ok: true }], forgotten: true },
+    });
+    expect(posted.at(-1)).toEqual({
+      url: 'http://log.test/sessions/checkpoints/00000000-0000-4000-8000-0000000000c1',
+      method: 'DELETE',
+    });
     await client.close();
   });
 });

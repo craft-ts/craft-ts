@@ -1,5 +1,6 @@
 import {
   buildDebugAppSnapshot,
+  CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM,
   CRAFT_DEBUG_SNAPSHOT_QUERY_PARAM,
   type DebugAppSnapshot,
 } from '@craft-ts/component';
@@ -84,9 +85,7 @@ function listenToDebugTabs(): void {
         status.set(
           [
             `Application lancée en mode debug. ${relaunched.length} opération(s) en cours relancée(s).`,
-            ...(failed.length
-              ? [`Non relancées : ${failed.join(', ')}.`]
-              : []),
+            ...(failed.length ? [`Non relancées : ${failed.join(', ')}.`] : []),
             ...launch.snapshot.warnings,
           ].join(' '),
         );
@@ -138,33 +137,33 @@ export function launchDebugApp(
   status.set(`Ouverture de l’application sur ${snapshot.route}…`);
 }
 
-/**
- * Opens the app on a resume point the AI froze: the tab restores it by itself
- * and checks its probes, no dashboard or AI needed.
- */
-export function openResumeCheckpoint(
-  checkpoint: Readonly<{ id: string; origin: string; route?: string }>,
-): void {
-  const url = new URL(checkpoint.route ?? '/', checkpoint.origin);
-  url.searchParams.set('craft-resume-checkpoint', checkpoint.id);
+/** Opens a clean, dedicated app tab for one immutable guided-resume request. */
+export function launchGuidedResumeTab(
+  beforeSequence: number | undefined,
+  participantId: string | undefined,
+  requestId: string,
+): Readonly<{ url: string; opened: boolean; tab: Window | null }> {
+  const owner = participantId ?? replayParticipantIds()[0];
+  const recording = owner ? sessionForParticipant(owner) : undefined;
+  if (!recording) {
+    status.set('Aucune session à ouvrir pour la reprise guidée.');
+    return { url: '', opened: false, tab: null };
+  }
+  const target = parseLocalTarget(targetUrl().trim());
+  if (!target.ok) {
+    status.set(target.error);
+    return { url: '', opened: false, tab: null };
+  }
+  const snapshot = buildDebugAppSnapshot(recording, beforeSequence);
+  const url = new URL(snapshot.route, target.url.origin);
+  url.searchParams.set(CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM, requestId);
   const tab = openLinkedTab(url.href);
   status.set(
     tab
-      ? 'Point de reprise rouvert ; l’onglet vérifie qu’il tient toujours.'
-      : 'Le navigateur a bloqué l’ouverture de l’onglet. Autorise les fenêtres surgissantes pour ce dashboard.',
+      ? `Onglet de reprise ouvert sur ${snapshot.route}.`
+      : 'Le navigateur a bloqué l’ouverture de l’onglet de reprise. Autorise les fenêtres surgissantes pour ce dashboard.',
   );
-}
-
-/** Opens the app and lets its in-tab runner execute a stored recipe. */
-export function openResumeRecipe(recipe: Readonly<{ id: string; origin: string }>, target = '/'): void {
-  const url = new URL(target, recipe.origin);
-  url.searchParams.set('craft-resume-recipe', recipe.id);
-  const tab = openLinkedTab(url.href);
-  status.set(
-    tab
-      ? 'Recette lancée dans l’onglet de l’application.'
-      : 'Le navigateur a bloqué l’ouverture de l’onglet. Autorise les fenêtres surgissantes pour ce dashboard.',
-  );
+  return { url: url.href, opened: tab !== null, tab };
 }
 
 /**

@@ -3,11 +3,8 @@ import {
   CraftTemporalRuntime,
   craftExpose,
   craftService,
-  insertReactOnMutation,
-  mutation,
   query,
   rawReactiveValue,
-  state,
 } from '@craft-ts/core';
 import { isRecord } from './replay-model';
 
@@ -17,7 +14,7 @@ const SESSION_ARCHIVE_URL =
 /** How often the thread is read again while a session is open. */
 const POLL_EVERY_MS = 2000;
 
-/** One message of the resume thread: the AI's steps, the person's answers. */
+/** One progress message attached to a resume request. */
 export type ResumeMessage = Readonly<{
   id: number;
   at: string;
@@ -27,10 +24,14 @@ export type ResumeMessage = Readonly<{
 }>;
 
 export type ResumeThreadState = Readonly<{
-  /** The latest resume request of the session, if someone asked to resume. */
+  /** The exact or latest resume request whose progress is being shown. */
   requestId?: string;
   messages: readonly ResumeMessage[];
 }>;
+
+type ResumeThreadLookup =
+  | Readonly<{ requestId: string }>
+  | Readonly<{ sessionId: string }>;
 
 const MESSAGE_KINDS = new Set(['step', 'question', 'handoff', 'done', 'reply']);
 
@@ -59,58 +60,32 @@ const threadDecoder = {
   },
 };
 
-const sentDecoder = {
-  decode(input: unknown): Readonly<{ id?: number }> {
-    const message = isRecord(input) ? input['message'] : undefined;
-    return isRecord(message) && typeof message['id'] === 'number'
-      ? { id: message['id'] }
-      : {};
-  },
-};
-
 /**
- * The thread of a guided resume, beside the replay: what the AI says through
- * `resume.say`, and the answers the person writes back. It follows the latest
- * resume request of the open session, read again on a timer.
+ * The progress thread of a guided resume, beside the replay. It follows the
+ * exact request after « Reprendre ici », and falls back to the latest request
+ * for a session when the dashboard is opened later.
  */
 export const { ResumeThread } = craftService(
   { name: 'resumeThread', providedIn: 'global' },
   function* () {
     const temporal = yield* CraftTemporalRuntime();
 
-    const draft = yield* state('draft', '', ({ set }) => ({
-      write: (text: string) => set(text),
-    }));
-
-    const reply = yield* mutation('reply', {
-      method: (message: Readonly<{ requestId: string; text: string }>) => message,
-      loader: function* ({ params }) {
-        return yield* CraftHttpClient.post(({ response }) => ({
-          url: `${SESSION_ARCHIVE_URL}/sessions/resume-requests/${encodeURIComponent(params.requestId)}/messages`,
-          payload: { from: 'person', text: params.text },
-          success: response(sentDecoder),
+    const thread = yield* query('thread', {
+      method: (lookup: ResumeThreadLookup) => lookup,
+      loader: function* ({ params: lookup }) {
+        const url =
+          'requestId' in lookup
+            ? `${SESSION_ARCHIVE_URL}/sessions/resume-requests/${encodeURIComponent(lookup.requestId)}`
+            : `${SESSION_ARCHIVE_URL}/sessions/resume-requests/latest?${new URLSearchParams({ sessionId: lookup.sessionId })}`;
+        return yield* CraftHttpClient.get(({ response }) => ({
+          url,
+          success: response(threadDecoder),
         }));
       },
-    });
-
-    const thread = yield* query(
-      'thread',
-      {
-        method: (sessionId: string) => sessionId,
-        loader: function* ({ params: sessionId }) {
-          return yield* CraftHttpClient.get(({ response }) => ({
-            url: `${SESSION_ARCHIVE_URL}/sessions/resume-requests/latest?${new URLSearchParams({ sessionId })}`,
-            success: response(threadDecoder),
-          }));
-        },
-      },
-      // The person's answer shows in the thread as soon as it is saved.
-      insertReactOnMutation(reply, { reload: { onMutationResolved: true } }),
-    );
+    }, () => ({}));
 
     const threadValue = rawReactiveValue(thread.value);
-    const draftValue = rawReactiveValue(draft);
-    let watching: string | undefined;
+    let watching: ResumeThreadLookup | undefined;
     let pollRun = 0;
 
     const poll = (run: number): void => {
@@ -121,21 +96,19 @@ export const { ResumeThread } = craftService(
       });
     };
 
-    yield* craftExpose('watch', (sessionId: string) => {
-      watching = sessionId;
+    yield* craftExpose('watchSession', (sessionId: string) => {
+      watching = { sessionId };
+      pollRun += 1;
+      poll(pollRun);
+    });
+    yield* craftExpose('watchRequest', (requestId: string) => {
+      watching = { requestId };
       pollRun += 1;
       poll(pollRun);
     });
     yield* craftExpose('stop', () => {
       watching = undefined;
       pollRun += 1;
-    });
-    yield* craftExpose('send', () => {
-      const requestId = threadValue()?.requestId;
-      const text = draftValue().trim();
-      if (!requestId || !text) return;
-      reply.mutate({ requestId, text });
-      draft.write('');
     });
   },
 );
