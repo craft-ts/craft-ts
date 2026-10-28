@@ -40,6 +40,8 @@ const noCraftUse = require('./no-craft-use.cjs');
 const noCraftComponentReturnType = require('./no-craft-component-return-type.cjs');
 const requireCraftComponentForExportedNodeFactory = require('./require-craft-component-for-exported-node-factory.cjs');
 const noRawCraftRouterUrl = require('./no-raw-craft-router-url.cjs');
+const noManualCraftRouting = require('./no-manual-craft-routing.cjs');
+const preferCraftRouteOverPageState = require('./prefer-craft-route-over-page-state.cjs');
 const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noExplicitCraftTemplateReturnType = require('./no-explicit-craft-template-return-type.cjs');
 const noExtractedCraftComponentParts = require('./no-extracted-craft-component-parts.cjs');
@@ -187,6 +189,8 @@ const plugin = {
     'require-craft-component-for-exported-node-factory':
       requireCraftComponentForExportedNodeFactory,
     'no-raw-craft-router-url': noRawCraftRouterUrl,
+    'no-manual-craft-routing': noManualCraftRouting,
+    'prefer-craft-route-over-page-state': preferCraftRouteOverPageState,
     'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-explicit-craft-template-return-type': noExplicitCraftTemplateReturnType,
     'no-extracted-craft-component-parts': noExtractedCraftComponentParts,

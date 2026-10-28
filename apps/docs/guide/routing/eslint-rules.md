@@ -60,6 +60,92 @@ route (including any route parameters). Use `CraftRouterLink` for anchor
 navigation and `CraftRouter.navigate(...)` for navigation initiated by a
 button or another action.
 
+## Keep route state in Craft routing
+
+`craft-ts/no-manual-craft-routing` is enabled at `error` in the recommended
+and Effect presets, including generated apps. It catches browser `location`
+reads of `hash` and `pathname`, hand-parsed hash route checks, same-app writes
+to `location.hash` or `location.href`, `location.assign(...)` / `replace(...)`
+calls to app paths, URL-bearing `history.pushState` / `replaceState` calls, and
+subscriptions to `popstate` or `hashchange`. These patterns implement route
+matching, navigation, or history tracking outside `provideCraftRouter` and
+`CraftRouterOutlet`.
+
+Before — the service parses the route and changes it by editing browser history:
+
+```ts
+const sessionId = /^#\/sessions\/([^/]+)$/.exec(location.hash)?.[1];
+history.pushState({}, '', `#/sessions/${nextSessionId}`);
+```
+
+After — declare the path parameter with the route, then use Craft's typed route
+helpers and navigation API:
+
+```ts
+// In the route declaration:
+{
+  path: 'sessions/:sessionId',
+  pathParams: { sessionId: sessionIdPathParam },
+  // Route providers expose SessionIdParams to the page's services.
+}
+
+// In a routed service:
+const sessionId = yield* SessionIdParams();
+const router = yield* CraftRouter();
+yield* router.navigate({
+  to: 'sessions/:sessionId',
+  params: { sessionId: nextSessionId },
+});
+```
+
+The rule has no autofix: choosing a route and mapping parsed values to its
+typed path or query parameters requires understanding the feature. It leaves
+fragment links and ordinary `location.search` reads alone. Browser URL work
+for a separate protocol (such as a worker or iframe) should remain behind that
+protocol's boundary, rather than deciding which app page is active.
+
+`craft-ts/prefer-craft-route-over-page-state` adds a softer warning at `warn`
+in the recommended and Effect presets. A string-valued `state('page', ...)`,
+`state('currentPage', ...)`, `state('activePage', ...)`, or
+`state('routePage', ...)` can duplicate the route table by storing which page
+the URL already selects.
+
+Before — local state selects which routed page is visible:
+
+```ts
+const page = yield* state('page', 'sessions');
+```
+
+After — declare both pages in `craftRoutes` and let the router activate one in
+`CraftRouterOutlet()`:
+
+```ts
+import { loadCraftComponent } from '@craft-ts/component';
+import { CraftRouterOutlet, craftRoute, craftRoutes } from '@craft-ts/core';
+
+export const { appRoutes } = craftRoutes('app', [
+  craftRoute('sessions', {
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./sessions-page')).then(
+        (module) => module.SessionsPage,
+      ),
+    ),
+  }),
+  craftRoute('sessions/:sessionId', {
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./replay-page')).then((module) => module.ReplayPage),
+    ),
+  }),
+]);
+
+// In the application shell's template:
+main(CraftRouterOutlet());
+```
+
+This is a review warning, not an error: names such as `page` can also mean
+pagination or page-local UI state. Keep those states when they do not choose
+the active route. The warning has no autofix.
+
 ## Use Craft state and computed values
 
 `craft-ts/no-direct-craft-reactivity` is enabled at `error` in the recommended
@@ -668,6 +754,8 @@ checks exported arrow functions.
 - `craft-ts/require-lazy-load-with-retry`: wraps route `loadComponent` and `loadChildren` imports with the generated `withRetry(...)` loader helper while preserving a statically analyzable import specifier
 - `craft-ts/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
 - `craft-ts/prefer-craft-router-link`: requires `CraftRouterLink` for app-relative Craft anchor `href`s, and reports ambiguous dynamic hrefs; external URLs, fragment links, downloads, `_blank`, and links marked with `data-navigation: 'external'` remain native. No autofix is offered because the author must choose the declared route and its parameters.
+- `craft-ts/no-manual-craft-routing`: rejects browser URL parsing and History API/event handling used to match, select, or change Craft routes; use `CraftActivatedRoute` with typed path/query helpers to read the route, `CraftRouter.navigate(...)` for actions, and `CraftRouterLink(...)` for links. No autofix is offered because route ownership and parameter mapping require a human choice.
+- `craft-ts/prefer-craft-route-over-page-state`: warns when string-valued state named `page`, `currentPage`, `activePage`, or `routePage` may duplicate route activation; if it chooses the visible app page, declare routes with `craftRoutes(...)` and render them with `CraftRouterOutlet()`. Pagination and page-local state remain valid. Warning only; no autofix.
 - `craft-ts/no-raw-craft-router-url`: rejects reading `CraftRouter.url`; use the typed route parameter helper generated by `craftRoutes(...)` instead of parsing the URL
 - `craft-ts/no-craft-component-return-type`: rejects explicit annotations on `craftComponent(...)` results so dependency and template inference remains intact
 
