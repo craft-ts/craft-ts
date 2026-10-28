@@ -1,4 +1,9 @@
-import { craftComponent, div, headingRoot, span } from '@craft-ts/component';
+import {
+  craftComponent,
+  CraftRouterOutlet,
+  div,
+  span,
+} from '@craft-ts/component';
 import {
   DocBadge,
   DocLogo,
@@ -9,11 +14,7 @@ import {
 } from '@craft-ts/ui';
 import { ui } from './dashboard.style';
 import { replayHost } from './replay-browser';
-import { ReplayPage } from './replay-page';
-import { E2eComparisonPage } from './e2e-comparison-page';
-import { E2eReplayRoute } from './e2e-replay-route';
 import { ReplayRoute } from './replay-route.service';
-import { SessionsPage } from './sessions-page';
 import { lit } from './view-helpers';
 
 /**
@@ -56,12 +57,9 @@ export const DebugSessionDashboard = craftComponent(
     // hands it the page's window and the DOM adapter.
     return div({ class: ui.root }, [
       bar,
-      // Each page titles itself with an `h1`; only one of them shows at a time.
-      div({ class: ui.page }, [
-        headingRoot([SessionsPage({}), ReplayPage({})]),
-        headingRoot([E2eComparisonPage({})]),
-        E2eReplayRoute({}),
-      ]),
+      // The router activates one page at a time. Hash routing keeps this
+      // dashboard usable from static hosting without a server-side fallback.
+      div({ class: ui.page }, CraftRouterOutlet()),
     ]).pipe(replayHost);
   },
 );

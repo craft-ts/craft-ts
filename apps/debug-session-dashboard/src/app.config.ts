@@ -7,11 +7,14 @@ import {
   RealCraftTemporalRuntime,
   craftAppConfig,
   provideCraftSecurityPolicy,
+  provideCraftRouter,
   provideCraftTemporalRuntime,
+  withHashLocation,
 } from '@craft-ts/core';
 import { DebugSessionDashboard } from './dashboard';
 import { AiChatLauncherBridge } from './replay-ai-launcher';
 import { THUMBNAIL_ORIGIN } from './thumbnail-archive.service';
+import { dashboardRoutes } from './app.routes';
 
 export const appConfig = craftAppConfig({
   providers: [
@@ -35,5 +38,6 @@ export const appConfig = craftAppConfig({
     // The chat opens from a button of the playbar, not from a floating one.
     provideSendContextLauncherComponent(() => AiChatLauncherBridge),
     provideCraftRootComponent(DebugSessionDashboard),
+    provideCraftRouter(dashboardRoutes.toRoutes(), withHashLocation()),
   ],
 });
