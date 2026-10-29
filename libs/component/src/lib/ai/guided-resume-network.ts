@@ -16,6 +16,7 @@ export type GuidedResumeMockCase =
   | Readonly<{ id: string; kind: 'failure'; message: string }>;
 
 export type GuidedResumeMockEndpoint = Readonly<{
+  /** Server-function id or exact `METHOD URL` for a Craft HTTP client call. */
   call: string;
   defaultCaseId?: string;
   cases: readonly GuidedResumeMockCase[];
@@ -75,8 +76,14 @@ export function resolveGuidedResumeMock(
   const network = activeNetwork;
   if (!network) return { active: false };
   const payload = isRecord(context.payload) ? context.payload : undefined;
-  const call = typeof payload?.['id'] === 'string' ? payload['id'] : undefined;
-  const endpoint = network.mocks.find((mock) => mock.call === call);
+  const call =
+    typeof payload?.['id'] === 'string'
+      ? payload['id']
+      : `${context.method.toUpperCase()} ${normalizeRequestUrl(context)}`;
+  const endpoint = network.mocks.find(
+    (mock) =>
+      mock.call === call || normalizeMockCall(mock.call) === call,
+  );
   if (!endpoint)
     return {
       active: true,
@@ -123,6 +130,41 @@ export function resolveGuidedResumeServerFunctionMock(
     url: '/__server-functions',
     payload: { id: call, input },
   });
+}
+
+function normalizeRequestUrl(context: CraftHttpTraceContext): string {
+  const url = new URL(context.url, location.origin);
+  const params = context.params;
+  const entries =
+    params instanceof URLSearchParams
+      ? [...params.entries()]
+      : isRecord(params)
+        ? Object.entries(params).flatMap(([key, value]) =>
+            Array.isArray(value)
+              ? value.map((item) => [key, String(item)] as const)
+              : value === undefined || value === null
+                ? []
+                : [[key, String(value)] as const],
+          )
+        : [];
+  for (const [key, value] of entries)
+    if (!url.searchParams.has(key)) url.searchParams.append(key, value);
+  url.searchParams.sort();
+  return `${url.origin}${url.pathname}${url.search}`;
+}
+
+function normalizeMockCall(call: string): string | undefined {
+  const separator = call.indexOf(' ');
+  if (separator <= 0) return undefined;
+  const method = call.slice(0, separator).toUpperCase();
+  const target = call.slice(separator + 1);
+  try {
+    const url = new URL(target, location.origin);
+    url.searchParams.sort();
+    return `${method} ${url.origin}${url.pathname}${url.search}`;
+  } catch {
+    return undefined;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

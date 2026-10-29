@@ -178,7 +178,9 @@ boundary; replace the session, origin, state address, route, and probe with
 values read from the current app. Empty objective lists, `mayWrite: false`,
 `strategy: "autonomous"`, cleanup, and revision history are the defaults.
 For a behavioral test, add `network: { mode: "mocked", mocks: [...] }` with
-one entry per Craft server function and its named cases. Leave out
+one entry per server-function id or Craft HTTP endpoint and its named cases.
+Use the exact `METHOD URL` graph identity for a `CraftHttpClient` call, such
+as `POST /api/cart`. Leave out
 `defaultCaseId` to choose on every run; set it to remember a case. A
 `recipe.network` activation applies that profile after a valid checkpoint has
 been restored, without replaying the recipe's setup steps. The log server

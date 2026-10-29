@@ -260,7 +260,7 @@ function isResumeRecipeNetwork(value: unknown): value is ResumeRecipeNetwork {
         (key) => !['call', 'defaultCaseId', 'cases'].includes(key),
       ) ||
       typeof mock['call'] !== 'string' ||
-      !/^[A-Za-z0-9_$.-]{1,200}$/.test(mock['call']) ||
+      !isValidMockCall(mock['call']) ||
       calls.has(mock['call']) ||
       !Array.isArray(mock['cases']) ||
       mock['cases'].length === 0 ||
@@ -338,6 +338,13 @@ function isJsonValue(value: unknown): boolean {
   return (
     isRecord(value) &&
     Object.values(value).every(isJsonValue)
+  );
+}
+
+function isValidMockCall(value: string): boolean {
+  return (
+    /^[A-Za-z0-9_$.-]{1,200}$/.test(value) ||
+    /^[A-Z]{3,10} (?:https?:\/\/\S{1,500}|\/\S{0,500})$/.test(value)
   );
 }
 

@@ -78,7 +78,9 @@ If the person does not answer whether they want to repeat the path, keep the
 result session-only. Do not call a temporary checkpoint a reusable script.
 
 In mocked behavior mode, ask which named case to use for each relevant Craft
-server function. Save the cases on the recipe's `network` profile. Pass
+server-function id or Craft HTTP endpoint. Spell an HTTP call as the exact
+`METHOD URL` from the graph, for example `POST /api/cart`. Save the cases on
+the recipe's `network` profile. Pass
 `mockChoices` to `recipe.run` for a one-run override. Keep `defaultCaseId` out
 to ask for a choice on each run; save it only when the person wants the same
 case remembered. A `success` case returns its decoded value, an `exception`

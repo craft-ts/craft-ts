@@ -651,7 +651,7 @@ function registerRecipeTools(
     'recipe.save',
     {
       description:
-        'Save or revise a guided-resume recipe in the local log server. Build steps with the typed step schema: goto/create, human handoff until a live condition, network mode selection, act/invoke, expect, checkpoint. A mocked profile names success and failure cases; defaultCaseId remembers a choice. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
+        'Save or revise a guided-resume recipe in the local log server. Build steps with the typed step schema: goto/create, human handoff until a live condition, network mode selection, act/invoke, expect, checkpoint. A mocked profile names success and failure cases for each server-function id or exact Craft HTTP call (`METHOD URL`); defaultCaseId remembers a choice. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
       inputSchema: {
         id: z.string().uuid().optional(),
         sessionId: z.string().uuid(),
@@ -693,7 +693,7 @@ function registerRecipeTools(
     'recipe.run',
     {
       description:
-        'Execute a stored recipe in the connected tab. The tab runs each step until its condition, records progress in the dashboard thread, and performs cleanup on failure. Pass mockChoices for a one-run case selection; saved defaultCaseId values apply otherwise. Human hand-offs wait up to five minutes by default; the tool call allows up to fifteen minutes for the person to finish. Set supervised to stop after each step and return control to the AI.',
+        'Execute a stored recipe in the connected tab. The tab runs each step until its condition, records progress in the dashboard thread, and performs cleanup on failure. Pass mockChoices keyed by server-function id or exact `METHOD URL` for a one-run case selection; saved defaultCaseId values apply otherwise. Human hand-offs wait up to five minutes by default; the tool call allows up to fifteen minutes for the person to finish. Set supervised to stop after each step and return control to the AI.',
       inputSchema: {
         clientId,
         id: z.string().uuid(),
