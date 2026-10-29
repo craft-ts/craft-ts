@@ -60,7 +60,7 @@ const developmentProviders = import.meta.env.DEV
       // absent from the production graph.
       provideLogServerUrl(() => `${localLogServerUrl}/logs`),
       provideLogForwarding(),
-      provideDemoTracing(),
+      // provideDemoTracing(), // Used to track everything
       // eslint-disable-next-line craft-ts/prefer-browser-boundaries
       provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
       provideSendContextEventEnricher((event) => ({
@@ -85,9 +85,10 @@ const developmentProviders = import.meta.env.DEV
         // This route deliberately renders 13 independent counter services;
         // keep the leak guard's default threshold meaningful everywhere else.
         exempt: {
-          'state:counter in component:App / component:CraftRouterOutlet / service:craftRouterOutletState / route:demo-send-context / component:DemoSendContextComponent / component:SendContextCounterComponent / service:sendContextCounterView': {
-            leakedInstances: 20,
-          },
+          'state:counter in component:App / component:CraftRouterOutlet / service:craftRouterOutletState / route:demo-send-context / component:DemoSendContextComponent / component:SendContextCounterComponent / service:sendContextCounterView':
+            {
+              leakedInstances: 20,
+            },
         },
       }),
       provideSendContextToAi({ recording: false, capture: false }),
@@ -165,7 +166,9 @@ export const appConfig = craftAppConfig({
 function isLoopbackUrl(value: string): boolean {
   try {
     const hostname = new URL(value).hostname.replace(/^\[|\]$/g, '');
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    return (
+      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    );
   } catch {
     return false;
   }

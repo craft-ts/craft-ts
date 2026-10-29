@@ -16,6 +16,8 @@ The pipelines are documented in [apps/log-server/README.md](../../../apps/log-se
 
 The log server hosts both sources, so a session can exist even when `logs.stats` reports no logs for its time range, and application logs do not prove that the session archive contains a replayable response.
 
+The two sources also classify records differently: archived session events have a `kind` (for example `dom`, `craft`, `http`, `navigation`, `route-activation`, or `snapshot`), while application log entries have a `level` (`debug`, `info`, `log`, `warn`, or `error`). `logs.search` supports filtering by `level`, not by session-event `kind`; use the `session.*` tools to inspect the archived timeline.
+
 ## Fast path: diagnose application logs
 
 Use this path when the user asks about application logs or runtime telemetry. For a bug report that points to a recorded dashboard session, use **Choose the evidence source** first. This path reads runtime log evidence, not source code: do **not** read source files before checking the relevant logs.

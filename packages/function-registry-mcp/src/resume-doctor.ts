@@ -227,7 +227,7 @@ export async function diagnoseGuidedResume(
         ok: false,
         detail: `${client.pageUrl ?? client.clientId} : ${message}`,
         fix: /does not answer/.test(message)
-          ? 'Installer la reprise guidée dans l’app, en développement : ...provideCraftGuidedResume({ logServerUrl }) à côté de provideCraftDevTools().'
+          ? 'Installer la reprise guidée dans l’app, en développement : ...provideCraftGuidedResume({ logServerUrl }) et ...provideCraftGuidedResumeChat({ logServerUrl }) à côté de provideCraftDevTools().'
           : 'Recharger l’onglet, puis relancer resume.doctor.',
       });
     }

@@ -523,27 +523,39 @@ export function cancelReplaySeek(): void {
   status.set(`Accélération annulée · le replay est à l’étape ${replayIndex()}.`);
 }
 
-function driveSeek(): void {
+function settleSeek(): boolean {
   const target = seekTarget();
-  if (target === undefined) return;
+  if (target === undefined) return true;
   if (
     difference() !== undefined ||
     ['error', 'completed'].includes(replayState()) ||
     replayIndex() >= target
   ) {
     seekTarget.set(undefined);
-    if (replayIndex() >= target && replayState() !== 'error')
+    if (
+      replayIndex() >= target &&
+      !['error', 'completed'].includes(replayState())
+    )
       status.set(
         `Replay · arrêté avant l’action ${target + 1}. « Action suivante » l’exécute.`,
       );
-    return;
+    return true;
   }
+  return false;
+}
+
+function driveSeek(): void {
+  if (settleSeek()) return;
   if (!['ready', 'paused'].includes(replayState())) return;
   if (registers.seekStepping) return;
   registers.seekStepping = true;
   stepNextReplayAction();
 }
 seekHooks.drive = driveSeek;
+seekHooks.settle = () => {
+  if (difference() !== undefined) return;
+  settleSeek();
+};
 
 export function stopReplay(): void {
   seekTarget.set(undefined);

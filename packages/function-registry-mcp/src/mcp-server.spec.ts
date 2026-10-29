@@ -261,6 +261,16 @@ describe('registry MCP server', () => {
     const listed = await client.listTools();
     const recipeSave = listed.tools.find(({ name }) => name === 'recipe.save');
     expect(recipeSave?.description).toContain('typed step schema');
+    const deleteMock = {
+      call: 'ecommerce.product.delete',
+      defaultCaseId: 'removed',
+      cases: [{
+        id: 'removed',
+        kind: 'success',
+        response: { ok: true },
+        nextChoices: { 'ecommerce.admin.overview': 'deleted' },
+      }],
+    };
     await client.callTool({
       name: 'recipe.save',
       arguments: {
@@ -268,6 +278,7 @@ describe('registry MCP server', () => {
         beforeSequence: 40,
         origin: 'http://localhost:4300',
         objective: { goal: 'Reprendre après connexion' },
+        network: { mode: 'mocked', mocks: [deleteMock] },
         steps: [
           { type: 'goto', route: '/connexion' },
           {
@@ -293,6 +304,7 @@ describe('registry MCP server', () => {
         mayWrite: false,
       },
       strategy: 'autonomous',
+      network: { mode: 'mocked', mocks: [deleteMock] },
       steps: [
         { type: 'goto', route: '/connexion' },
         {

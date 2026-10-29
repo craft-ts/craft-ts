@@ -90,6 +90,7 @@ export interface DependencyGraphNodeRegistry {
   'server-function-middleware-misnamed': Record<string, unknown>;
   'client-function-middleware': Record<string, unknown>;
   'client-function-middleware-misnamed': Record<string, unknown>;
+  'fn-wrapper': Record<string, unknown>;
   handshake: Record<string, unknown>;
   /** A Markdown page, added by the opt-in `createMarkdownDocsCollector`. */
   'doc-page': Record<string, unknown>;
@@ -525,6 +526,7 @@ export function analyzeDependencyGraph(
     );
 
   collectServices(builder, sourceFiles);
+  collectFnWrappers(builder, sourceFiles);
   collectSources(builder, sourceFiles);
   collectComponents(builder, sourceFiles);
   collectRoutes(builder, sourceFiles);
@@ -1545,6 +1547,223 @@ function collectServices(
     collectProvides(builder, service.node.id, service.call.getArguments()[0]);
   }
   collectServiceAccess(builder, sourceFiles);
+}
+
+/**
+ * Records the Craft services that a `provideFnWrapper` body can yield.
+ * Unlike a normal service, a function wrapper can run in every injection
+ * context that executes a Craft factory, so its dependencies need a separate
+ * architecture check against root providers.
+ */
+function collectFnWrappers(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  for (const sourceFile of sourceFiles) {
+    let ordinal = 0;
+    for (const call of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
+      if (!isProvideFnWrapperCall(call)) continue;
+      const callbackArgument = call.getArguments()[1];
+      if (!callbackArgument) continue;
+      const callback = resolveFnWrapperCallback(callbackArgument);
+      const line = call.getStartLineNumber();
+      const callbackName = Node.isIdentifier(callbackArgument)
+        ? callbackArgument.getText()
+        : callback && Node.isFunctionDeclaration(callback) && callback.getName()
+          ? callback.getName()
+          : 'inline callback';
+      const label = `provideFnWrapper@${sourceFile.getBaseName()}:${line}`;
+      const id = `fn-wrapper:${sourceFile.getFilePath()}:${line}:${ordinal++}`;
+      const requirements = new Map<
+        string,
+        { service: ServiceInfo; call: CallExpression }
+      >();
+      const unresolvedInjectionCalls = new Set<string>();
+      if (callback) {
+        collectFnWrapperRequirements(
+          builder,
+          callback,
+          sourceFile,
+          requirements,
+          unresolvedInjectionCalls,
+        );
+      }
+      addNode(
+        builder,
+        {
+          id,
+          kind: 'fn-wrapper',
+          label,
+          filePath: sourceFile.getFilePath(),
+          line,
+          details: {
+            callback: callbackName,
+            callbackResolved: callback !== undefined,
+            dependencyCount: requirements.size,
+            unresolvedInjectionCalls: [...unresolvedInjectionCalls],
+          },
+        },
+        call,
+      );
+      for (const { service, call: dependencyCall } of requirements.values()) {
+        addEdge(
+          builder,
+          id,
+          service.node.id,
+          'depends-on',
+          'ast',
+          {
+            via: 'fn-wrapper-yield',
+          },
+          {
+            filePath: sourceFile.getFilePath(),
+            line: dependencyCall.getStartLineNumber(),
+            symbol: service.node.label,
+            pattern: 'service helper called in provideFnWrapper callback',
+          },
+        );
+      }
+    }
+  }
+}
+
+function collectFnWrapperRequirements(
+  builder: GraphBuilder,
+  callback: Node,
+  registrationFile: SourceFile,
+  requirements: Map<string, { service: ServiceInfo; call: CallExpression }>,
+  unresolvedInjectionCalls: Set<string>,
+): void {
+  const pending: { body: Node; depth: number }[] = [
+    { body: callback, depth: 0 },
+  ];
+  const visited = new Set<string>();
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    const key = `${current.body.getSourceFile().getFilePath()}:${current.body.getStart()}`;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    for (const nestedCall of current.body.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
+      const service = findServiceForCall(builder, nestedCall);
+      if (service) {
+        requirements.set(service.node.id, { service, call: nestedCall });
+        continue;
+      }
+      if (isUnresolvedInjectionCall(nestedCall)) {
+        unresolvedInjectionCalls.add(
+          rootIdentifier(nestedCall.getExpression())?.getText() ??
+            nestedCall.getExpression().getText(),
+        );
+        continue;
+      }
+      // Follow nearby helpers within the wrapper's own file. Crossing into
+      // arbitrary imported call graphs would turn a focused DI check into a
+      // whole-program call graph; imported `inject*` helpers are surfaced
+      // above as unresolved instead.
+      if (current.depth >= 3) continue;
+      const identifier = rootIdentifier(nestedCall.getExpression());
+      if (!identifier) continue;
+      const helper = resolveFnWrapperCallback(identifier);
+      if (
+        helper &&
+        helper.getSourceFile() === registrationFile &&
+        helper !== callback
+      ) {
+        pending.push({ body: helper, depth: current.depth + 1 });
+      }
+    }
+  }
+}
+
+function resolveFnWrapperCallback(argument: Node): Node | undefined {
+  let callback = argument;
+  while (
+    Node.isParenthesizedExpression(callback) ||
+    Node.isAsExpression(callback) ||
+    Node.isTypeAssertion(callback) ||
+    Node.isNonNullExpression(callback)
+  ) {
+    callback = callback.getExpression();
+  }
+  if (
+    Node.isArrowFunction(callback) ||
+    Node.isFunctionExpression(callback) ||
+    Node.isFunctionDeclaration(callback)
+  ) {
+    return callback;
+  }
+  if (Node.isIdentifier(callback)) {
+    const symbol =
+      callback.getSymbol()?.getAliasedSymbol() ?? callback.getSymbol();
+    for (const declaration of symbol?.getDeclarations() ?? []) {
+      const functionLike = functionLikeFromDeclaration(declaration);
+      if (functionLike) return functionLike;
+    }
+  }
+  return undefined;
+}
+
+function isProvideFnWrapperCall(call: CallExpression): boolean {
+  const identifier = rootIdentifier(call.getExpression());
+  if (!identifier) return false;
+  if (identifier.getText() === 'provideFnWrapper') return true;
+  const symbol = identifier.getSymbol();
+  const resolved = symbol?.getAliasedSymbol() ?? symbol;
+  return (resolved?.getDeclarations() ?? []).some((declaration) => {
+    const name =
+      Node.isFunctionDeclaration(declaration) ||
+      Node.isMethodDeclaration(declaration)
+        ? declaration.getName()
+        : undefined;
+    return name === 'provideFnWrapper';
+  });
+}
+
+function functionLikeFromDeclaration(declaration: Node): Node | undefined {
+  if (
+    Node.isArrowFunction(declaration) ||
+    Node.isFunctionExpression(declaration) ||
+    Node.isFunctionDeclaration(declaration)
+  ) {
+    return declaration;
+  }
+  if (Node.isVariableDeclaration(declaration)) {
+    let initializer = declaration.getInitializer();
+    while (
+      initializer &&
+      (Node.isParenthesizedExpression(initializer) ||
+        Node.isAsExpression(initializer) ||
+        Node.isTypeAssertion(initializer) ||
+        Node.isNonNullExpression(initializer))
+    ) {
+      initializer = initializer.getExpression();
+    }
+    if (
+      initializer &&
+      (Node.isArrowFunction(initializer) ||
+        Node.isFunctionExpression(initializer))
+    ) {
+      return initializer;
+    }
+  }
+  return undefined;
+}
+
+function isUnresolvedInjectionCall(call: CallExpression): boolean {
+  const expression = call.getExpression();
+  const identifier = rootIdentifier(expression);
+  const helperName = identifier?.getText() ?? expression.getText();
+  if (/^(?:ɵ)?inject(?:$|[A-Z])/.test(helperName)) return true;
+  return (
+    Node.isPropertyAccessExpression(expression) &&
+    expression.getName() === 'get' &&
+    Node.isIdentifier(expression.getExpression()) &&
+    expression.getExpression().getText() === 'injector'
+  );
 }
 
 /**

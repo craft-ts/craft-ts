@@ -40,6 +40,8 @@ async function fixture(files: Record<string, string>): Promise<string> {
 
 const CRAFT_STUBS = `
 declare function craftService(...args: unknown[]): Record<string, (...args: never[]) => unknown>;
+declare function provideFnWrapper(warning: string, wrapper: (...args: any[]) => unknown): unknown;
+declare function injectNeedle(): unknown;
 declare function craftComponent(...args: unknown[]): unknown;
 declare function state(...args: unknown[]): unknown;
 declare function query(...args: unknown[]): unknown;
@@ -100,6 +102,48 @@ function edgeLabels(
 }
 
 describe('analyzeDependencyGraph reactive granularity', () => {
+  it('records service requirements declared inside provideFnWrapper callbacks', async () => {
+    const root = await fixture({
+      'wrapper.ts': `
+        ${CRAFT_STUBS}
+        const { RouteContext } = craftService(
+          { name: 'RouteContext', providedIn: 'toProvide' },
+          function* () { return {}; },
+        );
+        function* contextForWrapper() { return yield* RouteContext(); }
+        const tracingWrapper = function* (factory: (...args: unknown[]) => Generator<unknown, unknown, unknown>, thisArg: unknown, args: unknown[]) {
+          injectNeedle();
+          const context = yield* contextForWrapper();
+          return yield* factory.apply(thisArg, args);
+        };
+        provideFnWrapper('review DI context', tracingWrapper);
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+    const wrapper = graph.nodes.find((node) => node.kind === 'fn-wrapper');
+    const requirement = graph.edges.find(
+      (edge) => edge.from === wrapper?.id && edge.kind === 'depends-on',
+    );
+
+    expect(wrapper?.details?.['callbackResolved']).toBe(true);
+    expect(wrapper?.details?.['unresolvedInjectionCalls']).toEqual([
+      'injectNeedle',
+    ]);
+    expect(graph.nodes.find((node) => node.id === requirement?.to)?.label).toBe(
+      'RouteContext',
+    );
+    expect(requirement?.proof).toEqual(
+      expect.objectContaining({
+        symbol: 'RouteContext',
+        pattern: 'service helper called in provideFnWrapper callback',
+      }),
+    );
+  });
+
   it('treats reading a primitive as a dependency, not a call of its methods', async () => {
     const root = await fixture({
       'cart.ts': `
@@ -130,9 +174,9 @@ describe('analyzeDependencyGraph reactive granularity', () => {
       tsConfigFilePath: 'tsconfig.json',
     });
     expect(edgeLabels(graph, 'craftComputed:cartCount', 'calls')).toEqual([]);
-    expect(edgeLabels(graph, 'craftComputed:cartCount', 'depends-on')).toContain(
-      'depends-on->state:cartLines',
-    );
+    expect(
+      edgeLabels(graph, 'craftComputed:cartCount', 'depends-on'),
+    ).toContain('depends-on->state:cartLines');
     // A real member call reaches that member's server function only.
     const effectCalls = edgeLabels(graph, 'craftEffect:addOnStart', 'calls');
     expect(effectCalls).not.toContain('calls->ecommerce.cart.removeLine');
@@ -764,9 +808,11 @@ describe('analyzeDependencyGraph insertions', () => {
     const writes = edgesFrom(graph, 'query:signInProcess', 'writes');
 
     expect(writes).toHaveLength(1);
-    expect(graph.nodes.find((node) => node.id === writes[0]?.to)).toMatchObject({
-      label: 'state:currentSession',
-    });
+    expect(graph.nodes.find((node) => node.id === writes[0]?.to)).toMatchObject(
+      {
+        label: 'state:currentSession',
+      },
+    );
     expect(writes[0]?.details).toMatchObject({
       operation: 'open',
       via: 'state-method',

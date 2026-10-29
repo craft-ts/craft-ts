@@ -21,12 +21,14 @@ import {
 } from '@craft-ts/core';
 import { DocCallout } from '@craft-ts/ui';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
+import { AiChatBridge } from './replay-ai-bridge.service';
 import { ui } from './dashboard.style';
 import { ImportDialog } from './import-dialog';
 import { goToHash } from './replay-browser';
 import { sessionDate, storageSizeLabel } from './replay-labels';
 import { plural } from './replay-model';
 import { ReplayRoute } from './replay-route.service';
+import { SessionResumeFilter } from './session-resume-filter.service';
 import { openImport } from './replay-session';
 import type { SessionSummary } from './session-archive.service';
 import {
@@ -48,15 +50,24 @@ function hasSupportedVersions(session: SessionSummary): boolean {
 /** Page 1: the sessions the local archive holds, to open or to delete. */
 export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const archive = yield* SessionArchive();
+  const aiChat = yield* AiChatBridge();
+  const resumeFilter = yield* SessionResumeFilter();
   const route = yield* ReplayRoute();
   const savedSessions = rawReactiveValue(archive.savedSessions);
   const retentionDays = rawReactiveValue(archive.retentionDays);
   const storageBytes = rawReactiveValue(archive.storageBytes);
   const reachable = rawReactiveValue(archive.reachable);
+  const resumeFilterEnabled = rawReactiveValue(resumeFilter.enabled);
+  const visibleSessions = yield* craftComputed('visibleSessions', () => {
+    const sessions = savedSessions();
+    return resumeFilterEnabled()
+      ? sessions.filter((session) => (session.resumeCount ?? 0) > 0)
+      : sessions;
+  });
+  const visibleSessionsValue = rawReactiveValue(visibleSessions);
   const temporal = yield* CraftTemporalRuntime();
   const expiredSessions = yield* craftComputed('expiredSessions', () => {
-    const cutoff =
-      temporal.dateNow() - retentionDays() * 24 * 60 * 60 * 1000;
+    const cutoff = temporal.dateNow() - retentionDays() * 24 * 60 * 60 * 1000;
     return savedSessions().filter(
       (item) =>
         item.status !== 'recording' && Date.parse(item.createdAt) < cutoff,
@@ -93,6 +104,12 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const pageHidden = yield* craftComputed(
     'pageHidden',
     () => page() !== 'sessions',
+  );
+  const aiChatDisabled = yield* craftComputed(
+    'sessionsAiChatDisabled',
+    function* () {
+      return !(yield* aiChat.chat.available());
+    },
   );
 
   const head = div({ class: ui.listHead }, [
@@ -169,6 +186,49 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
         },
         'Importer un fichier',
       ),
+      button(
+        'openRecipes',
+        {
+          type: 'button',
+          class: buttonUi.root,
+          'data-variant': 'secondary',
+          'data-lab': 'open-recipe-catalog',
+          click: () => goToHash('#/recipes'),
+        },
+        'Recettes',
+      ),
+      button(
+        'toggleResumeFilter',
+        {
+          type: 'button',
+          class: buttonUi.root,
+          'data-variant': function* () {
+            return resumeFilterEnabled() ? 'tonal' : 'secondary';
+          },
+          'data-lab': 'filter-sessions-with-resumes',
+          'aria-pressed': function* () {
+            return resumeFilterEnabled() ? 'true' : 'false';
+          },
+          click: resumeFilter.toggle,
+        },
+        function* () {
+          return resumeFilterEnabled()
+            ? 'Toutes les sessions'
+            : 'Avec reprises';
+        },
+      ),
+      button(
+        'sessionsAiChat',
+        {
+          type: 'button',
+          class: buttonUi.root,
+          'data-variant': 'secondary',
+          'data-lab': 'ai-chat',
+          disabled: aiChatDisabled,
+          click: aiChat.open,
+        },
+        'Contexte IA',
+      ),
     ]),
   ]);
 
@@ -187,7 +247,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
 
   const rows = ul(
     { class: ui.sessions },
-    forNode(savedSessions, { track: (saved) => saved.id }, (saved) =>
+    forNode(visibleSessions, { track: (saved) => saved.id }, (saved) =>
       li({ class: ui.row }, [
         button(
           'savedSession',
@@ -257,12 +317,72 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                 const item = yield* saved();
                 return `Replay v${item.replayVersion}`;
               }),
+              span(
+                {
+                  class: badgeUi.root,
+                  'data-tone': 'important',
+                  'data-lab': 'guided-resume-session',
+                  hidden: function* () {
+                    return (yield* saved()).resume?.kind !== 'guided-resume';
+                  },
+                },
+                'Reprise guidée',
+              ),
+              span(
+                {
+                  class: badgeUi.root,
+                  'data-tone': 'important',
+                  'data-lab': 'recipe-run-session',
+                  hidden: function* () {
+                    return (yield* saved()).resume?.kind !== 'recipe-run';
+                  },
+                },
+                'Issue d’une recette',
+              ),
+              span(
+                {
+                  class: badgeUi.root,
+                  'data-tone': 'tip',
+                  'data-lab': 'recipe-count',
+                  hidden: function* () {
+                    return ((yield* saved()).recipeCount ?? 0) === 0;
+                  },
+                },
+                function* () {
+                  const count = (yield* saved()).recipeCount ?? 0;
+                  return `${count} recette${count > 1 ? 's' : ''}`;
+                },
+              ),
+              span(
+                {
+                  class: badgeUi.root,
+                  'data-tone': 'important',
+                  'data-lab': 'resume-count',
+                  hidden: function* () {
+                    return ((yield* saved()).resumeCount ?? 0) === 0;
+                  },
+                },
+                function* () {
+                  const count = (yield* saved()).resumeCount ?? 0;
+                  return `${count} reprise${count > 1 ? 's' : ''}`;
+                },
+              ),
             ]),
             span({ class: ui.rowMeta }, function* () {
               const item = yield* saved();
               return [
                 plural(item.participantCount ?? 1, 'onglet'),
                 plural(item.eventCount, 'événement'),
+                ...(item.resume
+                  ? [
+                      ...(item.resume.kind === 'guided-resume'
+                        ? [`depuis ${item.resume.sourceSessionId.slice(0, 8)}`]
+                        : [`recette ${item.resume.recipeId.slice(0, 8)}`]),
+                      ...(item.resume.beforeSequence === undefined
+                        ? []
+                        : [`avant l’événement ${item.resume.beforeSequence}`]),
+                    ]
+                  : []),
               ].join(' · ');
             }),
             span({ class: ui.rowUrl, 'data-lab': 'saved-url' }, function* () {
@@ -348,6 +468,20 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     },
     'Aucune session pour le moment. Lance ton application avec l’enregistrement activé : ses sessions apparaissent ici.',
   );
+  const noResumableSessions = p(
+    {
+      class: ui.empty,
+      'data-lab': 'empty-resume-filter',
+      hidden: function* () {
+        return (
+          !resumeFilterEnabled() ||
+          savedSessions().length === 0 ||
+          visibleSessionsValue().length > 0
+        );
+      },
+    },
+    'Aucune session avec reprise disponible.',
+  );
 
   return div(
     {
@@ -360,6 +494,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
         head,
         unreachable,
         rows,
+        noResumableSessions,
         empty,
         ImportDialog({}),
       ]),

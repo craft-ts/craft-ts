@@ -71,15 +71,15 @@ function readyCheckpointFor(
   );
 }
 
-function readyRecipeFor(
+function readyRecipesFor(
   recipes: readonly ResumeRecipeSummary[],
   sessionId: string | undefined,
   target: string,
   beforeSequence: number | undefined,
-): ResumeRecipeSummary | undefined {
+): readonly ResumeRecipeSummary[] {
   const parsed = parseLocalTarget(target.trim());
-  if (!parsed.ok || !sessionId) return undefined;
-  return recipes.find(
+  if (!parsed.ok || !sessionId) return [];
+  return recipes.filter(
     (recipe) =>
       recipe.sessionId === sessionId &&
       recipe.origin === parsed.url.origin &&
@@ -92,6 +92,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
   const archive = yield* SessionArchive();
   const resumeThread = yield* ResumeThread();
   const savedSessions = rawReactiveValue(archive.savedSessions);
+  const resumeRecipes = rawReactiveValue(archive.resumeRecipeList);
   const sessionTitle = () => {
     const selected = savedSessions().find(
       (item) => item.id === routeSessionId(),
@@ -163,6 +164,23 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       },
     },
     '← Sessions',
+  );
+
+  const recipes = button(
+    'openRecipeCatalog',
+    {
+      type: 'button',
+      class: buttonUi.root,
+      'data-variant': 'secondary',
+      'data-lab': 'open-recipe-catalog',
+      hidden: function* () {
+        return !resumeRecipes().some(
+          (recipe) => recipe.sessionId === routeSessionId(),
+        );
+      },
+      click: () => goToHash('#/recipes'),
+    },
+    'Recettes',
   );
 
   const title = div({ class: ui.headTitle }, [
@@ -238,7 +256,6 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
   const resumeRequestSending = rawReactiveValue(archive.resumeRequestSending);
   const resumeRequestFailed = rawReactiveValue(archive.resumeRequestFailed);
   const resumeCheckpoints = rawReactiveValue(archive.resumeCheckpointList);
-  const resumeRecipes = rawReactiveValue(archive.resumeRecipeList);
   const readyCheckpoint = yield* craftComputed('readyCheckpoint', () =>
     readyCheckpointFor(
       resumeCheckpoints(),
@@ -246,8 +263,8 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       replayPoint().beforeSequence,
     ),
   );
-  const readyRecipe = yield* craftComputed('readyRecipe', () =>
-    readyRecipeFor(
+  const readyRecipes = yield* craftComputed('readyRecipes', () =>
+    readyRecipesFor(
       resumeRecipes(),
       routeSessionId(),
       targetUrl(),
@@ -265,12 +282,19 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
         : 'Le dashboard n’identifie pas la session ouverte. Revenez à la liste des sessions et rouvrez-la.';
     }
     const ready = yield* readyCheckpoint();
+    const recipes = yield* readyRecipes();
+    const recipeNames = recipes
+      .map((recipe) => recipe.name?.trim() || recipe.objective.goal)
+      .join(' · ');
     if (ready)
-      return `Un point de reprise est disponible jusqu’au ${new Date(ready.expiresAt).toLocaleString('fr-FR')} (${ready.ttlReason}). L’agent le choisira après avoir confirmé ton objectif.`;
-    const recipe = yield* readyRecipe();
-    return recipe
-      ? `La recette « ${recipe.objective.goal} » est disponible. L’agent la choisira après avoir confirmé ton objectif.`
-      : 'Ouvre un onglet d’application dédié, publie ce point et copie le prompt à coller dans la conversation de l’agent.';
+      return `Un point de reprise est disponible jusqu’au ${new Date(ready.expiresAt).toLocaleString('fr-FR')} (${ready.ttlReason}).${recipes.length ? ` Recettes associées : ${recipeNames}.` : ''} Ton intention sera transmise à l’agent avec la demande de reprise.`;
+    if (recipes.length === 1) {
+      const recipe = recipes[0]!;
+      return `La recette « ${recipe.name?.trim() || recipe.objective.goal} » est disponible. Ton intention sera transmise à l’agent avec la demande de reprise.`;
+    }
+    if (recipes.length > 1)
+      return `${recipes.length} recettes sont disponibles à ce point : ${recipeNames}. Ton intention sera transmise à l’agent avec la demande de reprise.`;
+    return 'Une question te demandera ton intention avant d’ouvrir un onglet dédié et de copier le prompt à coller dans la conversation de l’agent.';
   });
   const resume = button(
     'resumeHere',
@@ -287,12 +311,19 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       click: function* () {
         const sessionId = routeSessionId();
         if (sessionId === undefined) return;
+        const answer = globalThis.prompt(
+          'Quelle est ton intention ? Décris ce que tu veux accomplir ou vérifier dans cette session.',
+          '',
+        );
+        const intent = answer?.trim();
+        if (!intent) return;
         const point = replayPoint();
         const requestId = newUuid();
         const appTab = launchGuidedResumeTab(
           point.beforeSequence,
           point.participantId,
           requestId,
+          sessionId,
         );
         const prompt = resumePrompt({
           sessionId,
@@ -300,6 +331,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
           participantId: point.participantId,
           requestId,
           appUrl: appTab.url,
+          intent,
         });
         copyResumePrompt(prompt);
         const sent = yield* archive.requestResume(
@@ -315,14 +347,18 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     },
     yield* craftComputed('resumeLabel', function* () {
       const ready = yield* readyCheckpoint();
-      const recipe = yield* readyRecipe();
+      const recipes = yield* readyRecipes();
       return resumeRequestFailed()
         ? 'Reprise : archive injoignable'
         : ready
-          ? 'Reprendre ici · point disponible'
-          : recipe
+          ? recipes.length > 1
+            ? `Reprendre ici · point + ${recipes.length} recettes`
+            : 'Reprendre ici · point disponible'
+          : recipes.length === 1
             ? 'Reprendre ici · recette disponible'
-            : 'Reprendre ici';
+            : recipes.length > 1
+              ? `Reprendre ici · ${recipes.length} recettes disponibles`
+              : 'Reprendre ici';
     }),
   );
   const resumeWithTooltip = DocTooltip({
@@ -427,6 +463,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     div({ class: ui.headTools }, [
       tabs,
       debug,
+      recipes,
       resumeWithTooltip,
       fullscreen,
       notes,

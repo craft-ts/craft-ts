@@ -529,6 +529,7 @@ function registerRecipeTools(
       id: z.string().min(1).max(100),
       kind: z.literal('success'),
       response: z.any(),
+      nextChoices: z.record(z.string(), z.string()).optional(),
     }),
     z.object({
       id: z.string().min(1).max(100),
@@ -651,12 +652,14 @@ function registerRecipeTools(
     'recipe.save',
     {
       description:
-        'Save or revise a guided-resume recipe in the local log server. Build steps with the typed step schema: goto/create, human handoff until a live condition, network mode selection, act/invoke, expect, checkpoint. A mocked profile names success and failure cases for each server-function id or exact Craft HTTP call (`METHOD URL`); defaultCaseId remembers a choice. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
+        'Save or revise a guided-resume recipe in the local log server. Give it a short, recognizable name and a one-sentence summary of the behavior it verifies; keep objective.goal as the precise goal. Build steps with the typed step schema: goto/create, human handoff until a live condition, network mode selection, act/invoke, expect, checkpoint. A mocked profile names success and failure cases for each server-function id or exact Craft HTTP call (`METHOD URL`); defaultCaseId remembers a choice. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
       inputSchema: {
         id: z.string().uuid().optional(),
         sessionId: z.string().uuid(),
         beforeSequence: z.number().int().nonnegative().optional(),
         origin: z.string().url(),
+        name: z.string().trim().min(1).max(120),
+        summary: z.string().trim().min(1).max(500),
         objective: z.object({
           goal: z.string().min(1).max(500),
           exact: z.array(z.string()).default([]),

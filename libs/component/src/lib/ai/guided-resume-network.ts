@@ -5,7 +5,13 @@ import {
 } from '@craft-ts/core';
 
 export type GuidedResumeMockCase =
-  | Readonly<{ id: string; kind: 'success'; response: unknown }>
+  | Readonly<{
+      id: string;
+      kind: 'success';
+      response: unknown;
+      /** Select cases for subsequent calls after this response is returned. */
+      nextChoices?: Readonly<Record<string, string>>;
+    }>
   | Readonly<{
       id: string;
       kind: 'exception';
@@ -33,7 +39,7 @@ export type GuidedResumeMockResolution =
   | Readonly<{ active: true; error: Error }>;
 
 let activeNetwork: GuidedResumeNetwork | undefined;
-let activeChoices: Readonly<Record<string, string>> = {};
+let activeChoices: Record<string, string> = {};
 let restoreHttpBarrier: (() => void) | undefined;
 
 /** Replace the current resume network mode. Mock mode always fails closed. */
@@ -44,7 +50,7 @@ export function setGuidedResumeNetwork(
   restoreHttpBarrier?.();
   restoreHttpBarrier = undefined;
   activeNetwork = network?.mode === 'mocked' ? network : undefined;
-  activeChoices = activeNetwork ? choices : {};
+  activeChoices = activeNetwork ? { ...choices } : {};
   if (!activeNetwork) return;
 
   restoreHttpBarrier = ɵinstallCraftHttpResumeBarrier({
@@ -102,8 +108,12 @@ export function resolveGuidedResumeMock(
     };
 
   switch (selected.kind) {
-    case 'success':
-      return { active: true, value: selected.response };
+    case 'success': {
+      const response = selected.response;
+      if (selected.nextChoices)
+        Object.assign(activeChoices, selected.nextChoices);
+      return { active: true, value: response };
+    }
     case 'exception':
       return {
         active: true,

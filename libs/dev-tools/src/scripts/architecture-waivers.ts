@@ -35,6 +35,7 @@ export const ARCHITECTURE_RULE_NAMES = [
   'no-dangling-css-vars',
   'no-global-stylesheet',
   'no-unused-service',
+  'fn-wrapper-di',
   'route-needs-stability-test',
   'looping-async-process-needs-budget',
   'prefer-path-param-navigation',
@@ -57,6 +58,7 @@ export type ArchitectureWaiverTarget<
   | `obligation:${string}`
   | `css-var:${string}`
   | `service:${C['services'][number]}`
+  | `fn-wrapper:${string}`
   | `route:${string}`
   | `primitive:${string}`
   | 'graph:style-dump'

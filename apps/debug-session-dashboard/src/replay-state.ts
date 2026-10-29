@@ -286,7 +286,10 @@ const seekTargetBridge = createStateBridge<number | undefined>(
 );
 export const seekTarget = seekTargetBridge.value;
 /** The session module's seek driver, called by the bridge after a step. */
-export const seekHooks: { drive: () => void } = { drive: () => undefined };
+export const seekHooks: { drive: () => void; settle: () => void } = {
+  drive: () => undefined,
+  settle: () => undefined,
+};
 const replaySkeletonVisibleBridge = createStateBridge(
   'replaySkeletonVisible',
   false,

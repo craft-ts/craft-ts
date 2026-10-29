@@ -96,7 +96,6 @@ export const { ReplayRoute } = craftService(
       beginSessionLoad(id);
       archive.archived.call(id);
       archive.resumeCheckpoints.call(id);
-      archive.resumeRecipes.call(id);
       if (!workerMode) resumeThread.watchSession(id);
     };
 

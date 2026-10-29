@@ -3,6 +3,7 @@ import {
   type ThumbnailCapturePoint,
 } from '@craft-ts/component';
 import { exposeReplayWorkerSurface } from './replay-browser';
+import { playReplay } from './replay-playback';
 import {
   activeReplayParticipantId,
   canReplaySelectedSession,
@@ -15,7 +16,6 @@ import {
   replayViewportScale,
   replayIndex,
   replayableEvents,
-  seekHooks,
   seekTarget,
   session,
   status,
@@ -55,7 +55,7 @@ export type ReplayWorkerSnapshot = Readonly<{
 export type ReplayWorkerSurface = Readonly<{
   snapshot: () => ReplayWorkerSnapshot;
   plan: (options?: { maxPoints?: number }) => readonly ThumbnailCapturePoint[];
-  /** Runs the replay on until this many actions have run. */
+  /** Starts normal playback; the caller waits until the requested index. */
   advanceTo: (index: number) => void;
 }>;
 
@@ -103,9 +103,10 @@ export function installReplayWorkerSurface(): void {
   const surface: ReplayWorkerSurface = {
     snapshot,
     plan: (options) => planThumbnailCapturePoints(visibleEvents(), options),
-    advanceTo: (index) => {
-      seekTarget.set(index);
-      seekHooks.drive();
+    advanceTo: () => {
+      // Keep the application on the recorded clock. Fast-forward seeking can
+      // overlap async queries and compare a later checkpoint with stale data.
+      if (['ready', 'paused'].includes(replayState())) playReplay();
     },
   };
   exposeReplayWorkerSurface(surface);

@@ -31,6 +31,26 @@ export type SessionSummary = Readonly<{
   eventCount: number;
   truncated: boolean;
   participantCount?: number;
+  recipeCount?: number;
+  /** Unexpired saved points that can resume this session. */
+  resumeCount?: number;
+  resume?:
+    | Readonly<{
+        kind: 'guided-resume';
+        requestId: string;
+        sourceSessionId: string;
+        beforeSequence?: number;
+        participantId?: string;
+      }>
+    | Readonly<{
+        kind: 'recipe-run';
+        recipeId: string;
+        launchId: string;
+        requestId?: string;
+        sourceSessionId?: string;
+        beforeSequence?: number;
+        participantId?: string;
+      }>;
 }>;
 
 type SessionList = Readonly<{
@@ -52,7 +72,46 @@ function isSessionSummary(value: unknown): value is SessionSummary {
     typeof value['eventCount'] === 'number' &&
     typeof value['recordingVersion'] === 'number' &&
     typeof value['replayVersion'] === 'number' &&
-    typeof value['truncated'] === 'boolean'
+    typeof value['truncated'] === 'boolean' &&
+    (value['recipeCount'] === undefined ||
+      (typeof value['recipeCount'] === 'number' &&
+        Number.isSafeInteger(value['recipeCount']) &&
+        value['recipeCount'] >= 0)) &&
+    (value['resumeCount'] === undefined ||
+      (typeof value['resumeCount'] === 'number' &&
+        Number.isSafeInteger(value['resumeCount']) &&
+        value['resumeCount'] >= 0)) &&
+    (value['resume'] === undefined || isResumeMetadata(value['resume']))
+  );
+}
+
+function isResumeMetadata(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (value['kind'] === 'recipe-run')
+    return (
+      typeof value['recipeId'] === 'string' &&
+      typeof value['launchId'] === 'string' &&
+      (value['requestId'] === undefined ||
+        typeof value['requestId'] === 'string') &&
+      (value['sourceSessionId'] === undefined ||
+        typeof value['sourceSessionId'] === 'string') &&
+      (value['beforeSequence'] === undefined ||
+        (typeof value['beforeSequence'] === 'number' &&
+          Number.isSafeInteger(value['beforeSequence']) &&
+          value['beforeSequence'] >= 0)) &&
+      (value['participantId'] === undefined ||
+        typeof value['participantId'] === 'string')
+    );
+  return (
+    value['kind'] === 'guided-resume' &&
+    typeof value['requestId'] === 'string' &&
+    typeof value['sourceSessionId'] === 'string' &&
+    (value['beforeSequence'] === undefined ||
+      (typeof value['beforeSequence'] === 'number' &&
+        Number.isSafeInteger(value['beforeSequence']) &&
+        value['beforeSequence'] >= 0)) &&
+    (value['participantId'] === undefined ||
+      typeof value['participantId'] === 'string')
   );
 }
 
@@ -156,22 +215,49 @@ export type ResumeRecipeSummary = Readonly<{
   sessionId: string;
   beforeSequence?: number;
   origin: string;
+  name?: string;
+  summary?: string;
   objective: Readonly<{ goal: string }>;
   strategy: 'autonomous' | 'existing';
   updatedAt: string;
-  runs: readonly Readonly<{
-    id: string;
-    startedAt: string;
-    status:
-      | 'running'
-      | 'waiting-human'
-      | 'waiting-ai'
-      | 'completed'
-      | 'failed'
-      | 'cancelled';
-    currentStep?: number;
-    supervised: boolean;
-  }>[];
+  runs: readonly ResumeRecipeRunSummary[];
+}>;
+
+export type ResumeRecipeRunSummary = Readonly<{
+  id: string;
+  startedAt: string;
+  updatedAt: string;
+  status:
+    | 'running'
+    | 'waiting-human'
+    | 'waiting-ai'
+    | 'completed'
+    | 'failed'
+    | 'cancelled';
+  currentStep?: number;
+  supervised: boolean;
+}>;
+
+export type ResumeRecipeDetail = Readonly<{
+  id: string;
+  sessionId: string;
+  beforeSequence?: number;
+  origin: string;
+  name?: string;
+  summary?: string;
+  objective: Readonly<{
+    goal: string;
+    exact: readonly string[];
+    approximate: readonly string[];
+    mayWrite: boolean;
+  }>;
+  strategy: 'autonomous' | 'existing';
+  network?: Readonly<Record<string, unknown>>;
+  steps: readonly Readonly<Record<string, unknown>>[];
+  cleanup: readonly Readonly<Record<string, unknown>>[];
+  revisions: readonly Readonly<Record<string, unknown>>[];
+  createdAt: string;
+  updatedAt: string;
 }>;
 
 function isResumeRecipeSummary(value: unknown): value is ResumeRecipeSummary {
@@ -184,19 +270,66 @@ function isResumeRecipeSummary(value: unknown): value is ResumeRecipeSummary {
     (value['strategy'] === 'autonomous' || value['strategy'] === 'existing') &&
     isRecord(value['objective']) &&
     typeof value['objective']['goal'] === 'string' &&
+    (value['name'] === undefined || typeof value['name'] === 'string') &&
+    (value['summary'] === undefined || typeof value['summary'] === 'string') &&
     Array.isArray(value['runs']) &&
     value['runs'].every(
       (run) =>
         isRecord(run) &&
         typeof run['id'] === 'string' &&
         typeof run['startedAt'] === 'string' &&
-        typeof run['status'] === 'string' &&
+        (run['status'] === 'running' ||
+          run['status'] === 'waiting-human' ||
+          run['status'] === 'waiting-ai' ||
+          run['status'] === 'completed' ||
+          run['status'] === 'failed' ||
+          run['status'] === 'cancelled') &&
+        typeof run['updatedAt'] === 'string' &&
         typeof run['supervised'] === 'boolean',
     ) &&
     (value['beforeSequence'] === undefined ||
       typeof value['beforeSequence'] === 'number')
   );
 }
+
+function isResumeRecipeDetail(value: unknown): value is ResumeRecipeDetail {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    typeof value['sessionId'] === 'string' &&
+    typeof value['origin'] === 'string' &&
+    typeof value['createdAt'] === 'string' &&
+    typeof value['updatedAt'] === 'string' &&
+    (value['strategy'] === 'autonomous' || value['strategy'] === 'existing') &&
+    (value['name'] === undefined || typeof value['name'] === 'string') &&
+    (value['summary'] === undefined || typeof value['summary'] === 'string') &&
+    isRecord(value['objective']) &&
+    typeof value['objective']['goal'] === 'string' &&
+    Array.isArray(value['objective']['exact']) &&
+    value['objective']['exact'].every((item) => typeof item === 'string') &&
+    Array.isArray(value['objective']['approximate']) &&
+    value['objective']['approximate'].every(
+      (item) => typeof item === 'string',
+    ) &&
+    typeof value['objective']['mayWrite'] === 'boolean' &&
+    Array.isArray(value['steps']) &&
+    value['steps'].every(isRecord) &&
+    Array.isArray(value['cleanup']) &&
+    value['cleanup'].every(isRecord) &&
+    Array.isArray(value['revisions']) &&
+    value['revisions'].every(isRecord) &&
+    (value['network'] === undefined || isRecord(value['network'])) &&
+    (value['beforeSequence'] === undefined ||
+      typeof value['beforeSequence'] === 'number')
+  );
+}
+
+const recipeDetailDecoder = {
+  decode(input: unknown): ResumeRecipeDetail | undefined {
+    const recipe = isRecord(input) ? input['recipe'] : undefined;
+    return isResumeRecipeDetail(recipe) ? recipe : undefined;
+  },
+};
 
 const recipeListDecoder = {
   decode(input: unknown): readonly ResumeRecipeSummary[] {
@@ -341,14 +474,27 @@ export const { SessionArchive } = craftService(
       },
       () => ({}),
     );
-    const resumeRecipes = yield* query(
-      'resumeRecipes',
+    const recipeCatalog = yield* query(
+      'recipeCatalog',
       {
-        method: (sessionId: string) => sessionId,
-        loader: function* ({ params: sessionId }) {
+        method: refreshRequested$.value,
+        loader: function* () {
           return yield* CraftHttpClient.get(({ response }) => ({
-            url: `${SESSION_ARCHIVE_URL}/sessions/recipes?${new URLSearchParams({ sessionId })}`,
+            url: `${SESSION_ARCHIVE_URL}/sessions/recipes`,
             success: response(recipeListDecoder),
+          }));
+        },
+      },
+      () => ({}),
+    );
+    const recipeDetail = yield* query(
+      'recipeDetail',
+      {
+        method: (id: string) => id,
+        loader: function* ({ params: id }) {
+          return yield* CraftHttpClient.get(({ response }) => ({
+            url: `${SESSION_ARCHIVE_URL}/sessions/recipes/${encodeURIComponent(id)}`,
+            success: response(recipeDetailDecoder),
           }));
         },
       },
@@ -358,7 +504,10 @@ export const { SessionArchive } = craftService(
       return (yield* resumeCheckpoints.value()) ?? [];
     });
     yield* craftComputed('resumeRecipeList', function* () {
-      return (yield* resumeRecipes.value()) ?? [];
+      return (yield* recipeCatalog.value()) ?? [];
+    });
+    yield* craftComputed('resumeRecipeDetail', function* () {
+      return (yield* recipeDetail.value()) ?? undefined;
     });
 
     yield* craftComputed('savedSessions', function* () {

@@ -120,8 +120,12 @@ export function provideCraftGuidedResume(
       )
         writeJson(MODE_KEY, true);
       const craftRouter = ɵinjectCraftRouterRuntime();
+      const requestId = new URLSearchParams(location.search).get(
+        CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM,
+      );
       const recipeRuntime = {
         logServerUrl,
+        ...(requestId ? { requestId } : {}),
         registry: restoreOptions.registry,
         methods: restoreOptions.methods,
         checkpoint: restoreOptions,

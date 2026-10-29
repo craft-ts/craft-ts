@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   assertBrowserStorageSnapshotRestorable,
   redactBrowserStorageSnapshotForArchive,
+  restoreBrowserStorageSnapshot,
   ɵrestoreWebStorage,
   type BrowserStorageSnapshot,
 } from './debug-session-browser-storage';
@@ -98,6 +99,58 @@ describe('browser storage replay snapshots', () => {
         snapshot({ warnings: ['Cookie Store API is unavailable'] }),
       ),
     ).not.toThrow();
+  });
+
+  it('omits nullable cookie fields when restoring through Cookie Store', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'cookieStore');
+    const originalIndexedDb = Object.getOwnPropertyDescriptor(window, 'indexedDB');
+    const set = vi.fn(async (_cookie: unknown) => undefined);
+    Object.defineProperty(window, 'cookieStore', {
+      configurable: true,
+      value: {
+        getAll: async () => [],
+        delete: async () => undefined,
+        set,
+      },
+    });
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      value: { databases: async () => [] },
+    });
+
+    try {
+      await restoreBrowserStorageSnapshot(
+        snapshot({
+          cookieStoreSupported: true,
+          cookies: [
+            {
+              name: 'dashboard_locale',
+              value: 'fr',
+              domain: null,
+              expires: null,
+              path: '/',
+              secure: true,
+              sameSite: 'lax',
+              partitioned: false,
+            } as unknown as BrowserStorageSnapshot['cookies'][number],
+          ],
+        }),
+      );
+      expect(set).toHaveBeenCalledWith({
+        name: 'dashboard_locale',
+        value: 'fr',
+        path: '/',
+        secure: true,
+        sameSite: 'lax',
+        partitioned: false,
+      });
+    } finally {
+      if (original) Object.defineProperty(window, 'cookieStore', original);
+      else delete (window as Window & { cookieStore?: unknown }).cookieStore;
+      if (originalIndexedDb)
+        Object.defineProperty(window, 'indexedDB', originalIndexedDb);
+      else delete (window as Window & { indexedDB?: unknown }).indexedDB;
+    }
   });
 
   it.each([

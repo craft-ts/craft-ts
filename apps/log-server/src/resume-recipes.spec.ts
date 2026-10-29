@@ -43,6 +43,81 @@ describe('resume recipes', () => {
     expect(store.list({ sessionId: SESSION, beforeSequence: 13 })).toEqual([]);
   });
 
+  it('validates state transitions between named mock cases', () => {
+    const parsed = parseResumeRecipeInput({
+      ...recipe,
+      network: {
+        mode: 'mocked',
+        mocks: [
+          {
+            call: 'ecommerce.admin.overview',
+            defaultCaseId: 'ready',
+            cases: [
+              { id: 'ready', kind: 'success', response: 'with-donut' },
+              { id: 'deleted', kind: 'success', response: 'without-donut' },
+              { id: 'offline', kind: 'failure', message: 'Offline' },
+            ],
+          },
+          {
+            call: 'ecommerce.product.delete',
+            defaultCaseId: 'removed',
+            cases: [
+              {
+                id: 'removed',
+                kind: 'success',
+                response: 'deleted',
+                nextChoices: { 'ecommerce.admin.overview': 'deleted' },
+              },
+              { id: 'offline', kind: 'failure', message: 'Offline' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(typeof parsed).not.toBe('string');
+    if (typeof parsed === 'string') throw new Error(parsed);
+    const saved = store.save(parsed);
+    expect(saved.network?.mocks[1]?.cases[0]).toMatchObject({
+      id: 'removed',
+      nextChoices: { 'ecommerce.admin.overview': 'deleted' },
+    });
+  });
+
+  it('rejects mock transitions to unknown cases', () => {
+    const parsed = parseResumeRecipeInput({
+      ...recipe,
+      network: {
+        mode: 'mocked',
+        mocks: [
+          {
+            call: 'ecommerce.admin.overview',
+            defaultCaseId: 'ready',
+            cases: [
+              { id: 'ready', kind: 'success', response: 'with-donut' },
+              { id: 'offline', kind: 'failure', message: 'Offline' },
+            ],
+          },
+          {
+            call: 'ecommerce.product.delete',
+            defaultCaseId: 'removed',
+            cases: [
+              {
+                id: 'removed',
+                kind: 'success',
+                response: 'deleted',
+                nextChoices: { 'ecommerce.admin.overview': 'missing' },
+              },
+              { id: 'offline', kind: 'failure', message: 'Offline' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(parsed).toBe(
+      'network must be a valid functional or mocked network profile.',
+    );
+  });
+
   it('rejects credentials in recipe fields so secrets must pass through handoff', () => {
     expect(parseResumeRecipeInput({
       ...recipe,

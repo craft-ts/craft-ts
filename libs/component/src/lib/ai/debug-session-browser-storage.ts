@@ -361,10 +361,22 @@ async function restoreCookies(
     const current = await cookieStore.getAll();
     await Promise.all(
       current.map(({ name, path, domain }) =>
-        cookieStore.delete({ name, path, domain }),
+        cookieStore.delete({
+          name,
+          path,
+          ...(domain == null ? {} : { domain }),
+        }),
       ),
     );
-    await Promise.all(cookies.map((cookie) => cookieStore.set(cookie)));
+    await Promise.all(
+      cookies.map(({ domain, expires, ...cookie }) =>
+        cookieStore.set({
+          ...cookie,
+          ...(domain == null ? {} : { domain }),
+          ...(expires == null ? {} : { expires }),
+        }),
+      ),
+    );
     return;
   }
   for (const part of document.cookie.split(';')) {

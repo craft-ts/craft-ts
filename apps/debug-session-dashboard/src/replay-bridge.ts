@@ -383,6 +383,7 @@ function onProgress(
       ? `Replay terminé · ${replayIndex()} / ${total}`
       : `Replay · ${data['state'] === 'playing' ? 'lecture' : 'étape'} ${replayIndex()} / ${total}`,
   );
+  seekHooks.settle();
 }
 
 function onRecovered(
@@ -398,6 +399,7 @@ function onRecovered(
   replayState.set('paused');
   difference.set(undefined);
   resolveLatestReplayDifference(connection.participantId, 'recovered');
+  seekHooks.settle();
   const href = data['href'];
   const destination =
     typeof href === 'string'

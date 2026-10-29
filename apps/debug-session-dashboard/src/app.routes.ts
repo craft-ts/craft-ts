@@ -17,6 +17,13 @@ export const { dashboardRoutes } = craftRoutes('dashboard', [
       ),
   },
   {
+    path: 'recipes',
+    loadChildren: ({ withRetry }) =>
+      withRetry(import('./recipes.routes')).then(
+        (module) => module.recipesRoutes,
+      ),
+  },
+  {
     path: 'compare',
     loadChildren: ({ withRetry }) =>
       withRetry(import('./comparison.routes')).then(

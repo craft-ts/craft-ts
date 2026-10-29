@@ -168,6 +168,85 @@ test('opens an archived replay after the frame grid mounts and ignores Vite HMR 
   );
 });
 
+test('thumbnail worker keeps playback on the recorded timeline', async ({
+  page,
+}) => {
+  const sessionId = '810978c1-a911-42b1-bc5c-75142723adb5';
+  const recordedAt = Date.now();
+  await page.route(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`, (route) =>
+    route.fulfill({
+      json: {
+        format: 'craft-debug-session',
+        version: 8,
+        transportEventVersion: 1,
+        startUrl: `${DEMO_ORIGIN}/`,
+        exportedAt: recordedAt,
+        truncated: false,
+        clips: [],
+        events: [0, 5_000].map((elapsedMs, index) => ({
+          id: `recorded-add-user-${index}`,
+          sequence: index + 1,
+          timestamp: recordedAt + elapsedMs,
+          elapsedMs,
+          globalElapsedMs: elapsedMs,
+          kind: 'dom',
+          phase: 'emitted',
+          participantId: 'thumbnail-worker-participant',
+          payload: {
+            selector: '[data-testid="add-user"]',
+            action: 'click',
+            interactionName: `button:add-user:${index}`,
+          },
+        })),
+        participants: [
+          {
+            id: 'thumbnail-worker-participant',
+            title: 'Demo',
+            startUrl: `${DEMO_ORIGIN}/`,
+            state: 'visible',
+            status: 'completed',
+            createdAt: new Date(recordedAt).toISOString(),
+            updatedAt: new Date(recordedAt).toISOString(),
+          },
+        ],
+      },
+    }),
+  );
+
+  await page.goto(
+    `${DASHBOARD_ORIGIN}/?replay-worker=1#/sessions/${sessionId}`,
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as {
+            __craftReplayWorker?: {
+              snapshot(): { ready: boolean };
+            };
+          }).__craftReplayWorker?.snapshot().ready ?? false,
+      ),
+    )
+    .toBe(true);
+  await page.evaluate(() =>
+    (window as unknown as {
+      __craftReplayWorker: { advanceTo(index: number): void };
+    }).__craftReplayWorker.advanceTo(2),
+  );
+
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as {
+          __craftReplayWorker: {
+            snapshot(): { replayIndex: number; state: string; seeking: boolean };
+          };
+        }).__craftReplayWorker.snapshot(),
+      ),
+    )
+    .toMatchObject({ replayIndex: 1, state: 'playing', seeking: false });
+});
+
 test('opens a dedicated app tab and copies a request-bound guided-resume prompt', async ({
   page,
 }) => {
@@ -2113,6 +2192,145 @@ test('replays the recorded Craft HTTP result without calling the live service', 
     /\d+ \/ \d+ étapes · terminé/,
   );
   expect(replayLiveRequests).toBe(0);
+  await context.close();
+});
+
+test('hides the seek overlay after resumed playback passes its target following forced recovery', async ({
+  browser,
+  request,
+}) => {
+  const before = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+  const previousSessions = new Set(
+    (
+      (await before.json()) as { sessions: readonly SessionSummary[] }
+    ).sessions.map((session) => session.id),
+  );
+  const context = await browser.newContext();
+  const demo = await context.newPage();
+  await demo.goto(`${DEMO_ORIGIN}/`);
+  await expect(
+    demo.getByRole('heading', { name: 'Functional SFC components' }),
+  ).toBeVisible();
+  await demo.getByRole('button', { name: 'Add a user' }).click();
+  await demo.getByRole('button', { name: 'Add a user' }).click();
+  await demo.getByRole('button', { name: 'Add a user' }).click();
+
+  let sessionId = '';
+  await expect
+    .poll(async () => {
+      const response = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+      const sessions = (await response.json()) as {
+        sessions: readonly SessionSummary[];
+      };
+      sessionId =
+        sessions.sessions.find((session) => !previousSessions.has(session.id))
+          ?.id ?? '';
+      return sessionId;
+    })
+    .not.toBe('');
+
+  let recording:
+    | {
+        events: Array<{
+          id: string;
+          sequence: number;
+          timestamp: number;
+          kind: string;
+          phase: string;
+          payload?: Record<string, unknown>;
+          state?: unknown;
+        }>;
+        initialSnapshot?: Record<string, unknown>;
+        [key: string]: unknown;
+      }
+    | undefined;
+  await expect
+    .poll(async () => {
+      const response = await request.get(
+        `${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`,
+      );
+      if (!response.ok()) return 0;
+      recording = (await response.json()) as typeof recording;
+      return (
+        recording?.events.filter(isRecordedApplicationInteraction).length ?? 0
+      );
+    })
+    .toBe(3);
+
+  const initialState = recording!.initialSnapshot;
+  expect(initialState).toBeDefined();
+  const stateKeys = Object.keys(initialState ?? {});
+  expect(stateKeys.length).toBeGreaterThan(0);
+  const divergentState = { ...initialState, [stateKeys[0]!]: '__divergent__' };
+  const events = recording!.events.filter(
+    (event) => event.kind !== 'primitive' && event.kind !== 'snapshot',
+  );
+  const userInteractions = events.filter(isRecordedApplicationInteraction);
+  const instrumentedEvents: typeof events = [];
+  for (const event of events) {
+    if (event === userInteractions[2]) {
+      instrumentedEvents.push({
+        id: 'seek-recovery-checkpoint',
+        sequence: 0,
+        timestamp: event.timestamp,
+        kind: 'snapshot',
+        phase: 'emitted',
+        state: initialState,
+      });
+    }
+    instrumentedEvents.push(event);
+    if (event === userInteractions[0]) {
+      instrumentedEvents.push({
+        id: 'seek-forced-divergence',
+        sequence: 0,
+        timestamp: event.timestamp,
+        kind: 'primitive',
+        phase: 'emitted',
+        state: divergentState,
+      });
+    }
+  }
+  instrumentedEvents.forEach((event, index) => {
+    event.sequence = index + 1;
+  });
+  recording!.events = instrumentedEvents;
+  await demo.close();
+
+  const dashboard = await context.newPage();
+  await dashboard.goto(`${DASHBOARD_ORIGIN}/`);
+  await dashboard.getByRole('button', { name: 'Importer un fichier' }).click();
+  await dashboard
+    .getByRole('textbox', { name: 'Session JSON' })
+    .fill(JSON.stringify(recording));
+  await dashboard.getByRole('button', { name: 'Valider la session' }).click();
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Replay · ready',
+  );
+
+  const scrubber = dashboard.locator('[data-lab="replay-scrubber"]');
+  const bounds = await scrubber.boundingBox();
+  expect(bounds).not.toBeNull();
+  await scrubber.click({
+    position: { x: bounds!.width - 2, y: bounds!.height / 2 },
+  });
+  const seekOverlay = dashboard.locator('[data-lab="seek-overlay"]');
+  await expect(seekOverlay).toBeVisible();
+  await expect(dashboard.locator('[data-lab="diff"]')).toBeVisible();
+  await expect(seekOverlay).toBeVisible();
+
+  await dashboard.getByRole('button', { name: 'Forcer l’état attendu' }).click();
+  await expect(dashboard.locator('[data-lab="diff"]')).toBeHidden();
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Reprise forcée',
+  );
+  await expect(seekOverlay).toBeVisible();
+
+  await dashboard.getByRole('button', { name: 'Reprendre le replay' }).click();
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    /\d+ \/ \d+ étapes · terminé/,
+  );
+  await expect(seekOverlay).toBeHidden();
   await context.close();
 });
 

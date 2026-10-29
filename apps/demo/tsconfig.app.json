@@ -15,9 +15,6 @@
       "path": "../../libs/i18n/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/ui"
-    },
-    {
       "path": "../../libs/component/tsconfig.lib.json"
     },
     {

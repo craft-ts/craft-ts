@@ -1131,6 +1131,139 @@ describe('debug session replay format', () => {
     replay.stop();
   });
 
+  it('dispatches legacy clicks only when a correlated recorded write can be replayed', async () => {
+    document.body.innerHTML = '<button id="stock-up">+</button>';
+    const button = document.querySelector<HTMLButtonElement>('#stock-up')!;
+    const onWarning = vi.fn();
+    const liveFetch = vi.fn(() => Promise.resolve(new Response('live')));
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = liveFetch as unknown as typeof fetch;
+    let request: Promise<Response> | undefined;
+    const correlationId = 'stock-up-click';
+    button.addEventListener('click', () => {
+      request = fetch('http://localhost/api/stock', {
+        method: 'POST',
+        body: '{"stock":8}',
+      });
+    });
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 8,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'stock-up-click',
+            sequence: 1,
+            timestamp: 10,
+            elapsedMs: 0,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'stock-up',
+            correlationId,
+            payload: { selector: '#stock-up', action: 'click' },
+          },
+          {
+            id: 'stock-write-start',
+            sequence: 2,
+            timestamp: 11,
+            elapsedMs: 1,
+            kind: 'http',
+            phase: 'started',
+            operationId: 'stock-write',
+            correlationId,
+            payload: {
+              source: 'browser-fetch',
+              method: 'POST',
+              url: 'http://localhost/api/stock',
+              body: '{"stock":8}',
+            },
+          },
+          {
+            id: 'stock-write-end',
+            sequence: 3,
+            timestamp: 12,
+            elapsedMs: 2,
+            kind: 'http',
+            phase: 'succeeded',
+            operationId: 'stock-write',
+            correlationId,
+            response: {
+              source: 'browser-fetch-response',
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+              body: '{"stock":8}',
+            },
+          },
+        ],
+      },
+      { onWarning },
+    );
+
+    try {
+      await replay.step();
+
+      expect(request).toBeDefined();
+      await expect(request).resolves.toMatchObject({ status: 200 });
+      await expect(
+        request!.then((response) => response.json()),
+      ).resolves.toEqual({
+        stock: 8,
+      });
+      expect(liveFetch).not.toHaveBeenCalled();
+      expect(onWarning).not.toHaveBeenCalledWith(
+        expect.stringContaining('[Invocation non exécutée]'),
+      );
+    } finally {
+      replay.stop();
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('keeps invocation replay from dispatching a click without recorded write evidence', async () => {
+    document.body.innerHTML = '<button id="unrecorded-action">Run</button>';
+    const button =
+      document.querySelector<HTMLButtonElement>('#unrecorded-action')!;
+    const click = vi.fn();
+    const onWarning = vi.fn();
+    button.addEventListener('click', click);
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 8,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'unrecorded-click',
+            sequence: 1,
+            timestamp: 10,
+            elapsedMs: 0,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'Run',
+            correlationId: 'unrecorded-click',
+            payload: { selector: '#unrecorded-action', action: 'click' },
+          },
+        ],
+      },
+      { onWarning },
+    );
+
+    await replay.step();
+
+    expect(click).not.toHaveBeenCalled();
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.stringContaining('[Invocation non exécutée]'),
+    );
+    replay.stop();
+  });
+
   it('exports complete versioned, redacted sessions', () => {
     const session = createSendContextSession();
     session.capture('dom', 'emitted', {
@@ -4195,6 +4328,79 @@ describe('debug session replay format', () => {
     replay.stop();
   });
 
+  it('resumes timed playback after forcing a divergent checkpoint', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML =
+      '<button id="diverge">Diverge</button><button id="continue">Continue</button>';
+    let continued = false;
+    document.querySelector('#continue')!.addEventListener('click', () => {
+      continued = true;
+    });
+    let actualState = { ready: false };
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 8 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'diverge-click',
+          sequence: 1,
+          timestamp: 10,
+          elapsedMs: 0,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#diverge', action: 'click' },
+        },
+        {
+          id: 'expected-checkpoint',
+          sequence: 2,
+          timestamp: 10,
+          elapsedMs: 0,
+          kind: 'primitive',
+          phase: 'emitted',
+          name: 'primitive-change',
+          state: { ready: true },
+        },
+        {
+          id: 'continue-click',
+          sequence: 3,
+          timestamp: 10,
+          elapsedMs: 0,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#continue', action: 'click' },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      mode: 'legacy-dom',
+      readState: () => actualState,
+      forceRecovery: (recovery) => {
+        actualState = recovery.state as typeof actualState;
+      },
+    });
+
+    try {
+      replay.play();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(replay.index()).toBe(0);
+      await replay.forceAndContinue();
+      expect(replay.index()).toBe(1);
+
+      replay.play();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(continued).toBe(true);
+      expect(replay.index()).toBe(2);
+    } finally {
+      replay.stop();
+      vi.useRealTimers();
+    }
+  });
+
   it('offers an explicit checkpoint skip and records the interval', async () => {
     document.body.innerHTML =
       '<button id="skip-replay">Diverge</button><button id="after-skip">Continue</button>';
@@ -5273,6 +5479,121 @@ describe('verifyRecordedState', () => {
         actual: { 'service:cart / state:lines / state:lines#1': [] },
       },
     );
+  });
+
+  it('continues legacy recordings when a replayed opaque reference meets a raw checkpoint id', async () => {
+    document.body.innerHTML = '<button id="add">Add</button>';
+    const stateAddress = 'service:cart / state:serverCart';
+    const runtimeReference = 'craft-ref:1bebe7f42c8ee4ad';
+    const legacySession: SendContextReplayExport = {
+      format: 'craft-debug-session',
+      version: 8,
+      startUrl: 'http://localhost/',
+      exportedAt: 1_000,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'add-click',
+          sequence: 1,
+          timestamp: 1_000,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#add', action: 'click' },
+        },
+        {
+          id: 'cart-checkpoint',
+          sequence: 2,
+          timestamp: 1_001,
+          kind: 'snapshot',
+          phase: 'emitted',
+          name: 'replay-checkpoint',
+          state: {
+            [`${stateAddress} / state:serverCart#1`]: {
+              id: 'd51d606a-4d04-4d54-9ae5-5c3fec479ef7',
+              lines: [{ productId: 'iced-tea', quantity: 3 }],
+            },
+          },
+        },
+      ],
+    };
+    let actualCart = {
+      id: 'empty-cart',
+      lines: [] as { productId: string; quantity: number }[],
+    };
+    document.querySelector('button')!.addEventListener('click', () => {
+      actualCart = {
+        id: runtimeReference,
+        lines: [{ productId: 'iced-tea', quantity: 3 }],
+      };
+    });
+    const replay = createReplayController(legacySession, {
+      mode: 'legacy-dom',
+      readState: () => ({
+        [`${stateAddress} / state:serverCart#1`]: actualCart,
+      }),
+    });
+
+    const difference = await replay.step();
+    replay.stop();
+
+    expect(difference).toBeUndefined();
+  });
+
+  it('still reports a difference when two opaque checkpoint references differ', async () => {
+    document.body.innerHTML = '<button id="add">Add</button>';
+    const stateAddress = 'service:cart / state:serverCart';
+    const expectedCart = {
+      id: 'craft-ref:aaaaaaaaaaaaaaaa',
+      lines: [{ productId: 'iced-tea', quantity: 3 }],
+    };
+    const actualCart = {
+      id: 'craft-ref:bbbbbbbbbbbbbbbb',
+      lines: [{ productId: 'iced-tea', quantity: 3 }],
+    };
+    const session: SendContextReplayExport = {
+      format: 'craft-debug-session',
+      version: 8,
+      startUrl: 'http://localhost/',
+      exportedAt: 1_000,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'add-click',
+          sequence: 1,
+          timestamp: 1_000,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#add', action: 'click' },
+        },
+        {
+          id: 'cart-checkpoint',
+          sequence: 2,
+          timestamp: 1_001,
+          kind: 'snapshot',
+          phase: 'emitted',
+          name: 'replay-checkpoint',
+          state: {
+            [`${stateAddress} / state:serverCart#1`]: expectedCart,
+          },
+        },
+      ],
+    };
+    document
+      .querySelector('button')!
+      .addEventListener('click', () => undefined);
+    const replay = createReplayController(session, {
+      mode: 'legacy-dom',
+      readState: () => ({
+        [`${stateAddress} / state:serverCart#1`]: actualCart,
+      }),
+    });
+
+    const difference = await replay.step();
+    replay.stop();
+
+    expect(difference).toMatchObject({ eventId: 'cart-checkpoint' });
   });
 
   it('restores it by default, as the interactive replay does', async () => {

@@ -20,26 +20,33 @@ dashboard does that without touching a server.
    recorded route, marks it with an immutable request id and copies a prompt
    naming the exact session, event, request and tab—even when a checkpoint or
    recipe already exists.
-2. Paste the prompt into the agent conversation. The agent reads the recording,
-   asks what you want to observe in that conversation, then chooses whether to
-   restore a checkpoint, run a recipe or rebuild the state. Answer there; the
-   dashboard remains the replay and progress view. The AI shows an « À vous »
-   banner when it needs the person, with the field highlighted.
+2. Paste the prompt into the agent conversation. The agent reads the recording
+   and asks what you want to observe there. Answer in that conversation for
+   now; the dedicated app tab has a read-only **Messages de l’agent** panel for
+   progress, instructions, blockers and completion, so you can follow the run
+   without switching back. The AI also shows an « À vous » banner when it needs
+   the person, with the field highlighted.
 3. The **Reprise** tab of the dashboard shows progress, saved recipes and
-   their latest runs.
+   their latest runs. A recipe’s detail page also lists the recorded sessions
+   started from that recipe; those sessions carry an **Issue d’une recette**
+   tag in the sessions list.
 
 ## Install
 
 The app opts in, in development only:
 
 ```ts
-import { provideCraftGuidedResume } from '@craft-ts/component';
+import {
+  provideCraftGuidedResume,
+  provideCraftGuidedResumeChat,
+} from '@craft-ts/component';
 
 providers: [
   ...(import.meta.env.DEV
     ? [
         ...provideCraftDevTools(),
         ...provideCraftGuidedResume({ logServerUrl: 'http://127.0.0.1:4319' }),
+        ...provideCraftGuidedResumeChat({ logServerUrl: 'http://127.0.0.1:4319' }),
       ]
     : []),
 ];
@@ -73,7 +80,7 @@ the prompt `reprise-guidee` of the logs MCP says the same:
 | Tool                                                                               | Server   | Role                                                                                                                            |
 | ---------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `resume.request`                                                                   | log-mcp  | read the exact request id copied from **Reprendre ici**, or the latest as a fallback                                            |
-| `resume.say`, `resume.replies`                                                     | log-mcp  | write progress, hand-offs and completion to the dashboard thread; keep the goal interview and answers in the agent conversation |
+| `resume.say`, `resume.replies`                                                     | log-mcp  | write progress, instructions, hand-offs and completion to the thread shown in the dashboard and app tab; keep the goal interview and answers in the agent conversation |
 | `session.story`, `session.target`, `session.prerequisites`, `session.recordedCall` | log-mcp  | inspect the exact request's history, state, identity, entities, probes and calls                                                |
 | `resume.doctor`                                                                    | registry | check the log server and bridge, and select the app tab marked with this request id                                             |
 | `app.launch`, `app.diff`                                                           | registry | reload the tab on the recorded state; compare it with the point                                                                 |
@@ -173,10 +180,13 @@ pass, the app starts the linked recipe, which prepares the page and asks for
 sign-in again if needed.
 
 `recipe.save` exposes typed steps so an agent can build the sequence from the
-live registry and `session.prerequisites`. The example below shows the human
-boundary; replace the session, origin, state address, route, and probe with
-values read from the current app. Empty objective lists, `mayWrite: false`,
-`strategy: "autonomous"`, cleanup, and revision history are the defaults.
+live registry and `session.prerequisites`. Give every recipe a short,
+recognizable `name` and a one-sentence `summary` for the dashboard; keep
+`objective.goal` as the precise behavior to reproduce. The example below shows
+the human boundary; replace the session, origin, state address, route, and
+probe with values read from the current app. Empty objective lists,
+`mayWrite: false`, `strategy: "autonomous"`, cleanup, and revision history are
+the defaults.
 For a behavioral test, add `network: { mode: "mocked", mocks: [...] }` with
 one entry per server-function id or Craft HTTP endpoint and its named cases.
 Use the exact `METHOD URL` graph identity for a `CraftHttpClient` call, such
@@ -187,6 +197,18 @@ been restored, without replaying the recipe's setup steps. The log server
 requires at least one success and one failure case per mocked call; exception
 cases preserve their Craft discriminant. The success `response` is the value
 the app's server-function client receives (often a JSON string in this repo).
+For stateful scenarios, a success case may include `nextChoices`, mapping other
+call ids to case ids. The current response is returned first; those cases apply
+to subsequent calls. For example, a successful delete can switch the next
+`ecommerce.admin.overview` response to a dataset without the deleted product.
+A fresh `recipe.run` starts from the saved defaults again, so it can re-arm the
+initial dataset.
+When the person should do the deletion, prepare the admin view first, pause on
+a hand-off that waits for the Donut to disappear, then add an essential
+expectation for that same absence. The person clicks Delete in the app; the
+mocked delete response switches the following overview read to the no-Donut
+case. Starting the recipe again uses the initial overview choice and restores
+the Donut for another run.
 To sign in against the live server and then isolate the behavior under test,
 put `{ "type": "network", "mode": "mocked" }` after the `handoff` step and
 before the tested actions. Without a `network` step, the recipe's mode starts
@@ -216,6 +238,8 @@ at the first recipe step.
   "sessionId": "<session UUID>",
   "beforeSequence": 175,
   "origin": "https://shop.example",
+  "name": "Vérifier la formule avant achat",
+  "summary": "Reconnecte l’utilisateur puis confirme le contenu de la formule.",
   "objective": {
     "goal": "Revenir à la formule choisie, avant l’ajout au panier."
   },

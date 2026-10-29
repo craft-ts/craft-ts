@@ -15,7 +15,10 @@ import type {
   PortableDebugSession,
   StoredEnvironmentProfile,
 } from './debug-session-store.js';
-import { isDebugSessionTestMetadata } from './debug-session-store.js';
+import {
+  isDebugSessionTestMetadata,
+  isResumeSessionMetadata,
+} from './debug-session-store.js';
 import {
   PORTABLE_DEBUG_SESSION_VERSION,
   PREVIOUS_PORTABLE_DEBUG_SESSION_VERSION,
@@ -198,19 +201,38 @@ async function handleRequest(
 
   if (request.method === 'GET' && url.pathname === '/sessions') {
     options.thumbnails?.prune();
+    const storedSessions =
+      options.sessionStore?.list({
+        ...(url.searchParams.has('testId')
+          ? { testId: url.searchParams.get('testId')! }
+          : {}),
+        ...(url.searchParams.has('runId')
+          ? { runId: url.searchParams.get('runId')! }
+          : {}),
+      }) ?? [];
+    const recipeCounts = new Map<string, number>();
+    for (const recipe of options.recipes?.list() ?? [])
+      recipeCounts.set(
+        recipe.sessionId,
+        (recipeCounts.get(recipe.sessionId) ?? 0) + 1,
+      );
+    const resumeCounts = new Map<string, number>();
+    for (const checkpoint of options.checkpoints?.list() ?? []) {
+      if (checkpoint.expired) continue;
+      resumeCounts.set(
+        checkpoint.sessionId,
+        (resumeCounts.get(checkpoint.sessionId) ?? 0) + 1,
+      );
+    }
     sendJson(
       response,
       200,
       {
-        sessions:
-          options.sessionStore?.list({
-            ...(url.searchParams.has('testId')
-              ? { testId: url.searchParams.get('testId')! }
-              : {}),
-            ...(url.searchParams.has('runId')
-              ? { runId: url.searchParams.get('runId')! }
-              : {}),
-          }) ?? [],
+        sessions: storedSessions.map((session) => ({
+          ...session,
+          recipeCount: recipeCounts.get(session.id) ?? 0,
+          resumeCount: resumeCounts.get(session.id) ?? 0,
+        })),
         retentionDays: options.sessionStore?.retentionDays ?? 30,
         storageBytes:
           (options.sessionStore?.storageBytes ?? 0) +
@@ -378,7 +400,29 @@ async function handleRequest(
               ? { beforeSequence: Number(before) }
               : {}),
           })
-          .map((recipe) => ({ ...recipe, runs: store.listRuns(recipe.id) }));
+          .map((recipe) => ({
+            id: recipe.id,
+            sessionId: recipe.sessionId,
+            ...(recipe.beforeSequence === undefined
+              ? {}
+              : { beforeSequence: recipe.beforeSequence }),
+            origin: recipe.origin,
+            name: recipe.name?.trim() || recipe.objective.goal,
+            summary: recipe.summary?.trim() || recipe.objective.goal,
+            objective: { goal: recipe.objective.goal },
+            strategy: recipe.strategy,
+            updatedAt: recipe.updatedAt,
+            runs: store.listRuns(recipe.id).map((run) => ({
+              id: run.id,
+              startedAt: run.startedAt,
+              updatedAt: run.updatedAt,
+              status: run.status,
+              ...(run.currentStep === undefined
+                ? {}
+                : { currentStep: run.currentStep }),
+              supervised: run.supervised,
+            })),
+          }));
         sendJson(response, 200, { recipes }, headers);
         return;
       }
@@ -935,6 +979,21 @@ function handleSessionSocket(
               : undefined,
           }),
         );
+        return;
+      }
+      if (message['type'] === 'session:resume-metadata') {
+        const id = message['id'];
+        const resume = message['resume'];
+        if (
+          typeof id !== 'string' ||
+          id !== activeSessionId ||
+          !isResumeSessionMetadata(resume)
+        )
+          return;
+        if (store.updateResumeMetadata(id, resume))
+          socket.send(
+            JSON.stringify({ type: 'session:resume-metadata-saved', id }),
+          );
         return;
       }
       if (message['type'] === 'session:events') {

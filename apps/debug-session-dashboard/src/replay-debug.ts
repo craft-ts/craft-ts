@@ -142,6 +142,7 @@ export function launchGuidedResumeTab(
   beforeSequence: number | undefined,
   participantId: string | undefined,
   requestId: string,
+  sourceSessionId: string,
 ): Readonly<{ url: string; opened: boolean; tab: Window | null }> {
   const owner = participantId ?? replayParticipantIds()[0];
   const recording = owner ? sessionForParticipant(owner) : undefined;
@@ -157,6 +158,11 @@ export function launchGuidedResumeTab(
   const snapshot = buildDebugAppSnapshot(recording, beforeSequence);
   const url = new URL(snapshot.route, target.url.origin);
   url.searchParams.set(CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM, requestId);
+  url.searchParams.set('craft-resume-session', sourceSessionId);
+  if (beforeSequence !== undefined)
+    url.searchParams.set('craft-resume-before', String(beforeSequence));
+  if (participantId)
+    url.searchParams.set('craft-resume-participant', participantId);
   const tab = openLinkedTab(url.href);
   status.set(
     tab
@@ -164,6 +170,29 @@ export function launchGuidedResumeTab(
       : 'Le navigateur a bloqué l’ouverture de l’onglet de reprise. Autorise les fenêtres surgissantes pour ce dashboard.',
   );
   return { url: url.href, opened: tab !== null, tab };
+}
+
+/** Starts a saved recipe in a clean application tab. The app runner reads the
+ * recipe id from its URL and reports each execution to the local archive. */
+export function launchResumeRecipeTab(
+  recipeId: string,
+  origin: string,
+): boolean {
+  const target = parseLocalTarget(origin);
+  if (!target.ok) {
+    status.set(target.error);
+    return false;
+  }
+  const url = new URL('/', target.url.origin);
+  url.searchParams.set('craft-resume-recipe', recipeId);
+  url.searchParams.set('craft-resume-recipe-launch', newUuid());
+  const tab = openLinkedTab(url.href);
+  status.set(
+    tab
+      ? 'Recette ouverte dans un nouvel onglet. Les sessions enregistrées depuis ce lancement seront liées à la recette.'
+      : 'Le navigateur a bloqué l’ouverture de la recette. Autorise les fenêtres surgissantes pour ce dashboard.',
+  );
+  return tab !== null;
 }
 
 /**

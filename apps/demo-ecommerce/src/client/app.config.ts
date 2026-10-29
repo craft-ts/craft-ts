@@ -1,6 +1,7 @@
 import {
   provideCraftDebugReplayBridge,
   provideCraftDebugSessionCapture,
+  provideCraftGuidedResumeChat,
   provideCraftGuidedResume,
   provideCraftRootComponent,
 } from '@craft-ts/component';
@@ -51,7 +52,8 @@ export const appConfig = craftAppConfig({
           }),
           // An AI resumes a recorded session through the registry MCP.
           ...provideCraftGuidedResume({ logServerUrl: localLogServerUrl }),
-          provideCraftDebugReplayBridge({
+          ...provideCraftGuidedResumeChat({ logServerUrl: localLogServerUrl }),
+          ...provideCraftDebugReplayBridge({
             parentOrigins: [
               localReplayDashboardOrigin,
               localReplayDashboardOrigin.replace('localhost', '127.0.0.1'),

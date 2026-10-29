@@ -735,6 +735,16 @@ function replaySnapshotValueMatches(
     expected === '[REDACTED]'
   )
     return true;
+  const expectedReference =
+    typeof expected === 'string' && isCraftReferencePlaceholder(expected);
+  const actualReference =
+    typeof actual === 'string' && isCraftReferencePlaceholder(actual);
+  // Older archives kept raw ids in checkpoint state while HTTP events already
+  // replaced those ids with opaque references. If either side is opaque, the
+  // checkpoint cannot prove equality; two recorded references still compare
+  // exactly so a changed reference remains visible.
+  if (expectedReference || actualReference)
+    return expectedReference && actualReference ? expected === actual : true;
   if (Array.isArray(expected))
     return (
       Array.isArray(actual) &&
@@ -2138,6 +2148,28 @@ export function createReplayController(
             session.events.some((candidate) =>
               routeLoadMatchesHref(candidate, followingHref),
             ));
+        const recordedWriteRequests = intervalEvents.filter((candidate) => {
+          if (
+            candidate.kind !== 'http' ||
+            candidate.phase !== 'started' ||
+            !event.correlationId ||
+            candidate.correlationId !== event.correlationId ||
+            !isRecord(candidate.payload) ||
+            candidate.payload['source'] !== 'browser-fetch'
+          )
+            return false;
+          const method =
+            typeof candidate.payload['method'] === 'string'
+              ? candidate.payload['method'].toUpperCase()
+              : 'GET';
+          if (method === 'GET' || method === 'HEAD') return false;
+          return session.events.some(
+            (terminal) =>
+              terminal.kind === 'http' &&
+              terminal.operationId === candidate.operationId &&
+              (terminal.phase === 'succeeded' || terminal.phase === 'failed'),
+          );
+        });
         if (replayCalls.length === 0 && isGesture)
           options.onWarning?.(
             `[Invocation non exécutée] Appui long enregistré (${String(payload['trigger'])}, corrélation ${event.correlationId ?? 'absente'}), mais aucun appel Craft rejouable n'est associé. Le handler natif n'a pas été exécuté.`,
@@ -2158,6 +2190,12 @@ export function createReplayController(
           options.onWarning?.(
             `[Corrélation incompatible] Interaction ${event.name ?? event.sequence}, corrélation ${event.correlationId ?? 'absente'}; ${mismatchedCorrelations.length} appel(s) de l’intervalle portent une autre corrélation et n’ont pas été rejoués.`,
           );
+        else if (replayCalls.length === 0 && recordedWriteRequests.length > 0)
+          // Older recordings may contain a correlated, completed write but no
+          // replayInvocation metadata for the query or mutation that issued it.
+          // Dispatch only with recorded write evidence; invocation replay's
+          // network guard supplies the captured response and blocks live I/O.
+          target.dispatchEvent(native);
         else if (
           replayCalls.length === 0 &&
           !deferredActivationRecorded &&
@@ -2735,6 +2773,7 @@ export function createReplayController(
         );
         if (result.status === 'failed') {
           if (difference) {
+            playbackStepInFlight = false;
             options.onReplayDifference?.(difference);
             stop();
             return;

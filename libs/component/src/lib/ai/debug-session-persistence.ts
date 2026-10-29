@@ -4,6 +4,12 @@ import { captureDebugSessionEnvironment } from './debug-session-environment';
 
 const SHARED_SESSION_ID_KEY = 'craft-debug-session-id';
 const PARTICIPANT_ID_KEY = 'craft-debug-session-participant-id';
+const RESUME_REQUEST_PARAM = 'craft-resume-request';
+const RESUME_RECIPE_PARAM = 'craft-resume-recipe';
+const RESUME_RECIPE_SESSION_PARAM = 'craft-debug-session-recipe-id';
+const RESUME_RECIPE_LAUNCH_PARAM = 'craft-resume-recipe-launch';
+const RESUME_SESSION_METADATA_KEY = 'craft-debug-session-resume';
+const RECIPE_RUN_MARKED_EVENT = 'craft-debug-session-recipe-run';
 
 type E2ESessionMarker = Readonly<{ id: string; test: Readonly<Record<string, unknown>> }>;
 type E2ESessionReady = (id: string) => unknown;
@@ -22,9 +28,16 @@ export function connectDebugSessionPersistence(
     return () => undefined;
 
   const marker = (globalThis as typeof globalThis & { __CRAFT_E2E_SESSION__?: E2ESessionMarker }).__CRAFT_E2E_SESSION__;
+  let resume = guidedResumeMetadata();
 
-  const storageKey = `${SHARED_SESSION_ID_KEY}:${location.origin}`;
-  const participantStorageKey = `${PARTICIPANT_ID_KEY}:${location.origin}`;
+  const sessionScope =
+    resume?.['kind'] === 'recipe-run'
+      ? resume['launchId']
+      : resume?.['requestId'];
+  const resumeSuffix =
+    typeof sessionScope === 'string' ? `:resume:${sessionScope}` : '';
+  const storageKey = `${SHARED_SESSION_ID_KEY}:${location.origin}${resumeSuffix}`;
+  const participantStorageKey = `${PARTICIPANT_ID_KEY}:${location.origin}${resumeSuffix}`;
   let id: string | undefined;
   let participantId = readOrCreateParticipantId(participantStorageKey);
   let releaseParticipantLock: () => void = () => undefined;
@@ -136,6 +149,7 @@ export function connectDebugSessionPersistence(
       },
       session: {
         ...exported,
+        ...(resume ? { resume } : {}),
         events: [],
         clips: clipsForEvents([]),
       },
@@ -200,6 +214,56 @@ export function connectDebugSessionPersistence(
       participantId,
       truncated: session.clips.some((clip) => clip.truncated),
     });
+  };
+
+  const onRecipeRunMarked = (event: Event): void => {
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (
+      !isRecord(detail) ||
+      typeof detail['recipeId'] !== 'string' ||
+      !isUuid(detail['recipeId'])
+    )
+      return;
+    const launchId =
+      typeof detail['launchId'] === 'string' && isUuid(detail['launchId'])
+        ? detail['launchId']
+        : crypto.randomUUID();
+    const url = new URL(location.href);
+    url.searchParams.set(RESUME_RECIPE_SESSION_PARAM, detail['recipeId']);
+    url.searchParams.set(RESUME_RECIPE_LAUNCH_PARAM, launchId);
+    try {
+      history.replaceState(
+        history.state,
+        '',
+        `${url.pathname}${url.search}${url.hash}`,
+      );
+    } catch {
+      // The current session still receives its metadata over the socket.
+    }
+    const previous = resume;
+    resume = {
+      kind: 'recipe-run',
+      recipeId: detail['recipeId'],
+      launchId,
+      ...(typeof previous?.['requestId'] === 'string'
+        ? { requestId: previous['requestId'] }
+        : {}),
+      ...(typeof previous?.['sourceSessionId'] === 'string'
+        ? { sourceSessionId: previous['sourceSessionId'] }
+        : {}),
+      ...(typeof previous?.['beforeSequence'] === 'number'
+        ? { beforeSequence: previous['beforeSequence'] }
+        : {}),
+      ...(typeof previous?.['participantId'] === 'string'
+        ? { participantId: previous['participantId'] }
+        : {}),
+    };
+    try {
+      sessionStorage.setItem(RESUME_SESSION_METADATA_KEY, JSON.stringify(resume));
+    } catch {
+      // The live session still receives the association over its socket.
+    }
+    send({ type: 'session:resume-metadata', id, resume });
   };
 
   const onReplayPersistence = (event: Event): void => {
@@ -279,6 +343,8 @@ export function connectDebugSessionPersistence(
           // Under a Playwright test, the fixture keeps the effective id even if
           // the test closes this page before the end.
           if (marker) reportE2eSessionId(id);
+          if (resume?.['kind'] === 'recipe-run')
+            send({ type: 'session:resume-metadata', id, resume });
           if (syncing) sendHistory();
         },
       );
@@ -428,6 +494,7 @@ export function connectDebugSessionPersistence(
 
   window.addEventListener('pagehide', finish, { once: true });
   window.addEventListener('storage', onStorage);
+  window.addEventListener(RECIPE_RUN_MARKED_EVENT, onRecipeRunMarked);
   window.addEventListener('focus', onFocus);
   window.addEventListener('blur', onBlur);
   document.addEventListener('visibilitychange', onVisibilityChange);
@@ -443,6 +510,7 @@ export function connectDebugSessionPersistence(
   return () => {
     window.removeEventListener('pagehide', finish);
     window.removeEventListener('storage', onStorage);
+    window.removeEventListener(RECIPE_RUN_MARKED_EVENT, onRecipeRunMarked);
     window.removeEventListener('focus', onFocus);
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('visibilitychange', onVisibilityChange);
@@ -508,6 +576,105 @@ export function connectDebugSessionPersistence(
         claimParticipantIdentity();
       })
       .catch(() => startPersistence());
+  }
+}
+
+/** Associate the current recording with the recipe it is executing. */
+export function markCurrentDebugSessionAsRecipeRun(recipeId: string): void {
+  if (typeof window === 'undefined' || !isUuid(recipeId)) return;
+  const existingLaunchId = new URLSearchParams(location.search).get(
+    RESUME_RECIPE_LAUNCH_PARAM,
+  );
+  window.dispatchEvent(
+    new CustomEvent(RECIPE_RUN_MARKED_EVENT, {
+      detail: {
+        recipeId,
+        ...(existingLaunchId && isUuid(existingLaunchId)
+          ? { launchId: existingLaunchId }
+          : {}),
+      },
+    }),
+  );
+}
+
+function guidedResumeMetadata(): Readonly<Record<string, unknown>> | undefined {
+  const fromUrl = (): Readonly<Record<string, unknown>> | undefined => {
+    const params = new URLSearchParams(location.search);
+    const requestId = params.get(RESUME_REQUEST_PARAM);
+    const sourceSessionId = params.get('craft-resume-session');
+    const recipeId =
+      params.get(RESUME_RECIPE_SESSION_PARAM) ??
+      params.get(RESUME_RECIPE_PARAM);
+    const launchId = params.get(RESUME_RECIPE_LAUNCH_PARAM);
+    const beforeSequenceParam = params.get('craft-resume-before');
+    const beforeSequence = Number(beforeSequenceParam);
+    const participantId = params.get('craft-resume-participant');
+    if (recipeId && launchId && isUuid(recipeId) && isUuid(launchId))
+      return {
+        kind: 'recipe-run',
+        recipeId,
+        launchId,
+        ...(requestId && isUuid(requestId) ? { requestId } : {}),
+        ...(sourceSessionId && isUuid(sourceSessionId)
+          ? { sourceSessionId }
+          : {}),
+        ...(beforeSequenceParam !== null &&
+        Number.isSafeInteger(beforeSequence) &&
+        beforeSequence >= 0
+          ? { beforeSequence }
+          : {}),
+        ...(participantId && participantId.length <= 200
+          ? { participantId }
+          : {}),
+      };
+    if (
+      !requestId ||
+      !sourceSessionId ||
+      !isUuid(requestId) ||
+      !isUuid(sourceSessionId)
+    )
+      return undefined;
+    return {
+      kind: 'guided-resume',
+      requestId,
+      sourceSessionId,
+      ...(beforeSequenceParam !== null &&
+      Number.isSafeInteger(beforeSequence) &&
+      beforeSequence >= 0
+        ? { beforeSequence }
+        : {}),
+      ...(participantId && participantId.length <= 200
+        ? { participantId }
+        : {}),
+    };
+  };
+  try {
+    const current = fromUrl();
+    if (current) {
+      sessionStorage.setItem(
+        RESUME_SESSION_METADATA_KEY,
+        JSON.stringify(current),
+      );
+      return current;
+    }
+    const cached = sessionStorage.getItem(RESUME_SESSION_METADATA_KEY);
+    if (!cached) return undefined;
+    const value: unknown = JSON.parse(cached);
+    return isRecord(value) &&
+      ((value['kind'] === 'guided-resume' &&
+        typeof value['requestId'] === 'string' &&
+        isUuid(value['requestId']) &&
+        typeof value['sourceSessionId'] === 'string' &&
+        isUuid(value['sourceSessionId'])) ||
+        (value['kind'] === 'recipe-run' &&
+          typeof value['recipeId'] === 'string' &&
+          isUuid(value['recipeId']) &&
+          typeof value['launchId'] === 'string' &&
+          isUuid(value['launchId'])))
+      ? value
+      : undefined;
+  } catch {
+    return fromUrl();
   }
 }
 

@@ -238,7 +238,13 @@ async function capture(
       sink.skipped();
       continue;
     }
-    await settleFrame(frameLocator, params.quietMs, params.maxWaitMs);
+    await settleFrame(
+      frameLocator,
+      reached.state === 'playing'
+        ? Math.min(params.quietMs, 80)
+        : params.quietMs,
+      params.maxWaitMs,
+    );
     if (signal.aborted) return;
     const png = await frameLocator.screenshot({ type: 'png', animations: 'disabled' });
     const encoded = await encode(encoder, png, params.width, params.quality);
@@ -292,9 +298,7 @@ async function waitForAdvance(
     if (
       worker.failed !== undefined ||
       worker.difference ||
-      (worker.replayIndex >= target &&
-        !worker.seeking &&
-        ['ready', 'paused', 'completed'].includes(worker.state))
+      (worker.replayIndex >= target && !worker.seeking)
     )
       return worker;
     if (worker.replayIndex !== lastIndex) {

@@ -288,6 +288,8 @@ test.describe('reprise guidée par une IA simulée', () => {
         sessionId,
         beforeSequence,
         origin: new URL(await tab.url()).origin,
+        name: 'Vérifier le brouillon Espresso',
+        summary: 'Prépare la connexion, puis vérifie le brouillon de prix créé.',
         objective: {
           goal: 'Vérifier le brouillon de prix d’un Espresso créé par la recette',
           exact: ['brouillon à 4,83 €'],

@@ -5,6 +5,7 @@ import {
   type CraftPageAction,
 } from '@craft-ts/core';
 import type { DebugSnapshotRestoreOptions } from './debug-session-snapshot-launch';
+import { markCurrentDebugSessionAsRecipeRun } from './debug-session-persistence';
 import { captureLiveSnapshot } from './guided-resume-checkpoints';
 import {
   handOff,
@@ -45,6 +46,7 @@ type RecipeCall = Readonly<Record<string, unknown>> &
   Readonly<{ address: string; args?: readonly unknown[] }>;
 type RecipeRuntime = Readonly<{
   logServerUrl: string;
+  requestId?: string;
   registry: ReturnType<typeof ɵinjectCraftPrimitiveRegistry>;
   methods: ReturnType<typeof ɵinjectCraftMethodReplayRegistry>;
   navigate: (url: string) => Promise<unknown>;
@@ -77,6 +79,7 @@ export async function runResumeRecipe(
     throw new Error(
       `Recipe belongs to ${recipe.origin}, but this tab is ${location.origin}.`,
     );
+  markCurrentDebugSessionAsRecipeRun(recipe.id);
   const supervised = params['supervised'] === true;
   const existingRunId =
     typeof params['runId'] === 'string' ? params['runId'] : undefined;
@@ -125,7 +128,7 @@ export async function runResumeRecipe(
     writeRunState(context);
     await announce(
       runtime.logServerUrl,
-      recipe.sessionId,
+      runtime.requestId,
       `Recette démarrée : ${recipe.objective.goal}.`,
     );
   }
@@ -164,7 +167,7 @@ export async function runResumeRecipe(
       });
       await announce(
         runtime.logServerUrl,
-        recipe.sessionId,
+        runtime.requestId,
         `Recette : étape ${index + 1}/${recipe.steps.length} terminée (${step.type}).`,
       );
       if (supervised)
@@ -184,8 +187,9 @@ export async function runResumeRecipe(
     });
     await announce(
       runtime.logServerUrl,
-      recipe.sessionId,
+      runtime.requestId,
       `Recette terminée : ${recipe.objective.goal}.`,
+      'done',
     );
     clearRunState(context.runId);
     return {
@@ -217,7 +221,7 @@ export async function runResumeRecipe(
     });
     await announce(
       runtime.logServerUrl,
-      recipe.sessionId,
+      runtime.requestId,
       `Recette arrêtée à l’étape ${failedAt + 1} : ${message}. Les créations ont été nettoyées ; l’IA doit réparer cette recette.`,
     );
     context.nextStep = failedAt;
@@ -318,11 +322,12 @@ async function executeStep(
       });
       await announce(
         runtime.logServerUrl,
-        recipe.sessionId,
+        runtime.requestId,
         String(
           resolveValue(step['message'], context, runtime) ??
             'À vous : poursuivez dans cet onglet.',
         ),
+        'handoff',
       );
       const result = await handOff(
         {
@@ -505,7 +510,7 @@ async function recordRemedy(
       },
     ],
   });
-  await announce(runtime.logServerUrl, recipe.sessionId, detail);
+  await announce(runtime.logServerUrl, runtime.requestId, detail);
 }
 
 function normalizeRemedy(value: unknown): readonly Record<string, unknown>[] {
@@ -922,23 +927,18 @@ async function updateRun(
 
 async function announce(
   base: string,
-  sessionId: string,
+  requestId: string | undefined,
   text: string,
+  kind: 'step' | 'question' | 'handoff' | 'done' = 'step',
 ): Promise<void> {
+  if (!requestId) return;
   try {
-    const latest = await fetch(
-      `${base}/sessions/resume-requests/latest?${new URLSearchParams({ sessionId })}`,
-    );
-    const request = (
-      (await latest.json()) as { request?: { id?: unknown } | null }
-    ).request;
-    if (typeof request?.id !== 'string') return;
     await fetch(
-      `${base}/sessions/resume-requests/${encodeURIComponent(request.id)}/messages`,
+      `${base}/sessions/resume-requests/${encodeURIComponent(requestId)}/messages`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ from: 'ai', kind: 'step', text }),
+        body: JSON.stringify({ from: 'ai', kind, text }),
       },
     );
   } catch {

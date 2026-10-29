@@ -21,7 +21,12 @@ export type ResumeRecipeStep = Readonly<Record<string, unknown>> &
   Readonly<{ type: 'handoff' | 'create' | 'ensure' | 'goto' | 'invoke' | 'act' | 'expect' | 'checkpoint' | 'network' }>;
 
 export type ResumeRecipeMockCase =
-  | Readonly<{ id: string; kind: 'success'; response: unknown }>
+  | Readonly<{
+      id: string;
+      kind: 'success';
+      response: unknown;
+      nextChoices?: Readonly<Record<string, string>>;
+    }>
   | Readonly<{
       id: string;
       kind: 'exception';
@@ -48,6 +53,10 @@ export type ResumeRecipe = Readonly<{
   sessionId: string;
   beforeSequence?: number;
   origin: string;
+  /** Short label for dashboard lists; older recipes may omit it. */
+  name?: string;
+  /** One-sentence explanation shown beside the recipe name. */
+  summary?: string;
   objective: ResumeRecipeObjective;
   strategy: 'autonomous' | 'existing';
   network?: ResumeRecipeNetwork;
@@ -182,12 +191,16 @@ export class ResumeRecipeStore {
 
 export function parseResumeRecipeInput(value: unknown): (Omit<ResumeRecipe, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<ResumeRecipe, 'id'>>) | string {
   if (!isRecord(value)) return 'A recipe is an object.';
-  const { id: rawId, sessionId, beforeSequence, origin, objective, strategy, network, steps, cleanup, revisions } = value;
+  const { id: rawId, sessionId, beforeSequence, origin, name, summary, objective, strategy, network, steps, cleanup, revisions } = value;
   if (rawId !== undefined && (typeof rawId !== 'string' || !ID_PATTERN.test(rawId))) return 'id must be a recipe UUID.';
   if (typeof sessionId !== 'string' || !ID_PATTERN.test(sessionId)) return 'sessionId must be a session UUID.';
   if (beforeSequence !== undefined && (!Number.isInteger(beforeSequence) || (beforeSequence as number) < 0)) return 'beforeSequence must be a non-negative integer.';
   if (typeof origin !== 'string' || !/^https?:\/\/[^/]+$/.test(origin)) return 'origin must be an http(s) origin.';
-  if (!isRecord(objective) || typeof objective['goal'] !== 'string' || !objective['goal'].trim() || objective['goal'].length > 500 || !isStringArray(objective['exact']) || !isStringArray(objective['approximate']) || typeof objective['mayWrite'] !== 'boolean') return 'objective must include goal, exact, approximate and mayWrite.';
+  if (!isRecord(objective)) return 'objective must include goal, exact, approximate and mayWrite.';
+  const objectiveGoal = objective['goal'];
+  if (typeof objectiveGoal !== 'string' || !objectiveGoal.trim() || objectiveGoal.length > 500 || !isStringArray(objective['exact']) || !isStringArray(objective['approximate']) || typeof objective['mayWrite'] !== 'boolean') return 'objective must include goal, exact, approximate and mayWrite.';
+  if (name !== undefined && (typeof name !== 'string' || !name.trim() || name.length > 120)) return 'name must be 1–120 characters.';
+  if (summary !== undefined && (typeof summary !== 'string' || !summary.trim() || summary.length > 500)) return 'summary must be 1–500 characters.';
   if (strategy !== 'autonomous' && strategy !== 'existing') return 'strategy must be autonomous or existing.';
   if (network !== undefined && !isResumeRecipeNetwork(network)) return 'network must be a valid functional or mocked network profile.';
   if (!Array.isArray(steps) || steps.length === 0 || steps.length > MAX_STEPS || !steps.every(isRecipeStep)) return `steps must contain 1–${MAX_STEPS} valid recipe steps.`;
@@ -197,6 +210,8 @@ export function parseResumeRecipeInput(value: unknown): (Omit<ResumeRecipe, 'id'
     sessionId,
     ...(typeof beforeSequence === 'number' ? { beforeSequence } : {}),
     origin,
+    name: typeof name === 'string' ? name.trim() : objectiveGoal.trim(),
+    summary: typeof summary === 'string' ? summary.trim() : objectiveGoal.trim(),
     objective: objective as unknown as ResumeRecipeObjective,
     strategy: strategy as ResumeRecipe['strategy'],
     ...(network === undefined ? {} : { network: network as ResumeRecipeNetwork }),
@@ -220,6 +235,10 @@ function validateRecipe(recipe: ResumeRecipe): string | undefined {
   if (containsSecretKey(recipe)) return 'Recipes cannot contain secret or credential fields; use a handoff step.';
   if (recipe.network !== undefined && !isResumeRecipeNetwork(recipe.network))
     return 'Recipe network profile is invalid.';
+  if (recipe.name !== undefined && (!recipe.name.trim() || recipe.name.length > 120))
+    return 'Recipe name must be 1–120 characters.';
+  if (recipe.summary !== undefined && (!recipe.summary.trim() || recipe.summary.length > 500))
+    return 'Recipe summary must be 1–500 characters.';
   if (
     recipe.steps.some(
       (step) =>
@@ -253,6 +272,8 @@ function isResumeRecipeNetwork(value: unknown): value is ResumeRecipeNetwork {
   if (mode === 'functional' && mocks.length !== 0) return false;
   if (mode === 'mocked' && mocks.length === 0) return false;
   const calls = new Set<string>();
+  const casesByCall = new Map<string, Set<string>>();
+  const transitions: Array<Readonly<{ call: string; caseId: string }>> = [];
   for (const mock of mocks) {
     if (
       !isRecord(mock) ||
@@ -286,12 +307,26 @@ function isResumeRecipeNetwork(value: unknown): value is ResumeRecipeNetwork {
         hasSuccess = true;
         if (
           Object.keys(candidate).some(
-            (key) => !['id', 'kind', 'response'].includes(key),
+            (key) => !['id', 'kind', 'response', 'nextChoices'].includes(key),
           ) ||
           !('response' in candidate) ||
           !isJsonValue(candidate['response'])
         )
           return false;
+        if (candidate['nextChoices'] !== undefined) {
+          const nextChoices = candidate['nextChoices'];
+          if (
+            !isRecord(nextChoices) ||
+            Object.keys(nextChoices).length > 200 ||
+            Object.entries(nextChoices).some(
+              ([call, caseId]) =>
+                !isValidMockCall(call) || typeof caseId !== 'string',
+            )
+          )
+            return false;
+          for (const [call, caseId] of Object.entries(nextChoices))
+            transitions.push({ call, caseId: caseId as string });
+        }
       } else if (candidate['kind'] === 'exception') {
         hasFailure = true;
         if (
@@ -322,8 +357,11 @@ function isResumeRecipeNetwork(value: unknown): value is ResumeRecipeNetwork {
       !caseIds.has(mock['defaultCaseId'] as string)
     )
       return false;
+    casesByCall.set(mock['call'], caseIds);
   }
-  return true;
+  return transitions.every(({ call, caseId }) =>
+    casesByCall.get(call)?.has(caseId),
+  );
 }
 
 function isJsonValue(value: unknown): boolean {

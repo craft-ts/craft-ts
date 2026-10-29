@@ -5,6 +5,7 @@ import {
   assertCraftEffectNoNetwork,
   assertCraftUnique,
   assertDeclarativeArchitecture,
+  architectureReport,
   assertHttpEndpointUnique,
   assertInsertSelectUnique,
   interactiveElementNamedViolations,
@@ -176,6 +177,24 @@ describe('demo architecture', () => {
 
   it('requires craftUnique on every persisted primitive', () => {
     assertPersistedPrimitiveHasUnique(graph.graph);
+  });
+
+  it('can opt in to review injection helpers inside function wrappers', () => {
+    expect(
+      architectureReport(graph.graph).warnings.some(
+        (entry) => entry.rule === 'fn-wrapper-di',
+      ),
+    ).toBe(false);
+
+    const findings = architectureReport(graph.graph, {
+      severity: { 'fn-wrapper-di': 'warn' },
+    }).warnings.find((entry) => entry.rule === 'fn-wrapper-di');
+    expect(findings?.messages).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('provideFnWrapper@correlation-id-plugin.ts'),
+        expect.stringContaining('provideFnWrapper@function-registry-entry.ts'),
+      ]),
+    );
   });
 
   it('keeps insertSelect keys unique on each host', () => {

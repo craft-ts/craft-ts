@@ -4789,6 +4789,9 @@ export const DEFAULT_ARCHITECTURE_RULE_SEVERITY: Partial<
   Record<ArchitectureRuleName, ArchitectureRuleSeverity>
 > = {
   'no-unused-service': 'warn',
+  // Runtime wrappers can span many injection contexts. Start opt-in until
+  // each finding has been reviewed against the application's injector tree.
+  'fn-wrapper-di': 'off',
   // New obligations: reported first, raised to `error` once the tests exist.
   'route-needs-stability-test': 'warn',
   'looping-async-process-needs-budget': 'warn',

@@ -44,6 +44,29 @@ export type DebugSessionTestMetadata = Readonly<{
   runId?: string;
 }>;
 
+export type GuidedResumeSessionMetadata = Readonly<{
+  kind: 'guided-resume';
+  requestId: string;
+  sourceSessionId: string;
+  beforeSequence?: number;
+  participantId?: string;
+}>;
+
+export type RecipeRunSessionMetadata = Readonly<{
+  kind: 'recipe-run';
+  recipeId: string;
+  /** Distinguishes separate launches of the same recipe in one browser. */
+  launchId: string;
+  requestId?: string;
+  sourceSessionId?: string;
+  beforeSequence?: number;
+  participantId?: string;
+}>;
+
+export type ResumeSessionMetadata =
+  | GuidedResumeSessionMetadata
+  | RecipeRunSessionMetadata;
+
 export type StoredDebugSessionSummary = Readonly<{
   id: string;
   startUrl: string;
@@ -57,6 +80,7 @@ export type StoredDebugSessionSummary = Readonly<{
   truncated: boolean;
   participantCount: number;
   test?: DebugSessionTestMetadata;
+  resume?: ResumeSessionMetadata;
 }>;
 
 export type StoredDebugSessionParticipant = Readonly<{
@@ -102,6 +126,7 @@ export type PortableDebugSession = Readonly<{
   participants?: readonly StoredDebugSessionParticipant[];
   environment?: StoredEnvironmentProfile;
   test?: DebugSessionTestMetadata;
+  resume?: ResumeSessionMetadata;
 }>;
 
 const DEFAULT_MAX_SESSIONS = 100;
@@ -190,6 +215,7 @@ export class DebugSessionStore {
           truncated,
           participants,
           test,
+          resume,
         }) => ({
           id,
           startUrl,
@@ -203,6 +229,7 @@ export class DebugSessionStore {
           truncated,
           participantCount: participants.length,
           ...(test ? { test } : {}),
+          ...(resume ? { resume } : {}),
         }),
       );
   }
@@ -318,6 +345,9 @@ export class DebugSessionStore {
       eventCount: events.length,
       truncated: Boolean(current?.truncated) || session.truncated,
       ...((current?.test ?? session.test) ? { test: current?.test ?? session.test } : {}),
+      ...((current?.resume ?? session.resume)
+        ? { resume: current?.resume ?? session.resume }
+        : {}),
       clips,
       participants,
       ...((current?.viewport ?? session.viewport)
@@ -449,6 +479,19 @@ export class DebugSessionStore {
       updatedAt: new Date().toISOString(),
     });
     this.scheduleIndexPersistence();
+  }
+
+  updateResumeMetadata(id: string, resume: ResumeSessionMetadata): boolean {
+    if (!isResumeSessionMetadata(resume)) return false;
+    const current = this.sessions.get(id);
+    if (!current) return false;
+    this.sessions.set(id, {
+      ...current,
+      resume,
+      updatedAt: new Date().toISOString(),
+    });
+    this.scheduleIndexPersistence();
+    return true;
   }
 
   hasParticipant(id: string, participantId: string): boolean {
@@ -641,6 +684,7 @@ export class DebugSessionStore {
       ...(initialSnapshot ? { initialSnapshot } : {}),
       participants: stored.participants,
       ...(stored.test ? { test: stored.test } : {}),
+      ...(stored.resume ? { resume: stored.resume } : {}),
     };
   }
 
@@ -842,6 +886,8 @@ function assertPortableSession(
     typeof value['startUrl'] !== 'string' ||
     (value['viewport'] !== undefined && !isValidViewport(value['viewport'])) ||
     (value['test'] !== undefined && !isDebugSessionTestMetadata(value['test'])) ||
+    (value['resume'] !== undefined &&
+      !isResumeSessionMetadata(value['resume'])) ||
     !Array.isArray(value['events']) ||
     !Array.isArray(value['clips']) ||
     typeof value['truncated'] !== 'boolean'
@@ -865,6 +911,8 @@ function isStoredSession(value: unknown): value is StoredSession {
     typeof value['eventCount'] === 'number' &&
     typeof value['truncated'] === 'boolean' &&
     (value['test'] === undefined || isDebugSessionTestMetadata(value['test'])) &&
+    (value['resume'] === undefined ||
+      isResumeSessionMetadata(value['resume'])) &&
     Array.isArray(value['clips']) &&
     (value['participants'] === undefined ||
       Array.isArray(value['participants']))
@@ -874,6 +922,55 @@ function isStoredSession(value: unknown): value is StoredSession {
 export function isDebugSessionTestMetadata(value: unknown): value is DebugSessionTestMetadata {
   return isRecord(value) && ['id', 'title', 'specFile', 'project', 'gitSha'].every((key) => typeof value[key] === 'string' && value[key].length <= 512) && Number.isInteger(value['retry']) && Number(value['retry']) >= 0
     && (value['runId'] === undefined || (typeof value['runId'] === 'string' && /^[0-9a-f-]{36}$/i.test(value['runId'])));
+}
+
+export function isGuidedResumeSessionMetadata(
+  value: unknown,
+): value is GuidedResumeSessionMetadata {
+  return (
+    isRecord(value) &&
+    value['kind'] === 'guided-resume' &&
+    typeof value['requestId'] === 'string' &&
+    /^[0-9a-f-]{36}$/i.test(value['requestId']) &&
+    typeof value['sourceSessionId'] === 'string' &&
+    /^[0-9a-f-]{36}$/i.test(value['sourceSessionId']) &&
+    (value['beforeSequence'] === undefined ||
+      (Number.isSafeInteger(value['beforeSequence']) &&
+        Number(value['beforeSequence']) >= 0)) &&
+    (value['participantId'] === undefined ||
+      (typeof value['participantId'] === 'string' &&
+        value['participantId'].length <= 200))
+  );
+}
+
+export function isResumeSessionMetadata(
+  value: unknown,
+): value is ResumeSessionMetadata {
+  if (!isRecord(value)) return false;
+  if (value['kind'] === 'guided-resume')
+    return isGuidedResumeSessionMetadata(value);
+  if (
+    value['kind'] !== 'recipe-run' ||
+    typeof value['recipeId'] !== 'string' ||
+    !/^[0-9a-f-]{36}$/i.test(value['recipeId']) ||
+    typeof value['launchId'] !== 'string' ||
+    !/^[0-9a-f-]{36}$/i.test(value['launchId'])
+  )
+    return false;
+  return (
+    (value['requestId'] === undefined ||
+      (typeof value['requestId'] === 'string' &&
+        /^[0-9a-f-]{36}$/i.test(value['requestId']))) &&
+    (value['sourceSessionId'] === undefined ||
+      (typeof value['sourceSessionId'] === 'string' &&
+        /^[0-9a-f-]{36}$/i.test(value['sourceSessionId']))) &&
+    (value['beforeSequence'] === undefined ||
+      (Number.isSafeInteger(value['beforeSequence']) &&
+        Number(value['beforeSequence']) >= 0)) &&
+    (value['participantId'] === undefined ||
+      (typeof value['participantId'] === 'string' &&
+        value['participantId'].length <= 200))
+  );
 }
 
 function mergeParticipant(

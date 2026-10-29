@@ -749,6 +749,41 @@ assertDeclarativeArchitecture(graph.graph, {
 `'off'` does not run the rule, and the waivers written for it are then not
 read, so they are not reported as stale.
 
+### `fn-wrapper-di`: opt-in review of wrapper dependencies
+
+`provideFnWrapper` runs in the injection context of each Craft factory it
+wraps. A service with `providedIn: 'global'`, or a service provided by the
+application's `craftAppConfig`, is available from the root injector and is
+skipped. Dependencies with narrower scopes (`toProvide`, `function`, or
+`abstract`) need review because the wrapper may run outside the injector that
+provides them.
+
+The graph records direct service helper calls in inline wrapper callbacks and
+local function declarations or values. It also reports raw `inject(...)`,
+`injector.get(...)`, and `inject*` helper calls that it cannot resolve to a
+Craft service. Enable the rule as a warning while reviewing an application:
+
+```typescript
+const report = architectureReport(graph, {
+  severity: { 'fn-wrapper-di': 'warn' },
+});
+```
+
+The report is deliberately advisory and **off by default**. It does not prove
+that a scoped dependency will fail: an application may only execute the wrapper
+where that service is provided. It also cannot yet follow arbitrary callbacks
+passed across modules. An unresolved callback is reported for manual review.
+After reviewing the findings, raise the rule to `'error'` or waive an individual
+wrapper with a reason (`target: 'fn-wrapper:provideFnWrapper@file.ts:12'`).
+
+The rule's tests cover global and app-config root providers (no finding), a
+`toProvide` dependency (review finding), an unresolved injection helper, and
+severity/waiver behavior. Before treating a clean report as a guarantee, also
+exercise runtime cases involving nested wrappers, recursive service
+resolution, lazy-route providers, and callbacks invoked after the original
+factory context has ended; the static rule does not establish those execution
+paths.
+
 ### `route-needs-stability-test` and `looping-async-process-needs-budget`: warnings
 
 A page that loops fails nothing, so a test has to mount it and count. These two
