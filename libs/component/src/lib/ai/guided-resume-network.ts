@@ -110,7 +110,9 @@ export function resolveGuidedResumeMock(
         value: craftException(
           {
             _tag: selected.tag,
-            scope: selected.scope ?? 'ServerFunction',
+            scope:
+              selected.scope ??
+              (normalizeMockCall(endpoint.call) ? 'HttpClient' : 'ServerFunction'),
             identifier: endpoint.call,
           },
           selected.payload,
