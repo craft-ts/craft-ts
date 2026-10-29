@@ -56,6 +56,7 @@ import {
   events,
   recordReplayDifference,
   resolveLatestReplayDifference,
+  differenceNoticeDismissed,
   selectedParticipantId,
   status,
 } from './replay-state';
@@ -283,6 +284,7 @@ function onDifference(
   const coverageFailure =
     first.transport?.transportId.startsWith('network:') ?? false;
   if (!coverageFailure) setNextActionCountdown(undefined);
+  differenceNoticeDismissed.set(false);
   difference.set(first);
   if (!coverageFailure) registers.playbackRequested = false;
   registers.differenceParticipantId = connection.participantId;

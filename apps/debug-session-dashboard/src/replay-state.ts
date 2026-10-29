@@ -202,6 +202,12 @@ const differenceBridge = createStateBridge<ReplayDifference | undefined>(
   undefined,
 );
 export const difference = differenceBridge.value;
+const differenceNoticeDismissedBridge = createStateBridge(
+  'differenceNoticeDismissed',
+  false,
+);
+export const differenceNoticeDismissed =
+  differenceNoticeDismissedBridge.value;
 const AUTO_SKIP_STORAGE_KEY =
   'craft-debug-session-dashboard:auto-skip-differences:v1';
 
@@ -480,6 +486,17 @@ export const { ReplayDashboardState: ReplayState } = craftService(
         'difference',
         differenceBridge.initialValue,
         differenceWriter.insertion,
+      ),
+    );
+    const differenceNoticeDismissedWriter = createStateWriter(
+      'differenceNoticeDismissed',
+      differenceNoticeDismissedBridge,
+    );
+    differenceNoticeDismissedWriter.bind(
+      yield* state(
+        'differenceNoticeDismissed',
+        differenceNoticeDismissedBridge.initialValue,
+        differenceNoticeDismissedWriter.insertion,
       ),
     );
     const replayDifferencesWriter = createStateWriter(
@@ -1007,6 +1024,10 @@ export function dismissWarning(warning: string): void {
   dismissedWarnings.update((dismissed) =>
     dismissed.includes(warning) ? dismissed : [...dismissed, warning],
   );
+}
+
+export function dismissDifferenceNotice(): void {
+  differenceNoticeDismissed.set(true);
 }
 
 export function dismissAllWarnings(): void {

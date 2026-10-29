@@ -41,6 +41,8 @@ import {
   replayWarnings,
   routeSessionId,
   status,
+  differenceNoticeDismissed,
+  dismissDifferenceNotice,
   dismissAllWarnings,
   dismissedWarnings,
   dismissWarning,
@@ -76,7 +78,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       'aria-label': 'Décalage du replay',
       hidden: yield* craftComputed(
         'hiddenSrcReplayNotices',
-        () => !hasDifference(),
+        () => !hasDifference() || differenceNoticeDismissed(),
       ),
     },
     [
@@ -85,9 +87,23 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
         yield* craftComputed('differenceMessage', () => {
           const currentDifference = difference();
           const transport = currentDifference?.transport;
-          return transport
-            ? `Décalage transport ${transport.transportId}, instance ${transport.instanceId}, ${transport.direction} ${transport.sequence}.`
-            : `Décalage détecté à l’événement ${currentDifference?.eventId ?? '?'}.`;
+          if (transport?.transportId.startsWith('network:')) {
+            const api = transport.transportId.slice('network:'.length);
+            const transportName =
+              api === 'websocket'
+                ? 'WebSocket'
+                : api === 'fetch'
+                  ? 'fetch'
+                  : api === 'xhr'
+                    ? 'XMLHttpRequest'
+                    : api;
+            const networkAction =
+              api === 'websocket'
+                ? 'la connexion WebSocket demandée'
+                : `la requête réseau (${transportName})`;
+            return `Le replay a bloqué ${networkAction}, absente de l’enregistrement. Aucun appel réseau réel n’a été envoyé.`;
+          }
+          return 'Le replay a divergé de l’enregistrement. Consultez l’historique des décalages pour voir le détail.';
         }),
       ),
       p(
@@ -135,6 +151,18 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             click: forceReplayRecovery,
           },
           'Forcer l’état attendu',
+        ),
+        button(
+          'dismissDifferenceNotice',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'link',
+            'data-lab': 'dismiss-difference-notice',
+            'aria-label': 'Masquer le message de décalage',
+            click: dismissDifferenceNotice,
+          },
+          'Fermer',
         ),
         span(
           {
