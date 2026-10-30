@@ -34,6 +34,7 @@ module.exports = {
   'craft-ts/provide-host-name-match-component': 'warn',
   'craft-ts/prefer-craft-http-transport': 'error',
   'craft-ts/no-server-function-outside-resource': 'error',
+  'craft-ts/require-server-function-codec': 'error',
   'craft-ts/no-craft-service-component-same-file': 'warn',
   'craft-ts/no-template-elements-in-craft-service': 'error',
   'craft-ts/max-craft-declarations-per-file': 'error',

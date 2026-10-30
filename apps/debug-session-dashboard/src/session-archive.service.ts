@@ -219,6 +219,10 @@ export type ResumeRecipeSummary = Readonly<{
   summary?: string;
   objective: Readonly<{ goal: string }>;
   strategy: 'autonomous' | 'existing';
+  validation: Readonly<{
+    status: 'draft' | 'validation-failed' | 'verified';
+    issues: readonly string[];
+  }>;
   updatedAt: string;
   runs: readonly ResumeRecipeRunSummary[];
 }>;
@@ -236,6 +240,7 @@ export type ResumeRecipeRunSummary = Readonly<{
     | 'cancelled';
   currentStep?: number;
   supervised: boolean;
+  failure?: Readonly<{ step?: number; detail: string }>;
 }>;
 
 export type ResumeRecipeDetail = Readonly<{
@@ -252,10 +257,16 @@ export type ResumeRecipeDetail = Readonly<{
     mayWrite: boolean;
   }>;
   strategy: 'autonomous' | 'existing';
+  validation: Readonly<{
+    status: 'draft' | 'validation-failed' | 'verified';
+    issues: readonly string[];
+    verifiedRunId?: string;
+  }>;
   network?: Readonly<Record<string, unknown>>;
   steps: readonly Readonly<Record<string, unknown>>[];
   cleanup: readonly Readonly<Record<string, unknown>>[];
   revisions: readonly Readonly<Record<string, unknown>>[];
+  runs: readonly ResumeRecipeRunSummary[];
   createdAt: string;
   updatedAt: string;
 }>;
@@ -268,25 +279,13 @@ function isResumeRecipeSummary(value: unknown): value is ResumeRecipeSummary {
     typeof value['origin'] === 'string' &&
     typeof value['updatedAt'] === 'string' &&
     (value['strategy'] === 'autonomous' || value['strategy'] === 'existing') &&
+    isRecipeValidation(value['validation']) &&
     isRecord(value['objective']) &&
     typeof value['objective']['goal'] === 'string' &&
     (value['name'] === undefined || typeof value['name'] === 'string') &&
     (value['summary'] === undefined || typeof value['summary'] === 'string') &&
     Array.isArray(value['runs']) &&
-    value['runs'].every(
-      (run) =>
-        isRecord(run) &&
-        typeof run['id'] === 'string' &&
-        typeof run['startedAt'] === 'string' &&
-        (run['status'] === 'running' ||
-          run['status'] === 'waiting-human' ||
-          run['status'] === 'waiting-ai' ||
-          run['status'] === 'completed' ||
-          run['status'] === 'failed' ||
-          run['status'] === 'cancelled') &&
-        typeof run['updatedAt'] === 'string' &&
-        typeof run['supervised'] === 'boolean',
-    ) &&
+    value['runs'].every(isResumeRecipeRunSummary) &&
     (value['beforeSequence'] === undefined ||
       typeof value['beforeSequence'] === 'number')
   );
@@ -301,6 +300,7 @@ function isResumeRecipeDetail(value: unknown): value is ResumeRecipeDetail {
     typeof value['createdAt'] === 'string' &&
     typeof value['updatedAt'] === 'string' &&
     (value['strategy'] === 'autonomous' || value['strategy'] === 'existing') &&
+    isRecipeValidation(value['validation']) &&
     (value['name'] === undefined || typeof value['name'] === 'string') &&
     (value['summary'] === undefined || typeof value['summary'] === 'string') &&
     isRecord(value['objective']) &&
@@ -318,10 +318,36 @@ function isResumeRecipeDetail(value: unknown): value is ResumeRecipeDetail {
     value['cleanup'].every(isRecord) &&
     Array.isArray(value['revisions']) &&
     value['revisions'].every(isRecord) &&
+    Array.isArray(value['runs']) &&
+    value['runs'].every(isResumeRecipeRunSummary) &&
     (value['network'] === undefined || isRecord(value['network'])) &&
     (value['beforeSequence'] === undefined ||
       typeof value['beforeSequence'] === 'number')
   );
+}
+
+function isResumeRecipeRunSummary(value: unknown): value is ResumeRecipeRunSummary {
+  return isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    typeof value['startedAt'] === 'string' &&
+    typeof value['updatedAt'] === 'string' &&
+    typeof value['supervised'] === 'boolean' &&
+    (value['currentStep'] === undefined || typeof value['currentStep'] === 'number') &&
+    ['running', 'waiting-human', 'waiting-ai', 'completed', 'failed', 'cancelled'].includes(String(value['status'])) &&
+    (value['failure'] === undefined ||
+      (isRecord(value['failure']) &&
+        typeof value['failure']['detail'] === 'string' &&
+        (value['failure']['step'] === undefined || typeof value['failure']['step'] === 'number')));
+}
+
+function isRecipeValidation(
+  value: unknown,
+): value is Readonly<{ status: 'draft' | 'validation-failed' | 'verified'; issues: readonly string[]; verifiedRunId?: string }> {
+  return isRecord(value) &&
+    (value['status'] === 'draft' || value['status'] === 'validation-failed' || value['status'] === 'verified') &&
+    Array.isArray(value['issues']) &&
+    value['issues'].every((issue) => typeof issue === 'string') &&
+    (value['verifiedRunId'] === undefined || typeof value['verifiedRunId'] === 'string');
 }
 
 const recipeDetailDecoder = {

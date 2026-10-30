@@ -4223,6 +4223,95 @@ export function serverFunctionArchitectureViolations(
   return violations;
 }
 
+export type ServerFunctionScenarioCatalog = Readonly<{
+  operations: readonly Readonly<{ operationId: string; codec: string }>[];
+  scenarios: readonly Readonly<{
+    operationId: string;
+    scenarioId: string;
+    codec: string;
+  }>[];
+  codecNames: readonly string[];
+}>;
+
+/** Cross-file proof that every client server-function boundary is represented
+ * once in its owning scenario catalog and every scenario points back to that
+ * operation and codec. */
+export function serverFunctionScenarioCatalogViolations(
+  graph: DependencyGraph,
+  catalog: ServerFunctionScenarioCatalog,
+): string[] {
+  const violations: string[] = [];
+  const boundaries = graph.nodes.filter(
+    (node) =>
+      (node.kind === 'server-function-server' &&
+        node.details?.['exposure'] === 'client') ||
+      (node.kind === 'server-function-misnamed' &&
+        node.details?.['exposure'] === 'client'),
+  );
+  const boundaryIds = boundaries.flatMap((node) => {
+    const id = node.details?.['serverFunctionId'];
+    if (typeof id === 'string') return [id];
+    violations.push(`client server-function boundary at ${relativeGraphPath(graph, node.filePath)} has no stable id.`);
+    return [];
+  });
+  for (const [id, count] of countBy(boundaryIds, (value) => value)) {
+    if (count > 1)
+      violations.push(`server-function id "${id}" is declared by ${count} boundaries.`);
+  }
+  const operationCounts = countBy(catalog.operations, (item) => item.operationId);
+  const operations = new Map(
+    catalog.operations.map((operation) => [operation.operationId, operation]),
+  );
+  for (const [id, count] of operationCounts) {
+    if (count > 1) violations.push(`operationId "${id}" is declared ${count} times.`);
+  }
+  for (const id of new Set(boundaryIds)) {
+    if (!operations.has(id))
+      violations.push(`server function "${id}" has no scenario-catalog operation.`);
+  }
+  for (const [id, operation] of operations) {
+    if (!boundaryIds.includes(id))
+      violations.push(`catalog operation "${id}" has no server-function boundary.`);
+  }
+  for (const operation of catalog.operations) {
+    if (!catalog.codecNames.includes(operation.codec))
+      violations.push(`operation "${operation.operationId}" references missing codec "${operation.codec}".`);
+  }
+  const scenarioCounts = countBy(
+    catalog.scenarios,
+    (item) => `${item.operationId}#${item.scenarioId}`,
+  );
+  for (const [key, count] of scenarioCounts) {
+    if (count > 1) violations.push(`scenario "${key}" is declared ${count} times.`);
+  }
+  for (const scenario of catalog.scenarios) {
+    const operation = operations.get(scenario.operationId);
+    if (!operation) {
+      violations.push(`scenario "${scenario.scenarioId}" refers to unknown operation "${scenario.operationId}".`);
+      continue;
+    }
+    if (scenario.codec !== operation.codec)
+      violations.push(`scenario "${scenario.scenarioId}" uses codec "${scenario.codec}", but "${scenario.operationId}" declares "${operation.codec}".`);
+  }
+  for (const operation of catalog.operations) {
+    if (!catalog.scenarios.some((scenario) => scenario.operationId === operation.operationId))
+      violations.push(`operation "${operation.operationId}" has no declared scenarios.`);
+  }
+  return violations.sort();
+}
+
+function countBy<Value>(
+  values: readonly Value[],
+  keyOf: (value: Value) => string,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    const key = keyOf(value);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
 /**
  * Vérifie qu'un handshake exigé par la chaîne **serveur** d'une famille est
  * bien rempli par la chaîne **client** de la *même* famille, et l'inverse.

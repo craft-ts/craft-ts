@@ -27,6 +27,8 @@ export interface ServerFunctionContractOptions<
    * et par le graphe d'architecture entre les deux fichiers.
    */
   readonly clientContext?: ClientContextSchema;
+  /** A narrowly scoped reason when this boundary cannot expose a codec. */
+  readonly codecExemption?: string;
 }
 
 export interface ServerFunctionContract<
@@ -41,6 +43,7 @@ export interface ServerFunctionContract<
   readonly output?: OutputSchema;
   readonly exposure: Exposure;
   readonly clientContext?: ClientContextSchema;
+  readonly codecExemption?: string;
   readonly __serverFunctionContract: true;
 }
 
@@ -105,6 +108,7 @@ export function serverFunctionContract<
   output,
   exposure,
   clientContext,
+  codecExemption,
 }: ServerFunctionContractOptions<
   InputSchema,
   OutputSchema,
@@ -120,11 +124,14 @@ export function serverFunctionContract<
   ClientContextSchema
 > {
   assertServerFunctionId(id);
+  if (codecExemption !== undefined && codecExemption.trim().length < 12)
+    throw new Error('A server-function codec exemption must explain the opaque boundary and its handling.');
   return Object.freeze({
     id,
     input,
     ...(output === undefined ? {} : { output }),
     ...(clientContext === undefined ? {} : { clientContext }),
+    ...(codecExemption === undefined ? {} : { codecExemption: codecExemption.trim() }),
     exposure,
     __serverFunctionContract: true as const,
   }) as ServerFunctionContract<

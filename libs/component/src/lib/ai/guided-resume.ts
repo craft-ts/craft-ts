@@ -174,6 +174,20 @@ export function provideCraftGuidedResume(
         lastLaunch: readJson(LAST_LAUNCH_KEY),
         lastCheckpoint: readLastCheckpointValidity(),
       }));
+      ɵregisterCraftMcpBridgeMethod('app/scenario-catalog', async (params) => {
+        const query = new URLSearchParams();
+        for (const key of ['route', 'operationId', 'scenarioId', 'q']) {
+          const value = isRecord(params) ? params[key] : undefined;
+          if (typeof value === 'string' && value.trim()) query.set(key, value);
+        }
+        const response = await fetch(
+          `${location.origin}/__craft/scenarios${query.size ? `?${query}` : ''}`,
+        );
+        const body = (await response.json()) as Record<string, unknown>;
+        if (!response.ok)
+          throw new Error(String(body['error'] ?? `Scenario catalog HTTP ${response.status}`));
+        return body;
+      });
       ɵregisterCraftMcpBridgeMethod('app/checkpoint/capture', () =>
         captureLiveSnapshot(restoreOptions),
       );

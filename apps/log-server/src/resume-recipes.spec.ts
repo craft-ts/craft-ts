@@ -38,6 +38,10 @@ describe('resume recipes', () => {
     if (typeof parsed === 'string') throw new Error(parsed);
     const saved = store.save(parsed);
 
+    expect(saved.validation.status).toBe('validation-failed');
+    expect(saved.validation.issues).toContain(
+      'Ajoute une étape handoff sans condition pour le point d’observation.',
+    );
     expect(store.get(saved.id)).toEqual(saved);
     expect(store.list({ sessionId: SESSION, beforeSequence: 12 })).toEqual([saved]);
     expect(store.list({ sessionId: SESSION, beforeSequence: 13 })).toEqual([]);
@@ -80,6 +84,42 @@ describe('resume recipes', () => {
     expect(saved.network?.mocks[1]?.cases[0]).toMatchObject({
       id: 'removed',
       nextChoices: { 'ecommerce.admin.overview': 'deleted' },
+    });
+  });
+
+  it('stores versioned application scenario references instead of copied responses', () => {
+    const parsed = parseResumeRecipeInput({
+      ...recipe,
+      network: {
+        mode: 'mocked',
+        mocks: [
+          {
+            call: 'ecommerce.catalog',
+            defaultCaseId: 'demo-catalog',
+            cases: [
+              {
+                id: 'demo-catalog',
+                kind: 'success',
+                scenario: {
+                  operationId: 'ecommerce.catalog',
+                  scenarioId: 'catalog-with-seasonal-products',
+                  catalogVersion: 'ecommerce-scenarios-1',
+                },
+              },
+              { id: 'offline', kind: 'failure', message: 'Offline' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(typeof parsed).not.toBe('string');
+    if (typeof parsed === 'string') throw new Error(parsed);
+    expect(store.save(parsed).network?.mocks[0]?.cases[0]).toMatchObject({
+      scenario: {
+        operationId: 'ecommerce.catalog',
+        scenarioId: 'catalog-with-seasonal-products',
+        catalogVersion: 'ecommerce-scenarios-1',
+      },
     });
   });
 
@@ -129,10 +169,40 @@ describe('resume recipes', () => {
     const parsed = parseResumeRecipeInput(recipe);
     if (typeof parsed === 'string') throw new Error(parsed);
     const saved = store.save(parsed);
-    const first = store.saveRun({ recipeId: saved.id, status: 'completed', supervised: false, events: [] });
-    const second = store.saveRun({ recipeId: saved.id, status: 'failed', supervised: true, currentStep: 2, events: [] });
+    const first = store.saveRun({ recipeId: saved.id, status: 'completed', supervised: false, freshTab: false, events: [] });
+    const second = store.saveRun({ recipeId: saved.id, status: 'failed', supervised: true, freshTab: false, currentStep: 2, events: [] });
 
     expect(store.listRuns(saved.id).map((run) => run.id)).toEqual([second.id, first.id]);
     expect(store.getRun(second.id)).toEqual(second);
+  });
+
+  it('marks only a fresh run with an essential expectation, observed handoff and empty write journal verified', () => {
+    const parsed = parseResumeRecipeInput({
+      ...recipe,
+      objective: { ...recipe.objective, mayWrite: false },
+      steps: [
+        { type: 'handoff', message: 'Observe the result.' },
+        { type: 'expect', level: 'essential', condition: { address: 'catalog / state:items', equals: [] } },
+      ],
+    });
+    if (typeof parsed === 'string') throw new Error(parsed);
+    const saved = store.save(parsed);
+    expect(saved.validation.status).toBe('draft');
+    const run = store.saveRun({
+      recipeId: saved.id,
+      status: 'completed',
+      supervised: false,
+      freshTab: true,
+      events: [
+        { at: new Date().toISOString(), kind: 'handoff-observed', step: 0 },
+        { at: new Date().toISOString(), kind: 'step-complete', step: 1, detail: 'expect' },
+        { at: new Date().toISOString(), kind: 'writes-checked', detail: '0' },
+      ],
+    });
+    expect(store.get(saved.id)?.validation).toMatchObject({
+      status: 'verified',
+      issues: [],
+      verifiedRunId: run.id,
+    });
   });
 });

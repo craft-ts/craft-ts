@@ -256,6 +256,7 @@ export function portableServerFunction<
     readonly exposure: Exposure;
     readonly output?: OutputSchema;
     readonly clientContext?: ClientContextSchema;
+    readonly codecExemption?: string;
   },
 ): PortableServerFunctionBuilder<
   ServerFunctionContract<
@@ -297,6 +298,7 @@ export function portableServerFunction(
     readonly exposure?: ServerFunctionExposure;
     readonly output?: CraftSchema;
     readonly clientContext?: CraftSchema;
+    readonly codecExemption?: string;
   },
 ): PortableServerFunctionBuilder<any, readonly []> {
   const contract = (
@@ -307,6 +309,7 @@ export function portableServerFunction(
           exposure: options?.exposure ?? 'server',
           output: options?.output,
           clientContext: options?.clientContext,
+          codecExemption: options?.codecExemption,
         })
       : contractOrId
   ) as ServerFunctionContract;

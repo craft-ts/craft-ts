@@ -190,6 +190,13 @@ the defaults.
 To make a result observable in a later dashboard run, add a `handoff` without
 `until` after the relevant screen; the person continues by confirming « C'est
 fait ».
+Saving returns a server-owned `draft` or `validation-failed` status with any
+static issues. It cannot mark a recipe verified. Use the dashboard action to
+open a fresh application tab for prevalidation. The recipe becomes `verified`
+only after every essential expectation passes, its unconditioned observation
+handoff is reached, and `app.writes` is empty when `objective.mayWrite` is
+`false`. The dashboard shows the latest status and failed step/error; repair
+the recipe from that step without weakening essential expectations.
 For a behavioral test, add `network: { mode: "mocked", mocks: [...] }` with
 one entry per server-function id or Craft HTTP endpoint and its named cases.
 Use the exact `METHOD URL` graph identity for a `CraftHttpClient` call, such

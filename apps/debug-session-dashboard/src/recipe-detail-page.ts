@@ -49,6 +49,23 @@ export const RecipeDetailPage = craftComponent(
       },
     );
     const feedbackText = rawReactiveValue(feedback.message);
+    const validationText = yield* craftComputed('recipeValidationText', () => {
+      const item = recipeValue();
+      if (!item) return '';
+      const label =
+        item.validation.status === 'verified'
+          ? 'Vérifiée'
+          : item.validation.status === 'validation-failed'
+            ? 'Prévalidation échouée'
+            : 'Brouillon';
+      const issues = [...item.validation.issues];
+      const failure = item.runs[0]?.failure;
+      if (failure) {
+        const step = `Étape ${(failure.step ?? 0) + 1} : ${failure.detail}`;
+        if (!issues.includes(step)) issues.push(step);
+      }
+      return issues.length ? `${label} · ${issues.join(' · ')}` : label;
+    });
     const loadMessage = yield* craftComputed('recipeLoadMessage', () =>
       !recipeId
         ? 'Identifiant de recette invalide.'
@@ -78,7 +95,7 @@ export const RecipeDetailPage = craftComponent(
           );
         },
       },
-      'Lancer la recette',
+      'Prévalider dans un nouvel onglet',
     );
 
     const noRecipe = p(
@@ -127,6 +144,14 @@ export const RecipeDetailPage = craftComponent(
           {
             class: ui.eventMeta,
             role: 'status',
+            'data-lab': 'recipe-validation-status',
+          },
+          validationText,
+        ),
+        p(
+          {
+            class: ui.eventMeta,
+            role: 'status',
             hidden: function* () {
               return !feedbackText();
             },
@@ -135,6 +160,23 @@ export const RecipeDetailPage = craftComponent(
         ),
         div({ class: ui.gapActions }, [
           launch,
+          button(
+            'refreshRecipeValidation',
+            {
+              type: 'button',
+              class: buttonUi.root,
+              'data-variant': 'secondary',
+              'data-lab': 'refresh-recipe-status',
+              disabled: function* () {
+                return recipeValue() === undefined;
+              },
+              click: function* () {
+                const item = recipeValue();
+                if (item) archive.recipeDetail.call(item.id);
+              },
+            },
+            'Actualiser le statut',
+          ),
           button(
             'openSourceSession',
             {

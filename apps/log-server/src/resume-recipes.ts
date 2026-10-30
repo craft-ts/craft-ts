@@ -24,7 +24,12 @@ export type ResumeRecipeMockCase =
   | Readonly<{
       id: string;
       kind: 'success';
-      response: unknown;
+      response?: unknown;
+      scenario?: Readonly<{
+        operationId: string;
+        scenarioId: string;
+        catalogVersion: string;
+      }>;
       nextChoices?: Readonly<Record<string, string>>;
     }>
   | Readonly<{
@@ -63,6 +68,13 @@ export type ResumeRecipe = Readonly<{
   steps: readonly ResumeRecipeStep[];
   cleanup: readonly ResumeRecipeCall[];
   revisions: readonly Readonly<{ at: string; by: 'ai' | 'person'; reason: string }>[];
+  /** Server-owned lifecycle; callers cannot mark a recipe verified. */
+  validation: Readonly<{
+    status: 'draft' | 'validation-failed' | 'verified';
+    issues: readonly string[];
+    verifiedRunId?: string;
+    updatedAt: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }>;
@@ -73,6 +85,7 @@ export type ResumeRecipeRun = Readonly<{
   startedAt: string;
   updatedAt: string;
   status: 'running' | 'waiting-human' | 'waiting-ai' | 'completed' | 'failed' | 'cancelled';
+  freshTab: boolean;
   currentStep?: number;
   supervised: boolean;
   events: readonly Readonly<{ at: string; kind: string; step?: number; detail?: string }>[];
@@ -81,6 +94,10 @@ export type ResumeRecipeRun = Readonly<{
 export const RECIPE_STEP_TYPES = [
   'handoff', 'create', 'ensure', 'goto', 'invoke', 'act', 'expect', 'checkpoint', 'network',
 ] as const;
+type ResumeRecipeDraft = Omit<
+  ResumeRecipe,
+  'id' | 'createdAt' | 'updatedAt' | 'validation'
+>;
 
 const ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_STEPS = 200;
@@ -96,14 +113,20 @@ export class ResumeRecipeStore {
     mkdirSync(join(directory, 'runs'), { recursive: true });
   }
 
-  save(value: Omit<ResumeRecipe, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<ResumeRecipe, 'id'>>): ResumeRecipe {
+  save(value: Omit<ResumeRecipe, 'id' | 'createdAt' | 'updatedAt' | 'validation'> & Partial<Pick<ResumeRecipe, 'id'>>): ResumeRecipe {
     const now = new Date().toISOString();
     const existing = value.id ? this.get(value.id) : undefined;
+    const staticIssues = recipeStaticValidationIssues(value);
     const recipe: ResumeRecipe = {
       ...value,
       id: existing?.id ?? value.id ?? randomUUID(),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
+      validation: {
+        status: staticIssues.length ? 'validation-failed' : 'draft',
+        issues: staticIssues,
+        updatedAt: now,
+      },
     };
     const invalid = validateRecipe(recipe);
     if (invalid) throw new Error(invalid);
@@ -116,7 +139,16 @@ export class ResumeRecipeStore {
   get(id: string): ResumeRecipe | undefined {
     if (!ID_PATTERN.test(id)) return undefined;
     try {
-      return JSON.parse(readFileSync(this.#path(id), 'utf8')) as ResumeRecipe;
+      const value = JSON.parse(readFileSync(this.#path(id), 'utf8')) as Partial<ResumeRecipe>;
+      if (!value.id || !value.updatedAt) return undefined;
+      return {
+        ...value,
+        validation: value.validation ?? {
+          status: 'draft',
+          issues: [],
+          updatedAt: value.updatedAt,
+        },
+      } as ResumeRecipe;
     } catch {
       return undefined;
     }
@@ -150,7 +182,31 @@ export class ResumeRecipeStore {
     const path = this.#runPath(run.id);
     writeFileSync(`${path}.tmp`, JSON.stringify(run), 'utf8');
     renameSync(`${path}.tmp`, path);
+    if (run.status === 'failed') {
+      this.updateValidation(run.recipeId, { status: 'validation-failed', issues: [failureDetail(run)] });
+    } else if (run.status === 'completed') {
+      const latest = this.get(run.recipeId);
+      const issues = latest ? recipePrevalidationIssues(latest, run) : ['Recipe not found.'];
+      this.updateValidation(run.recipeId, issues.length
+        ? { status: 'validation-failed', issues }
+        : { status: 'verified', issues: [], verifiedRunId: run.id });
+    }
     return run;
+  }
+
+  updateValidation(id: string, validation: Readonly<{ status: 'draft' | 'validation-failed' | 'verified'; issues: readonly string[]; verifiedRunId?: string }>): ResumeRecipe | undefined {
+    const existing = this.get(id);
+    if (!existing) return undefined;
+    const now = new Date().toISOString();
+    const updated: ResumeRecipe = {
+      ...existing,
+      updatedAt: now,
+      validation: { ...validation, updatedAt: now },
+    };
+    const path = this.#path(id);
+    writeFileSync(`${path}.tmp`, JSON.stringify(updated), 'utf8');
+    renameSync(`${path}.tmp`, path);
+    return updated;
   }
 
   getRun(id: string): ResumeRecipeRun | undefined {
@@ -189,7 +245,7 @@ export class ResumeRecipeStore {
   #runPath(id: string): string { return join(this.directory, 'runs', `${id}.json`); }
 }
 
-export function parseResumeRecipeInput(value: unknown): (Omit<ResumeRecipe, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<ResumeRecipe, 'id'>>) | string {
+export function parseResumeRecipeInput(value: unknown): (Omit<ResumeRecipe, 'id' | 'createdAt' | 'updatedAt' | 'validation'> & Partial<Pick<ResumeRecipe, 'id'>>) | string {
   if (!isRecord(value)) return 'A recipe is an object.';
   const { id: rawId, sessionId, beforeSequence, origin, name, summary, objective, strategy, network, steps, cleanup, revisions } = value;
   if (rawId !== undefined && (typeof rawId !== 'string' || !ID_PATTERN.test(rawId))) return 'id must be a recipe UUID.';
@@ -218,6 +274,7 @@ export function parseResumeRecipeInput(value: unknown): (Omit<ResumeRecipe, 'id'
     steps: steps as ResumeRecipeStep[],
     cleanup: cleanup as ResumeRecipeCall[],
     revisions: revisions as ResumeRecipe['revisions'],
+    validation: { status: 'draft' as const, issues: [], updatedAt: '' },
   };
   const invalid = validateRecipe({
     ...candidate,
@@ -256,6 +313,67 @@ function validateRecipe(recipe: ResumeRecipe): string | undefined {
   )
     return 'A mocked network step requires a mocked recipe network profile.';
   return undefined;
+}
+
+/** Static checks that can be performed without loading a browser or catalog. */
+export function recipeStaticValidationIssues(
+  recipe: ResumeRecipeDraft | ResumeRecipe,
+): string[] {
+  const issues: string[] = [];
+  const essential = recipe.steps.filter(
+    (step) => step.type === 'expect' && step['level'] === 'essential',
+  );
+  if (essential.length === 0)
+    issues.push('Ajoute au moins une attente essentielle vérifiable.');
+  const observableHandoff = recipe.steps.some(
+    (step) => step.type === 'handoff' && step['until'] === undefined,
+  );
+  if (!observableHandoff)
+    issues.push('Ajoute une étape handoff sans condition pour le point d’observation.');
+  for (const mock of recipe.network?.mocks ?? []) {
+    if (
+      mock.defaultCaseId !== undefined &&
+      !mock.cases.some((item) => item.id === mock.defaultCaseId)
+    )
+      issues.push(`Le cas par défaut "${mock.defaultCaseId}" de "${mock.call}" est inconnu.`);
+    if (mock.cases.some((item) => item.kind === 'success' && item.response === undefined && item.scenario === undefined))
+      issues.push(`Chaque cas de succès de "${mock.call}" doit référencer une réponse ou un scénario avec codec.`);
+  }
+  return [...new Set(issues)];
+}
+
+function recipePrevalidationIssues(
+  recipe: ResumeRecipe,
+  run: ResumeRecipeRun,
+): string[] {
+  const issues = recipeStaticValidationIssues(recipe);
+  if (!run.freshTab) issues.push('La prévalidation doit partir d’un onglet neuf lancé par le dashboard.');
+  const completedSteps = new Set(
+    run.events
+      .filter((event) => event.kind === 'step-complete' && event.step !== undefined)
+      .map((event) => event.step),
+  );
+  recipe.steps.forEach((step, index) => {
+    if (step.type === 'expect' && step['level'] === 'essential' && !completedSteps.has(index))
+      issues.push(`L’attente essentielle de l’étape ${index + 1} n’a pas été satisfaite.`);
+  });
+  const handoffIndex = recipe.steps.findIndex(
+    (step) => step.type === 'handoff' && step['until'] === undefined,
+  );
+  if (handoffIndex < 0 || !run.events.some(
+    (event) => event.kind === 'handoff-observed' && event.step === handoffIndex,
+  )) issues.push('Le point d’observation humain n’a pas été atteint depuis l’onglet neuf.');
+  if (
+    !recipe.objective.mayWrite &&
+    !run.events.some((event) => event.kind === 'writes-checked' && event.detail === '0')
+  )
+    issues.push('Le journal app.writes ne prouve pas une exécution sans écriture.');
+  return [...new Set(issues)];
+}
+
+function failureDetail(run: ResumeRecipeRun): string {
+  const failure = [...run.events].reverse().find((event) => event.kind === 'failed');
+  return failure?.detail ?? `La recette a échoué à l’étape ${(run.currentStep ?? 0) + 1}.`;
 }
 
 function isResumeRecipeNetwork(value: unknown): value is ResumeRecipeNetwork {
@@ -307,10 +425,11 @@ function isResumeRecipeNetwork(value: unknown): value is ResumeRecipeNetwork {
         hasSuccess = true;
         if (
           Object.keys(candidate).some(
-            (key) => !['id', 'kind', 'response', 'nextChoices'].includes(key),
+            (key) => !['id', 'kind', 'response', 'scenario', 'nextChoices'].includes(key),
           ) ||
-          !('response' in candidate) ||
-          !isJsonValue(candidate['response'])
+          (('response' in candidate) === ('scenario' in candidate)) ||
+          ('response' in candidate && !isJsonValue(candidate['response'])) ||
+          ('scenario' in candidate && !isRecipeScenarioReference(candidate['scenario']))
         )
           return false;
         if (candidate['nextChoices'] !== undefined) {
@@ -376,6 +495,18 @@ function isJsonValue(value: unknown): boolean {
   return (
     isRecord(value) &&
     Object.values(value).every(isJsonValue)
+  );
+}
+
+function isRecipeScenarioReference(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    Object.keys(value).every((key) => ['operationId', 'scenarioId', 'catalogVersion'].includes(key)) &&
+    typeof value['operationId'] === 'string' &&
+    /^[A-Za-z][A-Za-z0-9._:-]*$/.test(value['operationId']) &&
+    typeof value['scenarioId'] === 'string' &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(value['scenarioId']) &&
+    typeof value['catalogVersion'] === 'string' && value['catalogVersion'].length > 0
   );
 }
 

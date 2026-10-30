@@ -48,3 +48,12 @@ entry, for example `registry.query.update` on
 `queryParams <= route:list#1 > component:List#2`. For `query`, `asyncProcess`,
 and `mutation` primitives with identifiers, pass `id` to target the selected
 instance; without `id`, the operation targets the by-id state record.
+
+When the connected application publishes `GET /__craft/scenarios`,
+`scenario.search` returns its compact operation and scenario inventory, and
+`scenario.get` loads one case. A mocked recipe success may store the returned
+`operationId`, `scenarioId`, and `catalogVersion` instead of copying a response
+payload. The tab resolves that reference through the owning app's codec before
+installing the mock; missing or stale references stop the run with a repairable
+error. Inline responses remain available for calls without an application
+catalog.

@@ -411,6 +411,11 @@ async function handleRequest(
             summary: recipe.summary?.trim() || recipe.objective.goal,
             objective: { goal: recipe.objective.goal },
             strategy: recipe.strategy,
+            validation: recipe.validation ?? {
+              status: 'draft',
+              issues: [],
+              updatedAt: recipe.updatedAt,
+            },
             updatedAt: recipe.updatedAt,
             runs: store.listRuns(recipe.id).map((run) => ({
               id: run.id,
@@ -421,6 +426,7 @@ async function handleRequest(
                 ? {}
                 : { currentStep: run.currentStep }),
               supervised: run.supervised,
+              ...recipeRunFailure(run),
             })),
           }));
         sendJson(response, 200, { recipes }, headers);
@@ -460,7 +466,20 @@ async function handleRequest(
       return;
     }
     if (suffix.length === 1 && request.method === 'GET') {
-      sendJson(response, 200, { recipe }, headers);
+      sendJson(response, 200, {
+        recipe: {
+          ...recipe,
+          runs: store.listRuns(recipe.id).map((run) => ({
+            id: run.id,
+            startedAt: run.startedAt,
+            updatedAt: run.updatedAt,
+            status: run.status,
+            ...(run.currentStep === undefined ? {} : { currentStep: run.currentStep }),
+            supervised: run.supervised,
+            ...recipeRunFailure(run),
+          })),
+        },
+      }, headers);
       return;
     }
     if (suffix[1] === 'runs' && suffix.length === 2) {
@@ -478,7 +497,11 @@ async function handleRequest(
           input = undefined;
         }
         const supervised = isRecord(input) ? input['supervised'] : undefined;
-        if (supervised !== undefined && typeof supervised !== 'boolean') {
+        const freshTab = isRecord(input) ? input['freshTab'] : undefined;
+        if (
+          (supervised !== undefined && typeof supervised !== 'boolean') ||
+          (freshTab !== undefined && typeof freshTab !== 'boolean')
+        ) {
           sendJson(
             response,
             400,
@@ -491,6 +514,7 @@ async function handleRequest(
           recipeId,
           status: 'running',
           supervised: supervised === true,
+          freshTab: freshTab === true,
           events: [],
         });
         sendJson(response, 201, { run }, headers);
@@ -1199,6 +1223,19 @@ function isRecipeRunEvent(
     (value['detail'] === undefined ||
       (typeof value['detail'] === 'string' && value['detail'].length <= 2_000))
   );
+}
+
+function recipeRunFailure(
+  run: ResumeRecipeRun,
+): Readonly<{ failure: Readonly<{ step?: number; detail: string }> }> | Record<never, never> {
+  const event = [...run.events].reverse().find((item) => item.kind === 'failed');
+  if (!event?.detail) return {};
+  return {
+    failure: {
+      ...(event.step === undefined ? {} : { step: event.step }),
+      detail: event.detail,
+    },
+  };
 }
 
 function selectedE2eRoot(

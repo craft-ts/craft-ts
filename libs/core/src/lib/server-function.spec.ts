@@ -34,6 +34,23 @@ const numberSchema = (
   }) as TestSchema<number, number>;
 
 describe('server functions', () => {
+  it('keeps codec exemptions specific to opaque boundaries', () => {
+    expect(() => serverFunctionContract({
+      id: 'opaque.short',
+      input: numberSchema((value) => value),
+      exposure: 'client',
+      codecExemption: 'opaque',
+    })).toThrow('codec exemption must explain');
+    expect(serverFunctionContract({
+      id: 'opaque.signed',
+      input: numberSchema((value) => value),
+      exposure: 'client',
+      codecExemption: 'Vendor signed payload; decoded by VendorSdk.',
+    }).codecExemption).toBe(
+      'Vendor signed payload; decoded by VendorSdk.',
+    );
+  });
+
   beforeEach(() => CraftTestBed.resetTestingModule());
 
   it('keeps a server-only function local to its implementation', async () => {

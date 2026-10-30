@@ -8,7 +8,13 @@ export type GuidedResumeMockCase =
   | Readonly<{
       id: string;
       kind: 'success';
-      response: unknown;
+      response?: unknown;
+      /** Resolved against the connected application's catalog before a run. */
+      scenario?: Readonly<{
+        operationId: string;
+        scenarioId: string;
+        catalogVersion: string;
+      }>;
       /** Select cases for subsequent calls after this response is returned. */
       nextChoices?: Readonly<Record<string, string>>;
     }>
@@ -32,6 +38,40 @@ export type GuidedResumeNetwork = Readonly<{
   mode: 'functional' | 'mocked';
   mocks: readonly GuidedResumeMockEndpoint[];
 }>;
+
+/** Resolve application-owned success data before installing a mock profile. */
+export async function resolveGuidedResumeScenarioReferences(
+  network: GuidedResumeNetwork,
+  origin: string,
+  fetcher: typeof fetch = fetch,
+): Promise<GuidedResumeNetwork> {
+  if (network.mode !== 'mocked') return network;
+  const mocks = await Promise.all(network.mocks.map(async (mock) => ({
+    ...mock,
+    cases: await Promise.all(mock.cases.map(async (candidate) => {
+      if (candidate.kind !== 'success' || !candidate.scenario) return candidate;
+      const { operationId, scenarioId, catalogVersion } = candidate.scenario;
+      const query = new URLSearchParams({ operationId, scenarioId });
+      const response = await fetcher(`${origin}/__craft/scenarios?${query}`);
+      const body = (await response.json()) as Record<string, unknown>;
+      if (!response.ok)
+        throw new Error(String(body['error'] ?? `Scénario ${operationId}/${scenarioId} introuvable.`));
+      if (
+        typeof body['catalogVersion'] !== 'string' ||
+        body['catalogVersion'] !== catalogVersion
+      )
+        throw new Error(`Référence périmée pour ${operationId}/${scenarioId} : le catalogue a changé. Rechercher le scénario à nouveau puis réparer la recette.`);
+      if (body['category'] !== 'success' || typeof body['response'] !== 'string')
+        throw new Error(`Le scénario ${operationId}/${scenarioId} ne fournit pas une réponse de succès encodée.`);
+      return {
+        ...candidate,
+        response: body['response'],
+        scenario: { operationId, scenarioId, catalogVersion: body['catalogVersion'] },
+      };
+    })),
+  })));
+  return { ...network, mocks };
+}
 
 export type GuidedResumeMockResolution =
   | Readonly<{ active: false }>

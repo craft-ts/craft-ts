@@ -189,7 +189,7 @@ export function launchResumeRecipeTab(
   const tab = openLinkedTab(url.href);
   status.set(
     tab
-      ? 'Recette ouverte dans un nouvel onglet. Les sessions enregistrées depuis ce lancement seront liées à la recette.'
+      ? 'Prévalidation ouverte dans un nouvel onglet. Le statut de la recette suivra les attentes et le point d’observation.'
       : 'Le navigateur a bloqué l’ouverture de la recette. Autorise les fenêtres surgissantes pour ce dashboard.',
   );
   return tab !== null;

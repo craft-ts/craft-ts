@@ -52,6 +52,7 @@ import {
   persistedPrimitiveUniqueViolations,
   routeDiProofViolations,
   serverFunctionArchitectureViolations,
+  serverFunctionScenarioCatalogViolations,
   assertVisualHappyPathArchitecture,
   visualHappyPathArchitectureViolations,
 } from './architecture-graph';
@@ -64,6 +65,77 @@ afterEach(async () => {
       .splice(0)
       .map((directory) => rm(directory, { recursive: true, force: true })),
   );
+});
+
+describe('server function scenario catalog architecture', () => {
+  it('accepts matching boundaries, codecs and scenarios', async () => {
+    const graph = await graphOf({
+      'functions.ts': `
+        declare function serverFunction(...args: unknown[]): unknown;
+        serverFunction('catalog.list', {}, { exposure: 'client', output: {} });
+      `,
+    });
+    expect(serverFunctionScenarioCatalogViolations(graph.graph, {
+      operations: [{ operationId: 'catalog.list', codec: 'json' }],
+      scenarios: [{ operationId: 'catalog.list', scenarioId: 'empty', codec: 'json' }],
+      codecNames: ['json'],
+    })).toEqual([]);
+  });
+
+  it('reports missing and duplicate operation ownership and orphan scenarios', async () => {
+    const graph = await graphOf({
+      'catalog.fn-serveur.ts': `
+        declare function serverFunction(...args: unknown[]): unknown;
+        serverFunction('catalog.list', {}, { exposure: 'client', output: {} });
+      `,
+    });
+    const violations = serverFunctionScenarioCatalogViolations(graph.graph, {
+      operations: [
+        { operationId: 'catalog.list', codec: 'missing' },
+        { operationId: 'catalog.list', codec: 'json' },
+        { operationId: 'catalog.orphan', codec: 'json' },
+      ],
+      scenarios: [
+        { operationId: 'unknown', scenarioId: 'orphan', codec: 'json' },
+        { operationId: 'catalog.list', scenarioId: 'wrong-codec', codec: 'other' },
+      ],
+      codecNames: ['json'],
+    });
+    expect(violations).toContain('operationId "catalog.list" is declared 2 times.');
+    expect(violations).toContain('operation "catalog.list" references missing codec "missing".');
+    expect(violations).toContain('catalog operation "catalog.orphan" has no server-function boundary.');
+    expect(violations).toContain('scenario "orphan" refers to unknown operation "unknown".');
+    expect(violations).toContain('scenario "wrong-codec" uses codec "other", but "catalog.list" declares "json".');
+  });
+
+  it('rejects a duplicate boundary id even when the catalog has one operation', async () => {
+    const graph = await graphOf({
+      'functions.ts': `
+        declare function serverFunction(...args: unknown[]): unknown;
+        serverFunction('catalog.list', {}, { exposure: 'client', output: {} });
+        serverFunction('catalog.list', {}, { exposure: 'client', output: {} });
+      `,
+    });
+    expect(serverFunctionScenarioCatalogViolations(graph.graph, {
+      operations: [{ operationId: 'catalog.list', codec: 'json' }],
+      scenarios: [],
+      codecNames: ['json'],
+    })).toContain('server-function id "catalog.list" is declared by 2 boundaries.');
+  });
+
+  it('rejects an operation with no declared scenarios', async () => {
+    const graph = await graphOf({
+      'catalog.fn-serveur.ts': `
+        declare function serverFunction(...args: unknown[]): unknown;
+        serverFunction('catalog.list', {}, { exposure: 'client', output: {} });
+      `,
+    });
+    expect(serverFunctionScenarioCatalogViolations(graph.graph, {
+      operations: [{ operationId: 'catalog.list', codec: 'json' }],
+      scenarios: [],
+      codecNames: ['json'],
+    })).toContain('operation "catalog.list" has no declared scenarios.');
+  });
 });
 
 async function fixture(files: Record<string, string>): Promise<string> {

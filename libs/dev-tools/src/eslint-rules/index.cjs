@@ -106,6 +106,7 @@ const targetBlankNoopener = require('./target-blank-noopener.cjs');
 const requireEffectAdapters = require('./require-effect-adapters.cjs');
 const syncEffectBody = require('./sync-effect-body.cjs');
 const serverFunctionClientMatch = require('./server-function-client-match.cjs');
+const requireServerFunctionCodec = require('./require-server-function-codec.cjs');
 const noServerFunctionOutsideResource = require('./no-server-function-outside-resource.cjs');
 const noInvalidInsertionPipe = require('./no-invalid-insertion-pipe.cjs');
 const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertion.cjs');
@@ -261,6 +262,7 @@ const plugin = {
     'require-effect-adapters': requireEffectAdapters,
     'sync-effect-body': syncEffectBody,
     'server-function-client-match': serverFunctionClientMatch,
+    'require-server-function-codec': requireServerFunctionCodec,
     'no-server-function-outside-resource': noServerFunctionOutsideResource,
     'no-invalid-insertion-pipe': noInvalidInsertionPipe,
     'no-redundant-primitive-insertion': noRedundantPrimitiveInsertion,

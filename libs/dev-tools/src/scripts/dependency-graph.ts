@@ -7648,18 +7648,46 @@ function collectServerFunctions(
       declaresApi(sourceFile, 'portableServerFunction')
     )
       continue;
-    const misnamed = findServerFunction(sourceFile, byPath);
-    if (!misnamed) continue;
-    addNode(builder, {
-      id: `server-function-misnamed:${sourceFile.getFilePath()}`,
-      kind: 'server-function-misnamed',
-      label: misnamed.id ?? relative(builder.rootDir, sourceFile.getFilePath()),
-      filePath: sourceFile.getFilePath(),
-      line: sourceFile.getLineAndColumnAtPos(0).line,
-      details: {
-        ...(misnamed.id === undefined ? {} : { serverFunctionId: misnamed.id }),
-      },
+    const declarations = sourceFile
+      .getDescendantsOfKind(SyntaxKind.CallExpression)
+      .filter((call) => {
+        const name = call.getExpression().getText();
+        return name === 'serverFunction' || name === 'portableServerFunction';
+      });
+    const found = declarations.map((call) => {
+      const id = call.getArguments()[0]
+        ?.asKind(SyntaxKind.StringLiteral)
+        ?.getLiteralValue();
+      const options = call
+        .getArguments()[2]
+        ?.asKind(SyntaxKind.ObjectLiteralExpression);
+      return {
+        id,
+        exposure: getStringProperty(options, 'exposure') ?? 'server',
+        line: sourceFile.getLineAndColumnAtPos(call.getStart()).line,
+      };
     });
+    if (found.length === 0) {
+      const single = findServerFunction(sourceFile, byPath);
+      if (single) found.push({
+        id: single.id,
+        exposure: single.exposure ?? 'server',
+        line: sourceFile.getLineAndColumnAtPos(0).line,
+      });
+    }
+    for (const [index, boundary] of found.entries()) {
+      addNode(builder, {
+        id: `server-function-misnamed:${sourceFile.getFilePath()}:${boundary.line}:${index}`,
+        kind: 'server-function-misnamed',
+        label: boundary.id ?? relative(builder.rootDir, sourceFile.getFilePath()),
+        filePath: sourceFile.getFilePath(),
+        line: boundary.line,
+        details: {
+          ...(boundary.id === undefined ? {} : { serverFunctionId: boundary.id }),
+          ...(boundary.exposure === undefined ? {} : { exposure: boundary.exposure }),
+        },
+      });
+    }
   }
 }
 

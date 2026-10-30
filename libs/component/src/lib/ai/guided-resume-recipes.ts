@@ -13,12 +13,15 @@ import {
   type HandoffCondition,
 } from './guided-resume-handoff';
 import {
+  resolveGuidedResumeScenarioReferences,
   resolveGuidedResumeServerFunctionMock,
   type GuidedResumeNetwork,
 } from './guided-resume-network';
 
 export const CRAFT_RESUME_RECIPE_QUERY_PARAM = 'craft-resume-recipe';
+export const CRAFT_RESUME_RECIPE_LAUNCH_QUERY_PARAM = 'craft-resume-recipe-launch';
 const RUN_STATE_PREFIX = 'craft-ts.guided-resume.recipe-run.';
+const GUIDED_RESUME_WRITES_KEY = 'craft-ts.guided-resume.writes';
 const STEP_TIMEOUT_MS = 15_000;
 const DEFAULT_HANDOFF_TIMEOUT_MS = 5 * 60_000;
 const MAX_HANDOFF_TIMEOUT_MS = 15 * 60_000;
@@ -64,6 +67,7 @@ type RunContext = {
   cleanup: RecipeCall[];
   deviations: string[];
   mockChoices: Record<string, string>;
+  writesAtStart: number;
 };
 
 /** Execute one or all steps of a stored recipe without involving a model. */
@@ -74,7 +78,9 @@ export async function runResumeRecipe(
   const recipeId = params['id'];
   if (typeof recipeId !== 'string' || !recipeId)
     throw new Error('id is required.');
-  const recipe = await fetchRecipe(runtime.logServerUrl, recipeId);
+  const recipe = await resolveRecipeScenarios(
+    await fetchRecipe(runtime.logServerUrl, recipeId),
+  );
   if (recipe.origin !== location.origin)
     throw new Error(
       `Recipe belongs to ${recipe.origin}, but this tab is ${location.origin}.`,
@@ -103,7 +109,14 @@ export async function runResumeRecipe(
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ supervised }),
+        body: JSON.stringify({
+          supervised,
+          freshTab: Boolean(
+            new URLSearchParams(location.search).get(
+              CRAFT_RESUME_RECIPE_LAUNCH_QUERY_PARAM,
+            ),
+          ),
+        }),
       },
     );
     const body = (await response.json()) as {
@@ -124,6 +137,7 @@ export async function runResumeRecipe(
       cleanup: [],
       deviations: [],
       mockChoices,
+      writesAtStart: guidedWriteJournal().length,
     };
     writeRunState(context);
     await announce(
@@ -163,6 +177,9 @@ export async function runResumeRecipe(
             step: index,
             detail: step.type,
           },
+          ...(step.type === 'handoff' && step['until'] === undefined
+            ? [{ at: new Date().toISOString(), kind: 'handoff-observed', step: index }]
+            : []),
         ],
       });
       await announce(
@@ -180,10 +197,27 @@ export async function runResumeRecipe(
           deviations: context.deviations,
         };
     }
+    const writes = guidedWriteJournal()
+      .slice(context.writesAtStart)
+      .filter((entry) => entry.effect === 'write' || entry.status === 'held');
+    if (!recipe.objective.mayWrite && writes.length > 0) {
+      await updateRun(runtime.logServerUrl, recipe.id, context.runId, {
+        status: 'running',
+        events: [
+          { at: new Date().toISOString(), kind: 'writes-checked', detail: String(writes.length) },
+        ],
+      });
+      throw new Error(
+        `Prévalidation refusée : ${writes.length} écriture(s) détectée(s) dans app.writes.`,
+      );
+    }
     await updateRun(runtime.logServerUrl, recipe.id, context.runId, {
       status: 'completed',
       currentStep: Math.max(0, recipe.steps.length - 1),
-      events: [{ at: new Date().toISOString(), kind: 'completed' }],
+      events: [
+        { at: new Date().toISOString(), kind: 'writes-checked', detail: String(writes.length) },
+        { at: new Date().toISOString(), kind: 'completed' },
+      ],
     });
     await announce(
       runtime.logServerUrl,
@@ -198,7 +232,10 @@ export async function runResumeRecipe(
       deviations: context.deviations,
     };
   } catch (error) {
-    const failedAt = context.nextStep;
+    const failedAt = Math.min(
+      context.nextStep,
+      Math.max(0, recipe.steps.length - 1),
+    );
     const message = error instanceof Error ? error.message : String(error);
     const cleaned = await cleanupRun(recipe, context, runtime);
     await updateRun(runtime.logServerUrl, recipe.id, context.runId, {
@@ -247,7 +284,9 @@ export async function configureResumeRecipeNetwork(
   const recipeId = params['id'];
   if (typeof recipeId !== 'string' || !recipeId)
     throw new Error('id is required.');
-  const recipe = await fetchRecipe(runtime.logServerUrl, recipeId);
+  const recipe = await resolveRecipeScenarios(
+    await fetchRecipe(runtime.logServerUrl, recipeId),
+  );
   if (recipe.origin !== location.origin)
     throw new Error(
       `Recipe belongs to ${recipe.origin}, but this tab is ${location.origin}.`,
@@ -905,6 +944,34 @@ async function fetchRecipe(base: string, id: string): Promise<Recipe> {
       String(body.error ?? `Recipe not found (HTTP ${response.status}).`),
     );
   return body.recipe as unknown as Recipe;
+}
+
+/** Resolve versioned application scenarios into their exact transport values
+ * before installing the fail-closed mocked network profile. */
+async function resolveRecipeScenarios(recipe: Recipe): Promise<Recipe> {
+  if (recipe.network?.mode !== 'mocked') return recipe;
+  return {
+    ...recipe,
+    network: await resolveGuidedResumeScenarioReferences(
+      recipe.network,
+      location.origin,
+    ),
+  };
+}
+
+function guidedWriteJournal(): readonly { effect?: string; status?: string }[] {
+  try {
+    const value = JSON.parse(
+      sessionStorage.getItem(GUIDED_RESUME_WRITES_KEY) ?? '[]',
+    ) as unknown;
+    return Array.isArray(value)
+      ? value.filter((entry): entry is { effect?: string; status?: string } =>
+          Boolean(entry && typeof entry === 'object'),
+        )
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 async function updateRun(

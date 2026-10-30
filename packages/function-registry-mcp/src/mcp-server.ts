@@ -151,6 +151,47 @@ function registerGuidedResumeTools(
   server: McpServer,
   bridge: RegistryRequester,
 ): void {
+  server.registerTool(
+    'scenario.search',
+    {
+      description:
+        'Search the connected application’s declared recipe scenarios by route, operation id, or behavior text. Returns compact titles, intent, result category, and codec names; use scenario.get to load one case. Available when the app publishes a scenario catalog.',
+      inputSchema: {
+        clientId: z.string().min(1).optional(),
+        route: z.string().optional(),
+        operationId: z.string().optional(),
+        q: z.string().optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ clientId, ...query }) =>
+      toolResult(
+        await bridge.request('app/scenario-catalog', {
+          ...(clientId ? { clientId } : {}),
+          ...query,
+        }),
+      ),
+  );
+  server.registerTool(
+    'scenario.get',
+    {
+      description:
+        'Load one declared scenario from the connected application. Success cases include the exact encoded server-function transport response; failure cases include their declared error description.',
+      inputSchema: {
+        clientId: z.string().min(1).optional(),
+        operationId: z.string().min(1),
+        scenarioId: z.string().min(1),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ clientId, ...query }) =>
+      toolResult(
+        await bridge.request('app/scenario-catalog', {
+          ...(clientId ? { clientId } : {}),
+          ...query,
+        }),
+      ),
+  );
   const point = {
     clientId: z.string().min(1).optional(),
     sessionId: z.string().uuid(),
@@ -243,7 +284,7 @@ function registerGuidedResumeTools(
           .min(1)
           .optional()
           .describe('Control id to highlight (page controls)'),
-        until: condition.optional(),
+        until: liveCondition.optional(),
         timeoutMs: z
           .number()
           .int()
@@ -528,8 +569,15 @@ function registerRecipeTools(
     z.object({
       id: z.string().min(1).max(100),
       kind: z.literal('success'),
-      response: z.any(),
+      response: z.any().optional(),
+      scenario: z.object({
+        operationId: z.string().min(1),
+        scenarioId: z.string().min(1),
+        catalogVersion: z.string().min(1),
+      }).strict().optional(),
       nextChoices: z.record(z.string(), z.string()).optional(),
+    }).strict().refine((value) => (value.response === undefined) !== (value.scenario === undefined), {
+      message: 'Set exactly one of response or scenario.',
     }),
     z.object({
       id: z.string().min(1).max(100),
@@ -652,8 +700,9 @@ function registerRecipeTools(
     'recipe.save',
     {
       description:
-        'Save or revise a guided-resume recipe in the local log server. Give it a short, recognizable name and a one-sentence summary of the behavior it verifies; keep objective.goal as the precise goal. Build steps with the typed step schema: goto/create, human handoff until a live condition, network mode selection, act/invoke, expect, checkpoint. A mocked profile names success and failure cases for each server-function id or exact Craft HTTP call (`METHOD URL`); defaultCaseId remembers a choice. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
+        'Save or revise a guided-resume recipe in the local log server. Saving never marks it verified: the response reports draft or validation-failed plus repairable issues. Give it a short, recognizable name and a one-sentence summary of the behavior it verifies; keep objective.goal as the precise goal. Build steps with the typed step schema: goto/create, human handoff, network mode selection, act/invoke, essential expect, checkpoint. Include an unconditioned handoff where the person must observe the result. A mocked profile names success and failure cases for each server-function id or exact Craft HTTP call (METHOD URL). For application success data, prefer a scenario reference { operationId, scenarioId, catalogVersion } returned by scenario.search/get; the connected app resolves it through its codec and rejects stale references. Use inline response only for transports without a catalog. defaultCaseId remembers a choice. exact, approximate, mayWrite, strategy, cleanup and revisions have safe defaults. Never include secrets; route credentials through handoff.',
       inputSchema: {
+        clientId: z.string().min(1).optional(),
         id: z.string().uuid().optional(),
         sessionId: z.string().uuid(),
         beforeSequence: z.number().int().nonnegative().optional(),
@@ -680,8 +729,9 @@ function registerRecipeTools(
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    async (params) =>
-      toolResult(
+    async (params) => {
+      await assertRecipeScenarioReferences(bridge, params.clientId, params.network);
+      return toolResult(
         (
           await json('/sessions/recipes', {
             method: 'POST',
@@ -689,14 +739,15 @@ function registerRecipeTools(
             body: JSON.stringify(params),
           })
         )['recipe'],
-      ),
+      );
+    },
   );
 
   server.registerTool(
     'recipe.run',
     {
       description:
-        'Execute a stored recipe in the connected tab. The tab runs each step until its condition, records progress in the dashboard thread, and performs cleanup on failure. Pass mockChoices keyed by server-function id or exact `METHOD URL` for a one-run case selection; saved defaultCaseId values apply otherwise. Human hand-offs wait up to five minutes by default; the tool call allows up to fifteen minutes for the person to finish. Set supervised to stop after each step and return control to the AI.',
+        'Execute a stored recipe in the connected tab. A run becomes verified only when started from the dashboard in its fresh app tab, every essential expectation passes, the unconditioned observation handoff is reached, and app.writes is empty when objective.mayWrite is false. Other completed runs remain validation-failed with repair guidance. The tab records step progress and failure detail for the dashboard and performs cleanup on failure. Pass mockChoices keyed by server-function id or exact METHOD URL for a one-run case selection; saved defaultCaseId values apply otherwise. Human hand-offs wait up to five minutes by default; the tool call allows up to fifteen minutes for the person to finish. Set supervised to stop after each step and return control to the AI.',
       inputSchema: {
         clientId,
         id: z.string().uuid(),
@@ -803,6 +854,49 @@ function registerRecipeTools(
       return toolResult({ recipe: repaired['recipe'], applied });
     },
   );
+}
+
+async function assertRecipeScenarioReferences(
+  bridge: RegistryRequester,
+  clientId: string | undefined,
+  network: unknown,
+): Promise<void> {
+  if (!isRecord(network) || !Array.isArray(network['mocks'])) return;
+  for (const mock of network['mocks']) {
+    if (!isRecord(mock) || !Array.isArray(mock['cases'])) continue;
+    for (const item of mock['cases']) {
+      if (!isRecord(item) || !isRecord(item['scenario'])) continue;
+      const reference = item['scenario'];
+      if (
+        typeof mock['call'] === 'string' &&
+        reference['operationId'] !== mock['call']
+      )
+        throw new Error(
+          `Scenario ${String(reference['operationId'])}/${String(reference['scenarioId'])} does not belong to mocked call "${mock['call']}".`,
+        );
+      const actual = await bridge.request('app/scenario-catalog', {
+        ...(clientId === undefined ? {} : { clientId }),
+        operationId: reference['operationId'],
+        scenarioId: reference['scenarioId'],
+      });
+      if (!isRecord(actual)) throw new Error('The app did not return a scenario catalog entry.');
+      if (
+        actual['operationId'] !== reference['operationId'] ||
+        actual['scenarioId'] !== reference['scenarioId']
+      )
+        throw new Error(
+          `Scenario ${String(reference['operationId'])}/${String(reference['scenarioId'])} is unknown to the connected app; refresh it with scenario.search/get.`,
+        );
+      if (actual['catalogVersion'] !== reference['catalogVersion'])
+        throw new Error(
+          `Scenario reference ${String(reference['operationId'])}/${String(reference['scenarioId'])} is stale (recipe ${String(reference['catalogVersion'])}, app ${String(actual['catalogVersion'])}); refresh the scenario and repair the recipe.`,
+        );
+    }
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function registerPrimitiveValueTools(

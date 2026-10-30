@@ -705,6 +705,33 @@ checks exported arrow functions.
 - `craft-ts/no-injection-token`: forbids authored `InjectionToken` contracts; declare them with `craftService({ name, providedIn: 'abstract' }, abstract<Contract>())`
 - `craft-ts/prefer-craft-http-client`: forbids direct transport usage in favor of `CraftHttpClient`
 - `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest` because they bypass typed responses and exceptions, tracing, cancellation, and the architecture graph; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`, or `CraftBinaryHttpClient` for raw binary bodies
+
+### `require-server-function-codec`
+
+Client-exposed server functions declare a schema on both sides of the
+transport: the input schema decodes and validates the incoming value, and the
+output schema validates the result before it is encoded for the client. These
+contracts also let scenario catalogs encode deterministic recipe mocks.
+
+**Before — a boundary whose input or result shape is implicit:**
+
+```typescript
+serverFunction('orders.list', inputSchema, { exposure: 'client' });
+```
+
+**After — both transport directions have a declared schema:**
+
+```typescript
+serverFunction('orders.list', inputSchema, {
+  exposure: 'client',
+  output: ordersSchema,
+});
+```
+
+The rule reports the missing input decoder or output encoder separately. There
+is no automatic fix because choosing the correct schema is a domain decision.
+An opaque third-party protocol may set `codecExemption` to a specific reason
+and handling location; vague or empty exemptions fail lint.
 - `craft-ts/prefer-craft-input-output`: keeps component inputs and outputs in the `Input`/`Output` model used by `craftComponent(...)`
 - `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
 - `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file, including unchanged aliases; naming an alias is not a call site, binding it is. Create a context-specific insertion method for each distinct use

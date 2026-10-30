@@ -2,6 +2,7 @@ import { serverFunction } from '@craft-ts/core';
 import { Effect, Schema } from 'effect';
 import { getCurrentSession, requireAdmin, requireStaff, signIn, signOut } from './auth';
 import { StoreRepository } from './database';
+import { ecommerceCodecs } from '../shared/scenario-catalog';
 
 const category = Schema.Struct({ id: Schema.String, name: Schema.String, description: Schema.String });
 const choiceGroup = Schema.Struct({ id: Schema.String, categoryId: Schema.String, min: Schema.Number, max: Schema.Number });
@@ -17,42 +18,42 @@ const adminErrors = { ...storeErrors, ...authErrors };
 export const getCatalog = serverFunction('ecommerce.catalog', Schema.toStandardSchemaV1(Schema.Struct({})), { exposure: 'client', output }).handler(() => Effect.gen(function* () {
   const repository = yield* StoreRepository;
   const { categories, products } = yield* repository.read();
-  return JSON.stringify({ categories, products });
+  return ecommerceCodecs.catalog.encode({ categories, products });
 })).exposeErrors(storeErrors);
 
 export const searchCatalog = serverFunction('ecommerce.catalog.search', Schema.toStandardSchemaV1(Schema.Struct({ query: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   const repository = yield* StoreRepository;
   const { products } = yield* repository.read();
   const query = input.query.trim().toLocaleLowerCase('fr-FR');
-  return JSON.stringify(products.filter((product) => `${product.name} ${product.description}`.toLocaleLowerCase('fr-FR').includes(query)));
+  return ecommerceCodecs.products.encode(products.filter((product) => `${product.name} ${product.description}`.toLocaleLowerCase('fr-FR').includes(query)));
 })).exposeErrors(storeErrors);
 
 export const createCart = serverFunction('ecommerce.cart.create', Schema.toStandardSchemaV1(Schema.Struct({})), { exposure: 'client', output }).handler(() => Effect.gen(function* () {
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.createCart());
+  return ecommerceCodecs.cart.encode(yield* repository.createCart());
 })).exposeErrors(storeErrors);
 
 export const addCartLine = serverFunction('ecommerce.cart.addLine', Schema.toStandardSchemaV1(Schema.Struct({ cartId: Schema.String, line: cartLine })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.addCartLine(input.cartId, input.line));
+  return ecommerceCodecs.cart.encode(yield* repository.addCartLine(input.cartId, input.line));
 })).exposeErrors(storeErrors);
 
 export const getCart = serverFunction('ecommerce.cart.get', Schema.toStandardSchemaV1(Schema.Struct({ cartId: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.getCart(input.cartId));
+  return ecommerceCodecs.cart.encode(yield* repository.getCart(input.cartId));
 })).exposeErrors(storeErrors);
 
 export const login = serverFunction('ecommerce.auth.login', Schema.toStandardSchemaV1(Schema.Struct({ email: Schema.String, password: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
-  return JSON.stringify(yield* signIn(input.email, input.password));
+  return ecommerceCodecs.accountSession.encode(yield* signIn(input.email, input.password));
 })).exposeErrors(authErrors);
 
 export const getCurrentUser = serverFunction('ecommerce.auth.me', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
-  return JSON.stringify(yield* getCurrentSession(input.token));
+  return ecommerceCodecs.accountSession.encode(yield* getCurrentSession(input.token));
 })).exposeErrors(authErrors);
 
 export const logout = serverFunction('ecommerce.auth.logout', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   yield* signOut(input.token);
-  return JSON.stringify({ ok: true });
+  return ecommerceCodecs.okResult.encode({ ok: true });
 })).exposeErrors({});
 
 // Toutes les fonctions d'administration commencent par vérifier la session :
@@ -60,7 +61,7 @@ export const logout = serverFunction('ecommerce.auth.logout', Schema.toStandardS
 export const getAdminOverview = serverFunction('ecommerce.admin.overview', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   yield* requireStaff(input.token);
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.read());
+  return ecommerceCodecs.store.encode(yield* repository.read());
 })).exposeErrors(adminErrors);
 
 // Seuls les admins ont le droit de modifier un produit : les product managers
@@ -68,35 +69,35 @@ export const getAdminOverview = serverFunction('ecommerce.admin.overview', Schem
 export const saveProduct = serverFunction('ecommerce.product.save', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String, product })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   yield* requireAdmin(input.token);
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.saveProduct(input.product));
+  return ecommerceCodecs.store.encode(yield* repository.saveProduct(input.product));
 })).exposeErrors(adminErrors);
 
 // Même règle pour la suppression : réservée aux admins.
 export const deleteProduct = serverFunction('ecommerce.product.delete', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String, id: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   yield* requireAdmin(input.token);
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.deleteProduct(input.id));
+  return ecommerceCodecs.store.encode(yield* repository.deleteProduct(input.id));
 })).exposeErrors(adminErrors);
 
 export const saveCategory = serverFunction('ecommerce.category.save', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String, category })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   yield* requireAdmin(input.token);
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.saveCategory(input.category));
+  return ecommerceCodecs.store.encode(yield* repository.saveCategory(input.category));
 })).exposeErrors(adminErrors);
 
 export const deleteCategory = serverFunction('ecommerce.category.delete', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String, id: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   yield* requireAdmin(input.token);
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.deleteCategory(input.id));
+  return ecommerceCodecs.store.encode(yield* repository.deleteCategory(input.id));
 })).exposeErrors(adminErrors);
 
 export const checkout = serverFunction('ecommerce.checkout', Schema.toStandardSchemaV1(Schema.Struct({ lines: Schema.Array(cartLine) })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.checkout(input.lines));
+  return ecommerceCodecs.order.encode(yield* repository.checkout(input.lines));
 })).exposeErrors(storeErrors);
 
 export const resetStore = serverFunction('ecommerce.reset', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   yield* requireAdmin(input.token);
   const repository = yield* StoreRepository;
-  return JSON.stringify(yield* repository.reset());
+  return ecommerceCodecs.store.encode(yield* repository.reset());
 })).exposeErrors(adminErrors);

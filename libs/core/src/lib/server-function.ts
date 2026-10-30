@@ -333,6 +333,7 @@ export function serverFunction<
     readonly exposure: Exposure;
     readonly output?: OutputSchema;
     readonly clientContext?: ClientContextSchema;
+    readonly codecExemption?: string;
   },
 ): ServerFunctionBuilder<
   ServerFunctionContract<
@@ -380,6 +381,7 @@ export function serverFunction<
     readonly exposure?: Exposure;
     readonly output?: OutputSchema;
     readonly clientContext?: ClientContextSchema;
+    readonly codecExemption?: string;
   },
 ): ServerFunctionBuilder<
   ServerFunctionContract<
@@ -399,6 +401,7 @@ export function serverFunction<
           exposure: options?.exposure ?? 'server',
           output: options?.output,
           clientContext: options?.clientContext,
+          codecExemption: options?.codecExemption,
         })
       : contractOrId
   ) as ServerFunctionContract<
@@ -614,6 +617,7 @@ export type ServerFunctionFactory<
       readonly exposure: Exposure;
       readonly output?: OutputSchema;
       readonly clientContext?: ClientContextSchema;
+      readonly codecExemption?: string;
     },
   ): ServerFunctionBuilder<
     ServerFunctionContract<
@@ -639,6 +643,7 @@ export function createServerFunctionFactory<
       readonly exposure?: ServerFunctionExposure;
       readonly output?: CraftSchema;
       readonly clientContext?: CraftSchema;
+      readonly codecExemption?: string;
     },
   ) => {
     let builder = serverFunction(id, input, {
@@ -647,6 +652,9 @@ export function createServerFunctionFactory<
       ...(options?.clientContext === undefined
         ? {}
         : { clientContext: options.clientContext }),
+      ...(options?.codecExemption === undefined
+        ? {}
+        : { codecExemption: options.codecExemption }),
     }) as unknown as {
       use: (middleware: AnyCraftMiddleware) => typeof builder;
     };

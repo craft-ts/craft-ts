@@ -24,11 +24,11 @@ the user's scenario and the next useful step.
 ## 0. Tools
 
 Two MCP servers of this repo (`.mcp.json`): the logs one (`resume.*`,
-`session.*`) and the registry one (`resume.doctor`, `app.*`, `checkpoint.*`,
-`page`). Hosts that defer MCP tools list them by name only: load them before
-concluding they are missing. If neither server is there at all, say so in one
-sentence and ask the person to approve the project MCP servers and open a new
-session; do not edit global configuration.
+`session.*`) and the registry one (`resume.doctor`, `scenario.search/get`,
+`app.*`, `checkpoint.*`, `page`). Hosts that defer MCP tools list them by name
+only: load them before concluding they are missing. If neither server is there
+at all, say so in one sentence and ask the person to approve the project MCP
+servers and open a new session; do not edit global configuration.
 
 ## 1. Check setup, then read the point (no app action)
 
@@ -125,22 +125,21 @@ result session-only. Do not call a temporary checkpoint a reusable script.
 In mocked behavior mode, select cases for each relevant Craft server-function
 or HTTP call from the recording and the requested visible outcome. Never ask
 the person to choose a function id, endpoint, HTTP method, or mock case name.
-Save these implementation details on the recipe's `network` profile. Pass
-`mockChoices` to `recipe.run` for a one-run override. Omit `defaultCaseId` only
-when each run must provide an internal case override; never ask the person to
-choose that technical id. Save it when the repeatable scenario has a known
-outcome. A `success` case returns its decoded value, an `exception`
-case constructs a typed Craft exception, and a `failure` case simulates a
-transport failure. Any unconfigured Craft call and any non-Craft app fetch or
-XHR is blocked while mocked mode is active. The local log server remains
-available for recipe progress.
-
-For a `success` case, store the decoded response value in `response` (for
-example, the object from `session.recordedCall.response.body`). Do not store
-JSON text produced with `JSON.stringify` or a quoted JSON string: the runtime
-returns `response` verbatim and does not parse it. If the app expects an object,
-a string containing that object's JSON is the wrong response shape even though
-it is valid JSON and the recipe may save successfully.
+For application-owned calls, use `scenario.search` to find a behavior and
+`scenario.get` to read one case. Store the returned `operationId`,
+`scenarioId`, and `catalogVersion` as a `scenario` reference in the recipe's
+success case. The connected app resolves that reference when the recipe starts
+and obtains the exact transport response through its codec. A catalog version
+mismatch or missing scenario is a repairable error; never substitute another
+case. For transports with no app catalog, use an inline `response` in the exact
+transport shape required by the client. Pass `mockChoices` to `recipe.run` for
+a one-run override. Omit `defaultCaseId` only when each run must provide an
+internal case override; never ask the person to choose that technical id. Save
+it when the repeatable scenario has a known outcome. An `exception` case
+constructs a typed Craft exception, and a `failure` case simulates a transport
+failure. Any unconfigured Craft call and any non-Craft app fetch or XHR is
+blocked while mocked mode is active. The local log server remains available
+for recipe progress.
 
 Before saving a recipe, prove that its starting state can exist in a fresh
 resume tab. `goto` changes only the route; it does not restore recorded
@@ -302,13 +301,15 @@ and data before the `handoff`; wait on the live condition
 from `session.prerequisites`, then continue with named actions and essential
 expectations. Never include credentials.
 
-Verify the recipe itself with `recipe.run` from the intended starting state,
-complete each human hand-off, and confirm the run is `completed` and the goal's
-essential state holds. Set `supervised: true` for this first verification.
-Review the run's step events and inspect the resulting page; a `completed`
-status means only that the listed steps completed, not that the stated goal was
-achieved. When `objective.mayWrite` is false, also confirm `app.writes` is
-empty. Confirm required starting state is present before interpreting any
+Saving creates a draft or reports static validation issues; it never makes a
+recipe ready by itself. Launch the recipe from the dashboard so it starts in a
+fresh application tab. A run is marked `verified` only after every essential
+expectation passes, an unconditioned observation hand-off is reached, and
+`app.writes` is empty when `objective.mayWrite` is false. Use
+`supervised: true` for the first run when you need to inspect each step. Review
+the run's step events and resulting page. A failure remains visible with its
+step and error so `recipe.repair` can replace the broken section while keeping
+the essential expectation. Confirm required starting state is present before interpreting any
 later assertion: an absent state address is a broken setup or expectation, not
 a successful empty-state outcome. `objective.exact` documents what must match; it does not execute
 assertions by itself. Encode every essential outcome in typed `expect` steps
@@ -329,11 +330,11 @@ healthy recipe. Repair a failed essential expectation from that step with
 `recipe.repair`. Repair the failed setup or condition while preserving the
 same essential postcondition; never make a run green by deleting or weakening
 the failed assertion, or by replacing it with a route-only check. Re-run the
-repaired recipe and inspect its result. If saving or verifying the recipe fails,
-say the result is only a temporary checkpoint and give the concrete failure;
-do not claim the path is repeatable. A saved recipe with no completed run (for example,
-`runs: []`) is saved but unverified; do not present it as ready to replay until
-one run completes and its essential outcomes are confirmed.
+repaired recipe and inspect its result. If static validation or the fresh-tab
+run fails, keep the recipe repairable and report the concrete issue; do not
+claim the path is repeatable. A completed run from an existing tab, one that
+skipped the observation hand-off, or one without an empty write journal remains
+unverified.
 
 ## 8. Conclude
 

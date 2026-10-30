@@ -29,6 +29,28 @@ Use an architecture rule when the requirement sounds like one of these:
 A green architecture suite does not prove that a button works. It proves that
 the app still respects the boundaries that make that button maintainable.
 
+## Server-function scenario catalogs
+
+The `serverFunctionScenarioCatalogViolations` graph check joins client-exposed
+server-function ids to an application-owned operation list. It reports a
+boundary without an operation, a catalog operation without a boundary, repeated
+operation or scenario ids, unknown codecs, orphan scenarios, and a scenario
+whose codec differs from its operation. ESLint checks the local input/output
+schema declaration; the graph checks that the separate catalog describes the
+same boundary across files.
+
+```typescript
+expect(serverFunctionScenarioCatalogViolations(graph, {
+  operations,
+  scenarios,
+  codecNames: Object.keys(codecs),
+})).toEqual([]);
+```
+
+This remains a static relationship check. It does not prove that a builder
+obeys domain invariants or that a UI journey works; those require codec and
+recipe execution checks.
+
 ::: tip Start with the graph-wide baseline
 Add `assertDeclarativeArchitecture(graph.graph)` first. It checks the core
 invariants that are easiest to break during a refactor: unique identities,

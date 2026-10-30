@@ -26,6 +26,14 @@ function recipeDescription(recipe: ResumeRecipeSummary): string {
   return recipe.summary?.trim() || recipe.objective.goal;
 }
 
+function recipeValidationLabel(status: ResumeRecipeSummary['validation']['status']): string {
+  return status === 'verified'
+    ? 'Vérifiée'
+    : status === 'validation-failed'
+      ? 'Prévalidation échouée'
+      : 'Brouillon';
+}
+
 /** Catalogue de toutes les recettes connues de l’archive locale. */
 export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
   const archive = yield* SessionArchive();
@@ -61,6 +69,12 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
               },
               function* () {
                 return recipeDescription(yield* recipe());
+              },
+            ),
+            span(
+              { class: ui.eventMeta, 'data-lab': 'recipe-validation-status' },
+              function* () {
+                return recipeValidationLabel((yield* recipe()).validation.status);
               },
             ),
           ],

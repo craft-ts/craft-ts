@@ -42,6 +42,8 @@ describe('registry MCP server', () => {
       'registry.override',
       'registry.restore',
       'registry.logs',
+      'scenario.search',
+      'scenario.get',
       'app.launch',
       'app.diff',
       'app.replay',
@@ -55,6 +57,7 @@ describe('registry MCP server', () => {
       'checkpoint.cleanup',
       'recipe.save',
       'recipe.run',
+      'recipe.network',
       'recipe.repair',
     ]);
 
@@ -89,6 +92,27 @@ describe('registry MCP server', () => {
       arguments: {},
     });
     expect(request).toHaveBeenCalledWith('registry/clients');
+
+    await client.callTool({
+      name: 'scenario.search',
+      arguments: { clientId: 'browser-a', route: '/admin', q: 'staff' },
+    });
+    expect(request).toHaveBeenCalledWith('app/scenario-catalog', {
+      clientId: 'browser-a',
+      route: '/admin',
+      q: 'staff',
+    });
+    await client.callTool({
+      name: 'scenario.get',
+      arguments: {
+        operationId: 'ecommerce.catalog',
+        scenarioId: 'catalog-with-seasonal-products',
+      },
+    });
+    expect(request).toHaveBeenLastCalledWith('app/scenario-catalog', {
+      operationId: 'ecommerce.catalog',
+      scenarioId: 'catalog-with-seasonal-products',
+    });
 
     const result = await client.callTool({
       name: 'registry.list',
@@ -242,12 +266,19 @@ describe('registry MCP server', () => {
   });
   it('guides recipe authoring with typed hand-off steps and safe defaults', async () => {
     const posted: Record<string, unknown>[] = [];
+    const appRequest = vi.fn(async () => ({
+      catalogVersion: 'ecommerce-scenarios-1',
+      operationId: 'ecommerce.product.delete',
+      scenarioId: 'admin-deletes-croissant',
+    }));
     const fetchStub = (async (_url: string | URL | Request, init?: RequestInit) => {
       posted.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
       return Response.json({ recipe: { id: '00000000-0000-4000-8000-000000000021' } });
     }) as typeof fetch;
     const server = createRegistryMcpServer(
-      { request: vi.fn(async () => ({})) },
+      {
+        request: appRequest,
+      },
       { logServerUrl: 'http://log.test', fetch: fetchStub },
     );
     const client = new Client({ name: 'recipe-authoring-test', version: '1.0.0' });
@@ -267,16 +298,20 @@ describe('registry MCP server', () => {
       cases: [{
         id: 'removed',
         kind: 'success',
-        response: { ok: true },
+        scenario: {
+          operationId: 'ecommerce.product.delete',
+          scenarioId: 'admin-deletes-croissant',
+          catalogVersion: 'ecommerce-scenarios-1',
+        },
         nextChoices: { 'ecommerce.admin.overview': 'deleted' },
       }],
     };
-    await client.callTool({
-      name: 'recipe.save',
-      arguments: {
+    const saveArguments = {
         sessionId: '00000000-0000-4000-8000-000000000001',
         beforeSequence: 40,
         origin: 'http://localhost:4300',
+        name: 'Reprise après connexion',
+        summary: 'Réouvre la session de démonstration.',
         objective: { goal: 'Reprendre après connexion' },
         network: { mode: 'mocked', mocks: [deleteMock] },
         steps: [
@@ -293,8 +328,12 @@ describe('registry MCP server', () => {
           },
           { type: 'checkpoint', ttlReason: 'Session de démonstration.' },
         ],
-      },
+      };
+    const savedResult = await client.callTool({
+      name: 'recipe.save',
+      arguments: saveArguments,
     });
+    expect(savedResult.isError, JSON.stringify(savedResult)).not.toBe(true);
 
     expect(posted[0]).toMatchObject({
       objective: {
@@ -317,6 +356,21 @@ describe('registry MCP server', () => {
       cleanup: [],
       revisions: [],
     });
+    expect(appRequest).toHaveBeenCalledWith('app/scenario-catalog', {
+      operationId: 'ecommerce.product.delete',
+      scenarioId: 'admin-deletes-croissant',
+    });
+    appRequest.mockResolvedValue({
+      catalogVersion: 'stale-catalog-version',
+      operationId: 'ecommerce.product.delete',
+      scenarioId: 'admin-deletes-croissant',
+    });
+    const staleResult = await client.callTool({
+      name: 'recipe.save',
+      arguments: saveArguments,
+    });
+    expect(staleResult.isError).toBe(true);
+    expect(posted).toHaveLength(1);
     await client.close();
   });
   it('keeps the recipe tool call open long enough for a human hand-off', async () => {

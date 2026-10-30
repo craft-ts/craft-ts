@@ -16,6 +16,12 @@ Ouvrir le dashboard de replay sur [http://localhost:4210](http://localhost:4210)
 
 La capture et le pont de replay sont actifs en développement. La capture d’entrées, du stockage navigateur et des arguments de replay est activée uniquement quand le serveur de capture est configuré sur une adresse loopback. Les sessions sont archivées localement par le serveur de logs.
 
+## Contrats codec et scénarios
+
+Les réponses des server functions e-commerce sont des chaînes JSON sur le transport. `src/shared/scenario-catalog.ts` définit leur codec aller-retour : il valide et décode la valeur métier côté client, puis encode la même valeur au format texte attendu par le serveur function client. Les cas de recette construisent des données métier synthétiques avant cet encodage ; les erreurs Craft et les pannes transport sont décrites séparément d'une réponse de succès.
+
+En développement, le catalogue ciblé est publié sur `GET /__craft/scenarios`. Utilise `?route=/admin`, `?operationId=ecommerce.catalog.search` ou `?q=product manager` pour une recherche compacte, puis `?operationId=…&scenarioId=…` pour obtenir un scénario et sa réponse au format transport. Le MCP du registre expose les mêmes opérations avec `scenario.search` et `scenario.get` quand l'onglet de la démo est connecté. Les valeurs d'identité du catalogue sont synthétiques et ne permettent pas de se connecter au serveur.
+
 ## Tests E2E avec historique de session
 
 Les tests de `e2e/` importent `test` et `craftSession` depuis `./fixtures`, puis déclarent un identifiant stable avec `annotation: craftSession({ id: '...' })`. Encadre les actions importantes avec `craftSessions.step(...)` ; crée les contextes supplémentaires avec `craftSessions.newContext()` pour qu’ils rejoignent la même session.
