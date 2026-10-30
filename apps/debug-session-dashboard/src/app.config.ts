@@ -35,7 +35,8 @@ export const appConfig = craftAppConfig({
     // The chat's panel is dragged by a pointer gesture, which reads the clock
     // from the injector and has no fallback: without it the panel stays empty.
     provideCraftTemporalRuntime(new RealCraftTemporalRuntime()),
-    // The chat opens from a button of the playbar, not from a floating one.
+    // A floating Report button opens the chat across the dashboard; the replay
+    // page hides it and keeps its action in the playback bar.
     provideSendContextLauncherComponent(() => AiChatLauncherBridge),
     provideCraftRootComponent(DebugSessionDashboard),
     provideCraftRouter(dashboardRoutes.toRoutes(), withHashLocation()),

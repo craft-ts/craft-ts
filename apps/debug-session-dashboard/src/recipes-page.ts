@@ -9,9 +9,8 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { rawReactiveValue } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
-import { AiChatBridge } from './replay-ai-bridge.service';
 import { ui } from './dashboard.style';
 import { goToHash } from './replay-browser';
 import {
@@ -30,14 +29,7 @@ function recipeDescription(recipe: ResumeRecipeSummary): string {
 /** Catalogue de toutes les recettes connues de l’archive locale. */
 export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
   const archive = yield* SessionArchive();
-  const aiChat = yield* AiChatBridge();
   const savedRecipes = rawReactiveValue(archive.resumeRecipeList);
-  const aiChatDisabled = yield* craftComputed(
-    'recipesAiChatDisabled',
-    function* () {
-      return !(yield* aiChat.chat.available());
-    },
-  );
 
   const rows = ul(
     { class: ui.sessions, 'data-lab': 'recipe-catalog' },
@@ -93,18 +85,6 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
       div({ class: ui.listHead }, [
         heading({ class: ui.title }, 'Recettes'),
         div({ class: ui.gapActions }, [
-          button(
-            'recipesAiChat',
-            {
-              type: 'button',
-              class: buttonUi.root,
-              'data-variant': 'secondary',
-              'data-lab': 'ai-chat',
-              disabled: aiChatDisabled,
-              click: aiChat.open,
-            },
-            'Contexte IA',
-          ),
           button(
             'backToSessions',
             {

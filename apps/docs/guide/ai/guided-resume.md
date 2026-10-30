@@ -187,6 +187,9 @@ the human boundary; replace the session, origin, state address, route, and
 probe with values read from the current app. Empty objective lists,
 `mayWrite: false`, `strategy: "autonomous"`, cleanup, and revision history are
 the defaults.
+To make a result observable in a later dashboard run, add a `handoff` without
+`until` after the relevant screen; the person continues by confirming « C'est
+fait ».
 For a behavioral test, add `network: { mode: "mocked", mocks: [...] }` with
 one entry per server-function id or Craft HTTP endpoint and its named cases.
 Use the exact `METHOD URL` graph identity for a `CraftHttpClient` call, such

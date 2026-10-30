@@ -245,7 +245,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
       click: aiChat.open,
       disabled: assistantDisabled,
     },
-    [DocIcon({ name: lit('sparkle'), size: lit('sm') }), span('Contexte IA')],
+    [DocIcon({ name: lit('sparkle'), size: lit('sm') }), span('Report')],
   );
 
   return div({ class: ui.playbar }, [

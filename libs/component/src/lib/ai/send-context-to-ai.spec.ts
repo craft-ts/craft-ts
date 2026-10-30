@@ -324,7 +324,7 @@ describe('provideSendContextToAi', () => {
     const mounted = mountCraftComponent(component, host, parent);
 
     expect(
-      document.querySelector('[aria-label="Open AI context chat"]'),
+      document.querySelector('[aria-label="Open the AI Report chat"]'),
     ).not.toBeNull();
     mounted.destroy();
     host.remove();
@@ -367,7 +367,7 @@ describe('provideSendContextToAi', () => {
     const mounted = mountCraftComponent(component, host, parent);
 
     const launcher = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Open AI context chat"]',
+      '[aria-label="Open the AI Report chat"]',
     );
     // The overlay host turns pointer events off so the app stays usable; the
     // button has to turn them back on or the click never lands.
@@ -414,7 +414,7 @@ describe('provideSendContextToAi', () => {
     );
     // The chat takes over the corner, so the launcher steps aside.
     expect(
-      document.querySelector('[aria-label="Open AI context chat"]'),
+      document.querySelector('[aria-label="Open the AI Report chat"]'),
     ).toBeNull();
 
     document
@@ -424,7 +424,7 @@ describe('provideSendContextToAi', () => {
       document.querySelector('[aria-label="Send context to AI"]'),
     ).toBeNull();
     expect(
-      document.querySelector('[aria-label="Open AI context chat"]'),
+      document.querySelector('[aria-label="Open the AI Report chat"]'),
     ).not.toBeNull();
 
     const remounted =

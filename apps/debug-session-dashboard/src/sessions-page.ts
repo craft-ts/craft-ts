@@ -21,7 +21,6 @@ import {
 } from '@craft-ts/core';
 import { DocCallout } from '@craft-ts/ui';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
-import { AiChatBridge } from './replay-ai-bridge.service';
 import { ui } from './dashboard.style';
 import { ImportDialog } from './import-dialog';
 import { goToHash } from './replay-browser';
@@ -50,7 +49,6 @@ function hasSupportedVersions(session: SessionSummary): boolean {
 /** Page 1: the sessions the local archive holds, to open or to delete. */
 export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const archive = yield* SessionArchive();
-  const aiChat = yield* AiChatBridge();
   const resumeFilter = yield* SessionResumeFilter();
   const route = yield* ReplayRoute();
   const savedSessions = rawReactiveValue(archive.savedSessions);
@@ -105,13 +103,6 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     'pageHidden',
     () => page() !== 'sessions',
   );
-  const aiChatDisabled = yield* craftComputed(
-    'sessionsAiChatDisabled',
-    function* () {
-      return !(yield* aiChat.chat.available());
-    },
-  );
-
   const head = div({ class: ui.listHead }, [
     div([
       heading({ class: ui.title }, 'Sessions'),
@@ -216,18 +207,6 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
             ? 'Toutes les sessions'
             : 'Avec reprises';
         },
-      ),
-      button(
-        'sessionsAiChat',
-        {
-          type: 'button',
-          class: buttonUi.root,
-          'data-variant': 'secondary',
-          'data-lab': 'ai-chat',
-          disabled: aiChatDisabled,
-          click: aiChat.open,
-        },
-        'Contexte IA',
       ),
     ]),
   ]);

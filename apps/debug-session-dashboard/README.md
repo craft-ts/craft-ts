@@ -29,6 +29,8 @@ npx vite --config apps/debug-session-dashboard/vite.config.ts
 The dashboard is drawn with the Herbier design system (`@craft-ts/ui`): its
 theme, its buttons, callouts, badges, tabs, switch and dialog, in light or dark.
 The layout lives in `src/dashboard.style.ts`.
+The floating _✦ Report_ launcher opens the AI context chat on dashboard pages;
+the replay page keeps _Report_ in its playback bar instead.
 
 - **Sessions** (`#/`) is a plain list: when it was recorded, how many tabs and
   events, visible format/replay version badges, and a warning when those
@@ -40,7 +42,7 @@ The layout lives in `src/dashboard.style.ts`.
   the next action under it. The thumbnails the archive prepares are points on
   that bar; hover or focus one to see its picture, click it to go there. Under
   the frame, the playback bar holds a play/pause/resume button, restart, next
-  action and the assistant's _Contexte IA_ button. A tab selector appears only when the
+  action and the assistant's _Report_ button. A tab selector appears only when the
   session has several replayable tabs.
 - **A gap with the recording** is the one thing that interrupts the replay: it
   shows up as a callout above the stage, with the recovery actions and the

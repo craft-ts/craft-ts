@@ -205,7 +205,7 @@ function registerGuidedResumeTools(
     },
     true,
   );
-  const condition = z.union([
+  const liveCondition = z.union([
     z.object({
       address: z.string().min(1).describe('Primitive address, ordinal-free'),
       path: z

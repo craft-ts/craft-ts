@@ -1,7 +1,6 @@
 import { button, craftComponent, div, heading, p } from '@craft-ts/component';
 import { craftComputed, rawReactiveValue, state } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
-import { AiChatBridge } from './replay-ai-bridge.service';
 import { ui } from './dashboard.style';
 import { currentHash, goToHash } from './replay-browser';
 import { launchResumeRecipeTab } from './replay-debug';
@@ -27,7 +26,6 @@ export const RecipeDetailPage = craftComponent(
   {},
   function* () {
     const archive = yield* SessionArchive();
-    const aiChat = yield* AiChatBridge();
     const recipeId = recipeIdFromHash();
     if (recipeId) archive.recipeDetail.call(recipeId);
 
@@ -37,12 +35,6 @@ export const RecipeDetailPage = craftComponent(
       detailValue()?.id === recipeId ? detailValue() : undefined,
     );
     const recipeValue = rawReactiveValue(recipe);
-    const aiChatDisabled = yield* craftComputed(
-      'recipeDetailAiChatDisabled',
-      function* () {
-        return !(yield* aiChat.chat.available());
-      },
-    );
     const feedback = yield* state(
       'recipeLaunchFeedback',
       '',
@@ -159,18 +151,6 @@ export const RecipeDetailPage = craftComponent(
               },
             },
             'Replay d’origine',
-          ),
-          button(
-            'recipeDetailAiChat',
-            {
-              type: 'button',
-              class: buttonUi.root,
-              'data-variant': 'secondary',
-              'data-lab': 'ai-chat',
-              disabled: aiChatDisabled,
-              click: aiChat.open,
-            },
-            'Contexte IA',
           ),
         ]),
       ],

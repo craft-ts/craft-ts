@@ -150,10 +150,11 @@ exact active primitive addresses they return. Do not construct nested
 addresses by concatenating names from `session.story`, or assume a recorded
 cart or draft is present just because the route was restored. For required
 client-side state, use a valid checkpoint as the fast path and make sure the
-recipe has a supported, write-safe way to recreate it after expiry. If there is
-no such setup step, do not save a recipe that claims to verify that state;
-report the missing runner capability (for example, a typed local-state seed
-step) or narrow the goal only with the person's agreement. If the app does not
+recipe has a supported, write-safe way to recreate it after expiry. Prefer an
+`invoke` of the app's state method to prepare it; keep mocked networking active
+and mock every downstream server function that method may call so setup cannot
+write to the real server. If no such method or checkpoint exists, do not save a
+recipe that claims to verify that state. If the app does not
 answer `registry.list` / `registry.get`, do not guess addresses; use `page` for
 visible outcomes and report when the runner cannot encode the needed assertion.
 

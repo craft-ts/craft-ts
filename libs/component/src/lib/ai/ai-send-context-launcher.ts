@@ -31,7 +31,7 @@ export const AiSendContextLauncher: CraftComponent<{
     readonly label: Input<string | undefined>;
   }) {
     const readLabel = function* () {
-      return (yield* inputs.label()) ?? 'AI context';
+      return (yield* inputs.label()) ?? 'Report';
     };
     let origin: DOMRect | undefined;
     const launcherOf = (handle: Element) =>
@@ -82,7 +82,7 @@ export const AiSendContextLauncher: CraftComponent<{
         class: [aiTheme.root, aiLauncher.root],
         'data-ai-launcher': '',
         role: 'group',
-        'aria-label': 'AI context controls',
+        'aria-label': 'AI report controls',
       },
       [
         button(
@@ -92,11 +92,11 @@ export const AiSendContextLauncher: CraftComponent<{
             class: aiLauncher.open,
             title: 'Send context to AI',
             'aria-label': function* () {
-              return `Open ${yield* readLabel()} chat`;
+              return `Open the AI ${yield* readLabel()} chat`;
             },
             click: () => inputs.onOpen(),
           },
-          [span({ 'aria-hidden': 'true' }, '✨'), span(readLabel)],
+          [span({ 'aria-hidden': 'true' }, '✦'), span(readLabel)],
         ),
         button(
           'aiMoveLauncher',
@@ -104,7 +104,7 @@ export const AiSendContextLauncher: CraftComponent<{
             type: 'button',
             class: aiLauncher.handle,
             title: 'Drag to move · arrow keys to move · double-click to reset',
-            'aria-label': 'Move AI context launcher',
+            'aria-label': 'Move AI report launcher',
             dblclick: (event: MouseEvent) =>
               reset(event.currentTarget as Element),
             keydown: (event: KeyboardEvent) => {

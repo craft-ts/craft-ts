@@ -22,7 +22,7 @@ the timeline controls. Events are only captured while a recording clip is active
 ## Minimal setup
 
 Register the provider once in the application providers. The default UI then
-adds an `AI context` launcher in the bottom-right corner and a context menu to
+adds a `✦ Report` launcher in the bottom-right corner and a context menu to
 Craft component hosts. Drag the grip icon beside the launcher to move it out
 of the way. The launcher stays within the viewport and keeps its position when
 the chat opens and closes. The grip also accepts arrow keys; double-click it to
@@ -96,7 +96,8 @@ The most common keys are `bg`, `surface`, `surface-muted`, `control-bg`, `text`,
 CSS variables can point directly to the application's existing theme, so its
 colours can change without replacing this provider.
 
-Set `launcherLabel` to change the default floating button's visible text:
+Set `launcherLabel` to change the default floating button's visible text (the
+small star stays in place):
 
 ```ts
 provideSendContextToAi({
