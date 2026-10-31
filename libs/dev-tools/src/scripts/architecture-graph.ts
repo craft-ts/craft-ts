@@ -2867,9 +2867,10 @@ export type InputActionFormViolation = {
 
 /**
  * A form is required when a template input feeds a button-triggered mutation
- * or async process through the primitive's method dependency graph. This is a
- * graph-wide invariant because the primitive may be declared in a service and
- * consumed by a component in another file.
+ * or async process, either through the primitive's method dependencies or
+ * values read at that button's call site. This is a graph-wide invariant
+ * because the primitive and input state may be declared in services separate
+ * from the component.
  */
 export function inputActionFormViolations(
   graph: DependencyGraph,
@@ -2938,7 +2939,7 @@ export function inputActionFormViolations(
       (edge) =>
         edge.from === component.id &&
         edge.details?.['usage'] === 'template' &&
-        edge.details?.['templateRole'] === 'input-value',
+        hasTemplateContext(edge, 'input-value'),
     );
     if (inputEdges.length === 0) continue;
 
@@ -2946,7 +2947,7 @@ export function inputActionFormViolations(
       (edge) =>
         edge.from === component.id &&
         edge.details?.['usage'] === 'template' &&
-        edge.details?.['templateRole'] === 'button-action' &&
+        hasTemplateContext(edge, 'button-action') &&
         (edge.kind === 'calls' ||
           ['method', 'mutate'].includes(
             String(edge.details?.['path'] ?? '')
@@ -2958,6 +2959,13 @@ export function inputActionFormViolations(
 
     const inputRoots = new Set(
       inputEdges.map((edge) => primitiveRoot(edge.to)),
+    );
+    const inputReadsByHandler = graph.edges.filter(
+      (edge) =>
+        edge.from === component.id &&
+        edge.details?.['usage'] === 'template' &&
+        hasTemplateContext(edge, 'button-action') &&
+        inputRoots.has(primitiveRoot(edge.to)),
     );
     const matchingActions = actionEdges.filter((edge) => {
       const actionRoot = primitiveRoot(edge.to);
@@ -2974,12 +2982,19 @@ export function inputActionFormViolations(
         return false;
       }
 
-      return graph.edges.some(
+      const readsInputInActionMethod = graph.edges.some(
         (dependency) =>
           dependency.from === actionRoot &&
           dependency.details?.['resourceRole'] === 'method' &&
           inputRoots.has(primitiveRoot(dependency.to)),
       );
+      const handlerIds = templateHandlerIds(edge, 'button-action');
+      const readsInputAtCallSite = handlerIds.some((handlerId) =>
+        inputReadsByHandler.some((read) =>
+          templateHandlerIds(read, 'button-action').includes(handlerId),
+        ),
+      );
+      return readsInputInActionMethod || readsInputAtCallSite;
     });
     if (matchingActions.length === 0) continue;
 
@@ -2993,6 +3008,46 @@ export function inputActionFormViolations(
     });
   }
   return violations;
+}
+
+function hasTemplateContext(
+  edge: DependencyGraphEdge,
+  role: 'input-value' | 'button-action',
+): boolean {
+  if (edge.details?.['templateRole'] === role) return true;
+  const contexts = edge.details?.['templateContexts'];
+  return (
+    Array.isArray(contexts) &&
+    contexts.some(
+      (context) =>
+        context &&
+        typeof context === 'object' &&
+        (context as Record<string, unknown>)['role'] === role,
+    )
+  );
+}
+
+function templateHandlerIds(
+  edge: DependencyGraphEdge,
+  role: 'button-action',
+): string[] {
+  const ids = new Set<string>();
+  if (
+    edge.details?.['templateRole'] === role &&
+    typeof edge.details?.['templateHandlerId'] === 'string'
+  ) {
+    ids.add(edge.details['templateHandlerId']);
+  }
+  const contexts = edge.details?.['templateContexts'];
+  if (!Array.isArray(contexts)) return [...ids];
+  for (const context of contexts) {
+    if (!context || typeof context !== 'object') continue;
+    const value = context as Record<string, unknown>;
+    if (value['role'] === role && typeof value['handlerId'] === 'string') {
+      ids.add(value['handlerId']);
+    }
+  }
+  return [...ids];
 }
 
 export function assertInputActionForms(graph: DependencyGraph): void {

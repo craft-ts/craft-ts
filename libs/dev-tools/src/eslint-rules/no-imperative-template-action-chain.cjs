@@ -62,15 +62,24 @@ module.exports = {
           return;
         }
 
+        if (node.arguments.length >= 4) {
+          const factoryHandlers = collectFactoryHandlers(node.arguments[2]);
+          inspectTemplate(node.arguments[3], factoryHandlers);
+          return;
+        }
+
         inspectTemplate(node.arguments[2]);
       },
     };
 
-    function inspectTemplate(template) {
+    function inspectTemplate(template, factoryHandlers = new Map()) {
       walkTemplate(template, (node) => {
         if (node.type !== 'Property' || node.computed) return;
 
-        const callback = node.value;
+        const callback =
+          node.value.type === 'Identifier' && isEventProperty(node)
+            ? factoryHandlers.get(node.value.name)
+            : node.value;
         if (!isFunction(callback)) return;
         // A component prop such as `trigger: function* () {}` runs like an
         // event handler: it is a generator the component calls on a gesture.
@@ -102,6 +111,32 @@ module.exports = {
           data: { actions: actions.map(({ action }) => action).join(', ') },
         });
       });
+    }
+
+    function collectFactoryHandlers(factory) {
+      const handlers = new Map();
+      if (!isFunction(factory) || factory.body.type !== 'BlockStatement') {
+        return handlers;
+      }
+
+      for (const statement of factory.body.body) {
+        if (statement.type === 'FunctionDeclaration' && statement.id) {
+          handlers.set(statement.id.name, statement);
+          continue;
+        }
+        if (statement.type !== 'VariableDeclaration') continue;
+
+        for (const declaration of statement.declarations) {
+          if (
+            declaration.id.type === 'Identifier' &&
+            isFunction(declaration.init)
+          ) {
+            handlers.set(declaration.id.name, declaration.init);
+          }
+        }
+      }
+
+      return handlers;
     }
 
     // `yield* View.lastActionLabel.recordConfirm()`: a service method whose
@@ -286,7 +321,8 @@ function skipParens(node) {
 function isFunction(node) {
   return (
     node &&
-    (node.type === 'FunctionExpression' ||
+    (node.type === 'FunctionDeclaration' ||
+      node.type === 'FunctionExpression' ||
       node.type === 'ArrowFunctionExpression')
   );
 }

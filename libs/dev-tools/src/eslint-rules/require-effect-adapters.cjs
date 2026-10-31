@@ -33,6 +33,7 @@ module.exports = {
     const directImports = new Map();
     const directImportNodes = new Map();
     const serverFunctionClients = new Set();
+    const craftHttpClients = new Set();
     const directCalls = [];
 
     return {
@@ -61,6 +62,10 @@ module.exports = {
             specifier.imported.type === 'Identifier'
               ? specifier.imported.name
               : specifier.imported.value;
+          if (imported === 'CraftHttpClient') {
+            craftHttpClients.add(specifier.local.name);
+            continue;
+          }
           if (!Object.hasOwn(ADAPTERS, imported)) continue;
 
           directImports.set(specifier.local.name, imported);
@@ -92,8 +97,10 @@ module.exports = {
           const loader = config.properties.find(
             (property) =>
               property.type === 'Property' &&
-              ((property.key.type === 'Identifier' && property.key.name === 'loader') ||
-                (property.key.type === 'Literal' && property.key.value === 'loader')),
+              ((property.key.type === 'Identifier' &&
+                property.key.name === 'loader') ||
+                (property.key.type === 'Literal' &&
+                  property.key.value === 'loader')),
           );
           if (!loader || loader.type !== 'Property') return false;
           const loaderText = context.sourceCode.getText(loader.value);
@@ -102,9 +109,57 @@ module.exports = {
           );
         };
 
+        const isCraftHttpClientQuery = (node) => {
+          if (
+            directImports.get(node.callee.name) !== 'query' ||
+            craftHttpClients.size === 0
+          ) {
+            return false;
+          }
+          const config = node.arguments[1];
+          if (!config || config.type !== 'ObjectExpression') return false;
+          const loader = config.properties.find(
+            (property) =>
+              property.type === 'Property' &&
+              ((property.key.type === 'Identifier' && property.key.name === 'loader') ||
+                (property.key.type === 'Literal' && property.key.value === 'loader')),
+          );
+          if (!loader || loader.type !== 'Property') return false;
+          let found = false;
+          const visit = (node) => {
+            if (!node || found) return;
+            if (
+              node.type === 'YieldExpression' &&
+              node.delegate &&
+              node.argument?.type === 'CallExpression' &&
+              node.argument.callee.type === 'MemberExpression' &&
+              node.argument.callee.object.type === 'Identifier' &&
+              craftHttpClients.has(node.argument.callee.object.name)
+            ) {
+              found = true;
+              return;
+            }
+            for (const key of context.sourceCode.visitorKeys[node.type] ?? []) {
+              const value = node[key];
+              if (Array.isArray(value)) value.forEach(visit);
+              else visit(value);
+            }
+          };
+          visit(loader.value);
+          return found;
+        };
+
         for (const [local, primitive] of directImports) {
           const calls = directCalls.filter((node) => node.callee.name === local);
-          if (calls.length > 0 && calls.every(isServerFunctionQuery)) continue;
+          if (
+            calls.length > 0 &&
+            calls.every(
+              (node) =>
+                isServerFunctionQuery(node) || isCraftHttpClientQuery(node),
+            )
+          ) {
+            continue;
+          }
           const specifier = directImportNodes.get(local);
           if (!specifier) continue;
           context.report({
@@ -116,7 +171,11 @@ module.exports = {
 
         for (const node of directCalls) {
           const primitive = directImports.get(node.callee.name);
-          if (!primitive || isServerFunctionQuery(node)) continue;
+          if (
+            !primitive ||
+            isServerFunctionQuery(node) ||
+            isCraftHttpClientQuery(node)
+          ) continue;
 
           context.report({
             node: node.callee,

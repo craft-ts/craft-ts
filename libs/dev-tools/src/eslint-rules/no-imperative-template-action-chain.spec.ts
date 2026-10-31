@@ -106,6 +106,31 @@ describe('no-imperative-template-action-chain', () => {
     ]);
   });
 
+  it('follows a named factory handler passed to the legacy component template', async () => {
+    const messages = await lintTyped(`${TYPED_PRELUDE}
+      declare const checkIn: { mutate(value: string): Generator<unknown, void, unknown> };
+      declare const phoneInput: { setValue(value: string): Generator<unknown, void, unknown> };
+      declare const nameInput: { setValue(value: string): Generator<unknown, void, unknown> };
+      declare const message: { setValue(value: string): Generator<unknown, void, unknown> };
+      declare const attendanceQuery: { call(value: boolean): Generator<unknown, void, unknown> };
+
+      craftComponent('Demo', {}, function* () {
+        function* submitCheckIn() {
+          yield* checkIn.mutate('phone');
+          yield* phoneInput.setValue('');
+          yield* nameInput.setValue('');
+          yield* message.setValue('saved');
+          yield* attendanceQuery.call(true);
+        }
+        return {};
+      }, () => button({ click: submitCheckIn }));
+    `);
+
+    expect(messages).toEqual([
+      'Template event handlers must not chain imperative Craft actions (mutation.mutate, phoneInput.setValue, nameInput.setValue, message.setValue, query.call). Emit one source$ event and let query, mutation, and state react through on$. Reading a reactive value with yield* is allowed.',
+    ]);
+  });
+
   it('allows reading reactive values around a single action', async () => {
     const messages = await lintTyped(`${TYPED_PRELUDE}
       craftComponent('Demo', {}, () => button({

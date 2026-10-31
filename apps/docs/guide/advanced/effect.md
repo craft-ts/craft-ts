@@ -42,6 +42,28 @@ There is intentionally no `stateEffect`. A reactive value is not made better by
 being an Effect. Use `state` for the value, and use Effect for the computation
 that loads or changes it.
 
+Use plain `query` when its loader yields a `CraftHttpClient` request. That
+request already uses Craft's generator and transport lifecycle; `queryEffect`
+accepts an `Effect` loader, so wrapping the request in that adapter would cross
+the boundary incorrectly. For domain work implemented with Effect services,
+use `queryEffect` and keep the transport inside the Effect service instead.
+
+```typescript
+// ✅ Craft transport generator: keep the plain Craft query.
+import { CraftHttpClient, query } from '@craft-ts/core';
+
+// Inside a craftComponent factory generator:
+const health = yield* query('health', {
+  params: () => true,
+  loader: function* () {
+    return yield* CraftHttpClient.get(({ response }) => ({
+      url: '/api/health.json',
+      success: response<HealthReply>(),
+    }));
+  },
+});
+```
+
 ## Install the packages
 
 ```shell

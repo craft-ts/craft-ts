@@ -291,6 +291,61 @@ describe('createArchitectureGraph', () => {
     );
   });
 
+  it('finds input-driven mutations in a legacy four-argument component template', async () => {
+    const graph = await graphOf({
+      'projects-view.ts': `
+        ${STUBS}
+        type ProjectsViewOutput = {
+          name: { setValue(value: string): Generator<unknown, unknown, unknown> };
+          formName: () => Generator<unknown, string, unknown>;
+          add: { mutate(project: { name: string }): Generator<unknown, unknown, unknown> };
+        };
+        export const { ProjectsView, provideProjectsView } = craftService(
+          { name: 'ProjectsView' },
+          function* () {
+            const name = yield* state('projectName', '', ({ set }) => ({ setValue: set }));
+            const formName = craftComputed('formName', function* () { return yield* name(); });
+            const add = yield* mutation('addProject', {
+              method: (project: { name: string }) => project,
+              loader: () => ({}),
+            });
+            return { name, formName, add };
+          },
+        ) as {
+          ProjectsView: () => Generator<unknown, ProjectsViewOutput, unknown>;
+          provideProjectsView: () => unknown;
+        };
+      `,
+      'projects-page.ts': `
+        ${STUBS}
+        import { ProjectsView } from './projects-view';
+        const ProjectsPage = craftComponent(
+          'ProjectsPage',
+          { providers: [provideProjectsView()] },
+          () => ({}),
+          () => div([
+            input('ProjectName', {
+              value: function* () { return yield* (yield* ProjectsView()).formName(); },
+            }),
+            button('AddProject', {
+              click: function* () {
+                yield* (yield* ProjectsView()).add.mutate({
+                  name: yield* (yield* ProjectsView()).formName(),
+                });
+                yield* (yield* ProjectsView()).name.setValue('');
+              },
+            }),
+          ]),
+        );
+      `,
+    });
+
+    expect(inputActionFormViolations(graph.graph)).toHaveLength(1);
+    expect(() => assertInputActionForms(graph.graph)).toThrow(
+      /ProjectsPage.*insertFormSubmit/,
+    );
+  });
+
   it('finds input-dependent async processes declared in a service', async () => {
     const graph = await graphOf({
       'todo-store.ts': `

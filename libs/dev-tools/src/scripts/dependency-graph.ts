@@ -2861,7 +2861,12 @@ function analyzeComponents(builder: GraphBuilder): void {
   for (const component of builder.components) {
     const call = component.call;
     const setup = call.getArguments()[2];
-    const template = setup;
+    // Older components took separate setup and template callbacks. Keep both
+    // parts in the graph so architecture rules can still see their event
+    // bindings and the services those bindings call.
+    const template = call.getArguments().length >= 4
+      ? call.getArguments()[3]
+      : setup;
     const setupPartsForMetadata = componentImplementationParts(setup);
     const templatePartsForMetadata = templateImplementationParts(template);
     component.node.details = {
@@ -4507,7 +4512,12 @@ function collectServicePropertyUses(
   component: ComponentInfo,
 ): void {
   // One function: what it reads, it reads from the template.
-  const parts = [[component.call.getArguments()[2], 'template']] as const;
+    const componentArguments = component.call.getArguments();
+    const template =
+      componentArguments.length >= 4
+        ? componentArguments[3]
+        : componentArguments[2];
+    const parts = [[template, 'template']] as const;
   for (const [part, usage] of parts) {
     if (!part) continue;
     for (const access of part.getDescendantsOfKind(
@@ -5110,10 +5120,14 @@ function analyzeTemplateDependencies(
       const alias = methodAliases.get(symbolKey(expression.getSymbol()));
       if (alias) {
         const templateRole = templateRoleOf(expression);
+      const templateHandlerId = templateHandlerIdOf(expression);
+      const templateContexts = templateContextsOf(expression);
         addEdge(builder, component.node.id, alias.propertyId, 'calls', 'ast', {
           path: alias.method,
           usage: 'template',
           ...(templateRole ? { templateRole } : {}),
+        ...(templateHandlerId ? { templateHandlerId } : {}),
+        ...(templateContexts ? { templateContexts } : {}),
           callSite: {
             filePath: expression.getSourceFile().getFilePath(),
             line: expression.getStartLineNumber(),
@@ -5133,10 +5147,14 @@ function analyzeTemplateDependencies(
     if (!target) continue;
     const kind = target.kind === 'calls' ? 'calls' : 'uses-property';
     const templateRole = templateRoleOf(expression);
+    const templateHandlerId = templateHandlerIdOf(expression);
+    const templateContexts = templateContextsOf(expression);
     addEdge(builder, component.node.id, target.id, kind, 'ast', {
       ...target.details,
       usage: 'template',
       ...(templateRole ? { templateRole } : {}),
+      ...(templateHandlerId ? { templateHandlerId } : {}),
+      ...(templateContexts ? { templateContexts } : {}),
       ...(kind === 'calls'
         ? {
             callSite: {
@@ -5186,6 +5204,43 @@ function templateRoleOf(
     current = current.getParent();
   }
   return undefined;
+}
+
+function templateHandlerIdOf(node: Node): string | undefined {
+  let current: Node | undefined = node;
+  while (current) {
+    if (Node.isPropertyAssignment(current)) {
+      const propertyName = current.getNameNode().getText().replace(/['\"]/g, '');
+      const options = current.getParentIfKind(
+        SyntaxKind.ObjectLiteralExpression,
+      );
+      const owner = options?.getParentIfKind(SyntaxKind.CallExpression);
+      if (
+        (propertyName === 'click' || propertyName === 'onClick') &&
+        owner?.getExpression().getText() === 'button'
+      ) {
+        return `${current.getSourceFile().getFilePath()}:${current.getStart()}`;
+      }
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
+function templateContextsOf(
+  node: Node,
+): readonly { role: string; handlerId?: string; filePath: string; offset: number }[] | undefined {
+  const role = templateRoleOf(node);
+  if (!role) return undefined;
+  const handlerId = templateHandlerIdOf(node);
+  return [
+    {
+      role,
+      ...(handlerId ? { handlerId } : {}),
+      filePath: node.getSourceFile().getFilePath(),
+      offset: node.getStart(),
+    },
+  ];
 }
 
 type PrimitiveMethodAlias = {
@@ -5422,41 +5477,94 @@ export function resolveReactiveTarget(
       : Node.isPropertyAccessExpression(callee)
         ? propertyAccessChain(callee)
         : undefined;
-    if (!chain) return undefined;
-    return resolveReactiveChain(
-      builder,
-      chain,
-      unwrapped,
-      bindings,
-      component,
-      aggregateOwnerId,
-    );
+    const target = chain
+      ? resolveReactiveChain(
+          builder,
+          chain,
+          unwrapped,
+          bindings,
+          component,
+          aggregateOwnerId,
+        )
+      : undefined;
+    return target ?? resolvePrimitiveSymbolTarget(builder, unwrapped);
   }
 
   if (Node.isIdentifier(unwrapped)) {
-    return resolveReactiveChain(
-      builder,
-      [unwrapped.getText()],
-      unwrapped,
-      bindings,
-      component,
-      aggregateOwnerId,
+    return (
+      resolveReactiveChain(
+        builder,
+        [unwrapped.getText()],
+        unwrapped,
+        bindings,
+        component,
+        aggregateOwnerId,
+      ) ?? resolvePrimitiveSymbolTarget(builder, unwrapped)
     );
   }
 
   if (Node.isPropertyAccessExpression(unwrapped)) {
     const chain = propertyAccessChain(unwrapped);
-    if (!chain) return undefined;
-    return resolveReactiveChain(
-      builder,
-      chain,
-      unwrapped,
-      bindings,
-      component,
-      aggregateOwnerId,
-    );
+    const target = chain
+      ? resolveReactiveChain(
+          builder,
+          chain,
+          unwrapped,
+          bindings,
+          component,
+          aggregateOwnerId,
+        )
+      : undefined;
+    return target ?? resolvePrimitiveSymbolTarget(builder, unwrapped);
   }
 
+  return undefined;
+}
+
+/**
+ * Resolve a service shortcut such as `(yield* ProjectsPageView()).formName()`
+ * from its TypeScript symbol when there is no local service alias to follow.
+ */
+function resolvePrimitiveSymbolTarget(
+  builder: GraphBuilder,
+  expression: Node,
+): { id: string; kind: 'depends-on' | 'calls'; details?: Record<string, unknown> } | undefined {
+  const candidates: Node[] = [];
+  if (Node.isCallExpression(expression)) {
+    const callee = expression.getExpression();
+    if (Node.isPropertyAccessExpression(callee)) {
+      candidates.push(callee, ...callee.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression));
+    } else {
+      candidates.push(callee);
+    }
+  } else if (Node.isPropertyAccessExpression(expression)) {
+    candidates.push(expression, ...expression.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression));
+  } else {
+    candidates.push(expression);
+  }
+
+  for (const candidate of candidates) {
+    const symbol = candidate.getSymbol();
+    const name = symbol?.getName();
+    if (!name) continue;
+    const files = new Set<string>(
+      (symbol?.getDeclarations() ?? []).map((declaration) =>
+        declaration.getSourceFile().getFilePath(),
+      ),
+    );
+    const matches = [...builder.nodes.values()].filter(
+      (node) =>
+        node.kind === 'primitive' &&
+        files.has(node.filePath ?? '') &&
+        (node.details?.['usage'] === name || node.details?.['name'] === name),
+    );
+    if (matches.length !== 1) continue;
+    return {
+      id: matches[0].id,
+      kind: Node.isCallExpression(expression) ? 'calls' : 'depends-on',
+      details: { path: name, symbolResolved: true },
+    };
+  }
   return undefined;
 }
 
@@ -8944,7 +9052,27 @@ function addEdge(
   if (existing) {
     if (details) {
       const previousUsage = existing.details?.['usage'];
+      const previousContexts = Array.isArray(
+        existing.details?.['templateContexts'],
+      )
+        ? (existing.details?.['templateContexts'] as unknown[])
+        : [];
+      const addedContexts = Array.isArray(details['templateContexts'])
+        ? (details['templateContexts'] as unknown[])
+        : [];
+      const templateContexts = [
+        ...previousContexts,
+        ...addedContexts,
+      ].filter(
+        (context, index, contexts) =>
+          contexts.findIndex(
+            (candidate) => JSON.stringify(candidate) === JSON.stringify(context),
+          ) === index,
+      );
       existing.details = { ...(existing.details ?? {}), ...details };
+      if (templateContexts.length > 0) {
+        existing.details['templateContexts'] = templateContexts;
+      }
       if (previousUsage && details['usage']) {
         existing.details['usage'] = mergeUsageValues(
           previousUsage,

@@ -254,7 +254,22 @@ The mutation receives no argument at the click site, but it still depends on
 the input because its `method` reads the same state. `assertInputActionForms`
 rejects this shape. A file-local ESLint rule can catch the direct version in one
 file, but only the architecture graph can follow the input, button, service and
-resource method across files.
+resource method across files. The graph also follows values read by the button
+and passed directly as mutation arguments, including computed values exposed by
+a service. This catches the same violation when the mutation method itself does
+not read UI state:
+
+```typescript
+button('AddProjectButton', {
+  click: function* () {
+    yield* projects.add.mutate({ name: yield* projects.formName() });
+  },
+});
+```
+
+Use `insertFormSubmit(addProject)` for that input boundary. A successful
+resolved submission resets the form fields through the form insertion, so the
+button does not need to mutate each field after calling the mutation.
 
 The accepted shape makes the boundary explicit:
 
