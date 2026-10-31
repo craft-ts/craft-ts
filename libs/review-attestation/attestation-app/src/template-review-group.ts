@@ -157,7 +157,7 @@ export const { TemplateReviewGroupState, provideTemplateReviewGroupState } =
       yield* craftComputed('viewTitle', function* () {
         return (yield* view()).title;
       });
-      yield* craftComputed('rows', function* () {
+      yield* craftComputed('templateReviewGroupRows', function* () {
         const value = yield* group();
         const say = yield* t();
         const language = yield* locale();
@@ -270,7 +270,7 @@ export const TemplateReviewGroupView = craftComponent(
       viewTitle,
       view,
       allSelected,
-      rows,
+      templateReviewGroupRows: rows,
       showAgentBusy,
       showAgentFailed,
       showReject,

@@ -10,11 +10,11 @@ import {
   select,
   span,
 } from '@craft-ts/component';
-import { craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { CraftRouter, craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { DocTooltip } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import { goToHash, newUuid, requestFrameFullscreen } from './replay-browser';
+import { newUuid, requestFrameFullscreen } from './replay-browser';
 import {
   launchDebugAppAtReplay,
   launchGuidedResumeTab,
@@ -85,6 +85,34 @@ function readyRecipesFor(
       recipe.origin === parsed.url.origin &&
       recipe.beforeSequence === beforeSequence,
   );
+}
+
+function resumeTooltipText(
+  disabled: boolean,
+  sending: boolean,
+  ready: ResumeCheckpointSummary | undefined,
+  recipes: readonly ResumeRecipeSummary[],
+): string {
+  if (disabled) {
+    return sending
+      ? 'Une demande de reprise est déjà en cours d’envoi.'
+      : 'Le dashboard n’identifie pas la session ouverte. Revenez à la liste des sessions et rouvrez-la.';
+  }
+  const recipeNames = recipes
+    .map((recipe) => recipe.name?.trim() || recipe.objective.goal)
+    .join(' · ');
+  if (ready) {
+    const expiresAt = new Date(ready.expiresAt).toLocaleString('fr-FR');
+    return `Un point de reprise est disponible jusqu’au ${expiresAt} (${ready.ttlReason}).${recipes.length ? ` Recettes associées : ${recipeNames}.` : ''} Ton intention sera transmise à l’agent avec la demande de reprise.`;
+  }
+  const [recipe] = recipes;
+  if (recipe) {
+    return `La recette « ${recipe.name?.trim() || recipe.objective.goal} » est disponible. Ton intention sera transmise à l’agent avec la demande de reprise.`;
+  }
+  if (recipes.length > 1) {
+    return `${recipes.length} recettes sont disponibles à ce point : ${recipeNames}. Ton intention sera transmise à l’agent avec la demande de reprise.`;
+  }
+  return 'Une question te demandera ton intention avant d’ouvrir un onglet dédié et de copier le prompt à coller dans la conversation de l’agent.';
 }
 
 /** The head of the replay page: the way back, which session, and the tools. */
@@ -159,8 +187,8 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       type: 'button',
       class: buttonUi.root,
       'data-variant': 'link',
-      click: () => {
-        goToHash('#/');
+      click: function* () {
+        yield* CraftRouter.navigate({ to: '' });
       },
     },
     '← Sessions',
@@ -178,7 +206,9 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
           (recipe) => recipe.sessionId === routeSessionId(),
         );
       },
-      click: () => goToHash('#/recipes'),
+      click: function* () {
+        yield* CraftRouter.navigate({ to: 'recipes' });
+      },
     },
     'Recettes',
   );
@@ -276,25 +306,12 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     () => activeRouteSessionId() === undefined || resumeRequestSending(),
   );
   const resumeTooltip = yield* craftComputed('resumeTooltip', function* () {
-    if (yield* resumeDisabled()) {
-      return resumeRequestSending()
-        ? 'Une demande de reprise est déjà en cours d’envoi.'
-        : 'Le dashboard n’identifie pas la session ouverte. Revenez à la liste des sessions et rouvrez-la.';
-    }
-    const ready = yield* readyCheckpoint();
-    const recipes = yield* readyRecipes();
-    const recipeNames = recipes
-      .map((recipe) => recipe.name?.trim() || recipe.objective.goal)
-      .join(' · ');
-    if (ready)
-      return `Un point de reprise est disponible jusqu’au ${new Date(ready.expiresAt).toLocaleString('fr-FR')} (${ready.ttlReason}).${recipes.length ? ` Recettes associées : ${recipeNames}.` : ''} Ton intention sera transmise à l’agent avec la demande de reprise.`;
-    if (recipes.length === 1) {
-      const recipe = recipes[0]!;
-      return `La recette « ${recipe.name?.trim() || recipe.objective.goal} » est disponible. Ton intention sera transmise à l’agent avec la demande de reprise.`;
-    }
-    if (recipes.length > 1)
-      return `${recipes.length} recettes sont disponibles à ce point : ${recipeNames}. Ton intention sera transmise à l’agent avec la demande de reprise.`;
-    return 'Une question te demandera ton intention avant d’ouvrir un onglet dédié et de copier le prompt à coller dans la conversation de l’agent.';
+    return resumeTooltipText(
+      yield* resumeDisabled(),
+      resumeRequestSending(),
+      yield* readyCheckpoint(),
+      yield* readyRecipes(),
+    );
   });
   const resume = button(
     'resumeHere',
@@ -363,7 +380,9 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
   );
   const resumeWithTooltip = DocTooltip({
     tip: resumeTooltip,
-    tipId: 'resume-here-tip',
+    tipId: function* () {
+      return 'resume-here-tip';
+    },
     body: content(() =>
       span(
         {

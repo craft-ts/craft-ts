@@ -402,12 +402,7 @@ export function inject<T>(
   token: ProviderToken<T>,
   options?: { optional?: boolean; skipSelf?: boolean },
 ): T | null {
-  let injector: CraftInjector;
-  try {
-    injector = getCurrentCraftInjector();
-  } catch (error) {
-    throw error;
-  }
+  let injector: CraftInjector = getCurrentCraftInjector();
   if (options?.skipSelf) {
     const parent = injector.ɵparent;
     if (!parent) {

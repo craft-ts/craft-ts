@@ -116,6 +116,8 @@ describe('demo architecture', () => {
     assertQueryMutationHasServerState(graph.graph, {
       allow: [
         'users',
+        // This page is a focused pendingNode example with a deterministic local fixture.
+        'usersComponentPendingNodeDemo',
         'issue',
         'user',
         'add',
@@ -255,10 +257,8 @@ describe('demo architecture', () => {
   });
 
   it('keeps exclusive feature branches from linking', () => {
-    const [userList] = graph.providedOn('UserList');
-    const [userMutation] = graph.providedOn('UserMutation');
-    expect(userList).toBeDefined();
-    expect(userMutation).toBeDefined();
+    const userList = graph.component('ListWithPagination');
+    const userMutation = graph.component('MutationDemoComponent');
     noExclusiveLink(userList, userMutation);
   });
 });

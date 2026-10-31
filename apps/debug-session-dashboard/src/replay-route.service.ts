@@ -1,6 +1,8 @@
 import {
   BrowserCryptoService,
   BrowserLocationService,
+  CraftActivatedRoute,
+  CraftRouter,
   CraftTemporalRuntime,
   craftEffect,
   craftExpose,
@@ -9,11 +11,8 @@ import {
   ɵuntracked as untracked,
 } from '@craft-ts/core';
 import {
-  currentHash,
-  goToHash,
   installReplayPlatform,
   isReplayWorkerMode,
-  onHashChange,
 } from './replay-browser';
 import {
   beginSessionLoad,
@@ -22,6 +21,7 @@ import {
   leaveReplayPage,
 } from './replay-session';
 import { endReplayLoadingIndicator } from './replay-playback';
+import { ReplayRouterEvents } from './replay-router-events.service';
 import {
   page,
   pendingDeleteSessionId,
@@ -46,8 +46,8 @@ import {
  * succeeds closes the page that showed it. The view only asks to `open` or
  * `remove`; this is the one place that listens to `hashchange`.
  */
-export const { ReplayRoute } = craftService(
-  { name: 'replayRoute', providedIn: 'global' },
+export const { ReplayRoute, provideReplayRoute } = craftService(
+  { name: 'replayRoute', providedIn: 'toProvide' },
   function* () {
     yield* ReplayState();
     // The engine's clock, ids and hash come from Craft: the temporal runtime
@@ -60,10 +60,9 @@ export const { ReplayRoute } = craftService(
       schedule: (run, delayMs) =>
         temporal.schedule(run, delayMs, { owner: 'replay' }),
       now: () => temporal.now(),
+      dateNow: () => temporal.dateNow(),
       uuid: () => browserCrypto.randomUUID(),
-      hash: () => browserLocation.hash(),
       search: () => browserLocation.search(),
-      navigate: (hash) => browserLocation.assign(hash),
     });
 
     // Opened by the thumbnail worker: it replays and is photographed, it does
@@ -75,6 +74,8 @@ export const { ReplayRoute } = craftService(
     const e2eComparison = yield* E2eComparison();
     const thumbnails = yield* ThumbnailArchive();
     const resumeThread = yield* ResumeThread();
+    const activeRoute = yield* CraftActivatedRoute();
+    const routerEvents = yield* ReplayRouterEvents();
     const archivedValue = rawReactiveValue(archive.archived.value);
     const archivedException = rawReactiveValue(archive.archived.exception);
     const deletedValue = rawReactiveValue(archive.deleteSession.value);
@@ -137,23 +138,29 @@ export const { ReplayRoute } = craftService(
         untracked(() => failSessionLoad(httpFailureReason(exception)));
     });
 
-    yield* craftEffect('closeRemovedSession', () => {
+    yield* craftEffect('closeRemovedSession', function* () {
       const deleted = deletedValue();
       const id = removingId;
       if (deleted === undefined || id === undefined) return;
+      const shouldNavigate = routeSessionId() === id;
       untracked(() => {
         removingId = undefined;
         pendingDeleteSessionId.set(undefined);
-        if (routeSessionId() === id) goToHash('#/');
       });
+      if (shouldNavigate) yield* CraftRouter.navigate({ to: '' });
     });
 
     const handleHashChange = (): void => {
-      syncActiveRouteSessionId();
+      const route = activeRoute.snapshot;
+      const routePaths = route.pathFromRoot.map(
+        (segment) => segment.routeConfig?.path,
+      );
+      const routeParams = route.params;
+      syncActiveRouteSessionId(routeParams['sessionId']);
       const id = routeSessionId();
-      const importedSession = currentHash() === '#/import';
-      const comparison = currentHash().startsWith('#/compare?');
-      const e2eReplay = currentHash().startsWith('#/e2e-replay?');
+      const importedSession = routePaths.includes('import');
+      const comparison = routePaths.includes('compare');
+      const e2eReplay = routePaths.includes('e2e-replay');
       const wasDetailPage = page() === 'detail';
       page.set(
         comparison
@@ -163,7 +170,11 @@ export const { ReplayRoute } = craftService(
             : 'sessions',
       );
       if (comparison) {
-        e2eComparison.comparison.call(currentHash());
+        e2eComparison.comparison.call({
+          test: route.queryParams['test'] ?? '',
+          project: route.queryParams['project'] ?? '',
+          run: route.queryParams['run'] ?? '',
+        });
       }
       if (id && id !== registers.loadedArchiveSessionId) open(id);
       if (!id) {
@@ -177,7 +188,7 @@ export const { ReplayRoute } = craftService(
         registers.loadedArchiveSessionId = undefined;
       }
     };
-    onHashChange(handleHashChange);
+    routerEvents.onNavigationEnd(handleHashChange);
     handleHashChange();
 
     const retryThumbnails = (): void => {

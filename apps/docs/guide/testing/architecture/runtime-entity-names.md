@@ -1,5 +1,7 @@
 # Unique runtime entity names
 
+<<< @/tests/snippets/guide/testing/architecture/runtime-entity-names.spec.ts#example
+
 `assertRuntimeEntityNamesUnique` requires every Craft service and every
 primitive to have a distinct name across the application graph. The check
 compares the names as written, across kinds: a `query`, a `state`, an

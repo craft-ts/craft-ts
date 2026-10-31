@@ -1,5 +1,6 @@
 import {
   abstract,
+  createCraftRandomSeed,
   craftService,
   type EffectRef,
   type ɵInjector as Injector,
@@ -50,7 +51,7 @@ export function shouldSendGoodbye(
 
 export function nextReconnectDelayMs(
   attempt: number,
-  random: () => number = Math.random,
+  random: () => number = () => createCraftRandomSeed() / 0x1_0000_0000,
 ): number {
   const exp = Math.min(10_000, 1000 * 2 ** attempt);
   return exp + Math.floor(random() * 250);

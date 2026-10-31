@@ -47,7 +47,11 @@ export const { CraftServiceCounterView, provideCraftServiceCounterView } =
   craftService(
     { name: 'craftServiceCounterView', providedIn: 'toProvide' },
     function* () {
-      yield* craftExpose('counter', (yield* Counter()).count);
+      const count = (yield* Counter()).count;
+      yield* craftExpose('count', count);
+      yield* craftExpose('decrement', count.decrement);
+      yield* craftExpose('reset', count.reset);
+      yield* craftExpose('increment', count.increment);
     },
   );
 
@@ -64,7 +68,7 @@ const CraftServiceCounterComponent = craftComponent(
         { class: example.text, 'data-exampleText': 'muted' },
         'Le wrapper lit le state avant et après chaque méthode state, puis affiche la transition dans la console du navigateur.',
       ),
-      p({ class: example.bigValue }, CraftServiceCounterView.counter),
+      p({ class: example.bigValue }, CraftServiceCounterView.count),
       div({ class: example.row }, [
         button(
           'decrement',
@@ -72,7 +76,7 @@ const CraftServiceCounterComponent = craftComponent(
             class: buttonUi.root,
             'data-variant': 'secondary',
             type: 'button',
-            click: CraftServiceCounterView.counter.decrement,
+            click: CraftServiceCounterView.decrement,
           },
           '−',
         ),
@@ -82,7 +86,7 @@ const CraftServiceCounterComponent = craftComponent(
             class: buttonUi.root,
             'data-variant': 'secondary',
             type: 'button',
-            click: CraftServiceCounterView.counter.reset,
+            click: CraftServiceCounterView.reset,
           },
           'Réinitialiser',
         ),
@@ -92,7 +96,7 @@ const CraftServiceCounterComponent = craftComponent(
             class: buttonUi.root,
             'data-variant': 'primary',
             type: 'button',
-            click: CraftServiceCounterView.counter.increment,
+            click: CraftServiceCounterView.increment,
           },
           '+',
         ),

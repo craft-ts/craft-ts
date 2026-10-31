@@ -62,13 +62,13 @@ export const { ApplicationOverviewView, provideApplicationOverviewView } =
       const statusFilter = yield* state('statusFilter', '', ({ set }) => ({
         choose: set,
       }));
-      const zoom = yield* state('zoom', 'fit', ({ set }) => ({
+      const zoom = yield* state('applicationOverviewZoom', 'fit', ({ set }) => ({
         choose: set,
       }));
       const imageKind = yield* state('imageKind', 'image', ({ set }) => ({
         choose: set,
       }));
-      const note = yield* state('note', '', ({ set }) => ({
+      const note = yield* state('applicationOverviewNote', '', ({ set }) => ({
         write: set,
       }));
       const pages = yield* craftComputed('pages', function* () {
@@ -148,7 +148,7 @@ export const { ApplicationOverviewView, provideApplicationOverviewView } =
           };
         });
       });
-      yield* craftComputed('rows', function* () {
+      yield* craftComputed('applicationOverviewRows', function* () {
         const selection = yield* selected();
         const kind = yield* imageKind();
         const scale = yield* zoom();
@@ -217,13 +217,13 @@ export const ApplicationOverview = craftComponent(
       viewportFilter,
       viewports,
       statusFilter,
-      zoom,
+      applicationOverviewZoom: zoom,
       imageKind,
-      note,
+      applicationOverviewNote: note,
       actions,
       submit,
       next,
-      rows,
+      applicationOverviewRows: rows,
       selected,
     } = yield* ApplicationOverviewView();
     return div([

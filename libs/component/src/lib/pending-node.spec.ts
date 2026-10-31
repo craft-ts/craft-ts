@@ -47,6 +47,14 @@ interface User {
   readonly name: string;
 }
 
+const renderCraftComponentForSpec = renderCraftComponent as unknown as (
+  component: unknown,
+) => Promise<{
+  nativeElement: HTMLElement;
+  flush: () => Promise<void>;
+  destroy: () => void;
+}>;
+
 describe('pendingNode', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -99,7 +107,7 @@ describe('pendingNode', () => {
       nativeElement: element,
       flush,
       destroy,
-    } = await renderCraftComponent(root);
+    } = await renderCraftComponentForSpec(root);
 
     expect(element.textContent).toContain('chargement');
     expect(element.textContent).not.toContain('Ada');
@@ -176,7 +184,7 @@ describe('pendingNode', () => {
       nativeElement: element,
       flush,
       destroy,
-    } = await renderCraftComponent(root);
+    } = await renderCraftComponentForSpec(root);
     expect(element.textContent).toContain('attente');
 
     await vi.runAllTimersAsync();
@@ -243,7 +251,7 @@ describe('pendingNode', () => {
       nativeElement: element,
       flush,
       destroy,
-    } = await renderCraftComponent(root);
+    } = await renderCraftComponentForSpec(root);
     expect(element.textContent).toContain('vide');
 
     await vi.runAllTimersAsync();
@@ -341,7 +349,7 @@ describe('pendingNode', () => {
       nativeElement: element,
       flush,
       destroy,
-    } = await renderCraftComponent(root);
+    } = await renderCraftComponentForSpec(root);
     await vi.runAllTimersAsync();
     await flush();
 

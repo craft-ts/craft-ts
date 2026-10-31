@@ -100,13 +100,20 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
       const value = yield* usersQuery.value();
       return Array.isArray(value) ? value : [];
     });
+    let writeSearchInput: ((value: string) => Generator<never, unknown, unknown>) | undefined;
     const searchInput = yield* state(
       'searchInputClientSimpleListDemo',
       yield* usersFilter.filter(),
-      ({ set }) => ({
-        setSearchInput: (value: string) => set(value),
-      }),
+      ({ set }) => {
+        writeSearchInput = function* (value: string) {
+          return yield* set(value);
+        };
+        return {};
+      },
     );
+    yield* craftMethod('setSearchInputClientSimpleListDemo', function* (value: string) {
+      if (writeSearchInput) yield* writeSearchInput(value);
+    });
     yield* craftMethod('submitSearchClientSimpleListDemo', function* (event?: Event) {
       event?.preventDefault();
       yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
@@ -120,8 +127,13 @@ const SimpleListDemo = craftComponent(
     providers: [provideSimpleListDemoView()],
   },
   function* () {
-    const { searchInput, usersQuery, users, submitSearch } =
-      yield* SimpleListDemoView();
+    const {
+      searchInputClientSimpleListDemo: searchInput,
+      usersQueryClientSimpleListDemo: usersQuery,
+      users,
+      submitSearchClientSimpleListDemo: submitSearch,
+      setSearchInputClientSimpleListDemo: setSearchInput,
+    } = yield* SimpleListDemoView();
     return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
@@ -164,7 +176,7 @@ const SimpleListDemo = craftComponent(
                 autocomplete: 'off',
                 'aria-label': 'User filter',
                 *input(event) {
-                  yield* searchInput.setSearchInput(event.target.value);
+                  setSearchInput(event.target.value);
                 },
               }),
               button(

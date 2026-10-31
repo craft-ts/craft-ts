@@ -57,7 +57,7 @@ export const FallbackPage = craftComponent(
             'Le titre et cette carte sont dans la réponse initiale.',
           ),
           span({ class: pageStyle.pendingBox }, function* () {
-            const value = yield* SsrFallbackPageView.resolved();
+            const value = yield* SsrFallbackPageView.resolvedPagesFallbackPage();
             return hasMessage(value) ? value.message : '';
           }),
         ]),

@@ -4,7 +4,6 @@ import {
   craftExpose,
   craftService,
   query,
-  rawReactiveValue,
 } from '@craft-ts/core';
 import { isRecord } from './replay-model';
 
@@ -84,7 +83,6 @@ export const { ResumeThread } = craftService(
       },
     }, () => ({}));
 
-    const threadValue = rawReactiveValue(thread.value);
     let watching: ResumeThreadLookup | undefined;
     let pollRun = 0;
 

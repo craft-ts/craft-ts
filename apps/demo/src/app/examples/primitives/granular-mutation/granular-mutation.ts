@@ -17,7 +17,6 @@ import {
   tbody,
 } from '@craft-ts/component';
 import {
-  Console,
   craftService,
   insertQueryPipe,
   insertStoragePersister,
@@ -103,15 +102,7 @@ export const { GranularMutationView, provideGranularMutationView } =
         const pending = updateUserName.select(user.id);
         if (!pending) return false;
 
-        const read = pending.isLoading();
-        if (
-          read !== null &&
-          (typeof read === 'object' || typeof read === 'function') &&
-          typeof (read as { next?: unknown }).next === 'function'
-        ) {
-          return yield* (read as Generator<unknown, boolean, unknown>);
-        }
-        return read;
+        return yield* pending.isLoading();
       }
       yield* craftExpose('isUpdatePending', isUpdatePending);
       yield* craftMethod('updatePageSize', function* (event: Event) {

@@ -1,7 +1,7 @@
 import { Observable, from } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  TestBed,
+  CraftTestBed as TestBed,
   behaviorSubject,
   craftException,
   ɵcreateEnvironmentInjector as createEnvironmentInjector,

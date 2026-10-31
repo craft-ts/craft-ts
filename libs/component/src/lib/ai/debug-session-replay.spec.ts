@@ -24,7 +24,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '<button id="automated-replay">Run</button>';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -92,7 +92,7 @@ describe('debug session replay format', () => {
       runReplayTestOrThrow(
         {
           format: 'craft-debug-session',
-          version: 7,
+          version: 8,
           startUrl: 'http://localhost/',
           exportedAt: 1,
           truncated: true,
@@ -112,7 +112,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '<button id="automated-failure">Run</button>';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -174,7 +174,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '<button id="strict-checkpoint">Run</button>';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -229,7 +229,7 @@ describe('debug session replay format', () => {
     const observed: SendContextReplayExport['events'][number][] = [];
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -327,7 +327,7 @@ describe('debug session replay format', () => {
     } as const;
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -389,7 +389,7 @@ describe('debug session replay format', () => {
     const observed: SendContextReplayExport['events'][number][] = [];
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -490,7 +490,7 @@ describe('debug session replay format', () => {
     globalThis.fetch = liveFetch as unknown as typeof fetch;
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -553,7 +553,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -627,7 +627,7 @@ describe('debug session replay format', () => {
   it('accepts the empty route path emitted for the root route', () => {
     const rootRouteSession = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -671,7 +671,7 @@ describe('debug session replay format', () => {
   it('reports an invalid routePath directly', () => {
     const session = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -702,7 +702,7 @@ describe('debug session replay format', () => {
   it('validates bounded pending transitions without capturing application values', () => {
     const pendingSession = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -764,7 +764,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 10,
         truncated: false,
@@ -926,7 +926,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 30,
         truncated: false,
@@ -1059,7 +1059,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 10,
         truncated: false,
@@ -1313,7 +1313,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -1353,7 +1353,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -1382,7 +1382,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -1417,7 +1417,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -1472,7 +1472,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -1539,7 +1539,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -1591,7 +1591,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -1640,7 +1640,7 @@ describe('debug session replay format', () => {
   it('validates deferred activation identities and outcomes', () => {
     const session = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -1721,7 +1721,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -1794,7 +1794,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 100,
       truncated: false,
@@ -1832,7 +1832,7 @@ describe('debug session replay format', () => {
     const session = (args: unknown[]) =>
       JSON.stringify({
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 10,
         truncated: false,
@@ -1875,7 +1875,7 @@ describe('debug session replay format', () => {
   it('validates transport instances and rejects non-replayable payloads', () => {
     const base = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -1948,8 +1948,8 @@ describe('debug session replay format', () => {
         sequence: 1,
         timestamp: 10,
         elapsedMs: 0,
-        kind: 'transport',
-        phase: 'failed',
+        kind: 'transport' as const,
+        phase: 'failed' as const,
         name: 'network-coverage:websocket',
         payload: { api: 'websocket', reason: 'no-matching-adapter' },
       };
@@ -1958,8 +1958,8 @@ describe('debug session replay format', () => {
         sequence: 2,
         timestamp: 11,
         elapsedMs: 1,
-        kind: 'dom',
-        phase: 'emitted',
+        kind: 'dom' as const,
+        phase: 'emitted' as const,
         payload: { selector: '#replay-target', action: 'click' },
       };
       const events: readonly SendContextEvent[] = [coverageFailure, click];
@@ -1992,7 +1992,7 @@ describe('debug session replay format', () => {
     const validation = validateDebugSessionExport(
       JSON.stringify({
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 10_001,
         truncated: false,
@@ -2008,7 +2008,7 @@ describe('debug session replay format', () => {
   it('accepts recorded viewport metadata and rejects invalid dimensions', () => {
     const session = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -2031,7 +2031,7 @@ describe('debug session replay format', () => {
   it('rejects replay actions without a selector or action', () => {
     const session = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -2057,7 +2057,7 @@ describe('debug session replay format', () => {
   it('rejects syntactically invalid selectors during replay prevalidation', () => {
     const session = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -2084,7 +2084,7 @@ describe('debug session replay format', () => {
     const errors: string[] = [];
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1,
       truncated: false,
@@ -2115,7 +2115,7 @@ describe('debug session replay format', () => {
   it('replays a keyboard interaction recorded on the body element', async () => {
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1,
       truncated: false,
@@ -2155,7 +2155,7 @@ describe('debug session replay format', () => {
     const onInteraction = vi.fn();
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1,
       truncated: false,
@@ -2219,7 +2219,7 @@ describe('debug session replay format', () => {
     } as const;
     const resolver = createRecordedResponseResolver({
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'https://example.test/',
       exportedAt: 2,
       truncated: false,
@@ -2237,7 +2237,7 @@ describe('debug session replay format', () => {
     const resolver = createRecordedResponseResolver(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 2,
         truncated: false,
@@ -2327,7 +2327,7 @@ describe('debug session replay format', () => {
   it('restores binary browser fetch responses byte for byte', async () => {
     const resolver = createRecordedResponseResolver({
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 2,
       truncated: false,
@@ -2372,7 +2372,7 @@ describe('debug session replay format', () => {
   it('replays a recorded browser fetch failure without making a live request', async () => {
     const resolver = createRecordedResponseResolver({
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 2,
       truncated: false,
@@ -2420,7 +2420,7 @@ describe('debug session replay format', () => {
   it('releases a recorded browser fetch response at its timeline position', async () => {
     const resolver = createRecordedResponseResolver({
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 50,
       truncated: false,
@@ -2501,7 +2501,7 @@ describe('debug session replay format', () => {
     const invocations: string[] = [];
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -2601,7 +2601,7 @@ describe('debug session replay format', () => {
     const correlationId = 'GlobalQuery:button:GoToNextUser:click:recorded';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/query/1',
       exportedAt: 100,
       truncated: false,
@@ -2714,7 +2714,7 @@ describe('debug session replay format', () => {
     const restoreState = vi.fn();
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 100,
       truncated: false,
@@ -2797,7 +2797,7 @@ describe('debug session replay format', () => {
     const navigateToRecordedRoute = vi.fn(() => loadChildren());
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 100,
       truncated: false,
@@ -2893,7 +2893,7 @@ describe('debug session replay format', () => {
     const errors: string[] = [];
     const session = {
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 1,
       truncated: false,
@@ -2943,7 +2943,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 3,
       truncated: false,
@@ -3015,7 +3015,7 @@ describe('debug session replay format', () => {
     target.addEventListener('click', () => clicks++);
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 2_000,
       truncated: false,
@@ -3055,7 +3055,7 @@ describe('debug session replay format', () => {
     );
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -3088,7 +3088,7 @@ describe('debug session replay format', () => {
     const invokeRecordedMethod = vi.fn();
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -3154,7 +3154,7 @@ describe('debug session replay format', () => {
     const onError = vi.fn();
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -3224,7 +3224,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '<button id="hover-target">Open</button>';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -3289,7 +3289,7 @@ describe('debug session replay format', () => {
     const invokeRecordedMethod = vi.fn();
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -3330,7 +3330,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 10,
         truncated: false,
@@ -3401,7 +3401,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 10,
         truncated: false,
@@ -3486,7 +3486,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 10,
         truncated: false,
@@ -3575,7 +3575,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -3617,7 +3617,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -3661,7 +3661,7 @@ describe('debug session replay format', () => {
     };
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -3695,7 +3695,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -3737,7 +3737,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -3794,7 +3794,7 @@ describe('debug session replay format', () => {
     });
     const replay = createReplayController({
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -3846,7 +3846,7 @@ describe('debug session replay format', () => {
     target.addEventListener('click', () => order.push('recorded-click'));
     const replay = createReplayController({
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -3882,7 +3882,7 @@ describe('debug session replay format', () => {
       .mockImplementation(() => undefined);
     const replay = createReplayController({
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -3937,7 +3937,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -3989,7 +3989,7 @@ describe('debug session replay format', () => {
     target.addEventListener('click', () => undefined);
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4049,7 +4049,7 @@ describe('debug session replay format', () => {
     } as const;
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4118,7 +4118,7 @@ describe('debug session replay format', () => {
       .addEventListener('click', () => undefined);
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4160,7 +4160,7 @@ describe('debug session replay format', () => {
     const readState = vi.fn(() => ({ count: 0 }));
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4212,7 +4212,7 @@ describe('debug session replay format', () => {
       });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4264,7 +4264,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4413,7 +4413,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4496,7 +4496,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '<button id="blocked-skip">Run</button>';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4613,7 +4613,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 7,
+        version: 8,
         startUrl: 'http://localhost/',
         exportedAt: 14,
         truncated: false,
@@ -4635,7 +4635,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '<button id="anonymous-craft">Run</button>';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -4698,7 +4698,7 @@ describe('debug session replay format', () => {
     target.addEventListener('click', () => undefined);
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1000,
       truncated: false,
@@ -4730,7 +4730,7 @@ describe('debug session replay format', () => {
       target.addEventListener('click', () => clicks++);
       const session = {
         format: 'craft-debug-session' as const,
-        version: 7 as const,
+        version: 8 as const,
         startUrl: 'http://localhost/',
         exportedAt: 1000,
         truncated: false,
@@ -4808,7 +4808,7 @@ describe('debug session replay format', () => {
       });
       const session = {
         format: 'craft-debug-session' as const,
-        version: 7 as const,
+        version: 8 as const,
         startUrl: 'http://localhost/',
         exportedAt: 1000,
         truncated: false,
@@ -4878,7 +4878,7 @@ describe('debug session replay format', () => {
       target.addEventListener('click', () => clicks++);
       const session = {
         format: 'craft-debug-session' as const,
-        version: 7 as const,
+        version: 8 as const,
         startUrl: 'http://localhost/',
         exportedAt: 1000,
         truncated: false,
@@ -4950,7 +4950,7 @@ describe('debug session replay format', () => {
       });
       const session = {
         format: 'craft-debug-session' as const,
-        version: 7 as const,
+        version: 8 as const,
         startUrl: 'http://localhost/',
         exportedAt: 1000,
         truncated: false,
@@ -5012,7 +5012,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1,
       truncated: false,
@@ -5056,7 +5056,7 @@ describe('debug session replay format', () => {
     } as const satisfies SendContextEvent;
     const session = {
       format: 'craft-debug-session' as const,
-      version: 7 as const,
+      version: 8 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1,
       truncated: false,
@@ -5149,7 +5149,7 @@ describe('recorded responses for repeated requests', () => {
     ] as const;
   const session = (): SendContextReplayExport => ({
     format: 'craft-debug-session',
-    version: 7,
+    version: 8,
     startUrl: 'http://localhost/',
     exportedAt: 20,
     truncated: false,
@@ -5384,7 +5384,7 @@ describe('verifyRecordedState', () => {
   // recording then holds the line it added.
   const session = (): SendContextReplayExport => ({
     format: 'craft-debug-session',
-    version: 7,
+    version: 8,
     startUrl: 'http://localhost/',
     exportedAt: 1_000,
     truncated: false,

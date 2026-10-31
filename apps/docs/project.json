@@ -11,7 +11,7 @@
         "typecheck-app-start-snippets"
       ],
       "options": {
-        "command": "vitest run --config apps/docs/vitest.config.mts"
+        "command": "NODE_OPTIONS=--max-old-space-size=8192 vitest run --config apps/docs/vitest.config.mts"
       }
     },
     "compile-learn-effect-examples": {
@@ -24,7 +24,8 @@
         "{workspaceRoot}/tsconfig.base.json",
         "{projectRoot}/learn-effect/**/*.md",
         "{workspaceRoot}/tools/compile-learn-effect-examples.mjs"
-      ]
+      ],
+      "cache": true
     },
     "typecheck-learn-effect-snippets": {
       "executor": "nx:run-commands",
@@ -34,8 +35,10 @@
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",
         "{projectRoot}/tsconfig.learn-effect.json",
-        "{projectRoot}/tests/snippets/learn-effect/**/*.ts"
-      ]
+        "{projectRoot}/tests/snippets/learn-effect/**/*.ts",
+        "^production"
+      ],
+      "cache": true
     },
     "typecheck-app-start-snippets": {
       "executor": "nx:run-commands",
@@ -45,7 +48,8 @@
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",
         "{projectRoot}/tsconfig.app-start-snippets.json",
-        "{projectRoot}/tests/snippets/guide/app/app-start/**/*.ts"
+        "{projectRoot}/tests/snippets/guide/app/app-start/**/*.ts",
+        "^production"
       ],
       "cache": true
     },

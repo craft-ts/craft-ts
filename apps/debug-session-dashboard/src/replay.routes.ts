@@ -1,5 +1,5 @@
 import { loadCraftComponent } from '@craft-ts/component';
-import { craftRoute, craftRoutes } from '@craft-ts/core';
+import { craftRoute, craftRoutes, assertExhaustiveRouteExceptions } from '@craft-ts/core';
 
 export const { replayRoutes } = craftRoutes('replay', [
   craftRoute(':sessionId', {
@@ -14,3 +14,4 @@ export const { replayRoutes } = craftRoutes('replay', [
     ),
   }),
 ]);
+assertExhaustiveRouteExceptions(replayRoutes);

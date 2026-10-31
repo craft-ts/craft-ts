@@ -140,6 +140,8 @@ const scenarios: readonly RouteScenario[] = [
       await port.evaluate((element) => {
         element.scrollTop = element.scrollHeight;
       });
+      // This scenario action is executed inside the test declared below.
+      // eslint-disable-next-line playwright/no-standalone-expect
       await expect(page.locator('button[data-craft-name="backToTop"]')).toHaveCSS('visibility', 'visible');
     },
     verify: async (page) =>
@@ -420,6 +422,9 @@ const scenarios: readonly RouteScenario[] = [
 
 test.describe('Demo route functional coverage', () => {
   for (const scenario of scenarios) {
+    // The scenarios array is the source of the test titles; the loop invokes
+    // each entry as its own Playwright test.
+    // eslint-disable-next-line playwright/valid-title
     test(scenario.title, async ({ page }) => {
       test.setTimeout(20_000);
       const traces = captureTemplateTrace(page);

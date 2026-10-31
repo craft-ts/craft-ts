@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import {
-  TestBed,
+  CraftTestBed as TestBed,
   TemporalCancelledError,
   craftException,
   craftExpose,

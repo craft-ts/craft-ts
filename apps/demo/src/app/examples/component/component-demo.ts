@@ -20,6 +20,14 @@ import {
 import { componentUi } from './component-demos.style';
 import { buttonUi } from '@craft-ts/ui/style';
 
+function* emitRemove(
+  handler: (user: DemoUser) => unknown,
+  user: DemoUser,
+) {
+  const result = handler(user);
+  if (isGenerator(result)) yield* result;
+}
+
 interface DemoUser {
   readonly id: number;
   readonly name: string;
@@ -49,8 +57,7 @@ const userCard = craftComponent(
             type: 'button',
             class: buttonUi.root, 'data-variant': 'secondary',
             *click() {
-              const result = inputs.onRemove(yield* inputs.user());
-              if (isGenerator(result)) yield* result;
+              yield* emitRemove(inputs.onRemove, yield* inputs.user());
             },
             'aria-label': function* () {
               return `Remove ${(yield* inputs.user()).name}`;

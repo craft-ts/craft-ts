@@ -22,7 +22,6 @@ import {
   environmentDifferences,
   getReplaySteps,
 } from '@craft-ts/component';
-import { currentHash } from './replay-browser';
 import type { ThumbnailManifest } from './thumbnail-archive.service';
 import {
   alignSharedTimeline,
@@ -351,7 +350,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       yield* state('sessionText', '', sessionTextWriter.insertion),
     );
     const sessionWriter = createStateWriter('session', sessionBridge);
-    sessionWriter.bind(
+    const sessionState = sessionWriter.bind(
       yield* state(
         'session',
         sessionBridge.initialValue,
@@ -359,14 +358,14 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       ),
     );
     const eventsWriter = createStateWriter('events', eventsBridge);
-    eventsWriter.bind(
+    const eventsState = eventsWriter.bind(
       yield* state('events', eventsBridge.initialValue, eventsWriter.insertion),
     );
     const sessionParticipantsWriter = createStateWriter(
       'sessionParticipants',
       sessionParticipantsBridge,
     );
-    sessionParticipantsWriter.bind(
+    const sessionParticipantsState = sessionParticipantsWriter.bind(
       yield* state(
         'sessionParticipants',
         sessionParticipantsBridge.initialValue,
@@ -433,7 +432,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       'showAllEvents',
       showAllEventsBridge,
     );
-    showAllEventsWriter.bind(
+    const showAllEventsState = showAllEventsWriter.bind(
       yield* state('showAllEvents', false, showAllEventsWriter.insertion),
     );
     const pendingDeleteSessionIdWriter = createStateWriter(
@@ -484,7 +483,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       yield* state('connected', false, connectedWriter.insertion),
     );
     const differenceWriter = createStateWriter('difference', differenceBridge);
-    differenceWriter.bind(
+    const differenceState = differenceWriter.bind(
       yield* state(
         'difference',
         differenceBridge.initialValue,
@@ -556,7 +555,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       'replayIndex',
       replayIndexBridge,
     );
-    replayIndexWriter.bind(
+    const replayIndexState = replayIndexWriter.bind(
       yield* state('replayIndex', 0, replayIndexWriter.insertion),
     );
     const replayStateWriter = createStateWriter(
@@ -577,7 +576,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       'replayWarnings',
       replayWarningsBridge,
     );
-    replayWarningsWriter.bind(
+    const replayWarningsState = replayWarningsWriter.bind(
       yield* state(
         'replayWarnings',
         replayWarningsBridge.initialValue,
@@ -588,7 +587,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       'dismissedWarnings',
       dismissedWarningsBridge,
     );
-    dismissedWarningsWriter.bind(
+    const dismissedWarningsState = dismissedWarningsWriter.bind(
       yield* state(
         'dismissedWarnings',
         dismissedWarningsBridge.initialValue,
@@ -670,18 +669,25 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       ),
     );
 
-    const continuationsState = yield* craftComputed('continuationsState', () =>
-      participantContinuations(sessionParticipants(), events()),
+    const continuationsState = yield* craftComputed(
+      'continuationsState',
+      function* () {
+        return participantContinuations(
+          yield* sessionParticipantsState(),
+          yield* eventsState(),
+        );
+      },
     );
     continuationsBridge.bind(rawReactiveValue(continuationsState));
     const replayableParticipantsState = yield* craftComputed(
       'replayableParticipantsState',
-      () =>
-        sessionParticipants().filter(
+      function* () {
+        return (yield* sessionParticipantsState()).filter(
           (participant) =>
             !continuations().has(participant.id) &&
             hasReplayableParticipantData(participant),
-        ),
+        );
+      },
     );
     replayableParticipantsBridge.bind(
       rawReactiveValue(replayableParticipantsState),
@@ -705,8 +711,11 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       () => problemEvents().length,
     );
     errorCountBridge.bind(rawReactiveValue(errorCountState));
-    const journalEventsState = yield* craftComputed('journalEventsState', () =>
-      showAllEvents() ? visibleEvents() : problemEvents(),
+    const journalEventsState = yield* craftComputed(
+      'journalEventsState',
+      function* () {
+        return (yield* showAllEventsState()) ? visibleEvents() : problemEvents();
+      },
     );
     journalEventsBridge.bind(rawReactiveValue(journalEventsState));
     const visibleEventPageState = yield* craftComputed(
@@ -727,12 +736,15 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       () => getReplaySteps(visibleEvents()),
     );
     replayableEventsBridge.bind(rawReactiveValue(replayableEventsState));
-    const replayPlanState = yield* craftComputed('replayPlanState', () => {
-      const current = session();
-      return current
-        ? compileReplayPlan(current, undefined, browserDocument.isValidSelector)
-        : undefined;
-    });
+    const replayPlanState = yield* craftComputed(
+      'replayPlanState',
+      function* () {
+        const current = yield* sessionState();
+        return current
+          ? compileReplayPlan(current, undefined, browserDocument.isValidSelector)
+          : undefined;
+      },
+    );
     replayPlanBridge.bind(rawReactiveValue(replayPlanState));
     const replayActionOffsetsMsState = yield* craftComputed(
       'replayActionOffsetsMsState',
@@ -743,33 +755,44 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     );
     const activeReplayEventIdState = yield* craftComputed(
       'activeReplayEventIdState',
-      () => replayableEvents()[Math.max(0, replayIndex() - 1)]?.id,
+      function* () {
+        const replayIndexValue = yield* replayIndexState();
+        return replayableEvents()[Math.max(0, replayIndexValue - 1)]?.id;
+      },
     );
     activeReplayEventIdBridge.bind(rawReactiveValue(activeReplayEventIdState));
     const pendingWarningsState = yield* craftComputed(
       'pendingWarningsState',
-      () =>
-        replayWarnings().filter(
+      function* () {
+        const dismissedWarningsValue = yield* dismissedWarningsState();
+        return (yield* replayWarningsState()).filter(
           (warning) =>
             !isReplayErrorNote(warning) &&
             !isReplayVisualWarning(warning) &&
-            !dismissedWarnings().includes(warning),
-        ),
+            !dismissedWarningsValue.includes(warning),
+        );
+      },
     );
     pendingWarningsBridge.bind(rawReactiveValue(pendingWarningsState));
     const hasDifferenceState = yield* craftComputed(
       'hasDifferenceState',
-      () => difference() !== undefined,
+      function* () {
+        return (yield* differenceState()) !== undefined;
+      },
     );
     hasDifferenceBridge.bind(rawReactiveValue(hasDifferenceState));
     const canForceRecoveryState = yield* craftComputed(
       'canForceRecoveryState',
-      () => difference()?.recovery !== undefined,
+      function* () {
+        return (yield* differenceState())?.recovery !== undefined;
+      },
     );
     canForceRecoveryBridge.bind(rawReactiveValue(canForceRecoveryState));
     const canSkipDifferenceState = yield* craftComputed(
       'canSkipDifferenceState',
-      () => difference()?.skip !== undefined,
+      function* () {
+        return (yield* differenceState())?.skip !== undefined;
+      },
     );
     canSkipDifferenceBridge.bind(rawReactiveValue(canSkipDifferenceState));
   },
@@ -841,27 +864,16 @@ const activeRouteSessionIdBridge = createStateBridge<string | undefined>(
   'activeRouteSessionId',
   undefined,
 );
-/** Reactive route id for view computations; `routeSessionId()` remains the synchronous URL reader. */
+/** Reactive route id set by the active typed route. */
 export const activeRouteSessionId = activeRouteSessionIdBridge.value;
 
-export function syncActiveRouteSessionId(): void {
-  activeRouteSessionId.set(routeSessionId());
+export function syncActiveRouteSessionId(sessionId: string | undefined): void {
+  activeRouteSessionId.set(sessionId);
 }
 
-export function sessionRoute(id: string): string {
-  return `#/sessions/${encodeURIComponent(id)}`;
-}
-
-/** The archived session the address names, if it names one. */
+/** The session id supplied by the active Craft route, if it has one. */
 export function routeSessionId(): string | undefined {
-  const match = /^#\/sessions\/([^/]+)$/.exec(currentHash());
-  const encoded = match?.[1];
-  if (encoded === undefined) return undefined;
-  try {
-    return decodeURIComponent(encoded);
-  } catch {
-    return undefined;
-  }
+  return activeRouteSessionId();
 }
 
 /* ── what follows from the recording ────────────────────────────────────── */

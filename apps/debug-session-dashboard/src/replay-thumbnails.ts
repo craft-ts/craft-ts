@@ -9,6 +9,7 @@ import {
   safeResourceUrl,
   span,
   ul,
+  type Output,
 } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
@@ -21,7 +22,6 @@ import {
   thumbnailReasonLabel,
   thumbnailsSummary,
 } from './replay-labels';
-import { ReplayRoute } from './replay-route.service';
 import { seekReplayToEvent } from './replay-session';
 import {
   replayActionOffsetsMs,
@@ -207,8 +207,8 @@ export const ReplayThumbnailMarks = craftComponent(
 export const ReplayThumbnailsStatus = craftComponent(
   'ReplayThumbnailsStatus',
   {},
-  function* () {
-    const route = yield* ReplayRoute();
+  function* (inputs: { readonly retryThumbnails: Output<() => void> }) {
+    const { retryThumbnails } = inputs;
     const retryHidden = yield* craftComputed(
       'retryHidden',
       () => thumbnailManifest()?.status !== 'failed',
@@ -236,7 +236,7 @@ export const ReplayThumbnailsStatus = craftComponent(
               class: buttonUi.root,
               'data-variant': 'link',
               'data-lab': 'thumbnails-retry',
-              click: route.retryThumbnails,
+              click: retryThumbnails,
             },
             'Réessayer',
           ),

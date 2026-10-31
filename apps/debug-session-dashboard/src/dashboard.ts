@@ -14,7 +14,8 @@ import {
 } from '@craft-ts/ui';
 import { ui } from './dashboard.style';
 import { replayHost } from './replay-browser';
-import { ReplayRoute } from './replay-route.service';
+import { ReplayRoute, provideReplayRoute } from './replay-route.service';
+import { provideReplayRouterEvents } from './replay-router-events.service';
 import { lit } from './view-helpers';
 
 /**
@@ -24,7 +25,14 @@ import { lit } from './view-helpers';
  */
 export const DebugSessionDashboard = craftComponent(
   'DebugSessionDashboard',
-  { providers: [provideDocModeView(), provideDocSeasonView()] },
+  {
+    providers: [
+      provideDocModeView(),
+      provideDocSeasonView(),
+      provideReplayRoute(),
+      provideReplayRouterEvents(),
+    ],
+  },
   function* () {
     yield* ReplayRoute();
 

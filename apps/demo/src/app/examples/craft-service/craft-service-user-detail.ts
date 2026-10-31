@@ -112,8 +112,9 @@ const CraftServiceUserDetailComponent = craftComponent(
             'aria-label': 'User',
             value: CraftServiceUserDetailView.userId,
             *change(event: Event) {
-              const value = eventValue(event);
-              yield* CraftServiceUserDetailView.userId.selectUser(value);
+              yield* CraftServiceUserDetailView.userId.selectUser(
+                eventValue(event),
+              );
             },
           },
           USER_IDS.map((id) => option({ value: id }, `User ${id}`)),

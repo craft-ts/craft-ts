@@ -25,7 +25,7 @@ type MutationTemplate = ComponentTemplateOf<typeof MutationDemoComponent>;
 
 type _UserQueryDependsOnApiService = Expect<
   Equal<
-    'ApiService' extends keyof ExtractDeps<MutationLogic['userQuery']>
+    'ApiServiceMutationApiService2' extends keyof ExtractDeps<MutationLogic['userQuery']>
       ? true
       : false,
     true
@@ -43,7 +43,7 @@ type _UserQueryDependsOnStoragePersister = Expect<
 
 type _UpdateMutationDependsOnApiService = Expect<
   Equal<
-    'ApiService' extends keyof ExtractDeps<MutationLogic['updateUserName']>
+    'ApiServiceMutationApiService2' extends keyof ExtractDeps<MutationLogic['updateUserName']>
       ? true
       : false,
     true
@@ -52,7 +52,7 @@ type _UpdateMutationDependsOnApiService = Expect<
 
 type _UpdateItemIsTracked = Expect<
   Equal<
-    ExtractDeps<MutationLogic['updateUserName']>['ApiService'] extends {
+    ExtractDeps<MutationLogic['updateUserName']>['ApiServiceMutationApiService2'] extends {
       derivedPropertiesUsed: infer Used extends object;
     }
       ? 'updateItem' extends keyof Used
@@ -67,7 +67,7 @@ type _ApiServiceDependencyMatches = Expect<
   Equal<
     ExtractDeps<
       MutationLogic['updateUserName']
-    >['ApiService'] extends GetServiceDependencies<typeof ApiService>
+    >['ApiServiceMutationApiService2'] extends GetServiceDependencies<typeof ApiService>
       ? true
       : false,
     true
@@ -232,9 +232,9 @@ describe('primitive mutation template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
-          CraftRouter: 'notReached',
+          ApiServiceMutationApiService2: 'notReached',
           StoragePersister: 'notReached',
+          UserIdPathParams: 'notReached',
           mutationDemoView: result.context,
         },
       },
@@ -265,9 +265,9 @@ describe('primitive mutation template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
-          CraftRouter: 'notReached',
+          ApiServiceMutationApiService2: 'notReached',
           StoragePersister: 'notReached',
+          UserIdPathParams: 'notReached',
           mutationDemoView: withUser.context,
         },
       },
@@ -286,9 +286,9 @@ describe('primitive mutation template', () => {
       await setupCraftComponentTemplateTest.byRegister(MutationDemoComponent, {
         inputs: {},
         register: {
-          ApiService: 'notReached',
-          CraftRouter: 'notReached',
+          ApiServiceMutationApiService2: 'notReached',
           StoragePersister: 'notReached',
+          UserIdPathParams: 'notReached',
           mutationDemoView: withoutUser.context,
         },
       });
@@ -307,9 +307,9 @@ describe('primitive mutation template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
-          CraftRouter: 'notReached',
+          ApiServiceMutationApiService2: 'notReached',
           StoragePersister: 'notReached',
+          UserIdPathParams: 'notReached',
           mutationDemoView: result.context,
         },
       },
@@ -346,7 +346,7 @@ describe('primitive mutation logic', () => {
             return user.id;
           },
         }),
-        ApiService: { getItemById, updateItem },
+        ApiServiceMutationApiService2: { getItemById, updateItem },
         StoragePersister: storage,
         CraftRouter: { navigate },
       } as never,

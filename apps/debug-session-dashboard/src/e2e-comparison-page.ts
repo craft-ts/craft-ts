@@ -16,6 +16,7 @@ import {
   ul,
 } from '@craft-ts/component';
 import {
+  CraftRouter,
   craftComputed,
   rawReactiveValue,
 } from '@craft-ts/core';
@@ -31,10 +32,7 @@ import {
   type E2eComparisonReport,
 } from './e2e-comparison.service';
 import { ui } from './dashboard.style';
-import {
-  goToHash,
-  seekE2eComparisonFrame,
-} from './replay-browser';
+import { seekE2eComparisonFrame } from './replay-browser';
 import { page } from './replay-state';
 import { buttonUi } from '@craft-ts/ui/style';
 
@@ -53,14 +51,17 @@ function comparisonSummary(result: E2eComparisonReport | E2eComparisonError | un
 }
 
 /** The two replay frames: the latest green reference and the observed run. */
-function replayFramesOf(result: E2eComparisonReport | E2eComparisonError | undefined) {
+function replayFramesOf(
+  result: E2eComparisonReport | E2eComparisonError | undefined,
+  router: CraftRouter,
+) {
   if (!result || 'error' in result || !result.baselineSource || !result.observedSource) return [];
   const dashboard = new URL(result.dashboardUrl || DASHBOARD_URL);
-  const replayUrl = (source: string) => {
-    const url = new URL(dashboard);
-    url.hash = `#/e2e-replay?${new URLSearchParams({ source }).toString()}`;
-    return url.toString();
-  };
+  const replayUrl = (source: string) =>
+    new URL(
+      `#${router.serializeUrl(router.createUrlTree({ to: 'e2e-replay', queryParams: { source } }))}`,
+      dashboard,
+    ).toString();
   return [
     { side: 'baseline', label: 'Référence verte', src: replayUrl(result.baselineSource), origin: dashboard.origin },
     { side: 'observed', label: 'Run observé', src: replayUrl(result.observedSource), origin: dashboard.origin },
@@ -79,6 +80,7 @@ export const E2eComparisonPage = craftComponent(
   'E2eComparisonPage',
   {},
   function* () {
+    const router = yield* CraftRouter();
     const service = yield* E2eComparison();
     const report = rawReactiveValue(service.comparison.value);
     const queryException = rawReactiveValue(service.comparison.exception);
@@ -106,7 +108,7 @@ export const E2eComparisonPage = craftComponent(
       const current = comparison();
       return current ? JSON.stringify(current, null, 2) : 'En attente du serveur local…';
     });
-    const replayFrames = yield* craftComputed('replayFrames', () => replayFramesOf(report()));
+    const replayFrames = yield* craftComputed('replayFrames', () => replayFramesOf(report(), router));
     const findings = yield* craftComputed('findings', () => {
       const current = comparison();
       // Decoded from JSON, the first divergence is a copy of one finding, not the same object.
@@ -226,7 +228,7 @@ export const E2eComparisonPage = craftComponent(
                 class: buttonUi.root,
                 'data-variant': 'secondary',
                 click: function* () {
-                  goToHash('#/');
+                  yield* CraftRouter.navigate({ to: '' });
                 },
               },
               'Retour aux sessions',

@@ -183,7 +183,7 @@ describe('CraftRouterOutlet', () => {
 
   function setup(): {
     outlet: CraftRouterOutletController;
-    router: CraftRouterNavigationApi;
+    router: StubRouter;
   } {
     let resolve!: (outcome: RouteChainOutcome) => void;
     const promise = new Promise<RouteChainOutcome>((r) => (resolve = r));

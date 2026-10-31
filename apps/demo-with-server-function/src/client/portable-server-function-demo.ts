@@ -35,9 +35,16 @@ export const {
 } = craftService(
   { name: 'portableServerFunctionDemoView', providedIn: 'toProvide' },
   function* () {
-    const searchInput = yield* state('searchInputClientPortableServerFunctionDemo', '', ({ set }) => ({
-      setPortableSearchInput: (value: string) => set(value),
-    }));
+    let writeSearchInput: ((value: string) => Generator<never, unknown, unknown>) | undefined;
+    const searchInput = yield* state('searchInputClientPortableServerFunctionDemo', '', ({ set }) => {
+      writeSearchInput = function* (value: string) {
+        return yield* set(value);
+      };
+      return {};
+    });
+    yield* craftMethod('setPortableSearchInputClientPortableServerFunctionDemo', function* (value: string) {
+      if (writeSearchInput) yield* writeSearchInput(value);
+    });
     const usersQuery = yield* query('usersQueryClientPortableServerFunctionDemo', {
       method: (term: string) => term,
       loader: function* ({ params }) {
@@ -92,12 +99,13 @@ const PortableServerFunctionDemo = craftComponent(
   },
   function* () {
     const {
-      searchInput,
-      usersQuery,
-      submitSearch,
-      resultCount,
-      hasUsers,
-      isEmpty,
+      searchInputClientPortableServerFunctionDemo: searchInput,
+      setPortableSearchInputClientPortableServerFunctionDemo: setSearchInput,
+      usersQueryClientPortableServerFunctionDemo: usersQuery,
+      submitSearchClientPortableServerFunctionDemo: submitSearch,
+      resultCountClientPortableServerFunctionDemo: resultCount,
+      hasUsersClientPortableServerFunctionDemo: hasUsers,
+      isEmptyClientPortableServerFunctionDemo: isEmpty,
       portableUsers,
       auditId,
       normalizedFilter,
@@ -145,7 +153,7 @@ const PortableServerFunctionDemo = craftComponent(
                 autocomplete: 'off',
                 'aria-label': 'User filter',
                 *input(event) {
-                  yield* searchInput.setPortableSearchInput(event.target.value);
+                  setSearchInput(event.target.value);
                 },
               }),
               button(

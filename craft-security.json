@@ -4,7 +4,8 @@
     "libs/dev-tools/src/generators",
     "libs/dev-tools/src/bin",
     "tools/",
-    "docs/"
+    "docs/",
+    ".claude/worktrees/"
   ],
   "allow": {
     "CRAFT_SECURITY_FORWARDED_HEADER": "Lus uniquement dans les adapters de déploiement, derrière une allowlist d'hôtes."

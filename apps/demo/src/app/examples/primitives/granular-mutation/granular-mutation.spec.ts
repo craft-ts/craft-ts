@@ -24,7 +24,7 @@ type GranularLogic = GetServiceOutput<typeof GranularMutationView>;
 
 type _UsersQueryDependsOnApiService = Expect<
   Equal<
-    'ApiService' extends keyof ExtractDeps<GranularLogic['usersQuery']>
+    'ApiServiceGranularMutationApiService2' extends keyof ExtractDeps<GranularLogic['usersQuery']>
       ? true
       : false,
     true
@@ -42,7 +42,7 @@ type _UsersQueryDependsOnStoragePersister = Expect<
 
 type _ApiServiceGetDataListIsTracked = Expect<
   Equal<
-    ExtractDeps<GranularLogic['usersQuery']>['ApiService'] extends {
+    ExtractDeps<GranularLogic['usersQuery']>['ApiServiceGranularMutationApiService2'] extends {
       derivedPropertiesUsed: infer Used extends object;
     }
       ? 'getDataList' extends keyof Used
@@ -55,7 +55,7 @@ type _ApiServiceGetDataListIsTracked = Expect<
 
 type _ApiServiceUpdateItemIsTracked = Expect<
   Equal<
-    ExtractDeps<GranularLogic['updateUserName']>['ApiService'] extends {
+    ExtractDeps<GranularLogic['updateUserName']>['ApiServiceGranularMutationApiService2'] extends {
       derivedPropertiesUsed: infer Used extends object;
     }
       ? 'updateItem' extends keyof Used
@@ -70,7 +70,7 @@ type _ApiServiceDependencyMatches = Expect<
   Equal<
     ExtractDeps<
       GranularLogic['updateUserName']
-    >['ApiService'] extends GetServiceDependencies<typeof ApiService>
+    >['ApiServiceGranularMutationApiService2'] extends GetServiceDependencies<typeof ApiService>
       ? true
       : false,
     true
@@ -194,7 +194,7 @@ describe('primitive granular mutation template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
+          ApiServiceGranularMutationApiService2: 'notReached',
           StoragePersister: 'notReached',
           granularMutationView: result.context,
         },
@@ -221,7 +221,7 @@ describe('primitive granular mutation template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
+          ApiServiceGranularMutationApiService2: 'notReached',
           StoragePersister: 'notReached',
           granularMutationView: result.context,
         },
@@ -243,7 +243,7 @@ describe('primitive granular mutation template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
+          ApiServiceGranularMutationApiService2: 'notReached',
           StoragePersister: 'notReached',
           granularMutationView: result.context,
         },
@@ -288,7 +288,7 @@ describe('primitive granular mutation logic', () => {
       GranularMutationView,
       {
         granularMutationView: provideGranularMutationView(),
-        ApiService: { getDataList, updateItem },
+        ApiServiceGranularMutationApiService2: { getDataList, updateItem },
         StoragePersister: storage,
       } as never,
       { providers: [provideRouter([])] },

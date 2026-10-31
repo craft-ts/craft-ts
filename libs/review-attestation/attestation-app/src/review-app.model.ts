@@ -378,7 +378,7 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       stateFilter,
       directionFilter,
     } = yield* ReviewFilters();
-    const zoom = yield* state('zoom', initialZoom(), ({ set }) => ({
+    const zoom = yield* state('reviewAppZoom', initialZoom(), ({ set }) => ({
       choose: (mode: ZoomMode) => set(mode),
     }));
     const note = yield* state(
@@ -1294,7 +1294,7 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         );
       },
     );
-    yield* craftComputed('templateObligations', function* () {
+    yield* craftComputed('reviewAppTemplateObligations', function* () {
       if (
         (yield* kindFilter()) !== 'all' &&
         (yield* kindFilter()) !== 'template'
@@ -1446,7 +1446,7 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       return kind === 'eslint-disable' || kind === 'architecture-waiver';
     });
     /** Every sentence, in the language on screen. */
-    const t = yield* craftComputed('t', function* () {
+    const t = yield* craftComputed('reviewAppMessages', function* () {
       return MESSAGES[yield* locale()];
     });
     function* applyZoom(mode: ZoomMode) {

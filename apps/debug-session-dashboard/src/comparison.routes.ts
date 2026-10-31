@@ -1,5 +1,5 @@
 import { loadCraftComponent } from '@craft-ts/component';
-import { craftRoute, craftRoutes } from '@craft-ts/core';
+import { craftRoute, craftRoutes, assertExhaustiveRouteExceptions } from '@craft-ts/core';
 
 export const { comparisonRoutes } = craftRoutes('comparison', [
   craftRoute('', {
@@ -10,3 +10,4 @@ export const { comparisonRoutes } = craftRoutes('comparison', [
     ),
   }),
 ]);
+assertExhaustiveRouteExceptions(comparisonRoutes);

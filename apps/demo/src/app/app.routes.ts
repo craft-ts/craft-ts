@@ -878,6 +878,15 @@ type _CanRunReplayMethods = CanRun<
   >
 >;
 /* demo-check-end */
+/* demo-check: temporal-stream-replay */
+type _CanRunTemporalStreamReplay = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/temporal-stream-replay/temporal-stream-replay'))['default'],
+    never,
+    'path: "temporal-stream-replay"'
+  >
+>;
+/* demo-check-end */
 /* demo-check: state-machine */
 type _CanRunStateMachine = CanRun<
   DemoRouteCheckedDI<

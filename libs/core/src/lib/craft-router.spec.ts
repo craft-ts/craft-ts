@@ -189,16 +189,21 @@ describe('CraftRouter', () => {
         });
         router.createUrlTree({
           to: 'users/:userId/page/:page',
-          params: { userId: '1', page: 3 },
+          params: { userId: '1', page: '3' },
         });
         router.createUrlTree({
           to: 'articles/:slug',
           params: { slug: 'hello-world' },
         });
-        // @ts-expect-error `page` is decoded as a number by its route codec
+        // Router inputs remain URL strings; the route-scoped primitive decodes them.
         router.navigate({
           to: 'users/:userId/page/:page',
           params: { userId: '1', page: '3' },
+        });
+        router.navigate({
+          to: 'users/:userId/page/:page',
+          // @ts-expect-error router inputs are URL strings even when a route codec decodes numbers
+          params: { userId: '1', page: 3 },
         });
         router.navigate({
           to: 'query-params',
@@ -292,13 +297,13 @@ describe('CraftRouter', () => {
 
     const pageTree = craftRouter.createUrlTree({
       to: 'users/:userId/page/:page',
-      params: { userId: '42', page: 3 },
+      params: { userId: '42', page: '3' },
     });
     expect(craftRouter.serializeUrl(pageTree)).toBe('/users/42/page/p-3');
 
     await craftRouter.navigate({
       to: 'users/:userId/page/:page',
-      params: { userId: '42', page: 3 },
+      params: { userId: '42', page: '3' },
     });
     expect(craftRouter.url).toBe('/users/42/page/p-3');
 
@@ -441,12 +446,12 @@ describe('CraftRouter', () => {
         });
         router.navigate({
           to: 'parent-typed/:teamId/child/:userId',
-          params: { teamId: 1, userId: '42' },
+          params: { teamId: '1', userId: '42' },
         });
-        // @ts-expect-error parent route codecs type joined path parameters
         router.navigate({
           to: 'parent-typed/:teamId/child/:userId',
-          params: { teamId: '1', userId: '42' },
+          // @ts-expect-error router inputs remain URL strings despite the route codec
+          params: { teamId: 1, userId: '42' },
         });
         // @ts-expect-error params required for the joined path
         router.navigate({ to: 'parent/:teamId/child/:userId' });

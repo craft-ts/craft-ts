@@ -79,6 +79,8 @@ export const locateFolderLayoutRows = (
   if (!row || !view || !tree) return;
 
   // Next frame: the render that unfolds collapsed ancestors has landed.
+  // This adapter coordinates a browser-only DOM reveal after the render frame.
+  // eslint-disable-next-line craft-ts/no-direct-temporal-globals
   requestAnimationFrame(() => {
     view
       .querySelectorAll(`[${ROW_LOCATED}]`)

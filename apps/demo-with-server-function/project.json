@@ -30,8 +30,17 @@
     },
     "typecheck": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
       "options": {
         "command": "npx tsc -p apps/demo-with-server-function/tsconfig.json --noEmit --pretty false"
+      }
+    },
+    "build-local-types": {
+      "executor": "nx:run-commands",
+      "parallelism": false,
+      "cache": false,
+      "options": {
+        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/component/tsconfig.lib.json libs/ui/tsconfig.lib.json --force --pretty false"
       }
     },
     "effect-check": {

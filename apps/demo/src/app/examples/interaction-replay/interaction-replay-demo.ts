@@ -13,7 +13,7 @@ import {
   strong,
   heading,
 } from '@craft-ts/component';
-import { craftService, state } from '@craft-ts/core';
+import { craftComputed, craftService, state } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import {
   interactionReplayDemo as demo,
@@ -23,16 +23,30 @@ export const { provideInteractionReplayDemoView, InteractionReplayDemoView } =
   craftService(
     { name: 'interactionReplayDemoView', providedIn: 'toProvide' },
     function* () {
-      yield* state('expanded', false, ({ update }) => ({
+      const expanded = yield* state('expanded', false, ({ update }) => ({
         toggle: () => update((value) => !value),
       }));
-      yield* state(
+      const animationRunning = yield* state(
         'animationRunning',
         false,
         ({ update }) => ({
           toggle: () => update((value) => !value),
         }),
       );
+      yield* craftComputed('expandedReplayState', function* () {
+        return (yield* expanded()) ? 'open' : 'closed';
+      });
+      yield* craftComputed('expandedButtonText', function* () {
+        return (yield* expanded())
+          ? 'Close the expanded content'
+          : 'Open the expanded content';
+      });
+      yield* craftComputed('animationButtonText', function* () {
+        return (yield* animationRunning()) ? 'Stop animation' : 'Start animation';
+      });
+      yield* craftComputed('replayAnimationState', function* () {
+        return (yield* animationRunning()) ? 'running' : 'idle';
+      });
     },
   );
 
@@ -113,11 +127,7 @@ export const InteractionReplayDemo = craftComponent(
         div(
           {
             class: [demo.details, demo.detailsOpen],
-            'data-replayExpanded': function* () {
-              return (yield* InteractionReplayDemoView.expanded())
-                ? ('open' as const)
-                : ('closed' as const);
-            },
+            'data-replayExpanded': InteractionReplayDemoView.expandedReplayState,
           },
           [
             button(
@@ -130,11 +140,7 @@ export const InteractionReplayDemo = craftComponent(
                 click: InteractionReplayDemoView.expanded.toggle,
                 'data-testid': 'expanded-toggle',
               },
-              function* () {
-                return (yield* InteractionReplayDemoView.expanded())
-                  ? 'Close the expanded content'
-                  : 'Open the expanded content';
-              },
+              InteractionReplayDemoView.expandedButtonText,
             ),
             ifNode(InteractionReplayDemoView.expanded, () =>
               p(
@@ -181,20 +187,12 @@ export const InteractionReplayDemo = craftComponent(
               'data-testid': 'animation-toggle',
               click: InteractionReplayDemoView.animationRunning.toggle,
             },
-            function* () {
-              return (yield* InteractionReplayDemoView.animationRunning())
-                ? 'Stop animation'
-                : 'Start animation';
-            },
+            InteractionReplayDemoView.animationButtonText,
           ),
           div(
             {
               class: demo.animationBox,
-              'data-replayAnimation': function* () {
-                return (yield* InteractionReplayDemoView.animationRunning())
-                  ? ('running' as const)
-                  : ('idle' as const);
-              },
+              'data-replayAnimation': InteractionReplayDemoView.replayAnimationState,
               'data-testid': 'animation-box',
             },
             'Keyframe pulse',

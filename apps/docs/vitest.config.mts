@@ -76,6 +76,10 @@ export default defineConfig(() => ({
   test: {
     name: 'docs',
     watch: false,
+    // Executable documentation snippets pull source from several workspace
+    // libraries into each worker. Keep parallelism bounded and leave enough
+    // heap for each worker to avoid Node's default ~4 GB ceiling.
+    maxWorkers: 2,
     globals: true,
     environment: 'node',
     include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],

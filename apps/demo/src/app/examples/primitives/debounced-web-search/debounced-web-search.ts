@@ -26,6 +26,8 @@ import {
   craftGen,
   craftSleep,
   query,
+  // Insertion helpers must return an Angular computed signal.
+  // eslint-disable-next-line craft-ts/no-direct-craft-reactivity
   ɵcomputed as computed,
   rawReactiveFacade,
   rawReactiveValue,
@@ -269,8 +271,9 @@ const DebouncedWebSearch = craftComponent(
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
         'aria-label': 'Search books',
         *input(event) {
-          const value = eventValue(event);
-          yield* DebouncedWebSearchView.searchInput.setSearchInput(value);
+          yield* DebouncedWebSearchView.searchInput.setSearchInput(
+            eventValue(event),
+          );
         },
       }),
       div({ class: example.row }, [

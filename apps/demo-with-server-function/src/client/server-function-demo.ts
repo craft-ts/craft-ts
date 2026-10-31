@@ -36,9 +36,16 @@ import { demoPage } from './demo.style';
 export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftService(
   { name: 'serverFunctionDemoView', providedIn: 'toProvide' },
   function* () {
-    const searchInput = yield* state('searchInputClientServerFunctionDemo', '', ({ set }) => ({
-      setSearchInput: (value: string) => set(value),
-    }));
+    let writeSearchInput: ((value: string) => Generator<never, unknown, unknown>) | undefined;
+    const searchInput = yield* state('searchInputClientServerFunctionDemo', '', ({ set }) => {
+      writeSearchInput = function* (value: string) {
+        return yield* set(value);
+      };
+      return {};
+    });
+    yield* craftMethod('setSearchInputClientServerFunctionDemo', function* (value: string) {
+      if (writeSearchInput) yield* writeSearchInput(value);
+    });
     const currentUserQuery = yield* craftPrivate(query('currentUserQuery', {
       params: () => true,
       loader: function* () {
@@ -147,10 +154,11 @@ const ServerFunctionDemo = craftComponent(
   },
   function* () {
     const {
-      searchInput,
-      usersQuery,
+      searchInputClientServerFunctionDemo: searchInput,
+      setSearchInputClientServerFunctionDemo: setSearchInput,
+      usersQueryClientServerFunctionDemo: usersQuery,
       currentUser,
-      submitSearch,
+      submitSearchClientServerFunctionDemo: submitSearch,
     } = yield* ServerFunctionDemoView();
     return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
@@ -202,7 +210,7 @@ const ServerFunctionDemo = craftComponent(
                 autocomplete: 'off',
                 'aria-label': 'User filter',
                 *input(event) {
-                  yield* searchInput.setSearchInput(event.target.value);
+                  setSearchInput(event.target.value);
                 },
               }),
               button(

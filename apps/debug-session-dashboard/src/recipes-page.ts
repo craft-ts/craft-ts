@@ -9,10 +9,9 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { rawReactiveValue } from '@craft-ts/core';
+import { CraftRouter, rawReactiveValue } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import { goToHash } from './replay-browser';
 import {
   SessionArchive,
   type ResumeRecipeSummary,
@@ -52,7 +51,10 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
             'data-lab': 'recipe-card',
             click: function* () {
               const item = yield* recipe();
-              goToHash(`#/recipes/${encodeURIComponent(item.id)}`);
+              yield* CraftRouter.navigate({
+                to: 'recipes/:recipeId',
+                params: { recipeId: item.id },
+              });
             },
           },
           [
@@ -105,7 +107,9 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
               type: 'button',
               class: buttonUi.root,
               'data-variant': 'secondary',
-              click: () => goToHash('#/'),
+              click: function* () {
+                yield* CraftRouter.navigate({ to: '' });
+              },
             },
             '← Sessions',
           ),

@@ -295,6 +295,7 @@ const plugin = {
     'require-i18n-text': requireI18nText,
     'no-i18n-composition': noI18nComposition,
     'no-direct-craft-reactivity': noDirectCraftReactivity,
+    'no-direct-temporal-globals': noDirectTemporalGlobals,
   },
 };
 

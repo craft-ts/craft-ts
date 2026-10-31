@@ -255,7 +255,7 @@ describe('network coverage and replay guards', () => {
     replay.restore();
     if (oldBeacon)
       Object.defineProperty(navigatorObject, 'sendBeacon', oldBeacon);
-    else delete navigatorObject['sendBeacon'];
+    else Reflect.deleteProperty(navigatorObject, 'sendBeacon');
   });
 
   it('marks every unadapted browser transport without archiving its URL', async () => {
@@ -319,7 +319,7 @@ describe('network coverage and replay guards', () => {
       for (const [key, value] of old) g[key] = value;
       if (oldBeacon)
         Object.defineProperty(navigatorObject, 'sendBeacon', oldBeacon);
-      else delete navigatorObject['sendBeacon'];
+      else Reflect.deleteProperty(navigatorObject, 'sendBeacon');
     }
     const coverage = session.events.filter(
       (event) =>
@@ -462,7 +462,7 @@ describe('network coverage and replay guards', () => {
       for (const [key, value] of original) g[key] = value;
       if (oldBeacon)
         Object.defineProperty(navigatorObject, 'sendBeacon', oldBeacon);
-      else delete navigatorObject['sendBeacon'];
+      else Reflect.deleteProperty(navigatorObject, 'sendBeacon');
     }
   });
 });

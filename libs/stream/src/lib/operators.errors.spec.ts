@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  TestBed,
+  CraftTestBed as TestBed,
   VirtualCraftTemporalRuntime,
   activateCraftTemporalRuntime,
   craftException,

@@ -1300,6 +1300,12 @@ type ValidateRoutePathParams<
 type CraftRouteLoaderHelperConstraint = {
   loadComponent?: (helpers: CraftRouteLazyLoadHelpers) => unknown;
   loadChildren?: (helpers: CraftRouteLazyLoadHelpers) => unknown;
+  componentDeps?: unknown;
+  pathParams?: Record<string, AnyPathParamsDefinition>;
+  queryParams?: RouteQueryParamsFactory;
+  canActivate?: CraftRouteCanActivateGuard;
+  canMatch?: CraftRouteCanMatchGuard;
+  resolve?: CraftRouteResolve;
 };
 
 type ExceptionCode<Exception> = Exception extends {

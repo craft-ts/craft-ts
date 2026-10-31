@@ -1,6 +1,7 @@
 import {
   after,
   cancelAfter,
+  dateNow,
   frameHasWindow,
   hideClickMarker,
   isFrameWindow,
@@ -300,7 +301,7 @@ function onDifference(
           id,
           sequence:
             Math.max(0, ...currentEvents.map((event) => event.sequence)) + 1,
-          timestamp: Date.now(),
+          timestamp: dateNow(),
           kind: 'transport',
           phase: 'failed',
           name: `network-coverage:${api}`,

@@ -1,4 +1,7 @@
 import {
+  // This dev-only registry is a process-wide imperative bridge, not a component
+  // service; its signals are intentionally independent of the Craft service tree.
+  // eslint-disable-next-line craft-ts/no-direct-craft-reactivity
   craftSignal as signal,
   craftUntracked as untracked,
   type Signal,

@@ -57,6 +57,29 @@ function copyReplayNote(text: string): void {
   if (clipboard) void clipboard.writeText(text).catch(() => undefined);
 }
 
+function differenceMessageFor(
+  currentDifference: ReturnType<typeof difference>,
+): string {
+  const transport = currentDifference?.transport;
+  if (transport?.transportId.startsWith('network:')) {
+    const api = transport.transportId.slice('network:'.length);
+    const transportName =
+      api === 'websocket'
+        ? 'WebSocket'
+        : api === 'fetch'
+          ? 'fetch'
+          : api === 'xhr'
+            ? 'XMLHttpRequest'
+            : api;
+    const networkAction =
+      api === 'websocket'
+        ? 'la connexion WebSocket demandée'
+        : `la requête réseau (${transportName})`;
+    return `Le replay a bloqué ${networkAction}, absente de l’enregistrement. Aucun appel réseau réel n’a été envoyé.`;
+  }
+  return 'Le replay a divergé de l’enregistrement. Consultez l’historique des décalages pour voir le détail.';
+}
+
 /** What the replay has to say when it leaves the recording or cannot go on. */
 export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
   const partialMessage = yield* craftComputed('partialMessage', () => {
@@ -76,40 +99,20 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       'data-lab': 'diff',
       role: 'region',
       'aria-label': 'Décalage du replay',
-      hidden: yield* craftComputed(
-        'hiddenSrcReplayNotices',
+      hidden: yield* craftComputed('hidden',
         () => !hasDifference() || differenceNoticeDismissed(),
       ),
     },
     [
       p(
         { 'aria-live': 'polite' },
-        yield* craftComputed('differenceMessage', () => {
-          const currentDifference = difference();
-          const transport = currentDifference?.transport;
-          if (transport?.transportId.startsWith('network:')) {
-            const api = transport.transportId.slice('network:'.length);
-            const transportName =
-              api === 'websocket'
-                ? 'WebSocket'
-                : api === 'fetch'
-                  ? 'fetch'
-                  : api === 'xhr'
-                    ? 'XMLHttpRequest'
-                    : api;
-            const networkAction =
-              api === 'websocket'
-                ? 'la connexion WebSocket demandée'
-                : `la requête réseau (${transportName})`;
-            return `Le replay a bloqué ${networkAction}, absente de l’enregistrement. Aucun appel réseau réel n’a été envoyé.`;
-          }
-          return 'Le replay a divergé de l’enregistrement. Consultez l’historique des décalages pour voir le détail.';
-        }),
+        yield* craftComputed('differenceMessage', () =>
+          differenceMessageFor(difference()),
+        ),
       ),
       p(
         {
-          hidden: yield* craftComputed(
-            'hiddenSrcReplayNotices2',
+          hidden: yield* craftComputed('hidden',
             () => !difference()?.tolerances?.length,
           ),
           'data-lab': 'applied-tolerances',
@@ -129,8 +132,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             class: buttonUi.root,
             'data-variant': 'primary',
             'data-lab': 'skip-to-checkpoint',
-            hidden: yield* craftComputed(
-              'hiddenSrcReplayNotices3',
+            hidden: yield* craftComputed('hidden',
               () => !canSkipDifference() || autoSkipDifferences(),
             ),
             click: skipToCheckpoint,
@@ -144,8 +146,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             class: buttonUi.root,
             'data-variant': 'secondary',
             'data-lab': 'force-recovery',
-            hidden: yield* craftComputed(
-              'hiddenSrcReplayNotices4',
+            hidden: yield* craftComputed('hidden',
               () => !canForceRecovery(),
             ),
             click: forceReplayRecovery,
@@ -166,8 +167,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
         ),
         span(
           {
-            hidden: yield* craftComputed(
-              'hiddenSrcReplayNotices5',
+            hidden: yield* craftComputed('hidden',
               () => !autoSkipDifferences(),
             ),
           },
@@ -176,8 +176,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       ]),
       p(
         {
-          hidden: yield* craftComputed(
-            'hiddenSrcReplayNotices6',
+          hidden: yield* craftComputed('hidden',
             () => autoSkipDifferences() || !canSkipDifference(),
           ),
         },
@@ -190,8 +189,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     {
       class: ui.gap,
       'data-lab': 'difference-history',
-      hidden: yield* craftComputed(
-        'hiddenSrcReplayNotices7',
+      hidden: yield* craftComputed('hidden',
         () => !differenceHistoryOpen(),
       ),
     },
@@ -209,8 +207,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'secondary',
-          hidden: yield* craftComputed(
-            'hiddenSrcReplayNotices8',
+          hidden: yield* craftComputed('hidden',
             () => !autoSkipDifferences(),
           ),
           click: () => rememberAutoSkipDifferences(false),
@@ -260,8 +257,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     {
       class: ui.gap,
       'data-lab': 'partial',
-      hidden: yield* craftComputed(
-        'hiddenSrcReplayNotices9',
+      hidden: yield* craftComputed('hidden',
         () => partialReplay() === undefined,
       ),
     },
@@ -278,8 +274,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     {
       class: ui.gap,
       'data-lab': 'problem',
-      hidden: yield* craftComputed(
-        'hiddenSrcReplayNotices10',
+      hidden: yield* craftComputed('hidden',
         () => loadError() === undefined && replayState() !== 'error',
       ),
     },
@@ -319,7 +314,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     {
       class: ui.gap,
       'data-lab': 'resume-requested',
-      hidden: yield* craftComputed('resumeNoticeHidden', () => {
+      hidden: yield* craftComputed('hidden', () => {
         const notice = resumeNotice();
         return notice === undefined || notice.sessionId !== routeSessionId();
       }),
@@ -387,8 +382,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       'data-lab': 'replay-warning',
       role: 'region',
       'aria-label': 'Notes du replay',
-      hidden: yield* craftComputed(
-        'hiddenSrcReplayNotices11',
+      hidden: yield* craftComputed('hidden',
         () => pendingWarnings().length === 0,
       ),
     },
@@ -433,8 +427,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       div(
         {
           class: ui.toastBar,
-          hidden: yield* craftComputed(
-            'hiddenSrcReplayNotices12',
+          hidden: yield* craftComputed('hidden',
             () => pendingWarnings().length <= 1,
           ),
         },
@@ -474,8 +467,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       'data-lab': 'warning-history',
       role: 'region',
       'aria-label': 'Toutes les notes du replay',
-      hidden: yield* craftComputed(
-        'hiddenSrcReplayNotices13',
+      hidden: yield* craftComputed('hidden',
         () => !warningHistoryOpen(),
       ),
     },

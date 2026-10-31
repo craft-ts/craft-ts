@@ -1079,13 +1079,12 @@ export function createReplayController(
     write: () => void,
   ): Promise<void> =>
     new Promise((resolve) => {
-      let timeout: ReturnType<typeof setTimeout>;
       const finish = () => {
         pendingScrollEvents.delete(target);
         clearTimeout(timeout);
         resolve();
       };
-      timeout = setTimeout(finish, 100);
+      const timeout = setTimeout(finish, 100);
       pendingScrollEvents.set(target, finish);
       write();
     });
@@ -2389,15 +2388,6 @@ export function createReplayController(
             );
           if (observed.operationId)
             usedObservedPendingOperationIds.add(observed.operationId);
-          else if (
-            expected.operationId &&
-            observed.operationId &&
-            !observedPendingOperationIds.has(expected.operationId)
-          )
-            observedPendingOperationIds.set(
-              expected.operationId,
-              observed.operationId,
-            );
           return observed;
         }
         await new Promise((resolve) => setTimeout(resolve, 20));

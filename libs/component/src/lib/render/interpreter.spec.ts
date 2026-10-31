@@ -48,6 +48,7 @@ import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
 import { craftDirective } from '../directive';
 import { withComponentProviders, withHostProps } from '../composition';
+
 import { eventAction } from '../event-action';
 import { content, renderContent } from '../project';
 import { deferNode } from '../defer-node';
@@ -65,6 +66,15 @@ import type { ContentSlot, RequiredContent } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
 import { renderCraftComponent } from '../testing';
 import { mountInterpretedComponent } from './interpreter';
+
+const renderCraftComponentForSpec = renderCraftComponent as unknown as (
+  component: unknown,
+  options?: { providers?: readonly unknown[] },
+) => Promise<{
+  nativeElement: HTMLElement;
+  flush: () => Promise<void>;
+  destroy: () => void;
+}>;
 
 function host(): HTMLElement {
   const element = document.createElement('div');
@@ -1386,7 +1396,7 @@ describe('functional component interpreter', () => {
       function* () {
         yield* craftMethod('save', function* () {
           methodCorrelationIds.push(
-            injectCorrelationIdService().lastCorrelationId(),
+            injectCorrelationIdService()?.lastCorrelationId() ?? null,
           );
         });
       },
@@ -1409,7 +1419,7 @@ describe('functional component interpreter', () => {
       nativeElement: element,
       flush,
       destroy,
-    } = await renderCraftComponent(component, {
+    } = await renderCraftComponentForSpec(component, {
       providers: [provideCorrelationIdTracking()] as never,
     });
     session.startRecord('correlated DOM clicks');
@@ -1421,7 +1431,12 @@ describe('functional component interpreter', () => {
     await flush();
 
     const clicks = session.events.filter(
-      (event) => event.kind === 'dom' && event.payload?.['action'] === 'click',
+      (event) =>
+        event.kind === 'dom' &&
+        event.payload !== undefined &&
+        event.payload !== null &&
+        Object.hasOwn(event.payload, 'action') &&
+        Reflect.get(event.payload, 'action') === 'click',
     );
     expect(clicks).toHaveLength(2);
     expect(clicks.map((event) => event.correlationId)).toEqual(
@@ -1678,7 +1693,8 @@ describe('functional component interpreter', () => {
             () => p('Enter at least two characters'),
           ),
           p(function* () {
-            return (yield* RawStateInputView.searchQuery.value()) ?? '';
+            const result: unknown = yield* RawStateInputView.searchQuery.value();
+            return typeof result === 'string' ? result : '';
           }),
         ]);
       },
@@ -3013,7 +3029,7 @@ describe('functional component interpreter', () => {
       },
     );
     const providers = [provideCraftLazyLoadRetry({ attempts: 1, delayMs: 0 })];
-    const recorded = await renderCraftComponent(component, { providers });
+    const recorded = await renderCraftComponentForSpec(component, { providers });
     await vi.waitFor(() => {
       expect(
         recorded.nativeElement.querySelector('.retry-defer-loaded')
@@ -3037,7 +3053,7 @@ describe('functional component interpreter', () => {
 
     ɵsetCraftReplayMode(true);
     try {
-      const replayed = await renderCraftComponent(component, { providers });
+      const replayed = await renderCraftComponentForSpec(component, { providers });
       expect(imports).toBe(2);
       const resolution = ɵresolveCraftDeferReplayTarget(targetId);
       expect(resolution.status).toBe('resolved');
@@ -3161,11 +3177,12 @@ describe('functional component interpreter', () => {
           return deferNode(loader, {
             trigger: 'interaction',
             resolve: (value) => p({ class: 'recorded-defer-loaded' }, value),
-            placeholder: () => button('loadRecordedDefer', 'Load'),
+              placeholder: () => button({ id: 'loadRecordedDefer' }, 'Load'),
           });
         },
       );
-      const { nativeElement, destroy } = await renderCraftComponent(component);
+      const { nativeElement, destroy } =
+        await renderCraftComponentForSpec(component);
       recordedSession.startRecord('defer replay');
 
       const trigger = nativeElement.querySelector('button')!;
@@ -3206,7 +3223,7 @@ describe('functional component interpreter', () => {
 
       ɵsetCraftReplayMode(true);
       try {
-        const replayed = await renderCraftComponent(component);
+        const replayed = await renderCraftComponentForSpec(component);
         const replayTrigger = replayed.nativeElement.querySelector('button')!;
         if (interaction === 'click') replayTrigger.click();
         else
@@ -3252,6 +3269,7 @@ describe('functional component interpreter', () => {
       });
       const observers: Array<{ intersect: () => void }> = [];
       class TestIntersectionObserver {
+        private observing = false;
         constructor(private readonly callback: IntersectionObserverCallback) {
           observers.push({
             intersect: () =>
@@ -3261,8 +3279,12 @@ describe('functional component interpreter', () => {
               ),
           });
         }
-        observe(): void {}
-        disconnect(): void {}
+        observe(): void {
+          this.observing = true;
+        }
+        disconnect(): void {
+          this.observing = false;
+        }
       }
       vi.stubGlobal(
         'IntersectionObserver',
@@ -3281,12 +3303,13 @@ describe('functional component interpreter', () => {
             return deferNode(loader, {
               trigger,
               resolve: (value) => p({ class: 'automatic-defer-loaded' }, value),
-              placeholder: () => button('automatic-defer-placeholder', 'Load'),
+              placeholder: () =>
+                button({ id: 'automatic-defer-placeholder' }, 'Load'),
             });
           },
         );
 
-        const recorded = await renderCraftComponent(component);
+        const recorded = await renderCraftComponentForSpec(component);
         if (trigger === 'idle') idleCallbacks.at(-1)?.();
         if (trigger === 'viewport') observers.at(-1)?.intersect();
         await vi.waitFor(() => {
@@ -3306,7 +3329,7 @@ describe('functional component interpreter', () => {
         ɵsetCraftReplayMode(true);
         const idleCountBeforeReplay = idleCallbacks.length;
         const observerCountBeforeReplay = observers.length;
-        const replayed = await renderCraftComponent(component);
+        const replayed = await renderCraftComponentForSpec(component);
         expect(loader).toHaveBeenCalledOnce();
         expect(idleCallbacks).toHaveLength(idleCountBeforeReplay);
         expect(observers).toHaveLength(observerCountBeforeReplay);
@@ -3328,8 +3351,7 @@ describe('functional component interpreter', () => {
         if (idleDescriptor)
           Object.defineProperty(window, 'requestIdleCallback', idleDescriptor);
         else
-          delete (window as Window & { requestIdleCallback?: unknown })
-            .requestIdleCallback;
+          Reflect.deleteProperty(window, 'requestIdleCallback');
       }
     },
   );

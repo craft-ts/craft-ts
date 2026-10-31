@@ -5,7 +5,7 @@ import {
   executeGeneratorCompatibleFactoryAsync,
   isCraftGenShortCircuit,
   state,
-  TestBed,
+  CraftTestBed as TestBed,
 } from '@craft-ts/core';
 import { Context, Data, Effect, Layer } from 'effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

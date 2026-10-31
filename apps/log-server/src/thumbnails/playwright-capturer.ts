@@ -93,6 +93,9 @@ type WorkerSurface = {
   advanceTo(index: number): void;
 };
 type WorkerWindow = { __craftReplayWorker?: WorkerSurface };
+type SnapshotCondition =
+  | Readonly<{ kind: 'ready-or-failed' }>
+  | Readonly<{ kind: 'minimum-scale'; value: number }>;
 
 /** How different two pictures may be to count as the same one, 0–255 per pixel. */
 const SAME_PICTURE_DISTANCE = 3;
@@ -173,8 +176,7 @@ async function capture(
 
   const first = await waitForSnapshot(
     page,
-    (worker) => worker.ready || worker.failed !== undefined,
-    undefined,
+    { kind: 'ready-or-failed' },
     settings.readyTimeoutMs,
     'le replay n’est pas prêt',
   );
@@ -195,8 +197,7 @@ async function capture(
     });
     await waitForSnapshot(
       page,
-      (worker) => worker.scale >= 0.99,
-      undefined,
+      { kind: 'minimum-scale', value: 0.99 },
       4_000,
       'la page ne tient pas à l’échelle 1',
     ).catch(() => undefined);
@@ -314,31 +315,24 @@ async function waitForAdvance(
   }
 }
 
-/**
- * Waits for the dashboard's worker surface to answer yes to `accept`. The
- * predicate runs in the page, so it is sent as source: it may use nothing but
- * its two arguments, the snapshot and `arg`.
- */
-async function waitForSnapshot<Arg>(
+/** Waits for one of the known readiness conditions exposed by the worker. */
+async function waitForSnapshot(
   page: Page,
-  accept: (snapshot: WorkerSnapshot, arg: Arg) => boolean,
-  arg: Arg,
+  condition: SnapshotCondition,
   timeout: number,
   reason: string,
 ): Promise<WorkerSnapshot> {
   try {
     await page.waitForFunction(
-      (input: { code: string; arg: Arg }) => {
+      (input: SnapshotCondition) => {
         const worker = (window as unknown as WorkerWindow).__craftReplayWorker;
         if (!worker) return false;
-        // eslint-disable-next-line no-new-func
-        const test = new Function(`return (${input.code})`)() as (
-          snapshot: unknown,
-          arg: Arg,
-        ) => boolean;
-        return test(worker.snapshot(), input.arg);
+        const snapshot = worker.snapshot();
+        return input.kind === 'ready-or-failed'
+          ? snapshot.ready || snapshot.failed !== undefined
+          : snapshot.scale >= input.value;
       },
-      { code: accept.toString(), arg },
+      condition,
       { timeout, polling: 100 },
     );
   } catch (error) {

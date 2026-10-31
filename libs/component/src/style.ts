@@ -8,3 +8,4 @@
  * sheets.
  */
 export { craftAiLauncherPosition } from './lib/ai/ai-overlay.style';
+export { craftPending, craftSkipLink } from './lib/craft-defaults.style';

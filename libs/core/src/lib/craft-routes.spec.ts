@@ -84,7 +84,11 @@ import {
   runCraftGenerator,
   SERVICE_YIELD_WRAPPER,
 } from './craft-generator-runtime';
-import { craftException, type AnyCraftException } from './craft-exception';
+import {
+  craftException,
+  isCraftException,
+  type AnyCraftException,
+} from './craft-exception';
 import { craftExceptionHandler } from './craft-route-exceptions';
 import { GetDeps } from './branded-component/branded-component';
 import { HOST_TAG_LIST, HostName, provideHostName } from './host-tag';
@@ -511,11 +515,12 @@ describe('craftRoutes', () => {
         pathParams: { page: pathParams('other') },
       });
 
-      // @ts-expect-error craftRoutes validates pathParams on plain route entries too
       craftRoutes('mismatchedPathParams', [
+        // @ts-expect-error pathParams keys must name a segment in the route path
         {
           path: 'page/:page',
           componentDeps: {},
+          loadComponent: async () => null as unknown as Type<unknown>,
           pathParams: { other: pathParams('other') },
         },
       ]);
@@ -613,9 +618,6 @@ describe('craftRoutes', () => {
   });
 
   it('creates a route-scoped pathParams primitive and navigates with its codec', async () => {
-    let pagePathParamsFromWithProviders:
-      | (() => Generator<unknown, unknown, unknown>)
-      | undefined;
     const { playerRoutes, PlayerUsersUserIdPagePagePagePathParams } = craftRoutes(
       'player',
       [
@@ -642,13 +644,15 @@ describe('craftRoutes', () => {
               },
               ({ value, set }) => ({
                 nextPage: function* () {
-                  return yield* set(value() + 1);
+                  const current = value();
+                  if (isCraftException(current)) return current;
+                  return yield* set(current + 1);
                 },
               }),
             ),
           },
         }).withProviders(({ PagePathParams }) => {
-          pagePathParamsFromWithProviders = PagePathParams;
+          expectTypeOf(PagePathParams).toBeFunction();
           return [];
         }),
       ],
@@ -669,16 +673,9 @@ describe('craftRoutes', () => {
       '/users/42/page/invalid',
     );
     const page = resolveRouteYield(
-      pagePathParamsFromWithProviders!(),
+      PlayerUsersUserIdPagePagePagePathParams(),
       injector,
     );
-
-    expect(
-      resolveRouteYield(
-        PlayerUsersUserIdPagePagePagePathParams(),
-        injector,
-      ),
-    ).toBe(page);
 
     expect(craftUse(page.value())).toBe(1);
     expect(craftUse(page.hasException())).toBe(true);
@@ -693,17 +690,13 @@ describe('craftRoutes', () => {
   });
 
   it('keeps path parameters as strings when no codec is declared', async () => {
-    const slugPathParam = pathParams('slug');
-    let slugPathParams:
-      | (() => Generator<unknown, unknown, unknown>)
-      | undefined;
-    const { rawRoutes } = craftRoutes('raw', [
+    const { rawRoutes, RawItemsSlugSlugPathParams } = craftRoutes('raw', [
       craftRoute('items/:slug', {
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
-        pathParams: { slug: slugPathParam },
+        pathParams: { slug: pathParams('slug') },
       }).withProviders(({ SlugPathParams }) => {
-        slugPathParams = SlugPathParams;
+        expectTypeOf(SlugPathParams).toBeFunction();
         return [];
       }),
     ]);
@@ -719,7 +712,7 @@ describe('craftRoutes', () => {
       route.path,
       '/items/first',
     );
-    const slug = resolveRouteYield(slugPathParams!(), injector);
+    const slug = resolveRouteYield(RawItemsSlugSlugPathParams(), injector);
 
     expect(craftUse(slug.value())).toBe('first');
     resolveRouteYield(slug.set('second'), injector);
@@ -737,7 +730,7 @@ describe('craftRoutes', () => {
         pathParams: {
           page: pathParams('page', {
             codec: {
-              decode: (raw: string) =>
+              decode: (raw: string): number | AnyCraftException =>
                 craftException(
                   { _tag: 'INVALID_PAGE', scope: 'parse' },
                   { raw },

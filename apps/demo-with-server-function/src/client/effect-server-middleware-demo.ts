@@ -94,11 +94,11 @@ const EffectServerMiddlewareDemo = craftComponent(
   function* () {
     const {
       filter,
-      usersQuery,
-      hasUsers,
+      usersQueryClientEffectServerMiddlewareDemo: usersQuery,
+      hasUsersClientEffectServerMiddlewareDemo: hasUsers,
       hasServerError,
       serverErrorText,
-      isEmpty,
+      isEmptyClientEffectServerMiddlewareDemo: isEmpty,
       runScenario,
       submit,
     } = yield* EffectServerMiddlewareDemoView();

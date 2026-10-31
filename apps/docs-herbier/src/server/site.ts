@@ -321,6 +321,14 @@ const guideSidebar: readonly SidebarEntry[] = [
             text: 'Primitive loader requirements',
             link: '/guide/testing/architecture/primitive-loader-requirements',
           },
+          {
+            text: 'Query params route ownership',
+            link: '/guide/testing/architecture/query-params-route-ownership',
+          },
+          {
+            text: 'Runtime entity names',
+            link: '/guide/testing/architecture/runtime-entity-names',
+          },
         ],
       },
       {

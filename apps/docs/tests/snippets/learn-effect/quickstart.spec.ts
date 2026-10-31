@@ -36,17 +36,29 @@ export const loadUser = Effect.fnUntraced(function* (userId: string) {
 // #endregion domain
 
 // #region component
-import { craftComponent, p } from '@craft-ts/component';
+import {
+  craftComponent,
+  p,
+  withComponentProviders,
+} from '@craft-ts/component';
+import { craftService } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
+
+export const { ProfileData, provideProfileData } = craftService(
+  { name: 'ProfileData', providedIn: 'toProvide' },
+  function* () {
+    yield* queryEffect('profile', {
+      params: () => 'user-ada',
+      loader: ({ params }) => loadUser(params),
+    });
+  },
+);
 
 export const Profile = craftComponent(
   'EffectQuickstartProfile',
   {},
   function* () {
-    const profile = yield* queryEffect('profile', {
-      params: () => 'user-ada',
-      loader: ({ params }) => loadUser(params),
-    });
+    const { profile } = yield* ProfileData();
 
     return [
       p(function* () {
@@ -54,7 +66,7 @@ export const Profile = craftComponent(
       }),
     ];
   },
-);
+).pipe(withComponentProviders(() => [provideProfileData()]));
 // #endregion component
 
 // #region bootstrap

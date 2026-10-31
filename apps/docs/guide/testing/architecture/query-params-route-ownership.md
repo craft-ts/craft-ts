@@ -1,5 +1,7 @@
 # Query params belong to their route
 
+<<< @/tests/snippets/guide/testing/architecture/query-params-route-ownership.spec.ts#example
+
 `assertQueryParamsRouteOwnership` keeps URL-backed state within the route that
 owns the URL. It accepts two forms: declare `queryParams` directly on the route,
 or declare it in a `scope: 'toProvide'` service that the route provides. The

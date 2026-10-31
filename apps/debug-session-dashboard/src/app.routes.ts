@@ -1,4 +1,4 @@
-import { craftRoutes } from '@craft-ts/core';
+import { craftRoutes, assertExhaustiveRouteExceptions } from '@craft-ts/core';
 
 /** The route table is split by page so each page can load its own route chunk. */
 export const { dashboardRoutes } = craftRoutes('dashboard', [
@@ -46,3 +46,27 @@ export const { dashboardRoutes } = craftRoutes('dashboard', [
       ),
   },
 ]);
+assertExhaustiveRouteExceptions(dashboardRoutes);
+
+// This app navigates from its pages back into the route tree. Keep the registry
+// literal to avoid a type cycle through the lazy page component imports above.
+type DashboardRoutePath =
+  | ''
+  | 'sessions/:sessionId'
+  | 'recipes'
+  | 'recipes/:recipeId'
+  | 'compare'
+  | 'e2e-replay'
+  | 'import';
+
+type DashboardRouteRegistry = {
+  [Path in DashboardRoutePath]: Path extends 'e2e-replay'
+    ? { path: Path; queryParams: { source: string } }
+    : { path: Path };
+}[DashboardRoutePath][];
+
+declare module '@craft-ts/core' {
+  interface CraftRouterRoutesRegistry {
+    Dashboard: DashboardRouteRegistry;
+  }
+}

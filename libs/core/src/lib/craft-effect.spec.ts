@@ -3,7 +3,7 @@ import {
   createEnvironmentInjector,
   EnvironmentInjector,
   inject,
-  runInInjectionContext,
+  runInInjectionContext as runInHostInjectionContext,
   signal,
   type EffectCleanupRegisterFn,
 } from './host/craft-compat';
@@ -148,7 +148,7 @@ describe('craftEffect', () => {
     const seen: number[] = [];
     const injector = createEnvironmentInjector([], hostEnvironmentInjector());
 
-    runInInjectionContext(injector, () =>
+    runInHostInjectionContext(injector, () =>
       craftUse(craftEffect('destroyed', () => {
         seen.push(source());
       })),

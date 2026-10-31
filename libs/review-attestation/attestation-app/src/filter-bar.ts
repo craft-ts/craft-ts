@@ -29,7 +29,7 @@ export const FilterBarActions = craftComponent(
   function* () {
     const { clearFilters, activeFilterCount } = yield* ReviewFilters();
     const { locale } = yield* ReviewPreferences();
-    const t = yield* craftComputed('t', function* () {
+    const t = yield* craftComputed('filterBarActionsMessages', function* () {
       return MESSAGES[yield* locale()];
     });
     const statusText = yield* craftComputed('statusText', function* () {
@@ -73,7 +73,7 @@ export const FilterBarFields = craftComponent(
       directionFilter,
     } = yield* ReviewFilters();
     const { locale } = yield* ReviewPreferences();
-    const t = yield* craftComputed('t', function* () {
+    const t = yield* craftComputed('filterBarFieldsMessages', function* () {
       return MESSAGES[yield* locale()];
     });
     return [

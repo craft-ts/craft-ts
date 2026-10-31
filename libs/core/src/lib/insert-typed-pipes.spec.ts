@@ -254,7 +254,7 @@ describe('typed insertion pipes', () => {
           'replay-async-process',
           {
             method: (payload: string) => payload,
-            loader: async ({ params }) => params,
+            loader: async ({ params }) => ({ params }),
           },
           () => insertion('asyncProcess'),
         ),

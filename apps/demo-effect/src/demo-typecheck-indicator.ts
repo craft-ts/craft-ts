@@ -58,6 +58,9 @@ export function startDemoEffectTypecheckIndicator(): void {
       // Keep the indicator visible while Vite is still starting.
     }
 
+    // This bootstrap poll runs outside a Craft service and waits for Vite's
+    // separate typecheck process before the app can expose its runtime.
+    // eslint-disable-next-line craft-ts/no-direct-temporal-globals
     window.setTimeout(() => void poll(), 250);
   };
 

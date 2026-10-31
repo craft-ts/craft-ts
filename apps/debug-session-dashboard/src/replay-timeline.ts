@@ -1,4 +1,4 @@
-import { craftComponent, div, p, span } from '@craft-ts/component';
+import { craftComponent, div, p, span, type Output } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { progressVars, ui } from './dashboard.style';
@@ -44,7 +44,8 @@ function scrubKey(event: KeyboardEvent): void {
 export const ReplayTimeline = craftComponent(
   'ReplayTimeline',
   {},
-  function* () {
+  function* (inputs: { readonly retryThumbnails: Output<() => void> }) {
+    const { retryThumbnails } = inputs;
     const ariaValueMax = yield* craftComputed('ariaValueMax', () =>
       Math.round(replayDurationMs() / 1000),
     );
@@ -145,7 +146,7 @@ export const ReplayTimeline = craftComponent(
           ),
         ]),
       ]),
-      ReplayThumbnailsStatus({}),
+      ReplayThumbnailsStatus({ retryThumbnails }),
     ]);
 
     return div({ class: ui.timeline, 'data-lab': 'replay-timeline' }, [

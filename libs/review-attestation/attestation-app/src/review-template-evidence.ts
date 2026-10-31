@@ -71,7 +71,7 @@ export const { ReviewTemplateEvidenceView, provideReviewTemplateEvidenceView } =
       });
       const renderSites = deepYieldable(
         yield* craftPrivate(
-          craftComputed('renderSites', function* () {
+          craftComputed('reviewTemplateRenderSites', function* () {
             return (yield* inputs.sourceDetail())?.renderSites ?? [];
           }),
         ),
@@ -134,7 +134,8 @@ export const { ReviewTemplateEvidenceView, provideReviewTemplateEvidenceView } =
         );
       });
       yield* craftComputed('renderSitesHidden', function* () {
-        return (yield* renderSites()).length === 0;
+        const detail = yield* inputs.sourceDetail();
+        return (detail?.renderSites?.length ?? 0) === 0;
       });
       yield* craftComputed('elementSourceHidden', function* () {
         return !(yield* elementSource());

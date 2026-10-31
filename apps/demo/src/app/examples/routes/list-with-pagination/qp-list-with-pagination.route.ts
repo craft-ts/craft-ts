@@ -1,7 +1,7 @@
-import { abstract, craftService, queryParams } from '@craft-ts/core';
+import { abstract, craftGen, craftService, queryParams } from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 
-export const routePaginationQueryParams = function* () {
+export const routePaginationQueryParams = craftGen(function* () {
   return yield* queryParams(
     'pagination',
     paginationQueryParams(),
@@ -19,7 +19,7 @@ export const routePaginationQueryParams = function* () {
       },
     }),
   );
-};
+});
 
 type RoutePaginationQueryParamsRef = ReturnType<
   typeof routePaginationQueryParams

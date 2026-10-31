@@ -1,7 +1,6 @@
 import { validateDebugSessionExport } from '@craft-ts/component';
 import {
   after,
-  currentHash,
   firstSelectedFile,
   hasFrame,
   hasFrameGrid,
@@ -9,7 +8,6 @@ import {
   newUuid,
   renderFrames,
   setFramePlaceholder,
-  goToHash,
   setTileHidden,
   cancelAfter,
 } from './replay-browser';
@@ -115,10 +113,7 @@ export function renderReplayFrames(): void {
 
 /* ── opening a recording ────────────────────────────────────────────────── */
 
-export function importJson(
-  text: string,
-  options: Readonly<{ preserveRoute?: boolean }> = {},
-): void {
+export function importJson(text: string): void {
   registers.loadedArchiveCreatedAtMs = undefined;
   sessionText.set(text);
   const result = validateDebugSessionExport(text.trim());
@@ -142,13 +137,6 @@ export function importJson(
   replayViewport.set(result.session.viewport);
   updateReplayViewport();
   events.set(result.session.events);
-  if (
-    !options.preserveRoute &&
-    !routeSessionId() &&
-    currentHash() !== '#/import'
-  ) {
-    goToHash('#/import');
-  }
   difference.set(undefined);
   status.set(
     `Session v${result.session.version} importée · ${result.session.events.length} événements${result.session.truncated ? ' · archive tronquée, replay selon l’historique conservé par onglet' : ''}`,

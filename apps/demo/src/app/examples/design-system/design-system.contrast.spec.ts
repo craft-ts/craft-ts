@@ -45,7 +45,7 @@ import {
 } from '@craft-ts/dev-tools';
 import { tone, ui } from './foundation.style.ts';
 import './components.style.ts';
-import '../../../../../../libs/component/src/lib/craft-defaults.style.ts';
+import '@craft-ts/component/style';
 
 /* ------------------------------------------------------------------------ *
  * The graph, written by hand

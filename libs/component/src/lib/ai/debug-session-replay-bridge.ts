@@ -23,6 +23,7 @@ import {
   type PersistedStorageSnapshotEntry,
 } from '@craft-ts/core';
 import type { Provider } from '../host-runtime';
+import { safeUrl } from '../security';
 import {
   createReplayController,
   createRecordedResponseResolver,
@@ -199,7 +200,7 @@ export function provideCraftDebugReplayBridge(
         if (message.type === 'hello' && typeof message['nonce'] === 'string') {
           send(event.origin, 'ready', {
             nonce: message['nonce'],
-            href: location.href,
+            href: safeUrl(location.href),
           });
           return;
         }
@@ -549,7 +550,7 @@ export function provideCraftDebugReplayBridge(
               const rect = target.getBoundingClientRect();
               send(event.origin, 'interaction', {
                 kind: interaction.kind,
-                action: payload['action'],
+                action: safeUrl(payload['action']),
                 trigger: payload['trigger'],
                 name: interaction.name,
                 nextIndex: (replay?.index() ?? 0) + 1,
@@ -629,7 +630,7 @@ export function provideCraftDebugReplayBridge(
                 index,
                 total,
                 state,
-                href: location.href,
+                href: safeUrl(location.href),
                 ...(nextDelayMs === undefined ? {} : { nextDelayMs }),
               });
               if (state === 'completed') restoreDialogs();
@@ -670,7 +671,7 @@ export function provideCraftDebugReplayBridge(
               if (replayFailed) return;
               send(event.origin, 'step', {
                 index: replay?.index() ?? 0,
-                href: location.href,
+                href: safeUrl(location.href),
                 state:
                   replay && replay.index() >= replayInteractionCount
                     ? 'completed'
@@ -698,7 +699,7 @@ export function provideCraftDebugReplayBridge(
                 });
               send(event.origin, 'recovered', {
                 index: activeReplay.index(),
-                href: recovery.href,
+                href: safeUrl(recovery.href),
                 currentHref: location.href,
                 stateRestored: recovery.state !== undefined,
               });

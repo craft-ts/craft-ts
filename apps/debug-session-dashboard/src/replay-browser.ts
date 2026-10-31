@@ -36,11 +36,11 @@ export type ReplayPlatform = Readonly<{
   schedule: (run: () => void, delayMs: number) => ReplayTimer;
   /** A monotonic clock, for durations. */
   now: () => number;
+  /** A wall clock, for persisted event timestamps. */
+  dateNow: () => number;
   uuid: () => string;
-  hash: () => string;
   /** The query string of the dashboard's own address. */
   search: () => string;
-  navigate: (hash: string) => void;
 }>;
 
 const INERT_TIMER: ReplayTimer = { cancel: () => undefined };
@@ -48,10 +48,9 @@ const INERT_TIMER: ReplayTimer = { cancel: () => undefined };
 const INERT_PLATFORM: ReplayPlatform = {
   schedule: () => INERT_TIMER,
   now: () => 0,
+  dateNow: () => 0,
   uuid: () => '',
-  hash: () => '',
   search: () => '',
-  navigate: () => undefined,
 };
 
 let platform: ReplayPlatform = INERT_PLATFORM;
@@ -94,14 +93,12 @@ export function monotonicMs(): number {
   return platform.now();
 }
 
-export function newUuid(): string {
-  return platform.uuid();
+export function dateNow(): number {
+  return platform.dateNow();
 }
 
-/* ── the hash route ─────────────────────────────────────────────────────── */
-
-export function currentHash(): string {
-  return platform.hash();
+export function newUuid(): string {
+  return platform.uuid();
 }
 
 /**
@@ -131,10 +128,6 @@ export function exposeReplayWorkerSurface(surface: object): void {
   });
 }
 
-export function goToHash(hash: string): void {
-  platform.navigate(hash);
-}
-
 /**
  * Places one comparison iframe's replay on a recorded event, without making the
  * outer dashboard browser-aware.
@@ -155,12 +148,6 @@ export function seekE2eComparisonFrame(
   } catch {
     // A frame can be between navigation and the replay listener being ready.
   }
-}
-
-const hashListeners: Array<() => void> = [];
-
-export function onHashChange(run: () => void): void {
-  hashListeners.push(run);
 }
 
 /* ── the replayed page's messages ───────────────────────────────────────── */
@@ -213,8 +200,8 @@ function frames(): readonly HTMLIFrameElement[] {
 
 /**
  * Mounted on the root element of the dashboard. It hands the replay the
- * element's DOM adapter, listens to the page's window for `message` and
- * `hashchange`, and lets go of both when the dashboard is destroyed.
+ * element's DOM adapter, listens to the page's window for `message`, and lets
+ * go of it when the dashboard is destroyed.
  */
 export const replayHost = craftNodeDirective<Readonly<Record<string, never>>>(
   'replayHost',
@@ -233,9 +220,6 @@ export const replayHost = craftNodeDirective<Readonly<Record<string, never>>>(
             data: event.data,
           };
           for (const run of messageListeners) run(message);
-        }),
-        context.renderer.listen(view, 'hashchange', () => {
-          for (const run of hashListeners) run();
         }),
       );
     }

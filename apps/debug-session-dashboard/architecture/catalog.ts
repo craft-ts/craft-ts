@@ -1,13 +1,15 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "afd6027a80ad0402",
+  "graphHash": "ef128bd3e14fd02b",
   "routes": [
     "",
+    ":recipeId",
     ":sessionId",
     "compare",
     "e2e-replay",
     "import",
+    "recipes",
     "sessions"
   ],
   "services": [
@@ -34,8 +36,11 @@ export const architectureCatalog = {
     "e2eReplayRoute",
     "replayDashboardState",
     "replayRoute",
+    "replayRouterEvents",
     "resumeThread",
     "sessionArchive",
+    "sessionPageActions",
+    "sessionResumeFilter",
     "thumbnailArchive",
     "thumbnailPreview"
   ],
@@ -74,6 +79,8 @@ export const architectureCatalog = {
     "E2eComparisonPage",
     "E2eReplayRoute",
     "ImportDialog",
+    "RecipeDetailPage",
+    "RecipesPage",
     "ReplayDetails",
     "ReplayHead",
     "ReplayJournal",
@@ -81,6 +88,7 @@ export const architectureCatalog = {
     "ReplayOrchestration",
     "ReplayPage",
     "ReplayPlaybar",
+    "ReplayRecipes",
     "ReplayResumeThread",
     "ReplaySidePanel",
     "ReplayStage",
@@ -129,8 +137,10 @@ export const architectureCatalog = {
     "differenceHistoryCount",
     "differenceHistoryOpen",
     "differenceMessage",
+    "differenceNoticeDismissed",
     "dismissedWarnings",
     "emptyHidden",
+    "enabled",
     "environmentWarningHidden",
     "environmentWarningState",
     "error",
@@ -142,6 +152,8 @@ export const architectureCatalog = {
     "expiredSessionCount",
     "expiredSessions",
     "failArchivedSession",
+    "feedback",
+    "filter",
     "findings",
     "firstDivergenceLabel",
     "firstDivergenceText",
@@ -150,21 +162,8 @@ export const architectureCatalog = {
     "hasReplayErrorNote",
     "hidden",
     "hiddenFirstDivergence",
-    "hiddenSrcReplayNotices",
-    "hiddenSrcReplayNotices10",
-    "hiddenSrcReplayNotices11",
-    "hiddenSrcReplayNotices12",
-    "hiddenSrcReplayNotices13",
-    "hiddenSrcReplayNotices2",
-    "hiddenSrcReplayNotices3",
-    "hiddenSrcReplayNotices4",
-    "hiddenSrcReplayNotices5",
-    "hiddenSrcReplayNotices6",
-    "hiddenSrcReplayNotices7",
-    "hiddenSrcReplayNotices8",
-    "hiddenSrcReplayNotices9",
     "importOpen",
-    "incompatibleSessionCount",
+    "incompatibleCountSignal",
     "incompatibleSessions",
     "installE2eReplaySession",
     "journalEventsState",
@@ -172,6 +171,7 @@ export const architectureCatalog = {
     "loadError",
     "loadErrorHidden",
     "loadErrorText",
+    "loadMessage",
     "marks",
     "mode",
     "nextAction",
@@ -179,7 +179,6 @@ export const architectureCatalog = {
     "nextActionTimingHidden",
     "nextActionTimingText",
     "nextDisabled",
-    "noRecipesHidden",
     "notesHidden",
     "open",
     "openArchivedSession",
@@ -210,7 +209,14 @@ export const architectureCatalog = {
     "pruneSessions",
     "reachable",
     "readyCheckpoint",
-    "readyRecipe",
+    "readyRecipes",
+    "recipe",
+    "recipeCatalog",
+    "recipeCountLabel",
+    "recipeDetail",
+    "recipes",
+    "recipesEmpty",
+    "recipesHidden",
     "recordingLabel",
     "renderedMarks",
     "replayActionOffsetsMsState",
@@ -237,11 +243,9 @@ export const architectureCatalog = {
     "resumeLabel",
     "resumeMessages",
     "resumeNotice",
-    "resumeNoticeHidden",
     "resumePromptText",
+    "resumeRecipeDetail",
     "resumeRecipeList",
-    "resumeRecipes",
-    "resumeRecipesEmpty",
     "resumeRequest",
     "resumeRequestFailed",
     "resumeRequestIdText",
@@ -263,7 +267,6 @@ export const architectureCatalog = {
     "sendDialogPromptOptions",
     "session",
     "sessionParticipants",
-    "sessionResumeRecipes",
     "sessionStartUrl",
     "sessionText",
     "sessionTitleText",
@@ -290,6 +293,7 @@ export const architectureCatalog = {
     "summary",
     "summaryHidden",
     "summaryText",
+    "tabs",
     "targetUrl",
     "thread",
     "thumbnailManifest",
@@ -301,9 +305,11 @@ export const architectureCatalog = {
     "toastMessage",
     "toasts",
     "toleranceMessage",
+    "validationText",
     "viewportLabel",
     "visibleEventPageState",
     "visibleEventsState",
+    "visibleSessions",
     "visibleWarnings",
     "warningCount",
     "warningHistory",
@@ -345,15 +351,19 @@ export const architectureCatalog = {
     },
     {
       "method": "GET",
-      "url": "*/sessions/recipes?*"
+      "url": "*/sessions/recipes"
     },
     {
       "method": "GET",
-      "url": "<unresolved:e2e-replay-route.service.ts:26>"
+      "url": "*/sessions/recipes/*"
     },
     {
       "method": "GET",
-      "url": "<unresolved:resume-thread.service.ts:80>"
+      "url": "<unresolved:e2e-replay-route.service.ts:28>"
+    },
+    {
+      "method": "GET",
+      "url": "<unresolved:resume-thread.service.ts:79>"
     },
     {
       "method": "POST",
@@ -386,13 +396,17 @@ export const architectureCatalog = {
     "docMenuView",
     "docModeView",
     "docSeasonView",
-    "docTabsView"
+    "docTabsView",
+    "replayRoute",
+    "replayRouterEvents"
   ],
   "routeProviders": {},
   "componentProviders": {
     "DebugSessionDashboard": [
       "docModeView",
-      "docSeasonView"
+      "docSeasonView",
+      "replayRoute",
+      "replayRouterEvents"
     ],
     "AiContextMenu": [
       "aiContextMenuDismissal"
@@ -428,6 +442,20 @@ export const architectureCatalog = {
       }
     ],
     "docSeasonView": [
+      {
+        "kind": "component",
+        "name": "DebugSessionDashboard",
+        "file": "apps/debug-session-dashboard/src/dashboard.ts"
+      }
+    ],
+    "replayRoute": [
+      {
+        "kind": "component",
+        "name": "DebugSessionDashboard",
+        "file": "apps/debug-session-dashboard/src/dashboard.ts"
+      }
+    ],
+    "replayRouterEvents": [
       {
         "kind": "component",
         "name": "DebugSessionDashboard",
@@ -502,6 +530,7 @@ export const architectureCatalog = {
         "apps/debug-session-dashboard/src/app.routes.ts",
         "apps/debug-session-dashboard/src/comparison.routes.ts",
         "apps/debug-session-dashboard/src/e2e-replay.routes.ts",
+        "apps/debug-session-dashboard/src/recipes.routes.ts",
         "apps/debug-session-dashboard/src/replay.routes.ts",
         "apps/debug-session-dashboard/src/sessions.routes.ts"
       ]
@@ -512,10 +541,13 @@ export const architectureCatalog = {
     "e2eComparison": "global",
     "e2eReplayRoute": "global",
     "aiChatBridge": "global",
-    "replayRoute": "global",
+    "replayRoute": "toProvide",
+    "replayRouterEvents": "toProvide",
     "replayDashboardState": "global",
     "resumeThread": "global",
     "sessionArchive": "global",
+    "sessionResumeFilter": "global",
+    "sessionPageActions": "global",
     "thumbnailArchive": "global",
     "thumbnailPreview": "global",
     "aiContextMenuDismissal": "toProvide",

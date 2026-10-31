@@ -29,6 +29,14 @@ function replayPlanSummary(): string {
   return `Plan de replay · ${planState} · ${plan.commands.length} commande(s)`;
 }
 
+function replayPlanStateMessage(
+  plan: ReturnType<typeof replayPlan>,
+): string {
+  return plan
+    ? `${plan.observations.length} observation(s) à comparer · ${plan.issues.length} problème(s) de prévalidation`
+    : 'Aucune archive chargée.';
+}
+
 function replayCommandStatus(item: ReplayCommand): string {
   const actionCommands = (replayPlan()?.commands ?? []).filter(
     (entry) => entry.kind !== 'restore-snapshot',
@@ -56,12 +64,9 @@ export const ReplayOrchestration = craftComponent(
       summary(yield* craftComputed('orchestrationSummary', replayPlanSummary)),
       p(
         { class: ui.eventMeta },
-        yield* craftComputed('orchestrationState', () => {
-          const plan = replayPlan();
-          return plan
-            ? `${plan.observations.length} observation(s) à comparer · ${plan.issues.length} problème(s) de prévalidation`
-            : 'Aucune archive chargée.';
-        }),
+        yield* craftComputed('orchestrationState', () =>
+          replayPlanStateMessage(replayPlan()),
+        ),
       ),
       ul(
         { class: ui.events },

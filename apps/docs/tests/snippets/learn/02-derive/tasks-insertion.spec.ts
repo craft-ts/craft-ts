@@ -10,6 +10,8 @@ import { craftComputed, craftService, state, craftUse } from '@craft-ts/core';
 
 type Task = { id: string; title: string; done: boolean };
 
+let nextTaskId = 0;
+
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
@@ -17,7 +19,7 @@ export const { TaskList } = craftService(
       add: (title: string) =>
         update((current) => [
           ...current,
-          { id: crypto.randomUUID(), title, done: false },
+          { id: `task-${nextTaskId++}`, title, done: false },
         ]),
 
       toggle: (id: string) =>

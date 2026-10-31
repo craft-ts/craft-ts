@@ -1,23 +1,43 @@
 import { button, craftComponent, div, heading, p } from '@craft-ts/component';
-import { craftComputed, rawReactiveValue, state } from '@craft-ts/core';
+import {
+  CraftActivatedRoute,
+  CraftRouter,
+  craftComputed,
+  rawReactiveValue,
+  state,
+} from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import { currentHash, goToHash } from './replay-browser';
 import { launchResumeRecipeTab } from './replay-debug';
-import { httpFailureReason, SessionArchive } from './session-archive.service';
-import { sessionRoute } from './replay-state';
+import {
+  httpFailureReason,
+  SessionArchive,
+  type ResumeRecipeDetail,
+} from './session-archive.service';
 
-function recipeIdFromHash(): string | undefined {
-  const prefix = '#/recipes/';
-  const hash = currentHash();
-  if (!hash.startsWith(prefix)) return undefined;
-  const encoded = hash.slice(prefix.length).split(/[/?]/, 1)[0];
-  if (!encoded) return undefined;
-  try {
-    return decodeURIComponent(encoded);
-  } catch {
-    return undefined;
+function recipeValidationText(item: ResumeRecipeDetail | undefined): string {
+  if (!item) return '';
+  const label =
+    item.validation.status === 'verified'
+      ? 'Vérifiée'
+      : item.validation.status === 'validation-failed'
+        ? 'Prévalidation échouée'
+        : 'Brouillon';
+  const issues = [...item.validation.issues];
+  const failure = item.runs[0]?.failure;
+  if (failure) {
+    const step = `Étape ${(failure.step ?? 0) + 1} : ${failure.detail}`;
+    if (!issues.includes(step)) issues.push(step);
   }
+  return issues.length ? `${label} · ${issues.join(' · ')}` : label;
+}
+
+function recipeSummaryHidden(item: ResumeRecipeDetail | undefined): boolean {
+  return (
+    !item ||
+    (item.summary?.trim() || item.objective.goal) ===
+      (item.name?.trim() || item.objective.goal)
+  );
 }
 
 /** A focused recipe summary with only the actions needed to use it. */
@@ -25,48 +45,30 @@ export const RecipeDetailPage = craftComponent(
   'RecipeDetailPage',
   {},
   function* () {
+    const route = yield* CraftActivatedRoute();
     const archive = yield* SessionArchive();
-    const recipeId = recipeIdFromHash();
-    if (recipeId) archive.recipeDetail.call(recipeId);
+    const recipeId = route.snapshot.params['recipeId'];
+    archive.recipeDetail.call(recipeId);
 
     const detailValue = rawReactiveValue(archive.resumeRecipeDetail);
     const detailFailure = rawReactiveValue(archive.recipeDetail.exception);
-    const recipe = yield* craftComputed('selectedRecipe', () =>
+    const recipe = yield* craftComputed('recipe', () =>
       detailValue()?.id === recipeId ? detailValue() : undefined,
     );
     const recipeValue = rawReactiveValue(recipe);
     const feedback = yield* state(
-      'recipeLaunchFeedback',
+      'feedback',
       '',
       function* ({ state: read, set }) {
-        const message = yield* craftComputed(
-          'recipeLaunchMessage',
-          function* () {
-            return yield* read();
-          },
-        );
-        return { set, message };
+        const setFeedback = (value: string) => set(value);
+        return { setFeedback, message: read };
       },
     );
     const feedbackText = rawReactiveValue(feedback.message);
-    const validationText = yield* craftComputed('recipeValidationText', () => {
-      const item = recipeValue();
-      if (!item) return '';
-      const label =
-        item.validation.status === 'verified'
-          ? 'Vérifiée'
-          : item.validation.status === 'validation-failed'
-            ? 'Prévalidation échouée'
-            : 'Brouillon';
-      const issues = [...item.validation.issues];
-      const failure = item.runs[0]?.failure;
-      if (failure) {
-        const step = `Étape ${(failure.step ?? 0) + 1} : ${failure.detail}`;
-        if (!issues.includes(step)) issues.push(step);
-      }
-      return issues.length ? `${label} · ${issues.join(' · ')}` : label;
-    });
-    const loadMessage = yield* craftComputed('recipeLoadMessage', () =>
+    const validationText = yield* craftComputed('validationText', () =>
+      recipeValidationText(recipeValue()),
+    );
+    const loadMessage = yield* craftComputed('loadMessage', () =>
       !recipeId
         ? 'Identifiant de recette invalide.'
         : detailFailure()
@@ -88,7 +90,7 @@ export const RecipeDetailPage = craftComponent(
           const item = recipeValue();
           if (!item) return;
           const opened = launchResumeRecipeTab(item.id, item.origin);
-          yield* feedback.set(
+          yield* feedback.setFeedback(
             opened
               ? 'La recette démarre dans un nouvel onglet.'
               : 'Impossible d’ouvrir la recette. Vérifie que son origine est locale et que les fenêtres surgissantes sont autorisées.',
@@ -125,14 +127,9 @@ export const RecipeDetailPage = craftComponent(
           p(
             {
               class: ui.lede,
-              hidden: function* () {
-                const item = recipeValue();
-                if (!item) return true;
-                return (
-                  (item.summary?.trim() || item.objective.goal) ===
-                  (item.name?.trim() || item.objective.goal)
-                );
-              },
+            hidden: function* () {
+              return recipeSummaryHidden(recipeValue());
+            },
             },
             function* () {
               const item = recipeValue();
@@ -148,15 +145,14 @@ export const RecipeDetailPage = craftComponent(
           },
           validationText,
         ),
-        p(
+        div(
           {
-            class: ui.eventMeta,
             role: 'status',
             hidden: function* () {
               return !feedbackText();
             },
           },
-          feedbackText,
+          div({ class: ui.eventMeta }, feedbackText),
         ),
         div({ class: ui.gapActions }, [
           launch,
@@ -189,7 +185,12 @@ export const RecipeDetailPage = craftComponent(
               },
               click: function* () {
                 const item = recipeValue();
-                if (item) goToHash(sessionRoute(item.sessionId));
+                if (item) {
+                  yield* CraftRouter.navigate({
+                    to: 'sessions/:sessionId',
+                    params: { sessionId: item.sessionId },
+                  });
+                }
               },
             },
             'Replay d’origine',
@@ -208,7 +209,9 @@ export const RecipeDetailPage = craftComponent(
               type: 'button',
               class: buttonUi.root,
               'data-variant': 'secondary',
-              click: () => goToHash('#/recipes'),
+              click: function* () {
+                yield* CraftRouter.navigate({ to: 'recipes' });
+              },
             },
             '← Recettes',
           ),

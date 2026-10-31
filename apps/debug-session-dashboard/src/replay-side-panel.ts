@@ -19,6 +19,23 @@ import { errorCount, routeSessionId, sidePanelOpen } from './replay-state';
 import { lit } from './view-helpers';
 import { SessionArchive } from './session-archive.service';
 
+type SideTab = {
+  id: string;
+  label: string;
+  render: () => CraftNodeChild;
+};
+
+function replaySideTabs(hasRecipes: boolean): SideTab[] {
+  return [
+    { id: 'journal', label: 'Journal', render: () => ReplayJournal({}) },
+    { id: 'details', label: 'Détails', render: () => ReplayDetails({}) },
+    ...(hasRecipes
+      ? [{ id: 'recipes', label: 'Recettes', render: () => ReplayRecipes({}) }]
+      : []),
+    { id: 'resume', label: 'Reprise', render: () => ReplayResumeThread({}) },
+  ];
+}
+
 /** The panel at the side: the journal of errors, the details, the resume thread. */
 export const ReplaySidePanel = craftComponent(
   'ReplaySidePanel',
@@ -48,33 +65,13 @@ export const ReplaySidePanel = craftComponent(
       ),
     ]);
 
-    const tabs = yield* craftComputed('replaySideTabs', () => {
-      const items: {
-        id: string;
-        label: string;
-        render: () => CraftNodeChild;
-      }[] = [
-        { id: 'journal', label: 'Journal', render: () => ReplayJournal({}) },
-        { id: 'details', label: 'Détails', render: () => ReplayDetails({}) },
-      ];
-      if (
+    const tabs = yield* craftComputed('tabs', () =>
+      replaySideTabs(
         savedRecipes().some(
           (recipe) => recipe.sessionId === routeSessionId(),
-        )
-      ) {
-        items.push({
-          id: 'recipes',
-          label: 'Recettes',
-          render: () => ReplayRecipes({}),
-        });
-      }
-      items.push({
-        id: 'resume',
-        label: 'Reprise',
-        render: () => ReplayResumeThread({}),
-      });
-      return items;
-    });
+        ),
+      ),
+    );
 
     const tabView = DocTabs({
       group: lit('side'),

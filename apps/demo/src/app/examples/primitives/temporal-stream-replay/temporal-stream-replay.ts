@@ -96,8 +96,9 @@ const TemporalStreamReplay = craftComponent(
         p([
           'Dernier événement : ',
           span({ 'data-testid': 'alice-value' }, function* () {
-            const { aliceSession } = yield* TemporalReplayView();
-            return String(aliceSession.value() ?? '—');
+            return String(
+              (yield* TemporalReplayView.aliceSession.value()) ?? '—',
+            );
           }),
         ]),
         div({ class: example.toolbar }, [
@@ -106,10 +107,7 @@ const TemporalStreamReplay = craftComponent(
             {
               type: 'button',
               'data-testid': 'alice-heartbeat',
-              click: function* () {
-                const { pingAlice } = yield* TemporalReplayView();
-                pingAlice();
-              },
+              click: TemporalReplayView.pingAlice,
             },
             'Envoyer un heartbeat',
           ),
@@ -134,8 +132,9 @@ const TemporalStreamReplay = craftComponent(
         p([
           'Dernier événement : ',
           span({ 'data-testid': 'bob-value' }, function* () {
-            const { bobSession } = yield* TemporalReplayView();
-            return String(bobSession.value() ?? '—');
+            return String(
+              (yield* TemporalReplayView.bobSession.value()) ?? '—',
+            );
           }),
         ]),
         div({ class: example.toolbar }, [
@@ -144,10 +143,7 @@ const TemporalStreamReplay = craftComponent(
             {
               type: 'button',
               'data-testid': 'bob-heartbeat',
-              click: function* () {
-                const { pingBob } = yield* TemporalReplayView();
-                pingBob();
-              },
+              click: TemporalReplayView.pingBob,
             },
             'Envoyer un heartbeat',
           ),
@@ -166,8 +162,9 @@ const TemporalStreamReplay = craftComponent(
         p([
           'Dernier événement : ',
           span({ 'data-testid': 'chloe-value' }, function* () {
-            const { chloeSession } = yield* TemporalReplayView();
-            return String(chloeSession.value() ?? '—');
+            return String(
+              (yield* TemporalReplayView.chloeSession.value()) ?? '—',
+            );
           }),
         ]),
         div({ class: example.toolbar }, [
@@ -176,10 +173,7 @@ const TemporalStreamReplay = craftComponent(
             {
               type: 'button',
               'data-testid': 'chloe-heartbeat',
-              click: function* () {
-                const { pingChloe } = yield* TemporalReplayView();
-                pingChloe();
-              },
+              click: TemporalReplayView.pingChloe,
             },
             'Envoyer un heartbeat',
           ),

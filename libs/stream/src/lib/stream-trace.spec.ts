@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  TestBed,
+  CraftTestBed as TestBed,
   craftUse,
   injectCorrelationIdService,
   provideCorrelationIdTracking,

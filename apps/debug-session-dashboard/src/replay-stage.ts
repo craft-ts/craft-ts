@@ -1,4 +1,4 @@
-import { button, craftComponent, div, p, span } from '@craft-ts/component';
+import { button, craftComponent, div, p, span, type Output } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { DocIcon } from '@craft-ts/ui';
 import { assign, unit } from '@craft-ts/style';
@@ -24,8 +24,34 @@ import {
 import { ReplayTimeline } from './replay-timeline';
 import { lit } from './view-helpers';
 
+function replayPlayLabel(state: string): string {
+  switch (state) {
+    case 'playing':
+      return 'Pause';
+    case 'paused':
+      return 'Reprendre';
+    case 'completed':
+      return 'Recommencer';
+    default:
+      return 'Lecture';
+  }
+}
+
+function playPauseOrRestartReplay(): void {
+  if (replayState() === 'playing') {
+    pauseReplay();
+    return;
+  }
+  if (replayState() === 'completed') startReplay();
+  else playReplay();
+}
+
 /** Where the replayed pages are drawn, under a veil while they load, with their timeline over them. */
-export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
+export const ReplayStage = craftComponent(
+  'ReplayStage',
+  {},
+  function* (inputs: { readonly retryThumbnails: Output<() => void> }) {
+  const { retryThumbnails } = inputs;
   const skeletonHidden = yield* craftComputed(
     'skeletonHidden',
     () => !replaySkeletonVisible(),
@@ -94,8 +120,12 @@ export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
   ]);
 
   // The pages and the timeline that moves through them are one player.
-  return div({ class: ui.player }, [stage, ReplayTimeline({})]);
-});
+    return div({ class: ui.player }, [
+      stage,
+      ReplayTimeline({ retryThumbnails }),
+    ]);
+  },
+);
 
 /** The transport: play/pause, restart, step, and how far along it is. */
 export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
@@ -107,18 +137,9 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
       !replayableEvents()[replayIndex()] ||
       !['ready', 'paused'].includes(replayState()),
   );
-  const playLabel = yield* craftComputed('playLabel', () => {
-    switch (replayState()) {
-      case 'playing':
-        return 'Pause';
-      case 'paused':
-        return 'Reprendre';
-      case 'completed':
-        return 'Recommencer';
-      default:
-        return 'Lecture';
-    }
-  });
+  const playLabel = yield* craftComputed('playLabel', () =>
+    replayPlayLabel(replayState()),
+  );
   const diagnosticLabel = yield* craftComputed('diagnosticLabel', () =>
     diagnosticReplay() ? 'Diagnostic activé' : 'Diagnostic désactivé',
   );
@@ -143,15 +164,6 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
       return !(yield* aiChat.chat.available());
     },
   );
-  const playPauseOrRestart = (): void => {
-    if (replayState() === 'playing') {
-      pauseReplay();
-      return;
-    }
-    if (replayState() === 'completed') startReplay();
-    else playReplay();
-  };
-
   const transport = div({ class: ui.transport }, [
     button(
       'play',
@@ -177,7 +189,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
             : replayState() === 'paused'
               ? 'Reprend le replay en respectant les délais enregistrés.'
               : 'Lance le replay et respecte les délais réellement enregistrés entre les interactions.',
-        click: playPauseOrRestart,
+        click: playPauseOrRestartReplay,
         disabled: playDisabled,
       },
       playLabel,

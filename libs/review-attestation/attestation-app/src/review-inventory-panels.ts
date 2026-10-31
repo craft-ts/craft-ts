@@ -129,7 +129,7 @@ export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
       );
       const templateObligations = deepYieldable(
         yield* craftPrivate(
-          craftComputed('templateObligations', function* () {
+          craftComputed('inventoryTemplateObligations', function* () {
             const say = yield* inputs.t();
             const locale = yield* inputs.locale();
             return (yield* inputs.templateObligations()).map((obligation) => ({
@@ -199,7 +199,7 @@ export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
       yield* craftExpose('selectedVisualAsset', selectedVisualAsset);
       yield* craftExpose('visualReviewCard', visualReviewCard);
       yield* craftExpose('openVisualReview', openVisualReview);
-      yield* craftExpose('templateObligations', templateObligations);
+      yield* craftExpose('inventoryTemplateObligations', templateObligations);
       yield* craftExpose('diagnostics', diagnostics);
       yield* craftExpose('fileUrl', fileUrl);
     },
@@ -229,7 +229,7 @@ export const ReviewInventoryPanels = craftComponent(
       selectedImageSource,
       visualReviewCard,
       openVisualReview,
-      templateObligations,
+      inventoryTemplateObligations: templateObligations,
       diagnostics,
       fileUrl,
     } = yield* ReviewInventoryPanelsView();

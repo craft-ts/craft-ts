@@ -45,7 +45,6 @@ import { provideLogForwarding, provideLogServerUrl } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { AppStartLog } from './run-on-app-start/run-on-app-start';
-import { provideDemoTracing } from './template-trace-demo';
 
 const localLogServerUrl =
   import.meta.env['VITE_CRAFT_LOG_SERVER_URL'] ?? 'http://127.0.0.1:4319';

@@ -63,12 +63,10 @@ export const { E2eComparison } = craftService(
   { name: 'e2eComparison', providedIn: 'global' },
   function* () {
     yield* query('comparison', {
-      method: (hash: string) => hash,
-      loader: function* ({ params: hash }) {
-        const params = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
-        const testId = params.get('test') ?? '';
-        const project = params.get('project') ?? '';
-        const sessionId = params.get('run') ?? '';
+      method: (params: Readonly<{ test: string; project: string; run: string }>) =>
+        params,
+      loader: function* ({ params }) {
+        const { test: testId, project, run: sessionId } = params;
         return yield* CraftHttpClient.get(({ response }) => ({
           url: `${SESSION_SERVER_URL}/e2e-sessions/compare?${new URLSearchParams({ test: testId, project, run: sessionId })}`,
           success: response(comparisonDecoder({ testId, project, sessionId })),

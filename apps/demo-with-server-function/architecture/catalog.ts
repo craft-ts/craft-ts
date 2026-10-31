@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "98fdcedc0ad8e4ff",
+  "graphHash": "5a67d758e195398b",
   "routes": [
     "",
     "access-denied",
@@ -61,7 +61,6 @@ export const architectureCatalog = {
     "captureError",
     "captureInProgress",
     "clearAllCache",
-    "copied",
     "currentUser",
     "currentUserQuery",
     "effectMiddlewareServerError",
@@ -69,12 +68,16 @@ export const architectureCatalog = {
     "filter",
     "hasProducts",
     "hasServerError",
-    "hasUsers",
-    "instruction",
+    "hasUsersClientEffectServerMiddlewareDemo",
+    "hasUsersClientPortableServerFunctionDemo",
+    "hasUsersClientServerFunctionDemo",
     "isAdmin",
-    "isEmpty",
+    "isEmptyClientEffectServerMiddlewareDemo",
+    "isEmptyClientPortableServerFunctionDemo",
+    "isEmptyClientServerFunctionDemo",
     "normalizedFilter",
-    "notFound",
+    "notFoundClientServerFunctionDemo",
+    "notFoundClientSimpleListDemo",
     "notFoundMessage",
     "panelOffset",
     "portableUsers",
@@ -83,15 +86,23 @@ export const architectureCatalog = {
     "productsRequestDetail",
     "productsRequestTitle",
     "productsResultCount",
-    "promptOptions",
-    "replayJson",
-    "replayStatus",
-    "requestDetail",
-    "requestTitle",
-    "resultCount",
+    "requestDetailClientServerFunctionDemo",
+    "requestDetailClientSimpleListDemo",
+    "requestTitleClientServerFunctionDemo",
+    "requestTitleClientSimpleListDemo",
+    "resultCountClientPortableServerFunctionDemo",
+    "resultCountClientServerFunctionDemo",
+    "resultCountClientSimpleListDemo",
     "scannedCount",
-    "searchInput",
+    "searchInputClientPortableServerFunctionDemo",
+    "searchInputClientServerFunctionDemo",
+    "searchInputClientSimpleListDemo",
+    "sendContextInstruction",
+    "sendContextPromptOptions",
     "sendContextToAi",
+    "sendDialogCopied",
+    "sendDialogInstruction",
+    "sendDialogPromptOptions",
     "serverErrorText",
     "setBusy",
     "setCaptureError",
@@ -99,13 +110,22 @@ export const architectureCatalog = {
     "setCopied",
     "setError",
     "setPanelOffset",
-    "setReplayStatus",
+    "setPortableSearchInputClientPortableServerFunctionDemo",
+    "setSearchInputClientServerFunctionDemo",
+    "setSearchInputClientSimpleListDemo",
     "setStatus",
+    "setTimelineExpanded",
     "status",
-    "submitSearch",
+    "submitSearchClientPortableServerFunctionDemo",
+    "submitSearchClientServerFunctionDemo",
+    "submitSearchClientSimpleListDemo",
+    "timelineExpanded",
     "users",
     "usersFilter",
-    "usersQuery"
+    "usersQueryClientEffectServerMiddlewareDemo",
+    "usersQueryClientPortableServerFunctionDemo",
+    "usersQueryClientServerFunctionDemo",
+    "usersQueryClientSimpleListDemo"
   ],
   "sources": [
     "signalSource (signalSource)",
@@ -121,7 +141,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:314>"
+      "url": "<unresolved:ai-send-context-chat.ts:255>"
     }
   ],
   "uniques": [
@@ -270,6 +290,26 @@ export const architectureCatalog = {
     "routes": {}
   },
   "browserBoundaryServices": [],
-  "scopes": {}
+  "scopes": {
+    "appShellView": "toProvide",
+    "ClientSession": "global",
+    "effectServerMiddlewareDemoView": "toProvide",
+    "portableServerFunctionDemoView": "toProvide",
+    "publicProductsDemoView": "toProvide",
+    "serverFunctionDemoView": "toProvide",
+    "simpleListDemoView": "toProvide",
+    "ClaimedUserId": "abstract",
+    "aiContextMenuDismissal": "toProvide",
+    "aiSendContextChatState": "toProvide",
+    "aiSendDialogState": "toProvide",
+    "craftRouterOutletState": "toProvide",
+    "StorageService": "abstract",
+    "CraftLogServerUrl": "abstract",
+    "CraftFieldCheckboxControl": "abstract",
+    "CraftFieldValueControl": "abstract",
+    "GlobalPersisterHandlerService": "toProvide",
+    "ServerFunctionTransport": "abstract",
+    "StoragePersister": "abstract"
+  }
 } as const;
 export type ArchitectureCatalog = typeof architectureCatalog;

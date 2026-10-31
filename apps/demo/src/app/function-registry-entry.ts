@@ -12,6 +12,7 @@ import {
   craftUse,
   executeGeneratorCompatibleFactory,
   getCurrentStartCorrelationId,
+  ɵinjectCraftRandomRuntime,
   HOST_TAG_LIST,
   injectPrimitiveMethodRuntimeContext,
   provideFnWrapper,
@@ -111,7 +112,7 @@ export const provideMcpExperimentation = () => [
       // eslint-disable-next-line craft-ts/prefer-browser-boundaries
       globalThis.sessionStorage,
       // eslint-disable-next-line craft-ts/prefer-browser-boundaries
-      () => globalThis.crypto.randomUUID(),
+      () => ɵinjectCraftRandomRuntime().uuid(),
     ),
   ),
   provideAppInitializer(() => {

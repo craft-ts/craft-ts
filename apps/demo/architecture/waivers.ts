@@ -9,5 +9,12 @@ import { architectureCatalog } from './catalog';
  */
 export const architectureWaiverList = defineArchitectureWaivers(
   architectureCatalog,
-  [],
+  [
+    {
+      rule: 'runtime-entity-names-unique',
+      target: '*',
+      reason:
+        'The demo is a gallery of isolated routed examples. Several examples intentionally use the same local primitive names, and only one route is mounted at a time; the route and lazy-loading checks cover that runtime boundary.',
+    },
+  ],
 );

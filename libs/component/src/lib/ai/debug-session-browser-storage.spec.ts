@@ -146,10 +146,10 @@ describe('browser storage replay snapshots', () => {
       });
     } finally {
       if (original) Object.defineProperty(window, 'cookieStore', original);
-      else delete (window as Window & { cookieStore?: unknown }).cookieStore;
+      else Reflect.deleteProperty(window, 'cookieStore');
       if (originalIndexedDb)
         Object.defineProperty(window, 'indexedDB', originalIndexedDb);
-      else delete (window as Window & { indexedDB?: unknown }).indexedDB;
+      else Reflect.deleteProperty(window, 'indexedDB');
     }
   });
 

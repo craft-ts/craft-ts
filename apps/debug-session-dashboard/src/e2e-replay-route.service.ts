@@ -1,6 +1,8 @@
 import {
   BrowserLocationService,
   CraftHttpClient,
+  craftGen,
+  craftExpose,
   craftEffect,
   craftService,
   query,
@@ -29,6 +31,12 @@ export const { E2eReplayRoute: E2eReplayRouteService } = craftService(
         }));
       },
     });
+    yield* craftExpose(
+      'loadSource',
+      craftGen(function* (source: string | undefined) {
+        if (source) yield* sourceSession.call(source);
+      }),
+    );
     const sourceValue = rawReactiveValue(sourceSession.value);
     const browserLocation = yield* BrowserLocationService();
     const dashboardOrigin = browserLocation.origin();
@@ -37,7 +45,7 @@ export const { E2eReplayRoute: E2eReplayRouteService } = craftService(
       const next = sourceValue();
       if (!isRecord(next) || next === loaded) return;
       loaded = next;
-      importJson(JSON.stringify(next), { preserveRoute: true });
+      importJson(JSON.stringify(next));
       scheduleReplayPreparation();
     });
     onWindowMessage((message) => {

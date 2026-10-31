@@ -12,7 +12,12 @@ import {
   div,
   p,
 } from '@craft-ts/component';
-import { craftSignal, craftUse } from '@craft-ts/core';
+import {
+  // This snippet deliberately demonstrates a low-level imperative directive input.
+  // eslint-disable-next-line craft-ts/no-direct-craft-reactivity
+  craftSignal,
+  craftUse,
+} from '@craft-ts/core';
 
 const isVisible = craftSignal(true);
 

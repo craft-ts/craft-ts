@@ -7,8 +7,10 @@ useSnippetHarness();
 
 type Task = { id: string; title: string; done: boolean };
 
+let nextTaskId = 0;
+
 const newTask = (title: string): Task => ({
-  id: crypto.randomUUID(),
+  id: `task-${nextTaskId++}`,
   title,
   done: false,
 });

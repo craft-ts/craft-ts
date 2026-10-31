@@ -137,8 +137,9 @@ const MutationDemoComponent = craftComponent(
           type: 'text',
           placeholder: 'New name',
           *input(event) {
-            const value = eventValue(event);
-            yield* (yield* MutationDemoView()).nameInput.setName(value);
+            yield* (yield* MutationDemoView()).nameInput.setName(
+              eventValue(event),
+            );
           },
         }),
         button(

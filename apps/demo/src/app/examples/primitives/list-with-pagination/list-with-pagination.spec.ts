@@ -26,7 +26,7 @@ type ListTemplate = ComponentTemplateOf<typeof ListWithPagination>;
 
 type _UsersQueryDependsOnApiService = Expect<
   Equal<
-    'ApiService' extends keyof ExtractDeps<ListLogic['usersQuery']>
+    'ApiServiceListWithPaginationApiService2' extends keyof ExtractDeps<ListLogic['usersQuery']>
       ? true
       : false,
     true
@@ -46,7 +46,7 @@ type _ApiServiceDependencyIsTracked = Expect<
   Equal<
     ExtractDeps<
       ListLogic['usersQuery']
-    >['ApiService'] extends GetServiceDependencies<typeof ApiService>
+    >['ApiServiceListWithPaginationApiService2'] extends GetServiceDependencies<typeof ApiService>
       ? true
       : false,
     true
@@ -55,7 +55,7 @@ type _ApiServiceDependencyIsTracked = Expect<
 
 type _ApiServiceGetDataListIsTracked = Expect<
   Equal<
-    ExtractDeps<ListLogic['usersQuery']>['ApiService'] extends {
+    ExtractDeps<ListLogic['usersQuery']>['ApiServiceListWithPaginationApiService2'] extends {
       derivedPropertiesUsed: infer Used extends object;
     }
       ? 'getDataList' extends keyof Used
@@ -205,7 +205,7 @@ describe('primitive list with pagination template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
+          ApiServiceListWithPaginationApiService2: 'notReached',
           StoragePersister: 'notReached',
           listWithPaginationView: result.context,
         },
@@ -234,7 +234,7 @@ describe('primitive list with pagination template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
+          ApiServiceListWithPaginationApiService2: 'notReached',
           StoragePersister: 'notReached',
           listWithPaginationView: result.context,
         },
@@ -263,7 +263,7 @@ describe('primitive list with pagination template', () => {
       {
         inputs: {},
         register: {
-          ApiService: 'notReached',
+          ApiServiceListWithPaginationApiService2: 'notReached',
           StoragePersister: 'notReached',
           listWithPaginationView: result.context,
         },
@@ -313,7 +313,7 @@ describe('primitive list with pagination logic', () => {
       ListWithPaginationView,
       {
         listWithPaginationView: provideListWithPaginationView(),
-        ApiService: { getDataList },
+        ApiServiceListWithPaginationApiService2: { getDataList },
         StoragePersister: storage,
       } as never,
       { providers: [provideRouter([])] },

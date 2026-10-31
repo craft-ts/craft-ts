@@ -13,6 +13,7 @@ import {
   ul,
 } from '@craft-ts/component';
 import {
+  CraftRouter,
   DEBUG_SESSION_EXPORT_VERSION,
   DEBUG_SESSION_REPLAY_VERSION,
   CraftTemporalRuntime,
@@ -23,20 +24,17 @@ import { DocCallout } from '@craft-ts/ui';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { ImportDialog } from './import-dialog';
-import { goToHash } from './replay-browser';
 import { sessionDate, storageSizeLabel } from './replay-labels';
 import { plural } from './replay-model';
-import { ReplayRoute } from './replay-route.service';
 import { SessionResumeFilter } from './session-resume-filter.service';
 import { openImport } from './replay-session';
 import type { SessionSummary } from './session-archive.service';
 import {
   page,
   pendingDeleteSessionId,
-  routeSessionId,
-  sessionRoute,
 } from './replay-state';
 import { SessionArchive } from './session-archive.service';
+import { SessionPageActions } from './sessions-page-actions.service';
 import { lit } from './view-helpers';
 
 function hasSupportedVersions(session: SessionSummary): boolean {
@@ -48,14 +46,30 @@ function hasSupportedVersions(session: SessionSummary): boolean {
 
 /** Page 1: the sessions the local archive holds, to open or to delete. */
 export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
-  const archive = yield* SessionArchive();
+  const archive = yield* SessionArchive(undefined, ({
+    savedSessions,
+    retentionDays,
+    storageBytes,
+    reachable,
+    deleteSession,
+    deleteArchivedSessions,
+    pruneExpired,
+  }) => ({
+    savedSessions,
+    retentionDays,
+    storageBytes,
+    reachable,
+    deleteSession,
+    deleteArchivedSessions,
+    pruneExpired,
+  }));
   const resumeFilter = yield* SessionResumeFilter();
-  const route = yield* ReplayRoute();
+  const actions = yield* SessionPageActions();
   const savedSessions = rawReactiveValue(archive.savedSessions);
   const retentionDays = rawReactiveValue(archive.retentionDays);
   const storageBytes = rawReactiveValue(archive.storageBytes);
   const reachable = rawReactiveValue(archive.reachable);
-  const resumeFilterEnabled = rawReactiveValue(resumeFilter.enabled);
+  const resumeFilterEnabled = rawReactiveValue(resumeFilter.filter.enabled);
   const visibleSessions = yield* craftComputed('visibleSessions', () => {
     const sessions = savedSessions();
     return resumeFilterEnabled()
@@ -86,7 +100,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   );
   const incompatibleSessionsValue = rawReactiveValue(incompatibleSessions);
   const incompatibleCountSignal = yield* craftComputed(
-    'incompatibleSessionCount',
+    'incompatibleCountSignal',
     () => incompatibleSessionsValue().length,
   );
   const incompatibleCount = rawReactiveValue(incompatibleCountSignal);
@@ -123,16 +137,10 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
             'Supprime les sessions dont le format ou le replay n’est pas pris en charge.',
           click: function* () {
             const incompatible = incompatibleSessionsValue();
-            if (
-              incompatible.length === 0 ||
-              !globalThis.confirm(
-                `Supprimer définitivement ${plural(incompatible.length, 'session')} dont le format ou le replay n’est pas pris en charge ?`,
-              )
-            )
-              return;
-            yield* archive.deleteArchivedSessions(
-              incompatible.map((item) => item.id),
-            );
+            if (incompatible.length > 0)
+              yield* actions.deleteIncompatibleSessions(
+                incompatible.map((item) => item.id),
+              );
           },
         },
         function* () {
@@ -155,14 +163,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
           click: function* () {
             const count = expiredCount();
             const days = retentionDays();
-            if (
-              count === 0 ||
-              !globalThis.confirm(
-                `Supprimer définitivement ${plural(count, 'session')} terminée${count > 1 ? 's' : ''}, créée${count > 1 ? 's' : ''} il y a plus de ${days} jours ?`,
-              )
-            )
-              return;
-            yield* archive.pruneExpired();
+            if (count > 0) yield* actions.pruneExpiredSessions(count, days);
           },
         },
         'Nettoyer les anciennes',
@@ -184,7 +185,9 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
           class: buttonUi.root,
           'data-variant': 'secondary',
           'data-lab': 'open-recipe-catalog',
-          click: () => goToHash('#/recipes'),
+          click: function* () {
+            yield* CraftRouter.navigate({ to: 'recipes' });
+          },
         },
         'Recettes',
       ),
@@ -200,7 +203,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
           'aria-pressed': function* () {
             return resumeFilterEnabled() ? 'true' : 'false';
           },
-          click: resumeFilter.toggle,
+          click: resumeFilter.filter.toggle,
         },
         function* () {
           return resumeFilterEnabled()
@@ -236,8 +239,10 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
             'data-lab': 'saved-session',
             click: function* () {
               const item = yield* saved();
-              if (routeSessionId() !== item.id) goToHash(sessionRoute(item.id));
-              else route.open(item.id);
+              yield* CraftRouter.navigate({
+                to: 'sessions/:sessionId',
+                params: { sessionId: item.id },
+              });
             },
           },
           [
@@ -427,7 +432,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                   'data-lab': 'confirm-delete-session',
                   click: function* () {
                     const item = yield* saved();
-                    route.remove(item.id);
+                    yield* actions.confirmDeleteSession(item.id);
                   },
                 },
                 'Supprimer définitivement',

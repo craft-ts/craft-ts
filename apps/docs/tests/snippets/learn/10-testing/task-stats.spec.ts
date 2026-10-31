@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import {
   craftComputed,
+  // The snippet tests external reactive values at the Craft boundary.
+  // eslint-disable-next-line craft-ts/no-direct-craft-reactivity
   craftSignal,
   createYieldableReactiveValue,
   craftService,

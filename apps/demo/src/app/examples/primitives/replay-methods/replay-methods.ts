@@ -19,12 +19,12 @@ import {
 import { buttonUi } from '@craft-ts/ui/style';
 import { example } from '../../shared/example.style';
 
-const ITEM_INDEXES = [0, 1] as const;
+const ITEM_INDEXES: readonly [0, 1] = [0, 1];
 
 export const { ReplayMethodsView, provideReplayMethodsView } = craftService(
   { name: 'replayMethodsView', providedIn: 'toProvide' },
   function* () {
-    yield* state(
+    const cells = yield* state(
       'cells',
       [
         { name: 'Premier élément', actions: 0 },
@@ -52,6 +52,10 @@ export const { ReplayMethodsView, provideReplayMethodsView } = craftService(
         }),
       ),
     );
+    yield* craftMethod('recordCellAction', function* (index: number) {
+      const cell = cells.selectCell(index);
+      if (cell) yield* cell.recordAction();
+    });
 
     const sourceCount = yield* state('sourceCount', 0, ({ update }) => ({
       increment: () => update((count) => count + 1),
@@ -88,20 +92,17 @@ const ReplayMethods = craftComponent(
             div({ class: example.toolbar, 'data-testid': `cell-${index}` }, [
               span(function* () {
                 const { cells } = yield* ReplayMethodsView();
-                const cell = cells.selectCell(index);
-                return `${cell?.name}: ${cell?.actions ?? 0} action(s)`;
+                return `${cells.selectCell(index)?.name}: ${cells.selectCell(index)?.actions ?? 0} action(s)`;
               }),
               button(
-                `record-cell-${index}`,
+                'recordCellAction',
                 {
                   class: buttonUi.root,
                   'data-variant': 'secondary',
                   type: 'button',
                   'data-testid': `record-cell-action-${index}`,
                   click: function* () {
-                    const { cells } = yield* ReplayMethodsView();
-                    const cell = cells.selectCell(index);
-                    if (cell) yield* cell.recordAction();
+                    yield* ReplayMethodsView.recordCellAction(index);
                   },
                 },
                 'Déclencher',
@@ -128,10 +129,7 @@ const ReplayMethods = craftComponent(
               'data-variant': 'secondary',
               type: 'button',
               'data-testid': 'pipe-add-one',
-              click: function* () {
-                const { pipedCount } = yield* ReplayMethodsView();
-                yield* pipedCount.addOne();
-              },
+              click: ReplayMethodsView.pipedCount.addOne,
             },
             'Ajouter 1',
           ),
@@ -142,10 +140,7 @@ const ReplayMethods = craftComponent(
               'data-variant': 'primary',
               type: 'button',
               'data-testid': 'pipe-add-through-previous',
-              click: function* () {
-                const { pipedCount } = yield* ReplayMethodsView();
-                yield* pipedCount.addThroughPreviousInsertion();
-              },
+              click: ReplayMethodsView.pipedCount.addThroughPreviousInsertion,
             },
             'Ajouter via le membre précédent',
           ),
@@ -169,10 +164,7 @@ const ReplayMethods = craftComponent(
               'data-variant': 'secondary',
               type: 'button',
               'data-testid': 'source-emit',
-              click: function* () {
-                const { emitReplaySource } = yield* ReplayMethodsView();
-                emitReplaySource();
-              },
+              click: ReplayMethodsView.emitReplaySource,
             },
             'Émettre',
           ),

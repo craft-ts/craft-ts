@@ -55,6 +55,10 @@
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
+        "eslintConfig": "libs/review-attestation/attestation-app/eslint.config.mjs",
+        "lintFilePatterns": [
+          "libs/review-attestation/attestation-app/src/**/*.ts"
+        ],
         "maxWarnings": -1
       }
     },

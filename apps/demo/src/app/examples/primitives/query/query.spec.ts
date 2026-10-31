@@ -23,7 +23,7 @@ describe('Query template', () => {
 
   type _UserQueryDependsOnApiService = Expect<
     Equal<
-      'ApiService' extends keyof ExtractDeps<QueryLogic['userQuery']>
+      'ApiServiceQueryApiService2' extends keyof ExtractDeps<QueryLogic['userQuery']>
         ? true
         : false,
       true
@@ -43,7 +43,7 @@ describe('Query template', () => {
     Equal<
       ExtractDeps<
         QueryLogic['userQuery']
-      >['ApiService'] extends GetServiceDependencies<typeof ApiService>
+      >['ApiServiceQueryApiService2'] extends GetServiceDependencies<typeof ApiService>
         ? true
         : false,
       true
@@ -52,7 +52,7 @@ describe('Query template', () => {
 
   type _ApiServiceGetItemByIdIsTracked = Expect<
     Equal<
-      ExtractDeps<QueryLogic['userQuery']>['ApiService'] extends {
+      ExtractDeps<QueryLogic['userQuery']>['ApiServiceQueryApiService2'] extends {
         derivedPropertiesUsed: infer Used extends object;
       }
         ? 'getItemById' extends keyof Used
@@ -157,7 +157,7 @@ describe('Query logic', () => {
             return currentUserId;
           },
         }),
-        ApiService: { getItemById },
+        ApiServiceQueryApiService2: { getItemById },
         CraftRouter: { navigate },
         StoragePersister: storage,
       } as never,

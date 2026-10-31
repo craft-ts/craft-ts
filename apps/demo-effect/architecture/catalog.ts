@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "b9f8fe4ee0a9d4a5",
+  "graphHash": "e92c83d36be9ed2f",
   "routes": [
     "",
     "access",
@@ -71,7 +71,6 @@ export const architectureCatalog = {
     "captureInProgress",
     "clearAllCache",
     "collected",
-    "copied",
     "dataQuery",
     "englishPressed",
     "error",
@@ -82,30 +81,32 @@ export const architectureCatalog = {
     "hasProfile",
     "heading",
     "headingText",
-    "instruction",
-    "lines",
+    "linesEffectEffectI18n",
+    "linesEffectEffectSyncMembers",
     "locale",
     "memberNames",
     "panelOffset",
     "placed",
     "profileName",
     "profileQuery",
-    "promptOptions",
     "qty",
     "quoteLabel",
     "receiptQuery",
     "removeTodoMutation",
-    "replayJson",
-    "replayStatus",
+    "sendContextInstruction",
+    "sendContextPromptOptions",
     "sendContextToAi",
+    "sendDialogCopied",
+    "sendDialogInstruction",
+    "sendDialogPromptOptions",
     "setBusy",
     "setCaptureError",
     "setCaptureInProgress",
     "setCopied",
     "setError",
     "setPanelOffset",
-    "setReplayStatus",
     "setStatus",
+    "setTimelineExpanded",
     "shippingQuery",
     "showUnknown",
     "status",
@@ -113,6 +114,7 @@ export const architectureCatalog = {
     "teamName",
     "teamOverviewQuery",
     "ticksText",
+    "timelineExpanded",
     "titleInput",
     "todosQuery",
     "toggleTodoMutation",
@@ -131,7 +133,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:314>"
+      "url": "<unresolved:ai-send-context-chat.ts:255>"
     }
   ],
   "uniques": [],
@@ -317,6 +319,26 @@ export const architectureCatalog = {
     "routes": {}
   },
   "browserBoundaryServices": [],
-  "scopes": {}
+  "scopes": {
+    "effectSharedServiceView": "toProvide",
+    "effectFunctionView": "toProvide",
+    "effectI18nView": "toProvide",
+    "effectPlaygroundView": "toProvide",
+    "effectYieldView": "toProvide",
+    "effectStreamInteropView": "toProvide",
+    "effectSyncMembersView": "toProvide",
+    "effectLayerScopeView": "toProvide",
+    "aiContextMenuDismissal": "toProvide",
+    "aiSendContextChatState": "toProvide",
+    "aiSendDialogState": "toProvide",
+    "craftRouterOutletState": "toProvide",
+    "StorageService": "abstract",
+    "CraftLogServerUrl": "abstract",
+    "CraftFieldCheckboxControl": "abstract",
+    "CraftFieldValueControl": "abstract",
+    "GlobalPersisterHandlerService": "toProvide",
+    "ServerFunctionTransport": "abstract",
+    "StoragePersister": "abstract"
+  }
 } as const;
 export type ArchitectureCatalog = typeof architectureCatalog;

@@ -127,18 +127,16 @@ function focusExampleLink(
   event: KeyboardEvent,
   direction: 'first' | 'last' | 'next' | 'previous',
 ) {
-  const panel = (event.currentTarget as HTMLElement).closest(
-    '[data-testid="nav-panel"]',
-  );
+  const target = event.currentTarget;
+  if (!(target instanceof HTMLAnchorElement)) return;
+  const panel = target.closest('[data-testid="nav-panel"]');
   const links = panel?.querySelectorAll<HTMLAnchorElement>(
     '[data-testid="nav-link"]',
   );
   if (!links?.length) return;
 
   event.preventDefault();
-  const currentIndex = [...links].indexOf(
-    event.currentTarget as HTMLAnchorElement,
-  );
+  const currentIndex = [...links].indexOf(target);
   const nextIndex =
     direction === 'first'
       ? 0
