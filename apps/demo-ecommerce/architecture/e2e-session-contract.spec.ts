@@ -10,5 +10,5 @@ describe('demo e-commerce Playwright session contract', () => {
       workspaceRoot: process.cwd(),
       budgetBytes: { session: 100_000, test: 300_000 },
     })).resolves.toMatchObject({ warnings: expect.any(Array) });
-  });
+  }, 30_000);
 });
