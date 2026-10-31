@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/session-trace",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Normalize and compare CraftTS debug sessions as deterministic traces",
   "author": "Romain Geffrault",
   "license": "MIT",

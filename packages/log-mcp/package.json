@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/log-mcp",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "MCP reader for CraftTS local JSONL logs",
   "type": "module",
   "files": [
@@ -19,7 +19,7 @@
     "test": "vitest run --config vitest.config.mts"
   },
   "dependencies": {
-    "@craft-ts/session-trace": "^0.9.3",
+    "@craft-ts/session-trace": "^0.10.0",
     "@modelcontextprotocol/sdk": "1.26.0",
     "zod": "4.3.6"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/log-server",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Local JSONL log ingestion server for CraftTS development",
   "type": "module",
   "files": [
@@ -28,7 +28,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@craft-ts/session-trace": "^0.9.3",
+    "@craft-ts/session-trace": "^0.10.0",
     "ws": "^8.21.3"
   }
 }
