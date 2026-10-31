@@ -46,7 +46,7 @@ const NO_INJECTOR = {
   createChild() {
     return this;
   },
-  destroy() {},
+  destroy: () => undefined,
   destroyed: false,
 } as unknown as Injector;
 
