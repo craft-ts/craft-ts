@@ -188,18 +188,26 @@ describe('catchTag handlers', () => {
   });
 
   it('an asynchronous handler delivers its value when left alone', async () => {
+    const started = vi.fn();
     const { seen } = observe(
       fail(boom()).pipe(
         catchTag('Boom', function* () {
+          started();
           yield* craftSleep(50);
           return 'late';
         }),
       ) as AnyCraftStream,
     );
+    expect(started).toHaveBeenCalledOnce();
+    expect(seen.exceptions).toEqual([]);
+    expect(seen.errors).toEqual([]);
+    expect(seen.values).toEqual([]);
+    expect(clock.pendingTasks()).toHaveLength(1);
 
     await clock.advanceBy(100);
+    expect(clock.pendingTasks()).toHaveLength(0);
+    await vi.waitFor(() => expect(seen.values).toEqual(['late']));
 
-    expect(seen.values).toEqual(['late']);
     expect(seen.completed).toBe(1);
   });
 });

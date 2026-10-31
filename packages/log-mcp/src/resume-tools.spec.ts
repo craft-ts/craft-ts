@@ -281,7 +281,7 @@ describe('resume tools', () => {
     expect(goal).toBeGreaterThan(doctor);
     expect(drive).toBeGreaterThan(goal);
     expect(text).toContain('checkpoint.save seul ne suffit pas');
-    expect(text).toContain('status=completed');
+    expect(text).toContain("ne devient verified qu'après");
     expect(text).toContain('en passant recipeId depuis la recette');
     expect(text).not.toContain('la même question dans le fil');
     expect(text).toContain('checkpoint.save');

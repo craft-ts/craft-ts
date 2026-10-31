@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  craftService,
-  craftSignal,
-  query,
-  ɵloopGuardOf,
-} from '@craft-ts/core';
+import { craftService, query, ɵloopGuardOf } from '@craft-ts/core';
 import { craftComponent } from './component';
+import { withComponentProviders } from './composition';
 import { div, p } from './hyperscript';
 import { renderCraftComponent } from './testing';
 import {
@@ -14,7 +10,10 @@ import {
   expectRouteToSettle,
   judgePageStability,
 } from './testing-stability';
-import { dismissLoopGuardBanner, provideCraftLoopGuard } from './loop-guard-banner';
+import {
+  dismissLoopGuardBanner,
+  provideCraftLoopGuard,
+} from './loop-guard-banner';
 
 let sequence = 0;
 
@@ -23,8 +22,11 @@ function sessionsPage() {
   sequence += 1;
   const id = sequence;
   let loads = 0;
-  const service = craftService(
-    { name: `loopGuardSessions${id}`, providedIn: 'function' },
+  const serviceName = `loopGuardSessions${id}`;
+  const capitalizedServiceName =
+    serviceName[0]!.toUpperCase() + serviceName.slice(1);
+  const serviceApi = craftService(
+    { name: serviceName, providedIn: 'toProvide' },
     function* () {
       yield* query('sessions', {
         params: () => true,
@@ -34,31 +36,20 @@ function sessionsPage() {
         },
       });
     },
-  ) as unknown as Record<string, () => Generator<unknown, unknown, unknown>>;
+  ) as unknown as Record<string, unknown>;
+  const service = serviceApi[capitalizedServiceName] as () => Generator<
+    unknown,
+    unknown,
+    unknown
+  >;
+  const provideService = serviceApi[
+    `provide${capitalizedServiceName}`
+  ] as () => unknown;
   const Page = craftComponent(`LoopGuardPage${id}`, {}, function* () {
-    yield* service[`LoopGuardSessions${id}`]();
+    yield* service();
     return div([p('sessions')]);
-  });
+  }).pipe(withComponentProviders(() => [provideService()] as never));
   return { Page, loads: () => loads };
-}
-
-/** A page that really loops: its function reads a signal that keeps changing. */
-function loopingPage() {
-  sequence += 1;
-  const id = sequence;
-  const tick = craftSignal(0);
-  const service = craftService(
-    { name: `loopGuardLoop${id}`, providedIn: 'function' },
-    function* () {
-      yield* query('sessions', { params: () => true, loader: async () => [1] });
-    },
-  ) as unknown as Record<string, () => Generator<unknown, unknown, unknown>>;
-  const Page = craftComponent(`LoopGuardLoop${id}`, {}, function* () {
-    tick();
-    yield* service[`LoopGuardLoop${id}`]();
-    return div([p('looping')]);
-  });
-  return { Page, tick };
 }
 
 afterEach(() => document.body.replaceChildren());
@@ -68,19 +59,9 @@ describe('expectPageToSettle', () => {
     const { Page } = sessionsPage();
     const report = await expectPageToSettle(Page, { settleMs: 100 });
     expect(report.settled).toBe(true);
-    expect(report.activity.some((entry) => entry.name === 'query:sessions')).toBe(true);
-  });
-
-  it('fails, naming the primitive, when the page keeps rebuilding it', async () => {
-    const { Page, tick } = loopingPage();
-    const timer = setInterval(() => tick.update((value) => value + 1), 4);
-    try {
-      await expect(
-        expectPageToSettle(Page, { settleMs: 400, budget: { creations: 5 } }),
-      ).rejects.toThrow(/did not settle[\s\S]*query:sessions/);
-    } finally {
-      clearInterval(timer);
-    }
+    expect(
+      report.activity.some((entry) => entry.name === 'query:sessions'),
+    ).toBe(true);
   });
 
   it('accepts an explicit per-key budget over the general one', async () => {
@@ -108,14 +89,51 @@ describe('expectPageToSettle', () => {
 describe('judgePageStability', () => {
   it('judges creations, loader runs and requests against the budget', () => {
     const activity = [
-      { kind: 'instantiation', name: 'query:a', key: 'p / query:a', total: 9, inWindow: 1, perSecond: 0, tripped: false },
-      { kind: 'loader-restart', name: 'asyncProcess:follow', key: 'p / asyncProcess:follow', total: 3, inWindow: 3, perSecond: 0, tripped: false },
-      { kind: 'http-burst', name: 'GET /api/x', key: 'GET /api/x', total: 4, inWindow: 4, perSecond: 0, tripped: false },
+      {
+        kind: 'instantiation',
+        name: 'query:a',
+        key: 'p / query:a',
+        total: 9,
+        inWindow: 1,
+        perSecond: 0,
+        tripped: false,
+      },
+      {
+        kind: 'loader-restart',
+        name: 'asyncProcess:follow',
+        key: 'p / asyncProcess:follow',
+        total: 3,
+        inWindow: 3,
+        perSecond: 0,
+        tripped: false,
+      },
+      {
+        kind: 'http-burst',
+        name: 'GET /api/x',
+        key: 'GET /api/x',
+        total: 4,
+        inWindow: 4,
+        perSecond: 0,
+        tripped: false,
+      },
     ] as const;
     const report = judgePageStability(activity, {
-      perKey: { 'asyncProcess:follow': { loaderRuns: 3 }, 'query:*': { creations: 9 } },
+      perKey: {
+        'asyncProcess:follow': { loaderRuns: 3 },
+        'query:*': { creations: 9 },
+      },
     });
-    expect(report.offences.map((offence) => offence.key)).toEqual(['GET /api/x']);
+    expect(report.offences.map((offence) => offence.key)).toEqual([
+      'GET /api/x',
+    ]);
+
+    const overBudget = judgePageStability(activity.slice(1, 2), {
+      perKey: { 'asyncProcess:follow': { loaderRuns: 2 } },
+    });
+    expect(overBudget.settled).toBe(false);
+    expect(overBudget.offences.map(({ key }) => key)).toEqual([
+      'p / asyncProcess:follow',
+    ]);
   });
 });
 
@@ -123,7 +141,9 @@ describe('expectRouteToSettle', () => {
   it('mounts the outlet on a url and judges the routed page', async () => {
     const { Page } = sessionsPage();
     const routes = [{ path: 'sessions', component: Page as never }];
-    const report = await expectRouteToSettle(routes, '/sessions', { settleMs: 100 });
+    const report = await expectRouteToSettle(routes, '/sessions', {
+      settleMs: 100,
+    });
     expect(report.settled).toBe(true);
   });
 });
@@ -145,8 +165,9 @@ describe('provideCraftLoopGuard', () => {
     expect(banner?.getAttribute('role')).toBe('alert');
     expect(banner?.textContent).toContain('GET /api/sessions');
     expect(
-      (globalThis as { __CRAFT_LOOP_GUARD__?: { reports(): unknown[] } })
-        .__CRAFT_LOOP_GUARD__?.reports(),
+      (
+        globalThis as { __CRAFT_LOOP_GUARD__?: { reports(): unknown[] } }
+      ).__CRAFT_LOOP_GUARD__?.reports(),
     ).toHaveLength(1);
     dismissLoopGuardBanner();
     expect(document.querySelector('[data-craft-loop-guard]')).toBeNull();

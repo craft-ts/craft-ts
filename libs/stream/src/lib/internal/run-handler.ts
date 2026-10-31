@@ -37,6 +37,17 @@ const NO_INJECTOR = {
     if (rest.length > 0 && rest[0] !== undefined) return rest[0];
     throw new Error(NO_INJECTOR_MESSAGE);
   },
+  getOptional() {
+    return null;
+  },
+  run<T>(fn: () => T): T {
+    return fn();
+  },
+  createChild() {
+    return this;
+  },
+  destroy() {},
+  destroyed: false,
 } as unknown as Injector;
 
 function stepToOutcome(
@@ -98,6 +109,7 @@ export function runHandler(
   const options: CraftProgramPumpOptions = {
     ...HANDLER_PUMP_OPTIONS,
     abortSignal: controller.signal,
+    temporalRuntime: context.temporal,
   };
   const inContext = <T>(fn: () => T): T =>
     context.injector ? runInInjectionContext(context.injector, fn) : fn();

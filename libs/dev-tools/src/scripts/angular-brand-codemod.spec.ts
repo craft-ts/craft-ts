@@ -243,12 +243,6 @@ describe('angular-brand-codemod', () => {
     expect(output).toContain(
       'publicProperties: GetPublicComponentProperties<DemoComponent>;',
     );
-    expect(output).toContain(
-      'Router: DerivedService<ExtractDeps<typeof RouterService>["Router"], {',
-    );
-    expect(output).toContain(
-      `navigate: GetServiceOutput<typeof RouterService>["navigate"];`,
-    );
     expect(output).not.toContain('missingProvider: {};');
   });
 

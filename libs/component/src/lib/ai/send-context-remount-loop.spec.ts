@@ -7,6 +7,7 @@ import {
   ɵinjectCraftRouterRuntime,
 } from '@craft-ts/core';
 import { craftComponent } from '../component';
+import { withComponentProviders } from '../composition';
 import { CraftRouterOutlet } from '../craft-router-outlet';
 import { div, p } from '../hyperscript';
 import { renderCraftComponent } from '../testing';
@@ -30,8 +31,11 @@ async function mountSessionsPage(
   const id = sequence;
   let serviceRuns = 0;
   let loads = 0;
-  const service = craftService(
-    { name: `sessionsList${id}`, providedIn: 'function' },
+  const serviceName = `sessionsList${id}`;
+  const capitalizedServiceName =
+    serviceName[0]!.toUpperCase() + serviceName.slice(1);
+  const serviceApi = craftService(
+    { name: serviceName, providedIn: 'toProvide' },
     function* () {
       serviceRuns += 1;
       if (serviceRuns > RUN_BUDGET) throw new Error('remount loop');
@@ -43,11 +47,19 @@ async function mountSessionsPage(
         },
       });
     },
-  ) as unknown as Record<string, () => Generator<unknown, unknown, unknown>>;
+  ) as unknown as Record<string, unknown>;
+  const service = serviceApi[capitalizedServiceName] as () => Generator<
+    unknown,
+    unknown,
+    unknown
+  >;
+  const provideService = serviceApi[
+    `provide${capitalizedServiceName}`
+  ] as () => unknown;
   const Page = craftComponent(`SessionsPage${id}`, {}, function* () {
-    yield* service[`SessionsList${id}`]();
+    yield* service();
     return div([p('sessions')]);
-  });
+  }).pipe(withComponentProviders(() => [provideService()] as never));
   const rendered = await renderCraftComponent(CraftRouterOutlet as never, {
     providers: [
       ...provideCraftRouter([{ path: '', component: Page as never }]),

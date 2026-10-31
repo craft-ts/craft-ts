@@ -25,13 +25,13 @@ export const AiSendContextLauncher: CraftComponent<{
   {},
   function* (inputs: {
     readonly onOpen: Output<() => void>;
-    readonly onMove: Output<
-      (position: AiLauncherPosition | undefined) => void
-    >;
+    readonly onMove: Output<(position: AiLauncherPosition | undefined) => void>;
     readonly label: Input<string | undefined>;
   }) {
     const readLabel = function* () {
-      return (yield* inputs.label()) ?? 'Report';
+      return typeof inputs.label === 'function'
+        ? ((yield* inputs.label()) ?? 'Report')
+        : 'Report';
     };
     let origin: DOMRect | undefined;
     const launcherOf = (handle: Element) =>

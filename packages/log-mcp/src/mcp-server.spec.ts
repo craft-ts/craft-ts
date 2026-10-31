@@ -4,7 +4,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { compareSessionTraces, normalizeSessionTrace } from '@craft-ts/session-trace';
+import {
+  compareSessionTraces,
+  normalizeSessionTrace,
+} from '@craft-ts/session-trace';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LogReader } from './log-reader.js';
 import { createLogMcpServer } from './mcp-server.js';
@@ -67,6 +70,9 @@ describe('logs MCP server', () => {
       'logs.clear',
       'sessions.compare',
       'resume.request',
+      'recipe.list',
+      'recipe.get',
+      'recipe.exportPlaywright',
       'resume.say',
       'resume.replies',
       'session.story',
@@ -80,30 +86,70 @@ describe('logs MCP server', () => {
     const previousFetch = globalThis.fetch;
     const previousUrl = process.env['LOG_SERVER_URL'];
     process.env['LOG_SERVER_URL'] = 'http://log.test';
-    const baselineGzip = readFileSync(new URL('../../session-trace/src/__fixtures__/shop.checkout.session.json.gz', import.meta.url));
-    const baseline = JSON.parse(gunzipSync(baselineGzip).toString('utf8')) as { events: Array<Record<string, unknown>> };
+    const baselineGzip = readFileSync(
+      new URL(
+        '../../session-trace/src/__fixtures__/shop.checkout.session.json.gz',
+        import.meta.url,
+      ),
+    );
+    const baseline = JSON.parse(gunzipSync(baselineGzip).toString('utf8')) as {
+      events: Array<Record<string, unknown>>;
+    };
     // The order server function answers 500 in the observed run.
     const observed = {
       ...baseline,
-      events: baseline.events.map((event) => event['operationId'] === 'fetch-4' && event['phase'] === 'succeeded' ? { ...event, response: { status: 500, body: '"{}"' } } : event),
+      events: baseline.events.map((event) =>
+        event['operationId'] === 'fetch-4' && event['phase'] === 'succeeded'
+          ? { ...event, response: { status: 500, body: '"{}"' } }
+          : event,
+      ),
     };
     globalThis.fetch = async (input) => {
       const url = new URL(String(input));
-      if (url.pathname === '/e2e-sessions') return Response.json({ sessions: [{ root: 0, id: 'shop.checkout', project: 'chromium', runs: [{ file: 'run.session.json.gz' }] }] });
-      if (url.pathname === '/sessions/00000000-0000-4000-8000-000000000001') return Response.json(observed);
-      if (url.pathname.endsWith('/run.session.json.gz')) return new Response(baselineGzip);
+      if (url.pathname === '/e2e-sessions')
+        return Response.json({
+          sessions: [
+            {
+              root: 0,
+              id: 'shop.checkout',
+              project: 'chromium',
+              runs: [{ file: 'run.session.json.gz' }],
+            },
+          ],
+        });
+      if (url.pathname === '/sessions/00000000-0000-4000-8000-000000000001')
+        return Response.json(observed);
+      if (url.pathname.endsWith('/run.session.json.gz'))
+        return new Response(baselineGzip);
       return new Response(null, { status: 404 });
     };
     try {
-      const result = await client.callTool({ name: 'sessions.compare', arguments: { testId: 'shop.checkout', project: 'chromium', sessionId: '00000000-0000-4000-8000-000000000001' } });
-      const payload = result.structuredContent as { result: { dashboardUrl: string; comparison: unknown } };
-      const expected = compareSessionTraces(normalizeSessionTrace(observed), [normalizeSessionTrace(baseline)]);
-      expect(payload.result.comparison).toEqual(JSON.parse(JSON.stringify(expected)));
-      expect(expected.firstDivergence).toMatchObject({ kind: 'changed-invariant', expected: { key: 'server-fn:ecommerce.checkout' } });
+      const result = await client.callTool({
+        name: 'sessions.compare',
+        arguments: {
+          testId: 'shop.checkout',
+          project: 'chromium',
+          sessionId: '00000000-0000-4000-8000-000000000001',
+        },
+      });
+      const payload = result.structuredContent as {
+        result: { dashboardUrl: string; comparison: unknown };
+      };
+      const expected = compareSessionTraces(normalizeSessionTrace(observed), [
+        normalizeSessionTrace(baseline),
+      ]);
+      expect(payload.result.comparison).toEqual(
+        JSON.parse(JSON.stringify(expected)),
+      );
+      expect(expected.firstDivergence).toMatchObject({
+        kind: 'changed-invariant',
+        expected: { key: 'server-fn:ecommerce.checkout' },
+      });
       expect(payload.result.dashboardUrl).toContain('#/compare?');
     } finally {
       globalThis.fetch = previousFetch;
-      if (previousUrl === undefined) delete process.env['LOG_SERVER_URL']; else process.env['LOG_SERVER_URL'] = previousUrl;
+      if (previousUrl === undefined) delete process.env['LOG_SERVER_URL'];
+      else process.env['LOG_SERVER_URL'] = previousUrl;
     }
   });
 
@@ -114,9 +160,7 @@ describe('logs MCP server', () => {
     });
 
     expect(result.structuredContent).toEqual({
-      result: [
-        expect.objectContaining({ message: 'boom', level: 'error' }),
-      ],
+      result: [expect.objectContaining({ message: 'boom', level: 'error' })],
     });
   });
 

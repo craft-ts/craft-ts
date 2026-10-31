@@ -23,7 +23,9 @@ describe('Query template', () => {
 
   type _UserQueryDependsOnApiService = Expect<
     Equal<
-      'ApiServiceQueryApiService2' extends keyof ExtractDeps<QueryLogic['userQuery']>
+      'ApiServiceQueryApiService2' extends keyof ExtractDeps<
+        QueryLogic['userQuery']
+      >
         ? true
         : false,
       true
@@ -43,7 +45,9 @@ describe('Query template', () => {
     Equal<
       ExtractDeps<
         QueryLogic['userQuery']
-      >['ApiServiceQueryApiService2'] extends GetServiceDependencies<typeof ApiService>
+      >['ApiServiceQueryApiService2'] extends GetServiceDependencies<
+        typeof ApiService
+      >
         ? true
         : false,
       true
@@ -52,7 +56,9 @@ describe('Query template', () => {
 
   type _ApiServiceGetItemByIdIsTracked = Expect<
     Equal<
-      ExtractDeps<QueryLogic['userQuery']>['ApiServiceQueryApiService2'] extends {
+      ExtractDeps<
+        QueryLogic['userQuery']
+      >['ApiServiceQueryApiService2'] extends {
         derivedPropertiesUsed: infer Used extends object;
       }
         ? 'getItemById' extends keyof Used
@@ -159,6 +165,14 @@ describe('Query logic', () => {
         }),
         ApiServiceQueryApiService2: { getItemById },
         CraftRouter: { navigate },
+        UserIdPathParams: {
+          nextUser: vi.fn(function* () {
+            navigate({ to: 'query/:userId', params: { userId: '4' } });
+          }),
+          previousUser: vi.fn(function* () {
+            navigate({ to: 'query/:userId', params: { userId: '2' } });
+          }),
+        },
         StoragePersister: storage,
       } as never,
       {

@@ -109,7 +109,7 @@ describe('send context session', () => {
     >;
     expect(value).toMatchObject({
       format: 'craft-debug-session',
-      version: 7,
+      version: 8,
       referenceCaptureVersion: 1,
       truncated: true,
     });

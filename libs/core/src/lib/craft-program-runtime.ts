@@ -1,4 +1,8 @@
-import { computed, DestroyRef, runInInjectionContext } from './host/craft-compat';
+import {
+  computed,
+  DestroyRef,
+  runInInjectionContext,
+} from './host/craft-compat';
 import type { CraftInjector } from './host/craft-injector';
 import { waitUntilTrue } from './stream-kernel';
 import type { AnyCraftException } from './craft-exception';
@@ -19,6 +23,7 @@ import {
   RealCraftTemporalRuntime,
   ɵinjectCraftTemporalRuntime,
   TemporalCancelledError,
+  type CraftTemporalRuntime,
 } from './temporal-runtime';
 
 // ---------------------------------------------------------------------------
@@ -128,6 +133,8 @@ export type CraftProgramPumpOptions = {
   appStartNotSupportedErrorMessage?: string;
   /** Abort signal for temporal awaits owned by the current async program. */
   abortSignal?: AbortSignal;
+  /** Clock captured by the owning runtime (for example, a stream context). */
+  temporalRuntime?: CraftTemporalRuntime;
 };
 
 // Pumps `iterator` synchronously, resolving craft service yields, until it
@@ -285,12 +292,13 @@ export function awaitCraftProgramRequest(
   request: RuntimeAwaitRequest,
   injector: CraftInjector,
   abortSignal?: AbortSignal,
+  temporalRuntime?: CraftTemporalRuntime,
 ): Promise<unknown> {
   if (isTemporalAwaitRequest(request)) {
-    const temporalRuntime = runInInjectionContext(injector, () =>
-      ɵinjectCraftTemporalRuntime(),
-    );
-    return temporalRuntime.sleep(request.delayMs, {
+    const runtime =
+      temporalRuntime ??
+      runInInjectionContext(injector, () => ɵinjectCraftTemporalRuntime());
+    return runtime.sleep(request.delayMs, {
       kind: 'sleep',
       owner: request.owner,
       destroyRef: injector.get(DestroyRef, null) ?? undefined,
@@ -339,6 +347,7 @@ export async function driveCraftProgramAsync(
       current.request,
       injector,
       options.abortSignal,
+      options.temporalRuntime,
     );
     if (options.abortSignal?.aborted) {
       throw new TemporalCancelledError();

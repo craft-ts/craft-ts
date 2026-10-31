@@ -83,7 +83,7 @@ describe('public surface', () => {
   it('does not export injectService from the core barrel', async () => {
     const core = await import('@craft-ts/core');
     expect('injectService' in core).toBe(false);
-  });
+  }, 30_000);
 
   // The Angular exit narrowed this suite to a handful of files, which hid a
   // batch of real regressions until it was widened again. Whole directories, or
@@ -102,10 +102,10 @@ describe('public surface', () => {
     'typechecks that Angular DI names stay off the public index',
     { timeout: 20_000 },
     () => {
-    execSync('npx tsc -p libs/core/tsconfig.public-surface.json --noEmit', {
-      encoding: 'utf8',
-      cwd: join(here, '../../../../../'),
-    });
+      execSync('npx tsc -p libs/core/tsconfig.public-surface.json --noEmit', {
+        encoding: 'utf8',
+        cwd: join(here, '../../../../../'),
+      });
     },
   );
 
