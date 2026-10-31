@@ -10,33 +10,52 @@ import {
   ul,
 } from '@craft-ts/component';
 import { CraftRouter, rawReactiveValue } from '@craft-ts/core';
-import { buttonUi } from '@craft-ts/ui/style';
+import { badgeUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
+import { sessionDate } from './replay-labels';
+import { plural } from './replay-model';
 import {
   SessionArchive,
   type ResumeRecipeSummary,
+  type SessionSummary,
 } from './session-archive.service';
-
-function recipeName(recipe: ResumeRecipeSummary): string {
-  return recipe.name?.trim() || recipe.objective.goal;
-}
+import {
+  RECIPE_RUN_STATUS,
+  RECIPE_VALIDATION_LABEL,
+  recipeName,
+  recipeValidationTone,
+} from './session-lineage';
 
 function recipeDescription(recipe: ResumeRecipeSummary): string {
   return recipe.summary?.trim() || recipe.objective.goal;
 }
 
-function recipeValidationLabel(status: ResumeRecipeSummary['validation']['status']): string {
-  return status === 'verified'
-    ? 'Vérifiée'
-    : status === 'validation-failed'
-      ? 'Prévalidation échouée'
-      : 'Brouillon';
+/** Where it comes from and how it went, on one line. */
+function recipeFacts(
+  recipe: ResumeRecipeSummary,
+  sessions: readonly SessionSummary[],
+): string {
+  const source = sessions.find((session) => session.id === recipe.sessionId);
+  const latest = recipe.runs[0];
+  return [
+    source
+      ? `Session du ${sessionDate.format(new Date(source.createdAt))}`
+      : 'Session supprimée',
+    ...(recipe.beforeSequence === undefined
+      ? []
+      : [`avant l’événement ${recipe.beforeSequence}`]),
+    plural(recipe.runs.length, 'exécution'),
+    ...(latest
+      ? [`dernière ${RECIPE_RUN_STATUS[latest.status] ?? latest.status}`]
+      : []),
+  ].join(' · ');
 }
 
-/** Catalogue de toutes les recettes connues de l’archive locale. */
+/** Every recipe the local archive knows, newest first. */
 export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
   const archive = yield* SessionArchive();
   const savedRecipes = rawReactiveValue(archive.resumeRecipeList);
+  const savedSessions = rawReactiveValue(archive.savedSessions);
 
   const rows = ul(
     { class: ui.sessions, 'data-lab': 'recipe-catalog' },
@@ -58,9 +77,26 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
             },
           },
           [
-            span({ class: ui.rowTitle }, function* () {
-              return recipeName(yield* recipe());
-            }),
+            span({ class: ui.rowTitle }, [
+              span(function* () {
+                const recipeItem = yield* recipe();
+                return recipeName(recipeItem);
+              }),
+              span(
+                {
+                  class: badgeUi.root,
+                  'data-lab': 'recipe-validation-status',
+                  'data-tone': function* () {
+                    const recipeItem = yield* recipe();
+                    return recipeValidationTone(recipeItem.validation.status);
+                  },
+                },
+                function* () {
+                  const recipeItem = yield* recipe();
+                  return RECIPE_VALIDATION_LABEL[recipeItem.validation.status];
+                },
+              ),
+            ]),
             span(
               {
                 class: ui.rowMeta,
@@ -70,15 +106,13 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
                 },
               },
               function* () {
-                return recipeDescription(yield* recipe());
+                const recipeItem = yield* recipe();
+                return recipeDescription(recipeItem);
               },
             ),
-            span(
-              { class: ui.eventMeta, 'data-lab': 'recipe-validation-status' },
-              function* () {
-                return recipeValidationLabel((yield* recipe()).validation.status);
-              },
-            ),
+            span({ class: ui.rowLineage }, function* () {
+              return recipeFacts(yield* recipe(), savedSessions());
+            }),
           ],
         ),
       ),
@@ -93,25 +127,17 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
         return savedRecipes().length > 0;
       },
     },
-    'Aucune recette enregistrée pour le moment.',
+    'Aucune recette pour le moment. Elles naissent d’une reprise guidée : ouvrez une session, placez le replay au bon moment et choisissez « Reprendre ici ».',
   );
 
   return div({ class: ui.scroll }, [
     div({ class: ui.listPage }, [
       div({ class: ui.listHead }, [
-        heading({ class: ui.title }, 'Recettes'),
-        div({ class: ui.gapActions }, [
-          button(
-            'backToSessions',
-            {
-              type: 'button',
-              class: buttonUi.root,
-              'data-variant': 'secondary',
-              click: function* () {
-                yield* CraftRouter.navigate({ to: '' });
-              },
-            },
-            '← Sessions',
+        div([
+          heading({ class: ui.title }, 'Recettes'),
+          p(
+            { class: ui.lede },
+            'Les étapes qu’un agent a écrites pour ramener l’application à un moment d’une session. Une recette se prévalide dans un onglet neuf et devient « Vérifiée » quand ses attentes passent.',
           ),
         ]),
       ]),

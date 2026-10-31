@@ -152,10 +152,7 @@ export function scheduleReplayPreparation(): void {
   const expectedRoute = routeSessionId();
   let attempts = 0;
   const prepare = (): void => {
-    if (
-      session() !== expectedSession ||
-      routeSessionId() !== expectedRoute
-    )
+    if (session() !== expectedSession || routeSessionId() !== expectedRoute)
       return;
     if (!hasFrameGrid()) {
       attempts += 1;
@@ -248,10 +245,26 @@ export function closeImport(): void {
   importOpen.set(false);
 }
 
+/**
+ * Where an imported recording is shown: its own address, `#/import`. The route
+ * service installs the way there, since only it holds the router.
+ */
+let showImportedRecording: () => void = () => undefined;
+export function installImportNavigation(show: () => void): void {
+  showImportedRecording = show;
+}
+
+/** A recording that parsed leaves the dialog for the replay page. */
+function openImportedRecording(): void {
+  if (!session()) return;
+  importOpen.set(false);
+  if (!routeSessionId()) showImportedRecording();
+}
+
 export function importPastedSession(): void {
   registers.loadedArchiveSessionId = undefined;
   importJson(sessionText());
-  if (session()) importOpen.set(false);
+  openImportedRecording();
   scheduleReplayPreparation();
 }
 
@@ -264,7 +277,7 @@ export function importSelectedFile(event: Event): void {
     .text()
     .then((text) => {
       importJson(text);
-      if (session()) importOpen.set(false);
+      openImportedRecording();
       scheduleReplayPreparation();
     })
     .catch((error: unknown) => status.set(String(error)));
@@ -475,6 +488,24 @@ export function seekReplayToEvent(
 }
 
 /**
+ * Brings the replay to just before a recorded event — the moment a resume
+ * point names: every action recorded before it has run, itself not yet. No
+ * event: the end of the recording.
+ */
+export function seekReplayBeforeSequence(
+  sequence: number | undefined,
+  participantId?: string,
+): void {
+  const actions = replayableEvents();
+  seekReplayToIndex(
+    sequence === undefined
+      ? actions.length
+      : actions.filter((event) => event.sequence < sequence).length,
+    { participantId },
+  );
+}
+
+/**
  * Brings the replay to any recorded event, an action or not: every action up
  * to it, itself included, has run. An unknown event leaves it in place.
  */
@@ -508,7 +539,9 @@ export function seekReplayToShare(share: number): void {
 export function cancelReplaySeek(): void {
   if (seekTarget() === undefined) return;
   seekTarget.set(undefined);
-  status.set(`Accélération annulée · le replay est à l’étape ${replayIndex()}.`);
+  status.set(
+    `Accélération annulée · le replay est à l’étape ${replayIndex()}.`,
+  );
 }
 
 function settleSeek(): boolean {

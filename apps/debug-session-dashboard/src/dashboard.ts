@@ -1,9 +1,12 @@
 import {
+  button,
   craftComponent,
   CraftRouterOutlet,
   div,
+  nav,
   span,
 } from '@craft-ts/component';
+import { CraftRouter } from '@craft-ts/core';
 import {
   DocBadge,
   DocLogo,
@@ -15,7 +18,7 @@ import {
 import { ui } from './dashboard.style';
 import { replayHost } from './replay-browser';
 import { ReplayRoute, provideReplayRoute } from './replay-route.service';
-import { provideReplayRouterEvents } from './replay-router-events.service';
+import { page } from './replay-state';
 import { lit } from './view-helpers';
 
 /**
@@ -30,7 +33,6 @@ export const DebugSessionDashboard = craftComponent(
       provideDocModeView(),
       provideDocSeasonView(),
       provideReplayRoute(),
-      provideReplayRouterEvents(),
     ],
   },
   function* () {
@@ -44,8 +46,53 @@ export const DebugSessionDashboard = craftComponent(
           span({ class: ui.brandKind }, ' · replay'),
         ]),
       ]),
+      // The two lists of the archive. A replay belongs to the sessions.
+      nav({ class: ui.nav, 'aria-label': 'Sections' }, [
+        button(
+          'navSessions',
+          {
+            type: 'button',
+            class: ui.navLink,
+            'data-lab': 'nav-sessions',
+            'aria-current': function* () {
+              return page() === 'sessions' || page() === 'detail'
+                ? 'page'
+                : undefined;
+            },
+            'data-nav-current': function* () {
+              return page() === 'sessions' || page() === 'detail'
+                ? 'true'
+                : undefined;
+            },
+            click: function* () {
+              yield* CraftRouter.navigate({ to: '' });
+            },
+          },
+          'Sessions',
+        ),
+        button(
+          'navRecipes',
+          {
+            type: 'button',
+            class: ui.navLink,
+            'data-lab': 'open-recipe-catalog',
+            'aria-current': function* () {
+              return page() === 'recipes' ? 'page' : undefined;
+            },
+            'data-nav-current': function* () {
+              return page() === 'recipes' ? 'true' : undefined;
+            },
+            click: function* () {
+              yield* CraftRouter.navigate({ to: 'recipes' });
+            },
+          },
+          'Recettes',
+        ),
+      ]),
       div({ class: ui.barTools }, [
-        DocBadge({ tone: lit('tip'), label: lit('Local') }),
+        span({ class: ui.barBadge }, [
+          DocBadge({ tone: lit('tip'), label: lit('Local') }),
+        ]),
         DocSeasonPicker({
           label: lit('Saison'),
           menuId: lit('season-menu'),

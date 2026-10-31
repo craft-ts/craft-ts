@@ -1,493 +1,288 @@
 import {
   button,
   craftComponent,
-  content,
   div,
   forNode,
-  heading,
   option,
+  renderContent,
+  type ContentSlot,
   p,
   select,
   span,
 } from '@craft-ts/component';
 import { CraftRouter, craftComputed, rawReactiveValue } from '@craft-ts/core';
-import { DocTooltip } from '@craft-ts/ui';
-import { buttonUi } from '@craft-ts/ui/style';
+import { DocIcon } from '@craft-ts/ui';
+import { buttonUi, iconButtonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import { newUuid, requestFrameFullscreen } from './replay-browser';
-import {
-  launchDebugAppAtReplay,
-  launchGuidedResumeTab,
-  replayPoint,
-} from './replay-debug';
+import { requestFrameFullscreen } from './replay-browser';
+import { launchDebugAppAtReplay } from './replay-debug';
 import { sessionDate } from './replay-labels';
-import {
-  isRecord,
-  parseLocalTarget,
-  participantOptionLabel,
-} from './replay-model';
+import { isRecord, participantOptionLabel, plural } from './replay-model';
 import { selectParticipant } from './replay-session';
 import {
-  connected,
   activeRouteSessionId,
-  differenceHistoryOpen,
-  errorCount,
-  isReplayErrorNote,
-  pendingWarnings,
-  replayWarnings,
-  warningHistoryOpen,
+  connected,
   replayableParticipants,
   replayParticipantIds,
-  replayDifferences,
+  resumeDialogOpen,
   routeSessionId,
   selectedParticipantId,
   session,
-  sidePanelOpen,
-  targetUrl,
 } from './replay-state';
-import { copyResumePrompt, resumePrompt } from './resume-prompt';
-import { ResumeThread } from './resume-thread.service';
 import {
-  SessionArchive,
-  type ResumeCheckpointSummary,
-  type ResumeRecipeSummary,
-} from './session-archive.service';
-import { eventValue } from './view-helpers';
+  derivationLabel,
+  shortUrl,
+  sourceSessionIdOf,
+} from './session-lineage';
+import { SessionArchive, type SessionSummary } from './session-archive.service';
+import { eventValue, lit } from './view-helpers';
 
-/** What to tell the AI host once the point is published. */
-/** A point frozen for this very event, on the app the dashboard drives. */
-function readyCheckpointFor(
-  checkpoints: readonly ResumeCheckpointSummary[],
-  target: string,
-  beforeSequence: number | undefined,
-): ResumeCheckpointSummary | undefined {
-  const parsed = parseLocalTarget(target.trim());
-  const origin = parsed.ok ? parsed.url.origin : undefined;
-  return checkpoints.find(
-    (checkpoint) =>
-      !checkpoint.expired &&
-      checkpoint.origin === origin &&
-      checkpoint.beforeSequence === beforeSequence,
+/** The app a recording shows, as its tabs or its shell component name it. */
+function recordedAppName(
+  recorded: ReturnType<typeof session>,
+): string | undefined {
+  const titled = recorded?.participants?.find(
+    (participant) => participant.title && !/^Onglet\s/i.test(participant.title),
+  )?.title;
+  if (titled) return titled;
+  const appShell = recorded?.events.find(
+    (event) =>
+      event.kind === 'component-lifecycle' &&
+      isRecord(event.payload) &&
+      typeof event.payload['componentName'] === 'string' &&
+      event.payload['componentName'].endsWith('AppShell'),
   );
+  const shellName = isRecord(appShell?.payload)
+    ? appShell.payload['componentName']
+    : undefined;
+  return typeof shellName === 'string'
+    ? shellName.replace(/AppShell$/, '')
+    : undefined;
 }
 
-function readyRecipesFor(
-  recipes: readonly ResumeRecipeSummary[],
-  sessionId: string | undefined,
-  target: string,
-  beforeSequence: number | undefined,
-): readonly ResumeRecipeSummary[] {
-  const parsed = parseLocalTarget(target.trim());
-  if (!parsed.ok || !sessionId) return [];
-  return recipes.filter(
-    (recipe) =>
-      recipe.sessionId === sessionId &&
-      recipe.origin === parsed.url.origin &&
-      recipe.beforeSequence === beforeSequence,
-  );
-}
-
-function resumeTooltipText(
-  disabled: boolean,
-  sending: boolean,
-  ready: ResumeCheckpointSummary | undefined,
-  recipes: readonly ResumeRecipeSummary[],
+/** The page's title: the app the recording shows, and when it was made. */
+export function replaySessionTitle(
+  summary: SessionSummary | undefined,
+  recorded: ReturnType<typeof session>,
 ): string {
-  if (disabled) {
-    return sending
-      ? 'Une demande de reprise est déjà en cours d’envoi.'
-      : 'Le dashboard n’identifie pas la session ouverte. Revenez à la liste des sessions et rouvrez-la.';
-  }
-  const recipeNames = recipes
-    .map((recipe) => recipe.name?.trim() || recipe.objective.goal)
-    .join(' · ');
-  if (ready) {
-    const expiresAt = new Date(ready.expiresAt).toLocaleString('fr-FR');
-    return `Un point de reprise est disponible jusqu’au ${expiresAt} (${ready.ttlReason}).${recipes.length ? ` Recettes associées : ${recipeNames}.` : ''} Ton intention sera transmise à l’agent avec la demande de reprise.`;
-  }
-  const [recipe] = recipes;
-  if (recipe) {
-    return `La recette « ${recipe.name?.trim() || recipe.objective.goal} » est disponible. Ton intention sera transmise à l’agent avec la demande de reprise.`;
-  }
-  if (recipes.length > 1) {
-    return `${recipes.length} recettes sont disponibles à ce point : ${recipeNames}. Ton intention sera transmise à l’agent avec la demande de reprise.`;
-  }
-  return 'Une question te demandera ton intention avant d’ouvrir un onglet dédié et de copier le prompt à coller dans la conversation de l’agent.';
+  const date = summary
+    ? sessionDate.format(new Date(summary.createdAt))
+    : 'Session importée';
+  const appName = recordedAppName(recorded);
+  return appName ? `${appName} · ${date}` : date;
 }
 
-/** The head of the replay page: the way back, which session, and the tools. */
-export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
-  const archive = yield* SessionArchive();
-  const resumeThread = yield* ResumeThread();
-  const savedSessions = rawReactiveValue(archive.savedSessions);
-  const resumeRecipes = rawReactiveValue(archive.resumeRecipeList);
-  const sessionTitle = () => {
-    const selected = savedSessions().find(
-      (item) => item.id === routeSessionId(),
+/** Where it starts, how many tabs, how many events. */
+function recordingFacts(recorded: ReturnType<typeof session>): string {
+  if (!recorded) return '';
+  return [
+    shortUrl(recorded.startUrl),
+    plural(recorded.participants?.length ?? 1, 'onglet'),
+    plural(recorded.events.length, 'événement'),
+  ].join(' · ');
+}
+
+/**
+ * The head of the replay page: which recording this is and where it came from
+ * on the left; on the right, the two ways to leave the replay for the live
+ * application at the moment it shows. The journal and the other views sit in
+ * the rail at the side of the stage, not here.
+ */
+export const ReplayHead = craftComponent(
+  'ReplayHead',
+  {},
+  function* (input: { readonly pageTitle: ContentSlot }) {
+    const archive = yield* SessionArchive();
+    const savedSessions = rawReactiveValue(archive.savedSessions);
+    const recipes = rawReactiveValue(archive.resumeRecipeList);
+    const summary = yield* craftComputed('summary', () =>
+      savedSessions().find((item) => item.id === routeSessionId()),
     );
-    const date = selected
-      ? sessionDate.format(new Date(selected.createdAt))
-      : 'Session importée';
-    const recorded = session();
-    const recordedTitle = recorded?.participants?.find(
-      (participant) =>
-        participant.title && !/^Onglet\s/i.test(participant.title),
-    )?.title;
-    const appShell = recorded?.events.find(
-      (event) =>
-        event.kind === 'component-lifecycle' &&
-        isRecord(event.payload) &&
-        typeof event.payload['componentName'] === 'string' &&
-        event.payload['componentName'].endsWith('AppShell'),
+    const summaryValue = rawReactiveValue(summary);
+
+    const sessionFacts = yield* craftComputed('sessionFacts', () =>
+      recordingFacts(session()),
     );
-    const appShellName = isRecord(appShell?.payload)
-      ? appShell.payload['componentName']
-      : undefined;
-    const appName =
-      recordedTitle ??
-      (typeof appShellName === 'string'
-        ? appShellName.replace(/AppShell$/, '')
-        : undefined);
-    return appName ? `${appName} · ${date}` : date;
-  };
-  const sessionTitleText = yield* craftComputed(
-    'sessionTitleText',
-    sessionTitle,
-  );
-  const startUrl = yield* craftComputed(
-    'startUrl',
-    () => session()?.startUrl ?? '',
-  );
-  const participantFilterHidden = yield* craftComputed(
-    'participantFilterHidden',
-    () => replayableParticipants().length <= 1,
-  );
-  const fullscreenDisabled = yield* craftComputed(
-    'fullscreenDisabled',
-    () => !connected(),
-  );
-  const debugDisabled = yield* craftComputed('debugDisabled', () => !session());
-  const differenceCount = yield* craftComputed('differenceCount', () =>
-    String(replayDifferences().length),
-  );
-  const notesHidden = yield* craftComputed(
-    'notesHidden',
-    () => replayWarnings().length === 0,
-  );
-  const hasReplayErrorNote = yield* craftComputed('hasReplayErrorNote', () =>
-    replayWarnings().some(isReplayErrorNote),
-  );
-  const warningCount = yield* craftComputed('warningCount', () =>
-    String(replayWarnings().length),
-  );
+    const derivation = yield* craftComputed('derivation', () => {
+      const selected = summaryValue();
+      return selected
+        ? derivationLabel(selected, savedSessions(), recipes())
+        : '';
+    });
+    const sourceId = yield* craftComputed('sourceId', () => {
+      const selected = summaryValue();
+      return selected ? sourceSessionIdOf(selected, recipes()) : undefined;
+    });
+    const sourceIdValue = rawReactiveValue(sourceId);
+    const sourceKnown = yield* craftComputed('sourceKnown', () =>
+      savedSessions().some((item) => item.id === sourceIdValue()),
+    );
 
-  const back = button(
-    'backToSessions',
-    {
-      type: 'button',
-      class: buttonUi.root,
-      'data-variant': 'link',
-      click: function* () {
-        yield* CraftRouter.navigate({ to: '' });
+    const back = button(
+      'backToSessions',
+      {
+        type: 'button',
+        class: buttonUi.root,
+        'data-variant': 'link',
+        click: function* () {
+          yield* CraftRouter.navigate({ to: '' });
+        },
       },
-    },
-    '← Sessions',
-  );
+      '← Sessions',
+    );
 
-  const recipes = button(
-    'openRecipeCatalog',
-    {
-      type: 'button',
-      class: buttonUi.root,
-      'data-variant': 'secondary',
-      'data-lab': 'open-recipe-catalog',
-      hidden: function* () {
-        return !resumeRecipes().some(
-          (recipe) => recipe.sessionId === routeSessionId(),
-        );
+    const lineage = p(
+      {
+        class: ui.headLineage,
+        'data-lab': 'session-lineage',
+        hidden: function* () {
+          return (yield* derivation()) === '';
+        },
       },
-      click: function* () {
-        yield* CraftRouter.navigate({ to: 'recipes' });
+      [
+        span(derivation),
+        button(
+          'openSourceSession',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'link',
+            'data-lab': 'open-source-session',
+            hidden: function* () {
+              return !(yield* sourceKnown());
+            },
+            click: function* () {
+              const id = sourceIdValue();
+              if (id)
+                yield* CraftRouter.navigate({
+                  to: 'sessions/:sessionId',
+                  params: { sessionId: id },
+                });
+            },
+          },
+          'Ouvrir la session d’origine →',
+        ),
+      ],
+    );
+
+    const title = div({ class: ui.headTitle }, [
+      back,
+      renderContent('pageTitle', input.pageTitle),
+      p({ class: ui.headUrl }, sessionFacts),
+      lineage,
+    ]);
+
+    const tabs = select(
+      'participantFilter',
+      {
+        class: ui.tabSelect,
+        value: selectedParticipantId,
+        hidden: yield* craftComputed(
+          'hidden',
+          () => replayableParticipants().length <= 1,
+        ),
+        change: (event: Event) => selectParticipant(eventValue(event)),
+        'aria-label': 'Onglets à visionner',
       },
-    },
-    'Recettes',
-  );
-
-  const title = div({ class: ui.headTitle }, [
-    heading({ class: ui.headName }, sessionTitleText),
-    p({ class: ui.headUrl }, startUrl),
-  ]);
-
-  const tabs = select(
-    'participantFilter',
-    {
-      class: ui.tabSelect,
-      value: selectedParticipantId,
-      hidden: participantFilterHidden,
-      change: (event: Event) => selectParticipant(eventValue(event)),
-      'aria-label': 'Onglets à visionner',
-    },
-    [
-      option({ value: 'all' }, 'Tous les onglets'),
-      forNode(
-        replayableParticipants,
-        { track: (participant) => participant.id },
-        (participant) =>
-          option(
-            {
-              value: function* () {
-                const item = yield* participant();
-                return item.id;
+      [
+        option({ value: 'all' }, 'Tous les onglets'),
+        forNode(
+          replayableParticipants,
+          { track: (participant) => participant.id },
+          (participant) =>
+            option(
+              {
+                value: function* () {
+                  const item = yield* participant();
+                  return item.id;
+                },
               },
-            },
-            function* () {
-              return participantOptionLabel(yield* participant());
-            },
-          ),
-      ),
-    ],
-  );
-
-  const fullscreen = button(
-    'fullscreen',
-    {
-      type: 'button',
-      class: buttonUi.root,
-      'data-variant': 'secondary',
-      'aria-description': 'Affiche l’application cible en plein écran.',
-      'data-tooltip':
-        'Agrandit l’application cible en plein écran pour inspecter le replay.',
-      click: () => {
-        const participantId = replayParticipantIds()[0];
-        if (participantId) requestFrameFullscreen(participantId);
-      },
-      disabled: fullscreenDisabled,
-    },
-    'Plein écran',
-  );
-
-  const debug = button(
-    'debugApp',
-    {
-      type: 'button',
-      class: buttonUi.root,
-      'data-variant': 'secondary',
-      'data-lab': 'debug-app',
-      'aria-description':
-        'Ouvre l’application en mode debug, à l’état où le replay est arrivé.',
-      'data-tooltip':
-        'Ouvre l’application dans un nouvel onglet, vivante, à l’état du replay en cours, pour investiguer.',
-      click: launchDebugAppAtReplay,
-      disabled: debugDisabled,
-    },
-    'Déboguer ici',
-  );
-
-  const resumeRequestSending = rawReactiveValue(archive.resumeRequestSending);
-  const resumeRequestFailed = rawReactiveValue(archive.resumeRequestFailed);
-  const resumeCheckpoints = rawReactiveValue(archive.resumeCheckpointList);
-  const readyCheckpoint = yield* craftComputed('readyCheckpoint', () =>
-    readyCheckpointFor(
-      resumeCheckpoints(),
-      targetUrl(),
-      replayPoint().beforeSequence,
-    ),
-  );
-  const readyRecipes = yield* craftComputed('readyRecipes', () =>
-    readyRecipesFor(
-      resumeRecipes(),
-      routeSessionId(),
-      targetUrl(),
-      replayPoint().beforeSequence,
-    ),
-  );
-  const resumeDisabled = yield* craftComputed(
-    'resumeDisabled',
-    () => activeRouteSessionId() === undefined || resumeRequestSending(),
-  );
-  const resumeTooltip = yield* craftComputed('resumeTooltip', function* () {
-    return resumeTooltipText(
-      yield* resumeDisabled(),
-      resumeRequestSending(),
-      yield* readyCheckpoint(),
-      yield* readyRecipes(),
+              function* () {
+                return participantOptionLabel(yield* participant());
+              },
+            ),
+        ),
+      ],
     );
-  });
-  const resume = button(
-    'resumeHere',
-    {
-      type: 'button',
-      class: buttonUi.root,
-      'data-variant': 'secondary',
-      'data-lab': 'resume-here',
-      'aria-label': 'Reprendre ici',
-      'aria-description':
-        'Demande à l’IA de ramener l’application vivante au point du replay.',
-      'aria-describedby': 'resume-here-tip',
-      disabled: resumeDisabled,
-      click: function* () {
-        const sessionId = routeSessionId();
-        if (sessionId === undefined) return;
-        const answer = globalThis.prompt(
-          'Quelle est ton intention ? Décris ce que tu veux accomplir ou vérifier dans cette session.',
-          '',
-        );
-        const intent = answer?.trim();
-        if (!intent) return;
-        const point = replayPoint();
-        const requestId = newUuid();
-        const appTab = launchGuidedResumeTab(
-          point.beforeSequence,
-          point.participantId,
-          requestId,
-          sessionId,
-        );
-        const prompt = resumePrompt({
-          sessionId,
-          beforeSequence: point.beforeSequence,
-          participantId: point.participantId,
-          requestId,
-          appUrl: appTab.url,
-          intent,
-        });
-        copyResumePrompt(prompt);
-        const sent = yield* archive.requestResume(
-          { sessionId, ...point },
-          requestId,
-          prompt,
-          appTab.url,
-          appTab.opened,
-        );
-        if (!sent) appTab.tab?.close();
-        else resumeThread.watchRequest(requestId);
-      },
-    },
-    yield* craftComputed('resumeLabel', function* () {
-      const ready = yield* readyCheckpoint();
-      const recipes = yield* readyRecipes();
-      return resumeRequestFailed()
-        ? 'Reprise : archive injoignable'
-        : ready
-          ? recipes.length > 1
-            ? `Reprendre ici · point + ${recipes.length} recettes`
-            : 'Reprendre ici · point disponible'
-          : recipes.length === 1
-            ? 'Reprendre ici · recette disponible'
-            : recipes.length > 1
-              ? `Reprendre ici · ${recipes.length} recettes disponibles`
-              : 'Reprendre ici';
-    }),
-  );
-  const resumeWithTooltip = DocTooltip({
-    tip: resumeTooltip,
-    tipId: function* () {
-      return 'resume-here-tip';
-    },
-    body: content(() =>
-      span(
-        {
-          tabindex: function* () {
-            return (yield* resumeDisabled()) ? 0 : undefined;
-          },
-          'aria-label': function* () {
-            return (yield* resumeDisabled())
-              ? 'Reprendre ici, indisponible'
-              : undefined;
-          },
-          'aria-describedby': 'resume-here-tip',
+
+    const fullscreen = button(
+      'fullscreen',
+      {
+        type: 'button',
+        class: iconButtonUi.root,
+        'aria-label': 'Plein écran',
+        'aria-description': 'Affiche l’application cible en plein écran.',
+        'data-tooltip':
+          'Agrandit l’application rejouée en plein écran pour l’inspecter.',
+        click: () => {
+          const participantId = replayParticipantIds()[0];
+          if (participantId) requestFrameFullscreen(participantId);
         },
-        resume,
-      ),
-    ),
-  });
+        disabled: yield* craftComputed('disabled', () => !connected()),
+      },
+      DocIcon({ name: lit('expand'), size: lit('sm') }),
+    );
 
-  const journal = button(
-    'toggleJournal',
-    {
-      type: 'button',
-      class: buttonUi.root,
-      'data-variant': function* () {
-        return errorCount() > 0 ? 'tonal' : 'secondary';
+    // Both open the live application in a tab of its own, at the moment the
+    // replay shows. One restores what was recorded, right away; the other asks
+    // an agent to rebuild it with real data, and keeps the way back.
+    const debug = button(
+      'debugApp',
+      {
+        type: 'button',
+        class: buttonUi.root,
+        'data-variant': 'secondary',
+        'data-lab': 'debug-app',
+        'aria-description':
+          'Ouvre l’application vivante dans un nouvel onglet, à l’état où le replay est arrivé.',
+        'data-tooltip':
+          'Restaure tout de suite l’état enregistré dans un nouvel onglet, sans IA. Idéal pour inspecter.',
+        click: launchDebugAppAtReplay,
+        disabled: yield* craftComputed('disabled', () => !session()),
       },
-      'aria-expanded': function* () {
-        return sidePanelOpen() ? 'true' : 'false';
-      },
-      click: () => sidePanelOpen.set(!sidePanelOpen()),
-    },
-    'Journal',
-  );
+      [
+        DocIcon({ name: lit('external'), size: lit('sm') }),
+        span('Déboguer ici'),
+      ],
+    );
 
-  const differences = button(
-    'toggleDifferences',
-    {
-      type: 'button',
-      class: buttonUi.root,
-      'data-variant': function* () {
-        return replayDifferences().length > 0 ? 'tonal' : 'secondary';
+    const resume = button(
+      'resumeHere',
+      {
+        type: 'button',
+        class: buttonUi.root,
+        'data-variant': 'tonal',
+        'data-lab': 'resume-here',
+        'aria-label': 'Reprendre ici',
+        'aria-description':
+          'Demande à un agent IA de rouvrir l’application à ce moment, avec de vraies données.',
+        'data-tooltip':
+          'Un agent IA reconstruit ce moment dans l’application, avec de vraies données, et laisse un point de reprise et une recette pour y revenir.',
+        'aria-haspopup': 'dialog',
+        disabled: yield* craftComputed(
+          'disabled',
+          () => activeRouteSessionId() === undefined,
+        ),
+        click: () => resumeDialogOpen.set(true),
       },
-      'aria-label': function* () {
-        return `${replayDifferences().length} décalage(s) détecté(s)`;
-      },
-      'aria-expanded': function* () {
-        return differenceHistoryOpen() ? 'true' : 'false';
-      },
-      'data-lab': 'toggle-differences',
-      click: () => differenceHistoryOpen.set(!differenceHistoryOpen()),
-    },
-    [span({ 'aria-hidden': 'true' }, '⚠'), span(differenceCount)],
-  );
+      [
+        DocIcon({ name: lit('sparkle'), size: lit('sm') }),
+        span('Reprendre ici'),
+      ],
+    );
 
-  const notes = div(
-    {
-      class: ui.noteAnchor,
-      hidden: notesHidden,
-    },
-    [
-      button(
-        'toggleNotes',
-        {
-          type: 'button',
-          class: buttonUi.root,
-          'data-variant': function* () {
-            return pendingWarnings().length > 0 ? 'tonal' : 'secondary';
-          },
-          'aria-label': function* () {
-            return `${replayWarnings().length} note(s) du replay`;
-          },
-          'aria-expanded': function* () {
-            return warningHistoryOpen() ? 'true' : 'false';
-          },
-          'data-lab': 'toggle-notes',
-          click: () => warningHistoryOpen.set(!warningHistoryOpen()),
-        },
-        span({ class: ui.noteIcon, 'aria-hidden': 'true' }, '🗒'),
-      ),
-      span(
-        {
-          class: ui.noteBadge,
-          'data-note-badge': function* () {
-            return (yield* hasReplayErrorNote()) ? 'error' : undefined;
-          },
-          'data-lab': 'notes-count',
-          'aria-hidden': 'true',
-        },
-        warningCount,
-      ),
-    ],
-  );
+    const momentActions = div(
+      {
+        class: ui.momentActions,
+        role: 'group',
+        'aria-label': 'Ouvrir l’application à ce moment du replay',
+      },
+      [span({ class: ui.momentLabel }, 'À ce moment'), debug, resume],
+    );
 
-  return div({ class: ui.head }, [
-    back,
-    title,
-    div({ class: ui.headTools }, [
-      tabs,
-      debug,
-      recipes,
-      resumeWithTooltip,
-      fullscreen,
-      notes,
-      differences,
-      journal,
-    ]),
-  ]);
-});
+    return div({ class: ui.head }, [
+      title,
+      div({ class: ui.headTools }, [tabs, momentActions, fullscreen]),
+    ]);
+  },
+);

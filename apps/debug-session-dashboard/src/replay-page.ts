@@ -1,21 +1,36 @@
 import {
+  content,
   craftComponent,
   div,
   heading,
   headingRoot,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { ui } from './dashboard.style';
-import { ReplayHead } from './replay-head';
+import { ReplayHead, replaySessionTitle } from './replay-head';
 import { ReplayNotices } from './replay-notices';
-import { ReplaySidePanel } from './replay-side-panel';
+import { ReplayRail, ReplaySidePanel } from './replay-side-panel';
 import { ReplayPlaybar, ReplayStage } from './replay-stage';
 import { ReplayRoute } from './replay-route.service';
-import { page, replayState } from './replay-state';
+import { page, replayState, routeSessionId, session } from './replay-state';
+import { SessionArchive } from './session-archive.service';
+import { ResumeDialog } from './resume-dialog';
 
-/** Page 2: the replay of one session, with its journal at the side. */
+/**
+ * Page 2: the replay of one session. The head says which one and opens the
+ * live app at the moment shown; the stage and its timeline take the rest; the
+ * rail at the edge opens the journal, the gaps, the resumes and the details.
+ */
 export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
   const route = yield* ReplayRoute();
+  const archive = yield* SessionArchive();
+  const savedSessions = rawReactiveValue(archive.savedSessions);
+  const titleText = yield* craftComputed('titleText', () =>
+    replaySessionTitle(
+      savedSessions().find((item) => item.id === routeSessionId()),
+      session(),
+    ),
+  );
   const pageIsHidden = yield* craftComputed(
     'pageIsHidden',
     () => page() !== 'detail',
@@ -30,8 +45,12 @@ export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
       hidden: pageIsHidden,
     },
     [
-      // The title is the page's own: it starts the outline at `h1` again.
-      headingRoot([heading('Replay'), ReplayHead({})]),
+      // The session's name is the page's own title: it starts the outline at `h1`.
+      headingRoot([
+        ReplayHead({
+          pageTitle: content(() => heading({ class: ui.headName }, titleText)),
+        }),
+      ]),
       div({ class: ui.workspace }, [
         div({ class: ui.main }, [
           ReplayNotices({}),
@@ -40,8 +59,10 @@ export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
           }),
           ReplayPlaybar({}),
         ]),
-        ReplaySidePanel({}),
+        headingRoot([ReplaySidePanel({})]),
+        ReplayRail({}),
       ]),
+      ResumeDialog({}),
     ],
   );
 });

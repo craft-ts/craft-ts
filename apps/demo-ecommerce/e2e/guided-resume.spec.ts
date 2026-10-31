@@ -614,9 +614,8 @@ test.describe('reprise guidée par une IA simulée', () => {
       const dashboard = await dashboardContext.newPage();
       await dashboard.goto(`${dashboardOrigin}/#/sessions/${sessionId}`);
       await dashboard
-        .getByRole('button', { name: 'Journal', exact: true })
+        .getByRole('button', { name: 'Reprises', exact: true })
         .click();
-      await dashboard.getByRole('tab', { name: 'Reprise' }).click();
       await expect(
         dashboard.locator('[data-lab="resume-thread"]'),
       ).toContainText('Point figé, valide une heure.', { timeout: 20_000 });

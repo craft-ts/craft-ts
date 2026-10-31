@@ -837,6 +837,10 @@ function provideCraftRouterRuntime(
 ): Provider[] {
   const navigation: { current: CraftNavigation | null } = { current: null };
   let currentMatch: (() => CraftMatch | null) | null = null;
+  // The match is built when something first asks for it (the outlet). A reader
+  // of the activated route that runs before that tracks this instead, so it
+  // runs again once the match exists rather than staying on the empty route.
+  const matchInstalled = craftSignal(false);
   return [
     provideCraftCompiledRoutes(routes) as unknown as Provider,
     provideCraftHistory((() => {
@@ -871,6 +875,7 @@ function provideCraftRouterRuntime(
       const titleStrategy = createCraftTitleStrategy();
       const match = craftSignal<CraftMatch | null>(null);
       currentMatch = match;
+      matchInstalled.set(true);
       let generation = 0;
       craftWatch(() => {
         const nextLocation = location();
@@ -935,6 +940,7 @@ function provideCraftRouterRuntime(
         return node;
       };
       const snapshot = () => {
+        matchInstalled();
         const current = currentMatch?.() ?? null;
         return current
           ? leafOf(matchToRouterStateSnapshot(current).root)

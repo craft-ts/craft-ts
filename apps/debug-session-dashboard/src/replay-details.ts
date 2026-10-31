@@ -2,6 +2,7 @@ import {
   button,
   craftComponent,
   div,
+  heading,
   input,
   option,
   p,
@@ -93,7 +94,7 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
 
   const environment = p(
     {
-      class: ui.lede,
+      class: ui.dialogNote,
       'data-lab': 'environment-warning',
       hidden: environmentWarningHidden,
       role: 'status',
@@ -101,14 +102,28 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
     environmentWarning,
   );
 
-  return div({ class: ui.sidePane, 'data-lab': 'left' }, [
-    fact('Page de départ', sessionStartUrl),
-    fact('Enregistrement', recordingLabel),
-    fact('État du replay', status, 'status'),
-    fact('Fenêtre', viewportLabel, 'viewport-caption'),
-    environment,
-    target,
-    start,
-    exportButton,
+  return div({ class: ui.sideBody }, [
+    div({ class: ui.scroll }, [
+      div({ class: ui.sideStack, 'data-lab': 'left' }, [
+        div({ class: ui.sideSection }, [
+          heading({ class: ui.sideSectionTitle }, 'L’enregistrement'),
+          fact('Page de départ', sessionStartUrl),
+          fact('Contenu', recordingLabel),
+          fact('Fenêtre', viewportLabel, 'viewport-caption'),
+          environment,
+        ]),
+        div({ class: ui.sideSection }, [
+          heading({ class: ui.sideSectionTitle }, 'Le replay'),
+          fact('État', status, 'status'),
+          target,
+          start,
+          p(
+            { class: ui.lede },
+            'L’export récupère la session de l’application rejouée, l’ajoute à l’archive et télécharge son JSON.',
+          ),
+          div([exportButton]),
+        ]),
+      ]),
+    ]),
   ]);
 });

@@ -9,15 +9,14 @@ const SESSION_SERVER_ORIGIN =
 
 type SessionSummary = Readonly<{ id: string }>;
 
-/** The recording's details sit in the side panel, which is closed until asked for. */
+/** The recording's details are a view of the side rail, closed until asked for. */
 async function openDetails(dashboard: Page): Promise<void> {
   const toggle = dashboard.getByRole('button', {
-    name: 'Journal',
+    name: 'Détails',
     exact: true,
   });
   if ((await toggle.getAttribute('aria-expanded')) !== 'true')
     await toggle.click();
-  await dashboard.getByRole('tab', { name: 'Détails' }).click();
 }
 type StoredSession = Readonly<{
   version?: number;
@@ -353,8 +352,15 @@ test('opens a dedicated app tab and copies a request-bound guided-resume prompt'
 
   await page.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
   await expect(page.locator('[data-lab="detail-page"]')).toBeVisible();
-  const openedPage = page.context().waitForEvent('page');
+  // The dialog asks what the resume is for before anything opens.
   await page.getByRole('button', { name: 'Reprendre ici' }).click();
+  await page
+    .getByRole('textbox', { name: 'Que voulez-vous observer ou vérifier ?' })
+    .fill('Revoir la liste avant le dernier ajout.');
+  const openedPage = page.context().waitForEvent('page');
+  await page
+    .getByRole('button', { name: 'Ouvrir l’onglet et copier le prompt' })
+    .click();
   const appTab = await openedPage;
   await expect(appTab).toHaveURL(/craft-resume-request=[0-9a-f-]{36}/);
   expect(

@@ -183,6 +183,10 @@ export type ResumeCheckpointSummary = Readonly<{
   expiresAt: string;
   ttlReason: string;
   recipeId?: string;
+  /** What the AI called the point, and what it was resumed for. */
+  label?: string;
+  goal?: string;
+  createdAt?: string;
 }>;
 
 function isResumeCheckpointSummary(
@@ -197,7 +201,9 @@ function isResumeCheckpointSummary(
     typeof value['ttlReason'] === 'string' &&
     (value['beforeSequence'] === undefined ||
       typeof value['beforeSequence'] === 'number') &&
-    (value['route'] === undefined || typeof value['route'] === 'string')
+    (value['route'] === undefined || typeof value['route'] === 'string') &&
+    (value['label'] === undefined || typeof value['label'] === 'string') &&
+    (value['goal'] === undefined || typeof value['goal'] === 'string')
   );
 }
 
@@ -326,28 +332,48 @@ function isResumeRecipeDetail(value: unknown): value is ResumeRecipeDetail {
   );
 }
 
-function isResumeRecipeRunSummary(value: unknown): value is ResumeRecipeRunSummary {
-  return isRecord(value) &&
+function isResumeRecipeRunSummary(
+  value: unknown,
+): value is ResumeRecipeRunSummary {
+  return (
+    isRecord(value) &&
     typeof value['id'] === 'string' &&
     typeof value['startedAt'] === 'string' &&
     typeof value['updatedAt'] === 'string' &&
     typeof value['supervised'] === 'boolean' &&
-    (value['currentStep'] === undefined || typeof value['currentStep'] === 'number') &&
-    ['running', 'waiting-human', 'waiting-ai', 'completed', 'failed', 'cancelled'].includes(String(value['status'])) &&
+    (value['currentStep'] === undefined ||
+      typeof value['currentStep'] === 'number') &&
+    [
+      'running',
+      'waiting-human',
+      'waiting-ai',
+      'completed',
+      'failed',
+      'cancelled',
+    ].includes(String(value['status'])) &&
     (value['failure'] === undefined ||
       (isRecord(value['failure']) &&
         typeof value['failure']['detail'] === 'string' &&
-        (value['failure']['step'] === undefined || typeof value['failure']['step'] === 'number')));
+        (value['failure']['step'] === undefined ||
+          typeof value['failure']['step'] === 'number')))
+  );
 }
 
-function isRecipeValidation(
-  value: unknown,
-): value is Readonly<{ status: 'draft' | 'validation-failed' | 'verified'; issues: readonly string[]; verifiedRunId?: string }> {
-  return isRecord(value) &&
-    (value['status'] === 'draft' || value['status'] === 'validation-failed' || value['status'] === 'verified') &&
+function isRecipeValidation(value: unknown): value is Readonly<{
+  status: 'draft' | 'validation-failed' | 'verified';
+  issues: readonly string[];
+  verifiedRunId?: string;
+}> {
+  return (
+    isRecord(value) &&
+    (value['status'] === 'draft' ||
+      value['status'] === 'validation-failed' ||
+      value['status'] === 'verified') &&
     Array.isArray(value['issues']) &&
     value['issues'].every((issue) => typeof issue === 'string') &&
-    (value['verifiedRunId'] === undefined || typeof value['verifiedRunId'] === 'string');
+    (value['verifiedRunId'] === undefined ||
+      typeof value['verifiedRunId'] === 'string')
+  );
 }
 
 const recipeDetailDecoder = {

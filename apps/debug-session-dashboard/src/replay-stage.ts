@@ -1,4 +1,11 @@
-import { button, craftComponent, div, p, span, type Output } from '@craft-ts/component';
+import {
+  button,
+  craftComponent,
+  div,
+  p,
+  span,
+  type Output,
+} from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { DocIcon } from '@craft-ts/ui';
 import { assign, unit } from '@craft-ts/style';
@@ -51,75 +58,78 @@ export const ReplayStage = craftComponent(
   'ReplayStage',
   {},
   function* (inputs: { readonly retryThumbnails: Output<() => void> }) {
-  const { retryThumbnails } = inputs;
-  const skeletonHidden = yield* craftComputed(
-    'skeletonHidden',
-    () => !replaySkeletonVisible(),
-  );
-  const seekOverlayHidden = yield* craftComputed(
-    'seekOverlayHidden',
-    () => seekTarget() === undefined,
-  );
-  const seekProgress = yield* craftComputed('seekProgress', seekProgressLabel);
+    const { retryThumbnails } = inputs;
+    const skeletonHidden = yield* craftComputed(
+      'skeletonHidden',
+      () => !replaySkeletonVisible(),
+    );
+    const seekOverlayHidden = yield* craftComputed(
+      'seekOverlayHidden',
+      () => seekTarget() === undefined,
+    );
+    const seekProgress = yield* craftComputed(
+      'seekProgress',
+      seekProgressLabel,
+    );
 
-  const veil = div(
-    {
-      class: ui.skeleton,
-      hidden: skeletonHidden,
-      'aria-hidden': 'true',
-    },
-    [div({ class: ui.skeletonBlock })],
-  );
+    const veil = div(
+      {
+        class: ui.skeleton,
+        hidden: skeletonHidden,
+        'aria-hidden': 'true',
+      },
+      [div({ class: ui.skeletonBlock })],
+    );
 
-  // Going to a thumbnail's moment: the replay runs fast, without the recorded
-  // delays, and the stage says so until it gets there.
-  // The wrapper carries `hidden`: the overlay's own `display` would win over it.
-  const seekOverlay = div({ hidden: seekOverlayHidden }, [
-    div({ class: ui.seekOverlay, 'data-lab': 'seek-overlay' }, [
-      div({ class: ui.seekCard }, [
-        div({ class: ui.seekIcons, 'aria-hidden': 'true' }, [
-          DocIcon({ name: lit('fastForward'), size: lit('lg') }),
-        ]),
-        p(
-          { class: ui.seekTitle, role: 'status' },
-          'Retour accéléré à l’étape choisie',
-        ),
-        div({ class: ui.seekBar }, [
-          div({ class: ui.progressTrack }, [
-            div({
-              class: ui.progressFill,
-              style: function* () {
-                return assign(progressVars.done, unit.pct(seekShare()));
-              },
-            }),
+    // Going to a thumbnail's moment: the replay runs fast, without the recorded
+    // delays, and the stage says so until it gets there.
+    // The wrapper carries `hidden`: the overlay's own `display` would win over it.
+    const seekOverlay = div({ hidden: seekOverlayHidden }, [
+      div({ class: ui.seekOverlay, 'data-lab': 'seek-overlay' }, [
+        div({ class: ui.seekCard }, [
+          div({ class: ui.seekIcons, 'aria-hidden': 'true' }, [
+            DocIcon({ name: lit('fastForward'), size: lit('lg') }),
           ]),
+          p(
+            { class: ui.seekTitle, role: 'status' },
+            'Retour accéléré à l’étape choisie',
+          ),
+          div({ class: ui.seekBar }, [
+            div({ class: ui.progressTrack }, [
+              div({
+                class: ui.progressFill,
+                style: function* () {
+                  return assign(progressVars.done, unit.pct(seekShare()));
+                },
+              }),
+            ]),
+          ]),
+          p(
+            { class: ui.progressLabel, 'data-lab': 'seek-progress' },
+            seekProgress,
+          ),
+          button(
+            'cancelSeek',
+            {
+              type: 'button',
+              class: buttonUi.root,
+              'data-variant': 'secondary',
+              'data-lab': 'seek-cancel',
+              click: cancelReplaySeek,
+            },
+            [DocIcon({ name: lit('close'), size: lit('sm') }), span('Annuler')],
+          ),
         ]),
-        p(
-          { class: ui.progressLabel, 'data-lab': 'seek-progress' },
-          seekProgress,
-        ),
-        button(
-          'cancelSeek',
-          {
-            type: 'button',
-            class: buttonUi.root,
-            'data-variant': 'secondary',
-            'data-lab': 'seek-cancel',
-            click: cancelReplaySeek,
-          },
-          [DocIcon({ name: lit('close'), size: lit('sm') }), span('Annuler')],
-        ),
       ]),
-    ]),
-  ]);
+    ]);
 
-  const stage = div({ class: ui.stage, id: 'replay-stage' }, [
-    veil,
-    seekOverlay,
-    div({ class: ui.grid, id: 'replay-frame-grid' }),
-  ]);
+    const stage = div({ class: ui.stage, id: 'replay-stage' }, [
+      veil,
+      seekOverlay,
+      div({ class: ui.grid, id: 'replay-frame-grid' }),
+    ]);
 
-  // The pages and the timeline that moves through them are one player.
+    // The pages and the timeline that moves through them are one player.
     return div({ class: ui.player }, [
       stage,
       ReplayTimeline({ retryThumbnails }),
@@ -141,7 +151,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
     replayPlayLabel(replayState()),
   );
   const diagnosticLabel = yield* craftComputed('diagnosticLabel', () =>
-    diagnosticReplay() ? 'Diagnostic activé' : 'Diagnostic désactivé',
+    diagnosticReplay() ? 'Diagnostic : actif' : 'Diagnostic',
   );
   const playDisabled = yield* craftComputed(
     'playDisabled',
@@ -153,10 +163,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
   );
   const restartDisabled = yield* craftComputed(
     'restartDisabled',
-    () =>
-      !['playing', 'paused', 'completed', 'error'].includes(
-        replayState(),
-      ),
+    () => !['playing', 'paused', 'completed', 'error'].includes(replayState()),
   );
   const assistantDisabled = yield* craftComputed(
     'assistantDisabled',
@@ -195,20 +202,6 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
       playLabel,
     ),
     button(
-      'diagnostic-mode',
-      {
-        type: 'button',
-        class: buttonUi.root,
-        'data-variant': 'tonal',
-        'aria-label': 'Mode diagnostic du replay',
-        'aria-pressed': diagnosticReplay,
-        'data-tooltip':
-          'Compare les observations exécutées au plan compilé et signale les écarts sans arrêter le replay.',
-        click: () => diagnosticReplay.update((enabled) => !enabled),
-      },
-      diagnosticLabel,
-    ),
-    button(
       'restart',
       {
         type: 'button',
@@ -243,6 +236,23 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
     ),
   ]);
 
+  const diagnostic = button(
+    'diagnostic-mode',
+    {
+      type: 'button',
+      class: buttonUi.root,
+      'data-variant': function* () {
+        return diagnosticReplay() ? 'tonal' : 'secondary';
+      },
+      'aria-label': 'Mode diagnostic du replay',
+      'aria-pressed': diagnosticReplay,
+      'data-tooltip':
+        'Compare chaque observation au plan compilé et signale les écarts sans arrêter le replay.',
+      click: () => diagnosticReplay.update((enabled) => !enabled),
+    },
+    diagnosticLabel,
+  );
+
   const assistant = button(
     'aiChat',
     {
@@ -262,6 +272,6 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
 
   return div({ class: ui.playbar }, [
     transport,
-    div({ class: ui.playbarEnd }, [assistant]),
+    div({ class: ui.playbarEnd }, [diagnostic, assistant]),
   ]);
 });

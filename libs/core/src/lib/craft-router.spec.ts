@@ -14,7 +14,12 @@ import {
   shouldHandleCraftRouterLinkClick,
   withHashLocation,
 } from './craft-router';
-import { ɵinjectCraftHistory } from './craft-router-tokens';
+import {
+  ɵinjectCraftHistory,
+  ɵinjectCraftMatch,
+} from './craft-router-tokens';
+import { CraftActivatedRoute } from './craft-activated-route';
+import { craftWatch } from './host/craft-signal';
 import { CRAFT_NODE_DIRECTIVE } from './craft-node-directive';
 import { craftRoutes } from './craft-routes';
 import type { GetServiceDependencies } from './craft-service';
@@ -373,6 +378,30 @@ describe('CraftRouter', () => {
     expect(window.location.hash).toBe('#/users/7');
     expect(window.location.pathname).toBe('/');
     platform.history.dispose();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('lets a reader of the activated route that ran before the first match follow it', () => {
+    window.history.replaceState(null, '', '/users/42');
+    CraftTestBed.configureTestingModule({
+      providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
+    });
+
+    // A root service reads the route before any outlet asked for the match:
+    // it must run again once the match exists, not stay on the empty route.
+    const seen: unknown[] = [];
+    const watch = CraftTestBed.runInInjectionContext(() => {
+      const route = craftUse(CraftActivatedRoute());
+      return craftWatch(() => {
+        seen.push(route.snapshot.params['userId']);
+      });
+    });
+    expect(seen).toEqual([undefined]);
+
+    CraftTestBed.runInInjectionContext(() => ɵinjectCraftMatch());
+    expect(seen.at(-1)).toBe('42');
+
+    watch.destroy();
     window.history.replaceState(null, '', '/');
   });
 

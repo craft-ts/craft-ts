@@ -26,14 +26,20 @@ import { ui } from './dashboard.style';
 import { ImportDialog } from './import-dialog';
 import { sessionDate, storageSizeLabel } from './replay-labels';
 import { plural } from './replay-model';
-import { SessionResumeFilter } from './session-resume-filter.service';
+import {
+  SessionResumeFilter,
+  type SessionListView,
+} from './session-resume-filter.service';
 import { openImport } from './replay-session';
 import type { SessionSummary } from './session-archive.service';
-import {
-  page,
-  pendingDeleteSessionId,
-} from './replay-state';
+import { page, pendingDeleteSessionId } from './replay-state';
 import { SessionArchive } from './session-archive.service';
+import {
+  derivationLabel,
+  derivedSessionsOf,
+  isDerivedSession,
+  shortUrl,
+} from './session-lineage';
 import { SessionPageActions } from './sessions-page-actions.service';
 import { lit } from './view-helpers';
 
@@ -44,39 +50,44 @@ function hasSupportedVersions(session: SessionSummary): boolean {
   );
 }
 
-/** Page 1: the sessions the local archive holds, to open or to delete. */
+const VIEW_LABELS: Readonly<Record<SessionListView, string>> = {
+  recordings: 'Enregistrements',
+  derived: 'Reprises et recettes',
+  all: 'Toutes',
+};
+
+/**
+ * Page 1: the sessions the local archive holds. By default the recordings a
+ * person made; the sessions the resume tooling recorded from them sit in their
+ * own view, and each recording says what came out of it.
+ */
 export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
-  const archive = yield* SessionArchive(undefined, ({
-    savedSessions,
-    retentionDays,
-    storageBytes,
-    reachable,
-    deleteSession,
-    deleteArchivedSessions,
-    pruneExpired,
-  }) => ({
-    savedSessions,
-    retentionDays,
-    storageBytes,
-    reachable,
-    deleteSession,
-    deleteArchivedSessions,
-    pruneExpired,
-  }));
-  const resumeFilter = yield* SessionResumeFilter();
+  const archive = yield* SessionArchive();
+  const listView = yield* SessionResumeFilter();
   const actions = yield* SessionPageActions();
   const savedSessions = rawReactiveValue(archive.savedSessions);
+  const savedRecipes = rawReactiveValue(archive.resumeRecipeList);
   const retentionDays = rawReactiveValue(archive.retentionDays);
   const storageBytes = rawReactiveValue(archive.storageBytes);
   const reachable = rawReactiveValue(archive.reachable);
-  const resumeFilterEnabled = rawReactiveValue(resumeFilter.filter.enabled);
+  const view = rawReactiveValue(listView.filter.view);
+
+  const recordingCount = yield* craftComputed(
+    'recordingCount',
+    () => savedSessions().filter((item) => !isDerivedSession(item)).length,
+  );
+  const recordingCountValue = rawReactiveValue(recordingCount);
   const visibleSessions = yield* craftComputed('visibleSessions', () => {
     const sessions = savedSessions();
-    return resumeFilterEnabled()
-      ? sessions.filter((session) => (session.resumeCount ?? 0) > 0)
-      : sessions;
+    const current = view();
+    return current === 'all'
+      ? sessions
+      : sessions.filter(
+          (item) => isDerivedSession(item) === (current === 'derived'),
+        );
   });
   const visibleSessionsValue = rawReactiveValue(visibleSessions);
+
   const temporal = yield* CraftTemporalRuntime();
   const expiredSessions = yield* craftComputed('expiredSessions', () => {
     const cutoff = temporal.dateNow() - retentionDays() * 24 * 60 * 60 * 1000;
@@ -86,11 +97,12 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     );
   });
   const expiredSessionsValue = rawReactiveValue(expiredSessions);
-  const expiredSessionCount = yield* craftComputed(
-    'expiredSessionCount',
-    () => expiredSessionsValue().length,
+  const expiredCount = rawReactiveValue(
+    yield* craftComputed(
+      'expiredSessionCount',
+      () => expiredSessionsValue().length,
+    ),
   );
-  const expiredCount = rawReactiveValue(expiredSessionCount);
   const incompatibleSessions = yield* craftComputed(
     'incompatibleSessions',
     () =>
@@ -99,120 +111,146 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
       ),
   );
   const incompatibleSessionsValue = rawReactiveValue(incompatibleSessions);
-  const incompatibleCountSignal = yield* craftComputed(
-    'incompatibleCountSignal',
-    () => incompatibleSessionsValue().length,
+  const incompatibleCount = rawReactiveValue(
+    yield* craftComputed(
+      'incompatibleCountSignal',
+      () => incompatibleSessionsValue().length,
+    ),
   );
-  const incompatibleCount = rawReactiveValue(incompatibleCountSignal);
   const sessionsSummary = yield* craftComputed(
     'sessionsSummary',
     () =>
-      `${plural(savedSessions().length, 'session')} · ${storageSizeLabel(storageBytes())} pour les replays · sur cette machine, rien n’est envoyé · nettoyage après ${retentionDays()} jours.`,
+      `${plural(savedSessions().length, 'session')} · ${storageSizeLabel(storageBytes())} · sur cette machine, rien n’est envoyé · effacées après ${retentionDays()} jours`,
   );
-  const emptyHidden = yield* craftComputed(
-    'emptyHidden',
-    () => savedSessions().length > 0 || !reachable(),
-  );
-  const pageHidden = yield* craftComputed(
-    'pageHidden',
-    () => page() !== 'sessions',
-  );
+
   const head = div({ class: ui.listHead }, [
     div([
       heading({ class: ui.title }, 'Sessions'),
       p({ class: ui.lede }, sessionsSummary),
     ]),
-    div({ class: ui.listHeadActions }, [
-      button(
-        'deleteIncompatibleSessions',
-        {
-          type: 'button',
-          class: buttonUi.root,
-          'data-variant': 'danger',
-          'data-lab': 'delete-incompatible-sessions',
-          disabled: function* () {
-            return incompatibleCount() === 0 || !reachable();
-          },
-          'data-tooltip':
-            'Supprime les sessions dont le format ou le replay n’est pas pris en charge.',
-          click: function* () {
-            const incompatible = incompatibleSessionsValue();
-            if (incompatible.length > 0)
-              yield* actions.deleteIncompatibleSessions(
-                incompatible.map((item) => item.id),
-              );
-          },
-        },
-        function* () {
-          return `Supprimer les incompatibles (${incompatibleCount()})`;
-        },
-      ),
-      button(
-        'cleanupOldSessions',
-        {
-          type: 'button',
-          class: buttonUi.root,
-          'data-variant': 'secondary',
-          'data-lab': 'cleanup-old-sessions',
-          disabled: function* () {
-            return expiredCount() === 0 || !reachable();
-          },
-          'data-tooltip': function* () {
-            return `Supprime les sessions terminées de plus de ${retentionDays()} jours.`;
-          },
-          click: function* () {
-            const count = expiredCount();
-            const days = retentionDays();
-            if (count > 0) yield* actions.pruneExpiredSessions(count, days);
-          },
-        },
-        'Nettoyer les anciennes',
-      ),
-      button(
-        'openImport',
-        {
-          type: 'button',
-          class: buttonUi.root,
-          'data-variant': 'secondary',
-          click: openImport,
-        },
-        'Importer un fichier',
-      ),
-      button(
-        'openRecipes',
-        {
-          type: 'button',
-          class: buttonUi.root,
-          'data-variant': 'secondary',
-          'data-lab': 'open-recipe-catalog',
-          click: function* () {
-            yield* CraftRouter.navigate({ to: 'recipes' });
-          },
-        },
-        'Recettes',
-      ),
-      button(
-        'toggleResumeFilter',
-        {
-          type: 'button',
-          class: buttonUi.root,
-          'data-variant': function* () {
-            return resumeFilterEnabled() ? 'tonal' : 'secondary';
-          },
-          'data-lab': 'filter-sessions-with-resumes',
-          'aria-pressed': function* () {
-            return resumeFilterEnabled() ? 'true' : 'false';
-          },
-          click: resumeFilter.filter.toggle,
-        },
-        function* () {
-          return resumeFilterEnabled()
-            ? 'Toutes les sessions'
-            : 'Avec reprises';
-        },
-      ),
-    ]),
+    button(
+      'openImport',
+      {
+        type: 'button',
+        class: buttonUi.root,
+        'data-variant': 'secondary',
+        click: openImport,
+      },
+      'Importer un fichier',
+    ),
   ]);
+
+  const viewButton = (id: SessionListView) =>
+    button(
+      'showSessionView',
+      {
+        type: 'button',
+        class: ui.segment,
+        'data-lab': `session-view-${id}`,
+        'aria-pressed': function* () {
+          return view() === id ? 'true' : 'false';
+        },
+        'data-segment-on': function* () {
+          return view() === id ? 'true' : undefined;
+        },
+        click: function* () {
+          yield* listView.filter.show(id);
+        },
+      },
+      function* () {
+        const sessions = savedSessions();
+        const count =
+          id === 'all'
+            ? sessions.length
+            : id === 'recordings'
+              ? recordingCountValue()
+              : sessions.length - recordingCountValue();
+        return `${VIEW_LABELS[id]} · ${count}`;
+      },
+    );
+  const views = div(
+    {
+      class: ui.segments,
+      role: 'group',
+      'aria-label': 'Sessions à afficher',
+    },
+    [viewButton('recordings'), viewButton('derived'), viewButton('all')],
+  );
+
+  // Housekeeping shows only when there is some to do.
+  const housekeeping = div(
+    {
+      class: ui.housekeeping,
+      'data-lab': 'housekeeping',
+      hidden: function* () {
+        return incompatibleCount() === 0 && expiredCount() === 0;
+      },
+    },
+    [
+      span(function* () {
+        return [
+          ...(incompatibleCount() > 0
+            ? [
+                `${plural(incompatibleCount(), 'session')} au format non rejouable par ce dashboard`,
+              ]
+            : []),
+          ...(expiredCount() > 0
+            ? [
+                `${plural(expiredCount(), 'session')} de plus de ${retentionDays()} jours`,
+              ]
+            : []),
+        ].join(' · ');
+      }),
+      div({ class: ui.gapActions }, [
+        button(
+          'deleteIncompatibleSessions',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            'data-lab': 'delete-incompatible-sessions',
+            hidden: function* () {
+              return incompatibleCount() === 0;
+            },
+            disabled: function* () {
+              return !reachable();
+            },
+            'data-tooltip':
+              'Supprime les sessions dont le format ou le replay n’est pas pris en charge.',
+            click: function* () {
+              const incompatible = incompatibleSessionsValue();
+              if (incompatible.length > 0)
+                yield* actions.deleteIncompatibleSessions(
+                  incompatible.map((item) => item.id),
+                );
+            },
+          },
+          'Supprimer les incompatibles',
+        ),
+        button(
+          'cleanupOldSessions',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            'data-lab': 'cleanup-old-sessions',
+            hidden: function* () {
+              return expiredCount() === 0;
+            },
+            disabled: function* () {
+              return !reachable();
+            },
+            click: function* () {
+              const count = expiredCount();
+              const days = retentionDays();
+              if (count > 0) yield* actions.pruneExpiredSessions(count, days);
+            },
+          },
+          'Nettoyer les anciennes',
+        ),
+      ]),
+    ],
+  );
 
   const unreachable = div({ class: ui.gap, hidden: reachable }, [
     DocCallout({
@@ -221,7 +259,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
       body: content(() => [
         p(
           { 'data-lab': 'archive-status', role: 'status' },
-          'Serveur d’archive arrêté · lance npm run logs:server',
+          'Le serveur d’archive ne répond pas. Lancez npm run logs:server : la liste se remplira toute seule.',
         ),
       ]),
     }),
@@ -279,100 +317,126 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               span(
                 {
                   class: badgeUi.root,
-                  'data-tone': 'warning',
+                  'data-tone': 'danger',
                   'data-lab': 'replay-compatibility',
-                  'data-tooltip': `Dashboard courant : format v${DEBUG_SESSION_EXPORT_VERSION}, replay v${DEBUG_SESSION_REPLAY_VERSION}.`,
-                  hidden: function* () {
+                  'data-tooltip': function* () {
                     const item = yield* saved();
-                    return (
-                      supportsDebugSessionExportVersion(
-                        item.recordingVersion,
-                      ) && supportsDebugSessionReplayVersion(item.replayVersion)
-                    );
+                    return `Format v${item.recordingVersion}, replay v${item.replayVersion}. Ce dashboard rejoue le format v${DEBUG_SESSION_EXPORT_VERSION}, replay v${DEBUG_SESSION_REPLAY_VERSION}.`;
+                  },
+                  hidden: function* () {
+                    const savedItem = yield* saved();
+                    return hasSupportedVersions(savedItem);
                   },
                 },
                 'Replay incompatible',
-              ),
-              span({ class: badgeUi.root, 'data-tone': 'tip' }, function* () {
-                const item = yield* saved();
-                return `Format v${item.recordingVersion}`;
-              }),
-              span({ class: badgeUi.root, 'data-tone': 'tip' }, function* () {
-                const item = yield* saved();
-                return `Replay v${item.replayVersion}`;
-              }),
-              span(
-                {
-                  class: badgeUi.root,
-                  'data-tone': 'important',
-                  'data-lab': 'guided-resume-session',
-                  hidden: function* () {
-                    return (yield* saved()).resume?.kind !== 'guided-resume';
-                  },
-                },
-                'Reprise guidée',
-              ),
-              span(
-                {
-                  class: badgeUi.root,
-                  'data-tone': 'important',
-                  'data-lab': 'recipe-run-session',
-                  hidden: function* () {
-                    return (yield* saved()).resume?.kind !== 'recipe-run';
-                  },
-                },
-                'Issue d’une recette',
-              ),
-              span(
-                {
-                  class: badgeUi.root,
-                  'data-tone': 'tip',
-                  'data-lab': 'recipe-count',
-                  hidden: function* () {
-                    return ((yield* saved()).recipeCount ?? 0) === 0;
-                  },
-                },
-                function* () {
-                  const count = (yield* saved()).recipeCount ?? 0;
-                  return `${count} recette${count > 1 ? 's' : ''}`;
-                },
-              ),
-              span(
-                {
-                  class: badgeUi.root,
-                  'data-tone': 'important',
-                  'data-lab': 'resume-count',
-                  hidden: function* () {
-                    return ((yield* saved()).resumeCount ?? 0) === 0;
-                  },
-                },
-                function* () {
-                  const count = (yield* saved()).resumeCount ?? 0;
-                  return `${count} reprise${count > 1 ? 's' : ''}`;
-                },
               ),
             ]),
             span({ class: ui.rowMeta }, function* () {
               const item = yield* saved();
               return [
+                shortUrl(item.startUrl),
                 plural(item.participantCount ?? 1, 'onglet'),
                 plural(item.eventCount, 'événement'),
-                ...(item.resume
-                  ? [
-                      ...(item.resume.kind === 'guided-resume'
-                        ? [`depuis ${item.resume.sourceSessionId.slice(0, 8)}`]
-                        : [`recette ${item.resume.recipeId.slice(0, 8)}`]),
-                      ...(item.resume.beforeSequence === undefined
-                        ? []
-                        : [`avant l’événement ${item.resume.beforeSequence}`]),
-                    ]
-                  : []),
               ].join(' · ');
             }),
-            span({ class: ui.rowUrl, 'data-lab': 'saved-url' }, function* () {
-              const item = yield* saved();
-              return item.startUrl;
-            }),
+            // Where it came from, for a session the resume tooling recorded.
+            span(
+              {
+                class: ui.rowLineage,
+                'data-lab': 'session-derivation',
+                hidden: function* () {
+                  const savedItem = yield* saved();
+                  return !isDerivedSession(savedItem);
+                },
+              },
+              function* () {
+                return `↳ ${derivationLabel(yield* saved(), savedSessions(), savedRecipes())}`;
+              },
+            ),
+            // What came out of it, for a recording.
+            span(
+              {
+                class: ui.rowChips,
+                hidden: function* () {
+                  const item = yield* saved();
+                  return (
+                    isDerivedSession(item) ||
+                    ((item.resumeCount ?? 0) === 0 &&
+                      (item.recipeCount ?? 0) === 0 &&
+                      derivedSessionsOf(
+                        item.id,
+                        savedSessions(),
+                        savedRecipes(),
+                      ).length === 0)
+                  );
+                },
+              },
+              [
+                span(
+                  {
+                    class: badgeUi.root,
+                    'data-tone': 'tip',
+                    'data-lab': 'resume-count',
+                    hidden: function* () {
+                      const savedItem = yield* saved();
+                      return (savedItem.resumeCount ?? 0) === 0;
+                    },
+                  },
+                  function* () {
+                    const savedItem = yield* saved();
+                    return plural(
+                      savedItem.resumeCount ?? 0,
+                      'point de reprise',
+                      'points de reprise',
+                    );
+                  },
+                ),
+                span(
+                  {
+                    class: badgeUi.root,
+                    'data-tone': 'tip',
+                    'data-lab': 'recipe-count',
+                    hidden: function* () {
+                      const savedItem = yield* saved();
+                      return (savedItem.recipeCount ?? 0) === 0;
+                    },
+                  },
+                  function* () {
+                    const savedItem = yield* saved();
+                    return plural(savedItem.recipeCount ?? 0, 'recette');
+                  },
+                ),
+                span(
+                  {
+                    class: badgeUi.root,
+                    'data-tone': 'info',
+                    'data-lab': 'derived-count',
+                    hidden: function* () {
+                      const item = yield* saved();
+                      return (
+                        derivedSessionsOf(
+                          item.id,
+                          savedSessions(),
+                          savedRecipes(),
+                        ).length === 0
+                      );
+                    },
+                  },
+                  function* () {
+                    const item = yield* saved();
+                    return plural(
+                      derivedSessionsOf(
+                        item.id,
+                        savedSessions(),
+                        savedRecipes(),
+                      ).length,
+                      'session issue',
+                      'sessions issues',
+                    );
+                  },
+                ),
+              ],
+            ),
           ],
         ),
         div({ class: ui.rowActions }, [
@@ -448,37 +512,42 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     {
       class: ui.empty,
       'data-lab': 'empty',
-      hidden: emptyHidden,
+      hidden: function* () {
+        return savedSessions().length > 0 || !reachable();
+      },
     },
-    'Aucune session pour le moment. Lance ton application avec l’enregistrement activé : ses sessions apparaissent ici.',
+    'Aucune session pour le moment. Lancez votre application avec l’enregistrement activé : ses sessions apparaissent ici.',
   );
-  const noResumableSessions = p(
+  const emptyView = p(
     {
       class: ui.empty,
       'data-lab': 'empty-resume-filter',
       hidden: function* () {
         return (
-          !resumeFilterEnabled() ||
-          savedSessions().length === 0 ||
-          visibleSessionsValue().length > 0
+          savedSessions().length === 0 || visibleSessionsValue().length > 0
         );
       },
     },
-    'Aucune session avec reprise disponible.',
+    function* () {
+      return view() === 'derived'
+        ? 'Aucune reprise ni exécution de recette. Ouvrez un enregistrement et choisissez « Reprendre ici » pour en lancer une.'
+        : 'Aucun enregistrement dans cette vue.';
+    },
   );
 
   return div(
     {
       class: ui.scroll,
       'data-lab': 'list-page',
-      hidden: pageHidden,
+      hidden: yield* craftComputed('hidden', () => page() !== 'sessions'),
     },
     [
       div({ class: ui.listPage }, [
         head,
         unreachable,
+        div({ class: ui.listTools }, [views, housekeeping]),
         rows,
-        noResumableSessions,
+        emptyView,
         empty,
         ImportDialog({}),
       ]),

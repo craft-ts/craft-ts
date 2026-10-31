@@ -32,27 +32,48 @@ The layout lives in `src/dashboard.style.ts`.
 The floating _✦ Report_ launcher opens the AI context chat on dashboard pages;
 the replay page keeps _Report_ in its playback bar instead.
 
-- **Sessions** (`#/`) is a plain list: when it was recorded, how many tabs and
-  events, visible format/replay version badges, and a warning when those
-  versions cannot be replayed by this dashboard. Incompatible sessions can be
-  removed together; _Importer un fichier_ opens a dialog for a JSON export.
+- **The bar** links the two lists of the archive, _Sessions_ and _Recettes_,
+  and holds the season and light/dark switches.
+- **Sessions** (`#/`) shows the recordings a person made by default; the
+  sessions the resume tooling recorded (guided resumes, recipe runs) have their
+  own view, _Reprises et recettes_, and _Toutes_ shows both. A row says when it
+  was recorded, where it starts (without the `craft-*` tooling parameters), how
+  many tabs and events, and a badge only when it is in progress, interrupted,
+  truncated or not replayable. A recording lists what came out of it (resume
+  points, recipes, derived sessions); a derived session says where it comes
+  from. Housekeeping (incompatible or expired sessions) shows only when there
+  is some; _Importer un fichier_ opens a dialog and the imported recording opens
+  at `#/import`.
 - **The replay** (`#/sessions/<id>`) is the page: the recorded app fills the
   window, and the timeline lies over its foot, the way a video's controls do: a bar that shows how far the replay is and takes it to any moment with a
   click (or the arrow keys, an action at a time), with the clock, the step and
   the next action under it. The thumbnails the archive prepares are points on
   that bar; hover or focus one to see its picture, click it to go there. Under
-  the frame, the playback bar holds a play/pause/resume button, restart, next
-  action and the assistant's _Report_ button. A tab selector appears only when the
-  session has several replayable tabs.
+  the frame, the playback bar holds play/pause/resume, restart, next action,
+  the _Diagnostic_ switch and the assistant's _Report_ button. A tab selector
+  appears only when the session has several replayable tabs.
+- **The head** names the recording (the app and the date) and, for a derived
+  session, links back to its source. Its _À ce moment_ group holds the two ways
+  to the live application at the moment the replay shows: _Déboguer ici_
+  restores the recorded state in a new tab, without AI; _Reprendre ici_ opens
+  a dialog that explains the guided resume, says whether a point or a recipe
+  already exists at that moment, and asks what the resume is for before it
+  opens the agent's tab and copies the prompt.
 - **A gap with the recording** is the one thing that interrupts the replay: it
-  shows up as a callout above the stage, with the recovery actions and the
-  expected/observed values one click away.
-- **The journal** is a side panel, closed by default. It lists only the errors
-  of the recording (failed requests, navigations, primitives); _Tout afficher_
-  shows every event, with the slow tasks marked. The _Journal_ button turns
-  tonal when the recording holds errors. The **Détails** tab holds the start
-  page, the replay state, the viewport, the target URL, the start mode and the
-  export of the target.
+  shows up as a notice above the stage, with the recovery actions and a link to
+  the expected/observed values.
+- **The rail** at the right edge opens one view of the side panel at a time,
+  each with a count: _Journal_ (the errors of the recording; _Tout afficher_
+  shows every event, with the slow tasks marked), _Écarts_ (the gaps and the
+  notes of the replay, with _Revoir_ to seek back to one), _Reprises_ (the
+  request in flight and the agent's thread, the resume points with _Voir ce
+  moment_, the recipes, and the sessions derived from this one) and _Détails_
+  (the recording, the start page, the replayed URL, the start mode and the
+  export of the target).
+- **Recettes** (`#/recipes`) lists every recipe with its state and its origin;
+  a recipe (`#/recipes/<id>`) shows its objective, origin, steps in plain
+  words, runs, and the sessions its runs recorded, with _Prévalider dans un
+  nouvel onglet_.
 
 Open `http://localhost:4210` and connect to the local demo in the iframe. The
 demo streams each redacted session event to `ws://127.0.0.1:4319/sessions/ws`.

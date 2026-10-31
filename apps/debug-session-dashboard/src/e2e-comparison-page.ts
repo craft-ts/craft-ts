@@ -15,11 +15,7 @@ import {
   summary,
   ul,
 } from '@craft-ts/component';
-import {
-  CraftRouter,
-  craftComputed,
-  rawReactiveValue,
-} from '@craft-ts/core';
+import { CraftRouter, craftComputed, rawReactiveValue } from '@craft-ts/core';
 import {
   describeSessionTraceFinding,
   sessionTraceFindingAnchors,
@@ -34,19 +30,30 @@ import {
 import { ui } from './dashboard.style';
 import { seekE2eComparisonFrame } from './replay-browser';
 import { page } from './replay-state';
+import { httpFailureReason } from './session-archive.service';
 import { buttonUi } from '@craft-ts/ui/style';
 
 const DASHBOARD_URL =
   import.meta.env['VITE_CRAFT_SESSION_DASHBOARD_URL'] ??
   'http://localhost:4210/';
 
-function comparisonSummary(result: E2eComparisonReport | E2eComparisonError | undefined, exception: unknown): string {
-  if (result && 'error' in result) return `Chargement impossible · ${result.error}`;
+function comparisonSummary(
+  result: E2eComparisonReport | E2eComparisonError | undefined,
+  exception: unknown,
+): string {
+  if (result && 'error' in result)
+    return `Chargement impossible · ${result.error}`;
   if (!result && exception !== undefined)
-    return `Chargement impossible · ${typeof exception === 'string' ? exception : JSON.stringify(exception)}`;
+    return `Chargement impossible · ${typeof exception === 'string' ? exception : httpFailureReason(exception)}. Le lien vient de l’outil sessions.compare ; vérifiez que le test, le projet et le run existent dans l’archive.`;
   if (!result) return 'Chargement des runs et de leur historique…';
-  const references = result.baselineCount > 1 ? `${result.baselineCount} références vertes` : `${result.baselineCount} référence verte`;
-  const single = result.baselineCount === 1 ? ' · une seule référence : les variations normales ne sont pas connues' : '';
+  const references =
+    result.baselineCount > 1
+      ? `${result.baselineCount} références vertes`
+      : `${result.baselineCount} référence verte`;
+  const single =
+    result.baselineCount === 1
+      ? ' · une seule référence : les variations normales ne sont pas connues'
+      : '';
   return `${result.comparison.findings.length} trouvailles · ${references}${single}.`;
 }
 
@@ -55,7 +62,13 @@ function replayFramesOf(
   result: E2eComparisonReport | E2eComparisonError | undefined,
   router: CraftRouter,
 ) {
-  if (!result || 'error' in result || !result.baselineSource || !result.observedSource) return [];
+  if (
+    !result ||
+    'error' in result ||
+    !result.baselineSource ||
+    !result.observedSource
+  )
+    return [];
   const dashboard = new URL(result.dashboardUrl || DASHBOARD_URL);
   const replayUrl = (source: string) =>
     new URL(
@@ -63,16 +76,28 @@ function replayFramesOf(
       dashboard,
     ).toString();
   return [
-    { side: 'baseline', label: 'Référence verte', src: replayUrl(result.baselineSource), origin: dashboard.origin },
-    { side: 'observed', label: 'Run observé', src: replayUrl(result.observedSource), origin: dashboard.origin },
+    {
+      side: 'baseline',
+      label: 'Référence verte',
+      src: replayUrl(result.baselineSource),
+      origin: dashboard.origin,
+    },
+    {
+      side: 'observed',
+      label: 'Run observé',
+      src: replayUrl(result.observedSource),
+      origin: dashboard.origin,
+    },
   ];
 }
 
 /** Places both replays on the steps a finding is about. */
 function seekFinding(finding: SessionTraceFinding): void {
   const anchors = sessionTraceFindingAnchors(finding);
-  if (anchors.baseline?.eventId) seekE2eComparisonFrame('baseline', anchors.baseline.eventId);
-  if (anchors.observed?.eventId) seekE2eComparisonFrame('observed', anchors.observed.eventId);
+  if (anchors.baseline?.eventId)
+    seekE2eComparisonFrame('baseline', anchors.baseline.eventId);
+  if (anchors.observed?.eventId)
+    seekE2eComparisonFrame('observed', anchors.observed.eventId);
 }
 
 /** Read-only report view for a failed Playwright run and its green history. */
@@ -91,29 +116,49 @@ export const E2eComparisonPage = craftComponent(
         ? `Comparaison · ${result.testId} · ${result.project}`
         : 'Comparaison de session E2E';
     });
-    const summaryText = yield* craftComputed('summaryText', () => comparisonSummary(report(), queryException()));
+    const summaryText = yield* craftComputed('summaryText', () =>
+      comparisonSummary(report(), queryException()),
+    );
     const comparison = () => {
       const result = report();
       return result && !('error' in result) ? result.comparison : undefined;
     };
-    const firstDivergenceLabel = yield* craftComputed('firstDivergenceLabel', () => {
-      const first = comparison()?.firstDivergence;
-      return first ? `Première divergence · ${sessionTraceFindingLabel(first)}` : 'Aucune divergence bloquante';
-    });
-    const firstDivergenceText = yield* craftComputed('firstDivergenceText', () => {
-      const first = comparison()?.firstDivergence;
-      return first ? describeSessionTraceFinding(first) : 'Les pas stables des runs verts se retrouvent dans le run observé.';
-    });
+    const firstDivergenceLabel = yield* craftComputed(
+      'firstDivergenceLabel',
+      () => {
+        const first = comparison()?.firstDivergence;
+        return first
+          ? `Première divergence · ${sessionTraceFindingLabel(first)}`
+          : 'Aucune divergence bloquante';
+      },
+    );
+    const firstDivergenceText = yield* craftComputed(
+      'firstDivergenceText',
+      () => {
+        const first = comparison()?.firstDivergence;
+        return first
+          ? describeSessionTraceFinding(first)
+          : 'Les pas stables des runs verts se retrouvent dans le run observé.';
+      },
+    );
     const reportText = yield* craftComputed('reportText', () => {
       const current = comparison();
-      return current ? JSON.stringify(current, null, 2) : 'En attente du serveur local…';
+      return current
+        ? JSON.stringify(current, null, 2)
+        : 'En attente du serveur local…';
     });
-    const replayFrames = yield* craftComputed('replayFrames', () => replayFramesOf(report(), router));
+    const replayFrames = yield* craftComputed('replayFrames', () =>
+      replayFramesOf(report(), router),
+    );
     const findings = yield* craftComputed('findings', () => {
       const current = comparison();
       // Decoded from JSON, the first divergence is a copy of one finding, not the same object.
-      const first = current?.firstDivergence ? JSON.stringify(current.firstDivergence) : undefined;
-      const firstIndex = (current?.findings ?? []).findIndex((finding) => JSON.stringify(finding) === first);
+      const first = current?.firstDivergence
+        ? JSON.stringify(current.firstDivergence)
+        : undefined;
+      const firstIndex = (current?.findings ?? []).findIndex(
+        (finding) => JSON.stringify(finding) === first,
+      );
       return (current?.findings ?? []).map((finding, index) => ({
         finding,
         label: sessionTraceFindingLabel(finding),
@@ -121,117 +166,150 @@ export const E2eComparisonPage = craftComponent(
         first: index === firstIndex ? 'true' : 'false',
       }));
     });
-    const hiddenFirstDivergence = yield* craftComputed('hiddenFirstDivergence', () => comparison() === undefined);
+    const hiddenFirstDivergence = yield* craftComputed(
+      'hiddenFirstDivergence',
+      () => comparison() === undefined,
+    );
     return div(
-      { class: ui.page, hidden, 'data-lab': 'e2e-comparison-page' },
+      { class: ui.scroll, hidden, 'data-lab': 'e2e-comparison-page' },
       [
-        div({ class: ui.listHead }, [
-          div([
-            heading({ class: ui.title }, title),
-            p({ class: ui.lede, role: 'status' }, summaryText),
-          ]),
-        ]),
-        div({ class: ui.gap }, [
-          div(
-            {
-              class: ui.e2eFirstDivergence,
-              'data-lab': 'e2e-first-divergence',
-              hidden: hiddenFirstDivergence,
-            },
-            [
-              strong({}, firstDivergenceLabel),
-              p({}, firstDivergenceText),
-            ],
-          ),
-          div({ class: ui.e2eComparisonLayout }, [
-            div(
-              { class: ui.e2eComparisonFrames, 'data-lab': 'e2e-replay-frames' },
-              forNode(
-                replayFrames,
-                { track: (frame) => frame.label },
-                (frame) =>
-                  div({ class: ui.e2eComparisonFrame, 'data-replay-side': function* () { return (yield* frame()).side; } }, [
-                    p(function* () {
-                      return (yield* frame()).label;
-                    }),
-                    iframe({
-                      title: function* () {
-                        return (yield* frame()).label;
-                      },
-                      src: function* () {
-                        const item = yield* frame();
-                        return safeResourceUrl(item.src, { allowedOrigins: [item.origin] });
-                      },
-                      loading: 'lazy',
-                      'data-lab': function* () {
-                        return `e2e-replay-${(yield* frame()).side}`;
-                      },
-                      class: ui.e2eComparisonIframe,
-                      sandbox: 'allow-scripts allow-same-origin',
-                    }),
-                  ]),
-              ),
-            ),
-            div(
-              {
-                class: ui.e2eComparisonFindings,
-                role: 'complementary',
-                'aria-label': 'Trouvailles du comparateur',
-                'data-lab': 'e2e-comparison-findings-panel',
-              },
-              [
-                p({}, 'Trouvailles'),
-                ul(
-                  { class: ui.sessions, 'data-lab': 'e2e-comparison-findings' },
-                  forNode(
-                    findings,
-                    { track: (_item, index) => index },
-                    (item) =>
-                      li({ class: ui.row }, [
-                        button(
-                          'seekComparisonFinding',
-                          {
-                            type: 'button',
-                            class: ui.rowOpen,
-                            'data-lab': 'e2e-comparison-finding',
-                            'data-first': function* () {
-                              return (yield* item()).first;
-                            },
-                            click: function* () {
-                              seekFinding((yield* item()).finding);
-                            },
-                          },
-                          [
-                            strong({}, function* () {
-                              return (yield* item()).label;
-                            }),
-                            span({}, function* () {
-                              return (yield* item()).text;
-                            }),
-                          ],
-                        ),
-                      ]),
-                  ),
-                ),
-              ],
-            ),
-          ]),
-          details({ 'data-lab': 'e2e-comparison-raw' }, [
-            summary('Comparaison brute (JSON)'),
-            pre({ class: ui.code, 'data-lab': 'e2e-comparison-json' }, reportText),
-          ]),
-          div({ class: ui.listHeadActions }, [
+        div({ class: ui.widePage }, [
+          div({ class: ui.recipeHead }, [
             button(
               'backToSessions',
               {
                 type: 'button',
                 class: buttonUi.root,
-                'data-variant': 'secondary',
+                'data-variant': 'link',
                 click: function* () {
                   yield* CraftRouter.navigate({ to: '' });
                 },
               },
-              'Retour aux sessions',
+              '← Sessions',
+            ),
+            heading({ class: ui.title }, title),
+            p({ class: ui.lede, role: 'status' }, summaryText),
+          ]),
+          div({ class: ui.gap }, [
+            div(
+              {
+                class: ui.e2eFirstDivergence,
+                'data-lab': 'e2e-first-divergence',
+                hidden: hiddenFirstDivergence,
+              },
+              [strong({}, firstDivergenceLabel), p({}, firstDivergenceText)],
+            ),
+            div(
+              { class: ui.e2eComparisonLayout, hidden: hiddenFirstDivergence },
+              [
+                div(
+                  {
+                    class: ui.e2eComparisonFrames,
+                    'data-lab': 'e2e-replay-frames',
+                  },
+                  forNode(
+                    replayFrames,
+                    { track: (frame) => frame.label },
+                    (frame) =>
+                      div(
+                        {
+                          class: ui.e2eComparisonFrame,
+                          'data-replay-side': function* () {
+                            const frameItem = yield* frame();
+                            return frameItem.side;
+                          },
+                        },
+                        [
+                          p(function* () {
+                            const frameItem = yield* frame();
+                            return frameItem.label;
+                          }),
+                          iframe({
+                            title: function* () {
+                              const frameItem = yield* frame();
+                              return frameItem.label;
+                            },
+                            src: function* () {
+                              const item = yield* frame();
+                              return safeResourceUrl(item.src, {
+                                allowedOrigins: [item.origin],
+                              });
+                            },
+                            loading: 'lazy',
+                            'data-lab': function* () {
+                              const frameItem = yield* frame();
+                              return `e2e-replay-${frameItem.side}`;
+                            },
+                            class: ui.e2eComparisonIframe,
+                            sandbox: 'allow-scripts allow-same-origin',
+                          }),
+                        ],
+                      ),
+                  ),
+                ),
+                div(
+                  {
+                    class: ui.e2eComparisonFindings,
+                    role: 'complementary',
+                    'aria-label': 'Trouvailles du comparateur',
+                    'data-lab': 'e2e-comparison-findings-panel',
+                  },
+                  [
+                    p({ class: ui.sideSectionTitle }, 'Trouvailles'),
+                    ul(
+                      {
+                        class: ui.sessions,
+                        'data-lab': 'e2e-comparison-findings',
+                      },
+                      forNode(
+                        findings,
+                        { track: (_item, index) => index },
+                        (item) =>
+                          li({ class: ui.row }, [
+                            button(
+                              'seekComparisonFinding',
+                              {
+                                type: 'button',
+                                class: ui.rowOpen,
+                                'data-lab': 'e2e-comparison-finding',
+                                'data-first': function* () {
+                                  const entry = yield* item();
+                                  return entry.first;
+                                },
+                                click: function* () {
+                                  seekFinding((yield* item()).finding);
+                                },
+                              },
+                              [
+                                strong({}, function* () {
+                                  const entry = yield* item();
+                                  return entry.label;
+                                }),
+                                span({}, function* () {
+                                  const entry = yield* item();
+                                  return entry.text;
+                                }),
+                              ],
+                            ),
+                          ]),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            details(
+              {
+                'data-lab': 'e2e-comparison-raw',
+                hidden: hiddenFirstDivergence,
+              },
+              [
+                summary('Comparaison brute (JSON)'),
+                pre(
+                  { class: ui.code, 'data-lab': 'e2e-comparison-json' },
+                  reportText,
+                ),
+              ],
             ),
           ]),
         ]),

@@ -160,15 +160,33 @@ export const thumbnailManifest = thumbnailManifestBridge.value;
 
 /* ── the page ───────────────────────────────────────────────────────────── */
 
-const pageBridge = createStateBridge<'sessions' | 'detail' | 'compare'>(
-  'page',
-  'sessions',
-);
+const pageBridge = createStateBridge<
+  'sessions' | 'recipes' | 'detail' | 'compare'
+>('page', 'sessions');
 export const page = pageBridge.value;
 const importOpenBridge = createStateBridge('importOpen', false);
 export const importOpen = importOpenBridge.value;
 const sidePanelOpenBridge = createStateBridge('sidePanelOpen', false);
 export const sidePanelOpen = sidePanelOpenBridge.value;
+/** The side panel's four views, opened from the head of the replay. */
+export type SideTab = 'journal' | 'review' | 'resumes' | 'details';
+const sideTabBridge = createStateBridge<SideTab>('sideTab', 'journal');
+export const sideTab = sideTabBridge.value;
+/** Opens the side panel on one view; the same button again closes it. */
+export function toggleSideTab(tab: SideTab): void {
+  if (sidePanelOpen() && sideTab() === tab) {
+    sidePanelOpen.set(false);
+    return;
+  }
+  sideTab.set(tab);
+  sidePanelOpen.set(true);
+}
+/** The dialog that asks what a guided resume is for, before anything opens. */
+const resumeDialogOpenBridge = createStateBridge('resumeDialogOpen', false);
+export const resumeDialogOpen = resumeDialogOpenBridge.value;
+/** What the person wants from the resume, typed in that dialog. */
+const resumeIntentBridge = createStateBridge('resumeIntent', '');
+export const resumeIntent = resumeIntentBridge.value;
 const showAllEventsBridge = createStateBridge('showAllEvents', false);
 export const showAllEvents = showAllEventsBridge.value;
 const pendingDeleteSessionIdBridge = createStateBridge<string | undefined>(
@@ -205,8 +223,7 @@ const differenceNoticeDismissedBridge = createStateBridge(
   'differenceNoticeDismissed',
   false,
 );
-export const differenceNoticeDismissed =
-  differenceNoticeDismissedBridge.value;
+export const differenceNoticeDismissed = differenceNoticeDismissedBridge.value;
 const AUTO_SKIP_STORAGE_KEY =
   'craft-debug-session-dashboard:auto-skip-differences:v1';
 
@@ -428,6 +445,28 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     sidePanelOpenWriter.bind(
       yield* state('sidePanelOpen', false, sidePanelOpenWriter.insertion),
     );
+    const sideTabWriter = createStateWriter('sideTab', sideTabBridge);
+    sideTabWriter.bind(
+      yield* state(
+        'sideTab',
+        sideTabBridge.initialValue,
+        sideTabWriter.insertion,
+      ),
+    );
+    const resumeDialogOpenWriter = createStateWriter(
+      'resumeDialogOpen',
+      resumeDialogOpenBridge,
+    );
+    resumeDialogOpenWriter.bind(
+      yield* state('resumeDialogOpen', false, resumeDialogOpenWriter.insertion),
+    );
+    const resumeIntentWriter = createStateWriter(
+      'resumeIntent',
+      resumeIntentBridge,
+    );
+    resumeIntentWriter.bind(
+      yield* state('resumeIntent', '', resumeIntentWriter.insertion),
+    );
     const showAllEventsWriter = createStateWriter(
       'showAllEvents',
       showAllEventsBridge,
@@ -470,7 +509,10 @@ export const { ReplayDashboardState: ReplayState } = craftService(
         startModeWriter.insertion,
       ),
     );
-    const statusWriter = createStateWriter('dashboardReplayStatus', statusBridge);
+    const statusWriter = createStateWriter(
+      'dashboardReplayStatus',
+      statusBridge,
+    );
     statusWriter.bind(
       yield* state(
         'dashboardReplayStatus',
@@ -537,8 +579,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     yield* craftEffect('persistAutoSkipPreference', function* () {
       const storage = yield* LocalStorageService();
       const enabled = rawReactiveValue(autoSkipDifferencesState);
-      return () =>
-        storage.setItem(AUTO_SKIP_STORAGE_KEY, String(enabled()));
+      return () => storage.setItem(AUTO_SKIP_STORAGE_KEY, String(enabled()));
     });
     const partialReplayWriter = createStateWriter(
       'partialReplay',
@@ -714,7 +755,9 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     const journalEventsState = yield* craftComputed(
       'journalEventsState',
       function* () {
-        return (yield* showAllEventsState()) ? visibleEvents() : problemEvents();
+        return (yield* showAllEventsState())
+          ? visibleEvents()
+          : problemEvents();
       },
     );
     journalEventsBridge.bind(rawReactiveValue(journalEventsState));
@@ -741,7 +784,11 @@ export const { ReplayDashboardState: ReplayState } = craftService(
       function* () {
         const current = yield* sessionState();
         return current
-          ? compileReplayPlan(current, undefined, browserDocument.isValidSelector)
+          ? compileReplayPlan(
+              current,
+              undefined,
+              browserDocument.isValidSelector,
+            )
           : undefined;
       },
     );

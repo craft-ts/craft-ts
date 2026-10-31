@@ -10,18 +10,15 @@ import {
   rawReactiveValue,
   ɵuntracked as untracked,
 } from '@craft-ts/core';
-import {
-  installReplayPlatform,
-  isReplayWorkerMode,
-} from './replay-browser';
+import { installReplayPlatform, isReplayWorkerMode } from './replay-browser';
 import {
   beginSessionLoad,
   completeSessionLoad,
   failSessionLoad,
+  installImportNavigation,
   leaveReplayPage,
 } from './replay-session';
 import { endReplayLoadingIndicator } from './replay-playback';
-import { ReplayRouterEvents } from './replay-router-events.service';
 import {
   page,
   pendingDeleteSessionId,
@@ -75,7 +72,10 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     const thumbnails = yield* ThumbnailArchive();
     const resumeThread = yield* ResumeThread();
     const activeRoute = yield* CraftActivatedRoute();
-    const routerEvents = yield* ReplayRouterEvents();
+    // Resolved here, once: asking for the router from inside an effect's own
+    // injector builds another one, and this page stops hearing navigations.
+    const router = yield* CraftRouter();
+    installImportNavigation(() => void router.navigate({ to: 'import' }));
     const archivedValue = rawReactiveValue(archive.archived.value);
     const archivedException = rawReactiveValue(archive.archived.exception);
     const deletedValue = rawReactiveValue(archive.deleteSession.value);
@@ -138,7 +138,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
         untracked(() => failSessionLoad(httpFailureReason(exception)));
     });
 
-    yield* craftEffect('closeRemovedSession', function* () {
+    yield* craftEffect('closeRemovedSession', () => {
       const deleted = deletedValue();
       const id = removingId;
       if (deleted === undefined || id === undefined) return;
@@ -147,11 +147,10 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
         removingId = undefined;
         pendingDeleteSessionId.set(undefined);
       });
-      if (shouldNavigate) yield* CraftRouter.navigate({ to: '' });
+      if (shouldNavigate) void router.navigate({ to: '' });
     });
 
-    const handleHashChange = (): void => {
-      const route = activeRoute.snapshot;
+    const handleRoute = (route: typeof activeRoute.snapshot): void => {
       const routePaths = route.pathFromRoot.map(
         (segment) => segment.routeConfig?.path,
       );
@@ -160,14 +159,17 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       const id = routeSessionId();
       const importedSession = routePaths.includes('import');
       const comparison = routePaths.includes('compare');
+      const recipes = routePaths.includes('recipes');
       const e2eReplay = routePaths.includes('e2e-replay');
       const wasDetailPage = page() === 'detail';
       page.set(
         comparison
           ? 'compare'
-          : id || importedSession || e2eReplay
-            ? 'detail'
-            : 'sessions',
+          : recipes
+            ? 'recipes'
+            : id || importedSession || e2eReplay
+              ? 'detail'
+              : 'sessions',
       );
       if (comparison) {
         e2eComparison.comparison.call({
@@ -188,8 +190,14 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
         registers.loadedArchiveSessionId = undefined;
       }
     };
-    routerEvents.onNavigationEnd(handleHashChange);
-    handleHashChange();
+    // The activated route is the router's current match, a reactive value: it
+    // changes on every navigation, the first one included. That first one
+    // resolves its lazy page without a NavigationEnd event, so an address
+    // opened directly (a shared link, a refresh) is only seen this way.
+    yield* craftEffect('followRoute', () => {
+      const route = activeRoute.snapshot;
+      untracked(() => handleRoute(route));
+    });
 
     const retryThumbnails = (): void => {
       if (requestedId !== undefined && !workerMode)
