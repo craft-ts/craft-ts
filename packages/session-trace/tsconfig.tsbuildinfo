@@ -1,1 +1,0 @@
-{"version":"7.0.2","root":["./src/compare.ts","./src/diff.ts","./src/globals.d.ts","./src/history.ts","./src/index.ts","./src/normalize.ts","./src/parse.ts","./src/resume-context.ts","./src/sha256.ts"],"packageJsons":["./package.json"]}
