@@ -510,13 +510,14 @@ test('refreshes only the lockfile, without running scripts or touching node_modu
   assert.ok(args.includes('--ignore-scripts'));
 });
 
-test('release-local refreshes the lockfile before npm ci and restores it on a dry run', () => {
+test('release-local refreshes the npm lockfile before pnpm install and restores it on a dry run', () => {
   const source = readFileSync(
     new URL('./release-local.mjs', import.meta.url),
     'utf8',
   );
   assert.ok(
-    source.indexOf('refreshLockfile();') < source.indexOf("run('npm', ['ci'])"),
+    source.indexOf('refreshLockfile();') <
+      source.indexOf("run('pnpm', ['install', '--frozen-lockfile'])"),
   );
   assert.match(source, /'restore', '--worktree', '--', 'package-lock\.json'/);
 });

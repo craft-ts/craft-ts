@@ -734,7 +734,7 @@ async function main(args) {
   assertGitWorkspace(effectDemoRepo, 'main', 'Effect StackBlitz demo');
 
   refreshLockfile();
-  run('npm', ['ci']);
+  run('pnpm', ['install', '--frozen-lockfile']);
   const release = resolveRelease(argument);
   const releaseIsPrepared = releaseIsAlreadyPrepared(release.version);
   run('node', [
