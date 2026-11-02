@@ -296,7 +296,8 @@ async function runMutants(argv: string[]): Promise<number> {
       obligations,
       ...(e2e ? { testOf: e2eReferenceTestOf } : {}),
     }),
-    sourceRoots: sourceRoots.length > 0 ? sourceRoots : ['src'],
+    // The e2e tests live outside `src`: a changed test must rerun its mutant.
+    sourceRoots: sourceRoots.length > 0 ? sourceRoots : e2e ? ['src', 'e2e'] : ['src'],
     runner: e2e
       ? playwrightMutantRunner({ rootDir, config: config ?? 'playwright.config.ts', cwd: process.cwd() })
       : vitestMutantRunner({ rootDir, config: config ?? 'vitest.config.ts' }),
