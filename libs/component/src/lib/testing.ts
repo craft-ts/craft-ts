@@ -18,6 +18,7 @@ import {
   type CraftServiceProvider,
   type CompleteServiceDependencyMapFromYielded,
   type FlattenDependencyTree,
+  ɵcraftTestProviders,
 } from '@craft-ts/core';
 import {
   mountInterpretedComponent,
@@ -207,7 +208,11 @@ function createTestingInjector(
   providers: readonly CraftServiceProvider[] | undefined,
 ) {
   return createEnvironmentInjector(
-    [{ provide: ɵINJECTOR_SCOPE, useValue: 'root' }, ...(providers ?? [])],
+    [
+      { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
+      ...ɵcraftTestProviders(),
+      ...(providers ?? []),
+    ],
     Injector.NULL as EnvironmentInjector,
     'CraftComponentTestRoot',
   );

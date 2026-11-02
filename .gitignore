@@ -63,6 +63,7 @@ vitest.config.*.timestamp*
 # Attestation evidence: content-addressed, regenerable, never in git.
 .craft/evidence/
 .craft/runs/
+**/.craft/behavior-proofs.json
 .craft/craft-dependency-graph.json
 .craft/craft-dependency-graph.architecture.ts
 apps/demo-ecommerce/.craft/craft-dependency-graph.json

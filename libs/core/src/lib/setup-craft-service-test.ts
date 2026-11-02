@@ -15,6 +15,7 @@ import {
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
+import { ɵcraftTestProviders } from './craft-test-providers';
 import type { MockMember } from './craft-service.shared';
 import {
   createCraftInjector,
@@ -422,6 +423,7 @@ function createCraftTestInjector(
       ...getCraftRootDefaultProviders(),
       { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
       { provide: ErrorHandler, useClass: ErrorHandler },
+      ...ɵcraftTestProviders(),
       ...extraProviders,
     ],
     Injector.NULL as EnvironmentInjector,

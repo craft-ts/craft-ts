@@ -1,6 +1,6 @@
 # Plan : contraindre des tests de comportement
 
-> Statut (2026-11-02) : lot 1 fait et commité ; lot 2 fait pour les e2e (pas pour les tests de service/template) ; lot 3 à faire.
+> Statut (2026-11-02) : lot 1 fait et commité ; lot 2 fait (e2e et tests de service/template), sauf la vérification « observé » ; lot 3 à faire.
 
 ## Objectif
 
@@ -214,11 +214,14 @@ Code : `libs/dev-tools/src/scripts/behavior-catalog.ts` (+ spec), exporté par
 - Le cliquet ne s'active qu'une fois `behaviors.catalog.ts` présent sur
   `main` : avant le merge, il n'y a pas de base et il ne bloque rien.
 
-### Lot 2 — Preuve par la trace (e2e fait, service/template à faire)
+### Lot 2 — Preuve par la trace
 
 Code : `libs/dev-tools/src/scripts/behavior-proofs.ts` (trace → obligations),
 `libs/playwright-sessions/src/reference-traces.ts` (références e2e, maintenant
-et au merge-base).
+et au merge-base), `libs/core/src/lib/behavior-proof-recorder.ts` +
+`libs/core/src/behavior-proofs.vitest-setup.ts` (enregistrement pendant un
+test vitest), `libs/dev-tools/src/scripts/behavior-proof-index.ts` (reporter
+vitest et lecture de l'index).
 
 **P2. Empreintes de couverture**
 
@@ -231,11 +234,26 @@ et au merge-base).
   preuve (jamais deviné).
 - [ ] Le runtime n'émet pas encore les identifiants du catalogue ; la
   correspondance par nom en tient lieu.
-- [ ] Reporter vitest pour `setupCraftServiceTestingByRegister` et
-  `setupCraftComponentTemplateTest` : **non fait**. Les tests n'enregistrent
-  pas d'événements craft ; piste : un `provideFnWrapper` de test qui lit
-  `ɵHOST_TAG_LIST` (comme `correlation-id-plugin.ts`) et note l'issue de
-  chaque loader.
+- [x] Tests de service et de template : un `provideFnWrapper` de `core`
+  note, pendant chaque test, chaque invocation réglée (adresse de l'hôte,
+  issue, exception) une seule fois ; c'est l'empreinte, au même format
+  qu'une étape de trace e2e. `ɵregisterCraftTestProviders` la fait recevoir
+  par les quatre racines de test (`setupCraftServiceTest`,
+  `setupCraftServiceTestingByRegister`, `CraftTestBed`, helpers de
+  composant). Une exception rendue comme **valeur** (server function, loader
+  typé) compte comme un échec, pas comme un succès.
+- [x] Branchement vitest : `setupFiles` (setup de `core`, range l'empreinte
+  dans `task.meta`) + `reporters: ['default', behaviorProofReporter({ rootDir })]`
+  (`dev-tools`, Node pur). Seuls les tests **verts** entrent dans
+  `.craft/behavior-proofs.json` (hors git), clé `<fichier> > <nom complet>` ;
+  un lancement partiel ne réécrit que les fichiers lancés ; un fichier de test
+  supprimé sort de l'index à la lecture.
+- [x] `demo-ecommerce` : `architecture` dépend de `test` (nx), l'index est une
+  sortie de `test`. Premier test de service (`cart-logs-state.spec.ts`) :
+  15 obligations sur 34 prouvées (12 par les e2e).
+- [ ] Les preuves unitaires prouvent mais ne sont pas comparées à la base
+  (index hors git) : retirer le seul test unitaire d'une obligation ne bloque
+  pas encore. Il faudrait l'index de `main` en artefact de CI.
 - [x] Extraction depuis les références e2e déjà versionnées
   (`e2e/__sessions__`) : aucun stockage en plus. `demo-ecommerce` : 12
   obligations sur 34 prouvées par ses 3 tests.
@@ -252,9 +270,15 @@ Observation : `admin.edit-product` clique sur « +1 stock », mais sa référenc
 (2026-10-25) ne contient ni `adminAction` ni `ecommerce.product.save`. À
 regarder : référence ancienne ou capture incomplète.
 
+Observation : l'enregistreur e2e (`send-context-to-ai.ts`) compte comme
+réussie une invocation qui rend une exception Craft en valeur ; une preuve
+`#success` lue dans une trace e2e peut donc venir d'un échec. L'enregistreur
+de test, lui, la compte comme échec.
+
 Fini quand : retirer le test qui couvre une obligation fait échouer la PR
-(fait pour les e2e), et une exception HTTP prouvée par un test de service
-suffit (à faire avec le reporter vitest).
+(fait pour les e2e, pas encore pour les tests unitaires), et une exception
+HTTP prouvée par un test de service suffit (fait : l'exception est notée avec
+son discriminant).
 
 ### Lot 3 — Discrimination, puis aide
 

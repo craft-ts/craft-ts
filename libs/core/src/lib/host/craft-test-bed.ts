@@ -10,6 +10,7 @@ import {
   type Provider,
   type ProviderToken,
 } from './craft-compat';
+import { ɵcraftTestProviders } from '../craft-test-providers';
 
 export type CraftComponentFixture<T = unknown> = {
   readonly nativeElement: HTMLElement;
@@ -83,7 +84,11 @@ class CraftTestBedRuntime {
   get rootInjector(): CraftInjector {
     if (!this.injector) {
       this.injector = createEnvironmentInjector(
-        [...getCraftRootDefaultProviders(), ...this.providers],
+        [
+          ...getCraftRootDefaultProviders(),
+          ...ɵcraftTestProviders(),
+          ...this.providers,
+        ],
         createCraftInjector([]),
         'CraftTestBed',
       );

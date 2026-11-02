@@ -6,6 +6,7 @@ import {
   behaviorObligationsReport,
   findBehaviorTestFiles,
   readBehaviorCatalogAtBase,
+  readBehaviorProofIndex,
 } from '@craft-ts/dev-tools/behavior-catalog';
 import { readReferenceTraces, readReferenceTracesAtBase } from '@craft-ts/playwright-sessions/history';
 import { behaviorWaiverList } from './behavior-waivers';
@@ -21,11 +22,15 @@ describe('demo e-commerce behaviour obligations', () => {
       waivers: behaviorWaiverList,
       testFiles: findBehaviorTestFiles(rootDir, ['src']),
       // The e2e references are committed: their traces are the proofs, now
-      // and at the base.
-      traces: readReferenceTraces(join(rootDir, 'e2e/__sessions__')),
+      // and at the base. The unit tests leave theirs in an index out of git
+      // (`nx test` runs first): they prove, they are not compared to the base.
+      traces: {
+        ...readReferenceTraces(join(rootDir, 'e2e/__sessions__')),
+        ...readBehaviorProofIndex(rootDir),
+      },
       baseTraces: readReferenceTracesAtBase({ cwd: rootDir, sessionsDir: 'e2e/__sessions__' }),
     });
-    console.info(`[craft behaviours] ${report.coverage.proven}/${report.coverage.total} proven by e2e references`);
+    console.info(`[craft behaviours] ${report.coverage.proven}/${report.coverage.total} proven by tests`);
     for (const warning of report.warnings) console.warn(`[craft behaviours] ${warning}`);
     // Rewritten with `vitest -u`; in CI a stale catalog fails here.
     await expect.soft(behaviorCatalogToTypeScript(report.catalog)).toMatchFileSnapshot('./behaviors.catalog.ts');

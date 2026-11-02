@@ -37,6 +37,7 @@ import {
 } from './behavior-proofs.ts';
 
 export * from './behavior-proofs.ts';
+export * from './behavior-proof-index.ts';
 import type { DependencyGraph, DependencyGraphNode } from './dependency-graph.js';
 
 export const BEHAVIOR_KINDS = [
