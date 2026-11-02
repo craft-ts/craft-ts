@@ -34,6 +34,8 @@ const sessionRetentionDays = Number(
 );
 const e2eSessionRoots = process.env['CRAFT_E2E_SESSION_STORE']
   ?.split(delimiter).map((path) => path.trim()).filter(Boolean).map((path) => resolve(path));
+const behaviorApps = process.env['CRAFT_BEHAVIOR_APPS']
+  ?.split(delimiter).map((path) => path.trim()).filter(Boolean).map((path) => resolve(path));
 
 const store = new LogStore({ directory, maxFileSize, maxFiles });
 const sessionStore = new DebugSessionStore(sessionDirectory, {
@@ -58,6 +60,7 @@ const server = createLogHttpServer({
   store,
   sessionStore,
   ...(e2eSessionRoots ? { e2eSessionRoots } : {}),
+  ...(behaviorApps ? { behaviorApps } : {}),
   thumbnails,
   checkpoints: new ResumeCheckpointStore(resolve(sessionDirectory, 'checkpoints')),
   recipes: new ResumeRecipeStore(resolve(sessionDirectory, 'recipes')),

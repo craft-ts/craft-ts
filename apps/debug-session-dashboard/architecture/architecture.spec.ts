@@ -3,9 +3,12 @@ import {
   assertDeclarativeArchitecture,
   assertLazyRouteTargetsStayLazy,
   behaviorCatalogToTypeScript,
+  behaviorCoverage,
   behaviorObligationsReport,
   findBehaviorTestFiles,
   readBehaviorCatalogAtBase,
+  readBehaviorMutantOutcomes,
+  writeBehaviorCoverage,
 } from '@craft-ts/dev-tools';
 import { behaviorWaiverList } from './behavior-waivers';
 import { loadArchitectureGraph } from './load-graph';
@@ -66,6 +69,16 @@ describe('architecture', () => {
       waivers: behaviorWaiverList,
       testFiles: findBehaviorTestFiles(rootDir, ['apps/debug-session-dashboard/src']),
     });
+    // Read by the log server for this dashboard's own coverage page.
+    const appDir = `${rootDir}/apps/debug-session-dashboard`;
+    writeBehaviorCoverage(
+      appDir,
+      behaviorCoverage(report, {
+        app: 'debug-session-dashboard',
+        waivers: behaviorWaiverList,
+        mutants: readBehaviorMutantOutcomes(appDir),
+      }),
+    );
     // Rewritten with `vitest -u`; in CI a stale catalog fails here.
     await expect
       .soft(behaviorCatalogToTypeScript(report.catalog))

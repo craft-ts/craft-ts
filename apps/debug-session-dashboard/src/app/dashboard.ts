@@ -89,6 +89,24 @@ export const DebugSessionDashboard = craftComponent(
           },
           i18n.t("copy.copy004"),
         ),
+        button(
+          'navCoverage',
+          {
+            type: 'button',
+            class: ui.navLink,
+            'data-lab': 'open-coverage',
+            'aria-current': function* () {
+              return page() === 'coverage' ? 'page' : undefined;
+            },
+            'data-nav-current': function* () {
+              return page() === 'coverage' ? 'true' : undefined;
+            },
+            click: function* () {
+              yield* CraftRouter.navigate({ to: 'coverage' });
+            },
+          },
+          i18n.t("copy.copy202"),
+        ),
       ]),
       div({ class: ui.barTools }, [
         span({ class: ui.barBadge }, [

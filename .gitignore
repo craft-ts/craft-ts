@@ -65,6 +65,7 @@ vitest.config.*.timestamp*
 .craft/runs/
 **/.craft/behavior-proofs.json
 **/.craft/behavior-mutants.json
+**/.craft/behavior-coverage.json
 .craft/craft-dependency-graph.json
 .craft/craft-dependency-graph.architecture.ts
 apps/demo-ecommerce/.craft/craft-dependency-graph.json

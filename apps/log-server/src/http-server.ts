@@ -49,12 +49,19 @@ import {
   type ResumeRecipeRun,
 } from './resume-recipes.js';
 import type { ThumbnailManifest } from './thumbnails/thumbnail-store.js';
+import {
+  behaviorCoverageWithObservations,
+  readBehaviorCoverage,
+  type SessionSteps,
+} from './behavior-coverage.js';
 
 export type LogHttpServerOptions = {
   readonly store: LogStore;
   readonly sessionStore?: DebugSessionStore;
   /** Explicit roots from which read-only Playwright histories may be served. */
   readonly e2eSessionRoots?: readonly string[];
+  /** App directories whose `.craft/behavior-coverage.json` the dashboard shows. */
+  readonly behaviorApps?: readonly string[];
   /** Prepares and serves the thumbnails of archived sessions. */
   readonly thumbnails?: ThumbnailService;
   /** Where the dashboard leaves "resume here" for the AI; one per server by default. */
@@ -194,6 +201,27 @@ async function handleRequest(
       url,
       response,
       options,
+      sessionCorsHeaders(request.headers.origin, allowedOrigins),
+    );
+    return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/sessions/behavior-coverage') {
+    const apps = (options.behaviorApps ?? []).flatMap((appDir) => {
+      const coverage = readBehaviorCoverage(appDir);
+      return coverage ? [coverage] : [];
+    });
+    sendJson(
+      response,
+      200,
+      {
+        apps: behaviorCoverageWithObservations(
+          apps,
+          apps.length > 0 && options.sessionStore
+            ? storedSessionSteps(options.sessionStore)
+            : [],
+        ),
+      },
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
     );
     return;
@@ -1519,6 +1547,31 @@ function safeDecode(value: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Each stored session's normalised steps, computed once per version of the
+ * session: a recording only grows while it runs, then stays as it is.
+ */
+const sessionStepsCache = new Map<string, { updatedAt: string; steps: SessionSteps['steps'] }>();
+
+function storedSessionSteps(store: DebugSessionStore): SessionSteps[] {
+  const summaries = store.list();
+  const present = new Set(summaries.map((summary) => summary.id));
+  for (const id of sessionStepsCache.keys()) if (!present.has(id)) sessionStepsCache.delete(id);
+  return summaries.flatMap((summary) => {
+    let cached = sessionStepsCache.get(summary.id);
+    if (cached?.updatedAt !== summary.updatedAt) {
+      const session = store.get(summary.id);
+      if (!session) return [];
+      cached = {
+        updatedAt: summary.updatedAt,
+        steps: normalizeSessionTrace(asPortableSession(session)).steps,
+      };
+      sessionStepsCache.set(summary.id, cached);
+    }
+    return [{ id: summary.id, createdAt: summary.createdAt, steps: cached.steps }];
+  });
 }
 
 function asPortableSession(value: unknown): PortableSessionForTrace {

@@ -1,12 +1,13 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "4c5a887b1765cbd3",
+  "graphHash": "e24a6b4902b982fa",
   "routes": [
     "",
     ":recipeId",
     ":sessionId",
     "compare",
+    "coverage",
     "e2e-replay",
     "import",
     "recipes",
@@ -25,6 +26,7 @@ export const architectureCatalog = {
     "aiContextMenuDismissal",
     "aiSendContextChatState",
     "aiSendDialogState",
+    "behaviorCoverageArchive",
     "craftRouterOutletState",
     "docCopyView",
     "docMenuView",
@@ -55,6 +57,7 @@ export const architectureCatalog = {
     "AiSendContextLauncher",
     "AiSendDialog",
     "AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic",
+    "CoveragePage",
     "CraftRouterOutlet",
     "DebugSessionDashboard",
     "DocBadge",
@@ -132,6 +135,12 @@ export const architectureCatalog = {
     "connected",
     "continuationsState",
     "copied",
+    "coverage",
+    "coverageApps",
+    "coverageLoading",
+    "coverageSections",
+    "coverageSummaries",
+    "coverageUnreachable",
     "dashboardReplayStatus",
     "deleteSession",
     "deleteSessions",
@@ -258,6 +267,7 @@ export const architectureCatalog = {
     "savedSessions",
     "seekOverlayHidden",
     "seekProgress",
+    "seekRequestedEvent",
     "seekTarget",
     "selected",
     "selectedParticipantId",
@@ -282,6 +292,7 @@ export const architectureCatalog = {
     "setPanelOffset",
     "setStatus",
     "setTimelineExpanded",
+    "severalApps",
     "showAllEvents",
     "showPreparedThumbnails",
     "showThumbnailManifest",
@@ -348,6 +359,10 @@ export const architectureCatalog = {
     {
       "method": "GET",
       "url": "*/sessions/*/thumbnails"
+    },
+    {
+      "method": "GET",
+      "url": "*/sessions/behavior-coverage"
     },
     {
       "method": "GET",
@@ -524,6 +539,7 @@ export const architectureCatalog = {
       "": [
         "apps/debug-session-dashboard/src/app/app.routes.ts",
         "apps/debug-session-dashboard/src/features/comparison/comparison.routes.ts",
+        "apps/debug-session-dashboard/src/features/coverage/coverage.routes.ts",
         "apps/debug-session-dashboard/src/features/e2e-replay/e2e-replay.routes.ts",
         "apps/debug-session-dashboard/src/features/recipes/recipes.routes.ts",
         "apps/debug-session-dashboard/src/features/replay/replay.routes.ts",
@@ -539,6 +555,7 @@ export const architectureCatalog = {
     "thumbnailPreview": "global",
     "sessionResumeFilter": "global",
     "sessionPageActions": "global",
+    "behaviorCoverageArchive": "global",
     "e2eComparison": "global",
     "resumeThread": "global",
     "sessionArchive": "global",

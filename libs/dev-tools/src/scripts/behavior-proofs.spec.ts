@@ -11,6 +11,7 @@ import {
 import {
   behaviorProofIndex,
   behaviorProofsFromTrace,
+  behaviorStepMatches,
   type BehaviorTraceLike,
 } from './behavior-proofs.ts';
 import type { DependencyGraph } from './dependency-graph.ts';
@@ -183,5 +184,19 @@ describe('the ratchet with proofs', () => {
     expect(report.warnings).toEqual([
       expect.stringContaining("Test 'shop.wishlist' only proved behaviours that are gone"),
     ]);
+  });
+});
+
+describe('behaviorStepMatches', () => {
+  it('names an obligation the way a proof reads it, and leaves out what is ambiguous', () => {
+    expect(Object.fromEntries(behaviorStepMatches(catalog))).toEqual({
+      'command:adminView.adminStore#success': { step: 'invocation', outcome: 'succeeded', target: 'adminView.adminStore' },
+      // Two endpoints answer NotFound: no step names either alone.
+      'http-exception:GET /api/lines#Forbidden': { step: 'invocation', outcome: 'failed', exception: 'Forbidden' },
+      'method:cart.empty': { step: 'invocation', outcome: 'succeeded', target: 'cart.empty' },
+      'mutation:session.signInProcess#success': { step: 'invocation', outcome: 'succeeded', target: 'session.signInProcess' },
+      'route:ecommerce:admin': { step: 'route', path: 'admin' },
+      'server-function:ecommerce.auth.login': { step: 'server-fn', id: 'ecommerce.auth.login' },
+    });
   });
 });

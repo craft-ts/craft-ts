@@ -121,6 +121,47 @@ export function behaviorProofSteps(
 }
 
 /**
+ * How a step of a trace names an obligation, as data: what a reader outside
+ * dev-tools (the log server, looking through recorded debug sessions) needs to
+ * find the obligation the way `behaviorProofSteps` does. An obligation without
+ * one (a guard, an ambiguous route or exception) is never matched.
+ */
+export type BehaviorStepMatch =
+  | Readonly<{ step: 'invocation'; outcome: 'succeeded'; target: string }>
+  | Readonly<{ step: 'invocation'; outcome: 'failed'; exception: string }>
+  | Readonly<{ step: 'route'; path: string }>
+  | Readonly<{ step: 'server-fn'; id: string }>;
+
+export function behaviorStepMatches(
+  catalog: BehaviorCatalog,
+): Map<string, BehaviorStepMatch> {
+  const count = (values: readonly string[]) => {
+    const counts = new Map<string, number>();
+    for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+    return counts;
+  };
+  const tag = (id: string) => id.slice(id.lastIndexOf('#') + 1);
+  const routes = count(
+    catalog.behaviors.filter((entry) => entry.kind === 'route').map((entry) => routePath(entry.id)),
+  );
+  const tags = count(
+    catalog.behaviors.filter((entry) => entry.kind === 'http-exception').map((entry) => tag(entry.id)),
+  );
+  const matches = new Map<string, BehaviorStepMatch>();
+  for (const entry of catalog.behaviors) {
+    if (INVOKED_KINDS.has(entry.kind))
+      matches.set(entry.id, { step: 'invocation', outcome: 'succeeded', target: ownerAndName(entry.id) });
+    if (entry.kind === 'http-exception' && tags.get(tag(entry.id)) === 1)
+      matches.set(entry.id, { step: 'invocation', outcome: 'failed', exception: tag(entry.id) });
+    if (entry.kind === 'route' && routes.get(routePath(entry.id)) === 1)
+      matches.set(entry.id, { step: 'route', path: routePath(entry.id) });
+    if (entry.kind === 'server-function')
+      matches.set(entry.id, { step: 'server-fn', id: entry.id.slice('server-function:'.length) });
+  }
+  return matches;
+}
+
+/**
  * `service:session / query:signInProcess` → `session.signInProcess`: the
  * primitive is the last tag, its owner the nearest service or component
  * before it.

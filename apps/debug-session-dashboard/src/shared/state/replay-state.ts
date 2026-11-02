@@ -114,7 +114,7 @@ export const thumbnailManifest = thumbnailManifestBridge.value;
 /* ── the page ───────────────────────────────────────────────────────────── */
 
 const pageBridge = createReadBridge<
-  'sessions' | 'recipes' | 'detail' | 'compare'
+  'sessions' | 'recipes' | 'coverage' | 'detail' | 'compare'
 >('page', 'sessions');
 export const page = pageBridge.value;
 const importOpenBridge = createReadBridge('importOpen', false);
@@ -289,7 +289,7 @@ type ReplayStateValues = {
   selectedParticipantId: string;
   loadError: string | undefined;
   thumbnailManifest: ThumbnailManifest | undefined;
-  page: 'sessions' | 'recipes' | 'detail' | 'compare';
+  page: 'sessions' | 'recipes' | 'coverage' | 'detail' | 'compare';
   activeRouteSessionId: string | undefined;
   importOpen: boolean;
   sidePanelOpen: boolean;

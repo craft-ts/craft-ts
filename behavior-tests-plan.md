@@ -1,7 +1,8 @@
 # Plan : contraindre des tests de comportement
 
 > Statut (2026-11-02) : lots 1 et 2 faits et commités ; lot 3 : mutants des
-> tests unitaires faits (P4), e2e et vue Couverture à faire.
+> tests unitaires (P4) et vue Couverture (P6) faits ; mutants e2e et CI à
+> faire.
 
 ## Objectif
 
@@ -349,14 +350,41 @@ Code : `libs/core/src/lib/behavior-mutant.ts` (le mutant, un
 
 **P6. Combler les trous**
 
-- [ ] Vue « Couverture » dans le dashboard (plutôt qu'« Écarts », qui compare
-  des sessions) avec trois catégories :
+Code : `libs/dev-tools/src/scripts/behavior-coverage.ts` (le rapport),
+`apps/log-server/src/behavior-coverage.ts` (`GET /sessions/behavior-coverage`),
+page `apps/debug-session-dashboard/src/features/coverage`.
 
-| Catégorie | Action |
+- [x] Rapport `.craft/behavior-coverage.json` (hors git), écrit par la suite
+  d'architecture de chaque app : chaque obligation avec son statut (prouvée,
+  excusée, non prouvée), les tests qui la prouvent, la raison du waiver, le
+  verdict du mutant, et **comment une session la montre** (descripteur
+  `BehaviorStepMatch`, calculé par dev-tools pour que le serveur n'ait pas à
+  relire le catalogue).
+- [x] Le log-server (`CRAFT_BEHAVIOR_APPS`, dossiers d'apps) cherche chaque
+  obligation non prouvée dans les sessions qu'il garde, normalisées comme les
+  références e2e (cache par session et `updatedAt`) : les 3 dernières
+  sessions qui la montrent, et l'événement où elle commence. 0,65 s pour 122
+  sessions au premier appel.
+- [x] Page « Couverture » du dashboard (barre de navigation), six sections
+  dans l'ordre de ce qu'il y a à faire :
+
+| Section | Action proposée |
 |---|---|
-| Observée dans une session, pas couverte | « Générer l'e2e » depuis la session à cet événement ; l'IA écrit l'assertion |
-| Jamais observée, chemin heureux | Candidate à la suppression, ou reprise guidée pour l'atteindre |
-| Jamais observée, exception | Test de service avec mock à la frontière, ou override du registre pendant une reprise guidée |
+| Preuves creuses (mutant survivant) | Revoir l'assertion du test |
+| Vus dans une session, sans test | « Ouvrir la session » à l'événement (`#/sessions/:id?event=`, le replay s'y place une fois prêt), puis « Reprendre ici » : l'IA en tire l'e2e |
+| Jamais vus · chemin heureux | Reprise guidée pour l'atteindre, ou suppression |
+| Jamais vus · exception | Test de service avec mock à la frontière |
+| Excusés | Raison du waiver |
+| Prouvés | Tests et verdict du mutant |
+
+- [x] Vérifié dans le navigateur sur les vraies sessions : `demo-ecommerce`
+  22/34 prouvées, 7 vues en session sans test (dont `/`, `/connexion`,
+  `session.signOutProcess`, `ecommerce.product.delete`) ; le lien place le
+  replay à l'étape 53/199, l'ouverture sans `?event` reste au début.
+- [ ] « Générer l'e2e » en un clic (aujourd'hui : ouvrir la session puis
+  « Reprendre ici », qui ne dit pas encore à l'IA quelle obligation prouver).
+- [ ] Le runtime et le catalogue ne partagent toujours pas d'identifiants :
+  la recherche dans les sessions est par nom, comme les preuves.
 
 ## Questions ouvertes
 

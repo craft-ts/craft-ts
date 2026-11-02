@@ -102,6 +102,15 @@ Both endpoints are read-only. The Playwright fixture adds a `test` object to
 the archived-session listing by that metadata. The configured browser origins
 also apply to these endpoints.
 
+## Behaviour coverage
+
+When `CRAFT_BEHAVIOR_APPS` is set, its path-delimited app directories feed
+`GET /sessions/behavior-coverage`, the dashboard's coverage page. Each app's
+architecture suite writes `.craft/behavior-coverage.json` (the behaviours its
+tests owe, their proofs, waivers and mutant verdicts); the server adds, for each
+behaviour no test proves, the latest stored sessions whose normalised trace
+shows it and the event it starts at. Read-only, same origins as `/sessions`.
+
 ## Replay thumbnails
 
 When the dashboard opens a finished session it asks the server to prepare

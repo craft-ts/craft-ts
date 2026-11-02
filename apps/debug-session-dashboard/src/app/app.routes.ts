@@ -24,6 +24,13 @@ export const { dashboardRoutes } = craftRoutes('dashboard', [
       ),
   },
   {
+    path: 'coverage',
+    loadChildren: ({ withRetry }) =>
+      withRetry(import('../features/coverage/coverage.routes')).then(
+        (module) => module.coverageRoutes,
+      ),
+  },
+  {
     path: 'compare',
     loadChildren: ({ withRetry }) =>
       withRetry(import('../features/comparison/comparison.routes')).then(
@@ -55,6 +62,7 @@ type DashboardRoutePath =
   | 'sessions/:sessionId'
   | 'recipes'
   | 'recipes/:recipeId'
+  | 'coverage'
   | 'compare'
   | 'e2e-replay'
   | 'import';
@@ -62,7 +70,10 @@ type DashboardRoutePath =
 type DashboardRouteRegistry = {
   [Path in DashboardRoutePath]: Path extends 'e2e-replay'
     ? { path: Path; queryParams: { source: string } }
-    : { path: Path };
+    : Path extends 'sessions/:sessionId'
+      ? // `event`: the recorded event the replay opens at, optional.
+        { path: Path; queryParams: { event: string } }
+      : { path: Path };
 }[DashboardRoutePath][];
 
 declare module '@craft-ts/core' {

@@ -445,6 +445,17 @@ export const ui = craftStyles('dashboard', {
     lineHeight(num(1.3)),
   ],
   rowMeta: [...small],
+  /** A row that only reads: the label and its line, laid out like `rowOpen`. */
+  rowBody: [
+    display.grid,
+    flexGrow(num(1)),
+    minInlineSize(space(0)),
+    gap(space(1)),
+    py(space(3)),
+    px(space(2)),
+  ],
+  /** Lists one under the other, each with its heading: room between them. */
+  sectionStack: [display.grid, gap(space(6)), paddingBlockStart(space(4))],
   /** How a derived session came to be: one quiet line under its facts. */
   rowLineage: [...font(text.xs), color(theme.tipInk), overflowWrap.anywhere],
   rowChips: [

@@ -15,12 +15,14 @@ import { ReplaySession } from './replay-session';
 import { ReplayPlayback } from './replay-playback';
 import {
   ReplayState,
+  replayState as replayStatus,
   routeSessionId,
   syncActiveRouteSessionId,
 } from './replay-state';
 import { installReplayWorkerSurface } from '../util/replay-worker';
 import { httpFailureReason, SessionArchive } from '../data-access/session-archive.service';
 import { E2eComparison } from '../data-access/e2e-comparison.service';
+import { BehaviorCoverageArchive } from '../data-access/behavior-coverage.service';
 import { ResumeThread } from '../data-access/resume-thread.service';
 import {
   ThumbnailArchive,
@@ -66,6 +68,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
 
     const archive = yield* SessionArchive();
     const e2eComparison = yield* E2eComparison();
+    const behaviorCoverage = yield* BehaviorCoverageArchive();
     const thumbnails = yield* ThumbnailArchive();
     const resumeThread = yield* ResumeThread();
     const activeRoute = yield* CraftActivatedRoute();
@@ -88,6 +91,10 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     // The last answer that was opened, so that an effect that runs again
     // without a new answer never opens the previous session under a new id.
     let openedArchive: unknown;
+    // The recorded event a link asked the replay to open at (`?event=`, from
+    // the coverage page): sought once, when the replay of the session is ready.
+    let requestedEventId: string | undefined;
+    let coverageRequests = 0;
 
     const open = (id: string): void => {
       requestedId = id;
@@ -162,6 +169,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       const importedSession = routePaths.includes('import');
       const comparison = routePaths.includes('compare');
       const recipes = routePaths.includes('recipes');
+      const coverage = routePaths.includes('coverage');
       const e2eReplay = routePaths.includes('e2e-replay');
       const wasDetailPage = rawReactiveValue(page)() === 'detail';
       setStates({
@@ -169,7 +177,9 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
           ? 'compare'
           : recipes
             ? 'recipes'
-            : id || importedSession || e2eReplay
+            : coverage
+              ? 'coverage'
+              : id || importedSession || e2eReplay
               ? 'detail'
               : 'sessions',
       });
@@ -180,6 +190,9 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
           run: route.queryParams['run'] ?? '',
         });
       }
+      // Read when the page opens: the archive looks through every session.
+      if (coverage) behaviorCoverage.coverage.call(++coverageRequests);
+      if (id) requestedEventId = route.queryParams['event'] || undefined;
       if (id && id !== registers.loadedArchiveSessionId) open(id);
       if (!id) {
         thumbnails.stop();
@@ -199,6 +212,15 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     yield* craftEffect('followRoute', () => {
       const route = activeRoute.snapshot;
       untracked(() => handleRoute(route));
+    });
+
+    yield* craftEffect('seekRequestedEvent', () => {
+      const state = replayStatus();
+      const eventId = requestedEventId;
+      if (eventId === undefined || !['ready', 'paused'].includes(state)) return;
+      if (registers.loadedArchiveSessionId !== routeSessionId()) return;
+      requestedEventId = undefined;
+      untracked(() => replaySession.seekReplayToRecordedEvent(eventId));
     });
 
     const retryThumbnails = (): void => {

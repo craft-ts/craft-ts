@@ -6,7 +6,10 @@ import {
   behaviorObligationsReport,
   findBehaviorTestFiles,
   readBehaviorCatalogAtBase,
+  behaviorCoverage,
+  readBehaviorMutantOutcomes,
   readBehaviorProofIndex,
+  writeBehaviorCoverage,
 } from '@craft-ts/dev-tools/behavior-catalog';
 import { readReferenceTraces, readReferenceTracesAtBase } from '@craft-ts/playwright-sessions/history';
 import { behaviorWaiverList } from './behavior-waivers';
@@ -32,6 +35,15 @@ describe('demo e-commerce behaviour obligations', () => {
     });
     console.info(`[craft behaviours] ${report.coverage.proven}/${report.coverage.total} proven by tests`);
     for (const warning of report.warnings) console.warn(`[craft behaviours] ${warning}`);
+    // Read by the log server for the dashboard's coverage page.
+    writeBehaviorCoverage(
+      rootDir,
+      behaviorCoverage(report, {
+        app: 'demo-ecommerce',
+        waivers: behaviorWaiverList,
+        mutants: readBehaviorMutantOutcomes(rootDir),
+      }),
+    );
     // Rewritten with `vitest -u`; in CI a stale catalog fails here.
     await expect.soft(behaviorCatalogToTypeScript(report.catalog)).toMatchFileSnapshot('./behaviors.catalog.ts');
     expect(report.violations).toEqual([]);

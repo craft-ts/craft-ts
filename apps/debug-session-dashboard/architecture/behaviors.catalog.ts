@@ -3,6 +3,11 @@ export const behaviorCatalog = {
   "version": 1,
   "behaviors": [
     {
+      "id": "command:behaviorCoverageArchive.coverage#success",
+      "kind": "command",
+      "file": "apps/debug-session-dashboard/src/shared/data-access/behavior-coverage.service.ts"
+    },
+    {
       "id": "command:e2eComparison.comparison#success",
       "kind": "command",
       "file": "apps/debug-session-dashboard/src/shared/data-access/e2e-comparison.service.ts"
@@ -76,6 +81,11 @@ export const behaviorCatalog = {
       "id": "route:comparison:",
       "kind": "route",
       "file": "apps/debug-session-dashboard/src/features/comparison/comparison.routes.ts"
+    },
+    {
+      "id": "route:coverage:",
+      "kind": "route",
+      "file": "apps/debug-session-dashboard/src/features/coverage/coverage.routes.ts"
     },
     {
       "id": "route:e2e-replay:",
