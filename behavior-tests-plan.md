@@ -236,7 +236,7 @@ Code : `libs/dev-tools/src/scripts/behavior-catalog.ts` (+ spec), exporté par
 - Le cliquet ne s'active qu'une fois `behaviors.catalog.ts` présent sur
   `main` : avant le merge, il n'y a pas de base et il ne bloque rien.
 
-### Lot 2 — Preuve par la trace
+### Lot 2 — Preuve par la trace ✅ (terminé 2026-11-02)
 
 Code : `libs/dev-tools/src/scripts/behavior-proofs.ts` (trace → obligations),
 `libs/playwright-sessions/src/reference-traces.ts` (références e2e, maintenant
@@ -340,7 +340,7 @@ Fini quand : retirer le test qui couvre une obligation fait échouer la PR
 HTTP prouvée par un test de service suffit (fait : l'exception est notée avec
 son discriminant).
 
-### Lot 3 — Discrimination, puis aide
+### Lot 3 — Discrimination, puis aide ✅ (terminé 2026-11-02)
 
 **P4. Mutants sémantiques**
 
@@ -392,7 +392,16 @@ Code : `libs/core/src/lib/behavior-mutant.ts` (le mutant, un
   demo-ecommerce : 5 mutants en ~6 min, 4 tués, **1 survivant** :
   `mutation:cart.syncServerCart#success` ne fait rien et `shop.checkout`
   passe quand même (preuve creuse, test non modifié).
-- [ ] Passage de nuit non bloquant, puis PR bloquante pour le neuf (CI).
+- [x] Passage CI (2026-11-02, accord de l'utilisateur pour réintroduire un
+  workflow) : `.github/workflows/behaviors.yml`. Sur PR et push sur `main` :
+  `nx run-many -t architecture` (cliquet de toutes les apps). Sur PR,
+  l'index unitaire du dernier passage vert de `main` est téléchargé
+  (`gh run download`, artefact `behavior-proofs-main`) et
+  `demo-ecommerce:mutants -- --changed` bloque sur un survivant. Sur push
+  sur `main`, l'index est publié. La nuit (et à la demande) : tous les
+  mutants, unitaires puis e2e, sans bloquer, verdicts gardés en artefact.
+  Non vérifié sur GitHub (rien n'est poussé) : à surveiller au premier
+  passage, en particulier `npm ci` (lock retouché à la main).
 
 **P6. Combler les trous**
 

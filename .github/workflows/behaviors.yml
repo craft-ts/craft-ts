@@ -1,0 +1,103 @@
+# Behaviour tests (behavior-tests-plan.md).
+#
+# - Every PR and every push to main: the architecture suites hold the
+#   ratchet (no new behaviour without its test, no proof lost since main).
+#   A PR also compares the unit proofs with the index main published, and
+#   mutates what it changed: a hollow proof of new code blocks it.
+# - Every night: every mutant, unit and e2e, without blocking — the e2e
+#   ones replay Playwright once per mutant, too slow for a PR.
+name: Behaviours
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: behaviours-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ratchet:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The ratchet reads the catalogs and references at the merge base.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      # The unit proofs stay out of git: main's come from its last green run.
+      - name: Unit proofs of main
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --workflow behaviors.yml --branch main --event push --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" --name behavior-proofs-main --dir "$RUNNER_TEMP/main-proofs"
+            mkdir -p apps/demo-ecommerce/.craft
+            cp "$RUNNER_TEMP/main-proofs/behavior-proofs.json" apps/demo-ecommerce/.craft/behavior-proofs.base.json
+          else
+            echo "No green run on main yet: the unit proofs are not compared."
+          fi
+
+      # `architecture` depends on `test`, which writes the unit proof index.
+      - run: npx nx run-many -t architecture
+        env:
+          CRAFT_BEHAVIOR_BASE: origin/main
+
+      - name: Mutants of what the PR changed
+        if: github.event_name == 'pull_request'
+        run: npx nx run demo-ecommerce:mutants -- --changed
+        env:
+          CRAFT_BEHAVIOR_BASE: origin/main
+
+      - name: Publish the unit proofs of main
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: behavior-proofs-main
+          path: apps/demo-ecommerce/.craft/behavior-proofs.json
+          # `.craft` is a hidden directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 90
+
+  nightly-mutants:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # Measured first, enforced later: a survivor is reported, never blocks.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Unit mutants
+        run: npx nx run demo-ecommerce:mutants
+      - name: E2e mutants
+        if: always()
+        run: npx nx run demo-ecommerce:mutants-e2e
+      - name: Keep the verdicts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: behavior-mutants
+          path: apps/demo-ecommerce/.craft/behavior-mutants*.json
+          include-hidden-files: true
+          if-no-files-found: ignore
