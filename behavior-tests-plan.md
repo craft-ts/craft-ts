@@ -290,10 +290,10 @@ vitest et lecture de l'index).
   seconde page perdait les siennes. Une opération est maintenant
   participant × chargement de page × id. Références `admin.edit-product`,
   `admin.multicontext` et `shop.checkout` réenregistrées ; `demo-ecommerce`
-  passe à 22 obligations prouvées sur 34. `guided-resume` garde son
-  ancienne référence : son e2e échoue sur le dashboard (alias
-  `@craft-ts/i18n` absent de son `vite.config.ts`, puis `source$` appelé hors
-  contexte d'injection dans `replay-state.ts`), sans rapport avec ce lot.
+  passe à 22 obligations prouvées sur 34. `guided-resume` ne garde aucune référence
+  (`capture: 'none'`) : il ne prouve rien. Son e2e échouait sur le
+  dashboard (alias `@craft-ts/i18n`, `source$` hors contexte d'injection…),
+  réparé dans `6a674c5bd` puis fusionné ; il repasse.
 
 - [x] L'enregistreur e2e (`send-context-to-ai.ts`) comptait comme réussie une
   invocation qui rend une exception Craft en valeur (une preuve `#success`
