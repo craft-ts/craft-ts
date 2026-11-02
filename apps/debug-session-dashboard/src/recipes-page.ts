@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -127,17 +128,17 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
         return savedRecipes().length > 0;
       },
     },
-    'Aucune recette pour le moment. Elles naissent d’une reprise guidée : ouvrez une session, placez le replay au bon moment et choisissez « Reprendre ici ».',
+    i18n.t("copy.copy042"),
   );
 
   return div({ class: ui.scroll }, [
     div({ class: ui.listPage }, [
       div({ class: ui.listHead }, [
         div([
-          heading({ class: ui.title }, 'Recettes'),
+          heading({ class: ui.title }, i18n.t("copy.copy043")),
           p(
             { class: ui.lede },
-            'Les étapes qu’un agent a écrites pour ramener l’application à un moment d’une session. Une recette se prévalide dans un onglet neuf et devient « Vérifiée » quand ses attentes passent.',
+            i18n.t("copy.copy044"),
           ),
         ]),
       ]),

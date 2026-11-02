@@ -3,7 +3,6 @@ import {
   type ThumbnailCapturePoint,
 } from '@craft-ts/component';
 import { exposeReplayWorkerSurface } from './replay-browser';
-import { playReplay } from './replay-playback';
 import {
   activeReplayParticipantId,
   canReplaySelectedSession,
@@ -99,7 +98,7 @@ function differenceDetail(): ReplayWorkerSnapshot['differenceDetail'] {
   };
 }
 
-export function installReplayWorkerSurface(): void {
+export function installReplayWorkerSurface(playReplay: () => void): void {
   const surface: ReplayWorkerSurface = {
     snapshot,
     plan: (options) => planThumbnailCapturePoints(visibleEvents(), options),

@@ -80,15 +80,35 @@ describe('require-i18n-text', () => {
     ]);
   });
 
-  it('leaves glue, values and generator children alone', async () => {
+  it('checks generator return text while leaving glue and values alone', async () => {
     const messages = await lint(`
       p(first + ' ' + last);
       span(count + ' / ' + total);
-      p(function* () { return 'API title: ' + (yield* query.value()); });
+      p(function* () { return i18n.t('api.title') + (yield* query.value()); });
       p(i18n.t('cart.total', { amount: 'not copy' }));
       option({ value: animal.id }, animal.name);
     `);
     expect(messages).toEqual([]);
+    const untranslated = await lint(`p(function* () { return 'API title: ' + (yield* query.value()); });`);
+    expect(untranslated).toHaveLength(1);
+  });
+
+  it('follows computed readers and local text helpers into visible content', async () => {
+    const messages = await lint(`
+      function summary() { return 'Chargement…'; }
+      const title = craftComputed('title', () => summary());
+      p(title);
+    `);
+    expect(messages).toHaveLength(1);
+  });
+
+  it('flags opaque imported text helpers in computed visible output', async () => {
+    const messages = await lint(`
+      import { describeSessionTraceFinding } from './compare';
+      const copy = craftComputed('copy', () => describeSessionTraceFinding(finding));
+      p(copy);
+    `);
+    expect(messages).toHaveLength(1);
   });
 
   it('does not inspect catalogues, tests or server files', async () => {

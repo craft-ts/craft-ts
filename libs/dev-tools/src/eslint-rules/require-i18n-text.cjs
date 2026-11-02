@@ -49,7 +49,7 @@ function carriesCopy(text) {
  * the application supplies, so `i18n.t('key')` is accepted and its key is never
  * mistaken for copy; a function child stays the application's business too.
  */
-function reportCopyLiterals(node, report, depth = 0) {
+function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) {
   if (!node || depth > 8) return;
   switch (node.type) {
     case 'Literal':
@@ -62,21 +62,63 @@ function reportCopyLiterals(node, report, depth = 0) {
       return;
     case 'BinaryExpression':
       if (node.operator !== '+') return;
-      reportCopyLiterals(node.left, report, depth + 1);
-      reportCopyLiterals(node.right, report, depth + 1);
+      reportCopyLiterals(node.left, report, depth + 1, resolve);
+      reportCopyLiterals(node.right, report, depth + 1, resolve);
       return;
     case 'ConditionalExpression':
-      reportCopyLiterals(node.consequent, report, depth + 1);
-      reportCopyLiterals(node.alternate, report, depth + 1);
+      reportCopyLiterals(node.consequent, report, depth + 1, resolve);
+      reportCopyLiterals(node.alternate, report, depth + 1, resolve);
       return;
     case 'LogicalExpression':
-      reportCopyLiterals(node.left, report, depth + 1);
-      reportCopyLiterals(node.right, report, depth + 1);
+      reportCopyLiterals(node.left, report, depth + 1, resolve);
+      reportCopyLiterals(node.right, report, depth + 1, resolve);
       return;
     case 'ArrayExpression':
       for (const element of node.elements)
-        reportCopyLiterals(element, report, depth + 1);
+        reportCopyLiterals(element, report, depth + 1, resolve);
       return;
+    case 'ArrowFunctionExpression':
+    case 'FunctionExpression':
+      // Craft accepts generator children which render a value. Inspect only
+      // explicit returns: event handlers and other callback implementation
+      // details are not user-facing copy positions.
+      if (node.body.type !== 'BlockStatement') {
+        reportCopyLiterals(node.body, report, depth + 1, resolve);
+        return;
+      }
+      for (const statement of node.body.body) {
+        if (statement.type === 'ReturnStatement')
+          reportCopyLiterals(statement.argument, report, depth + 1, resolve);
+      }
+      return;
+    case 'Identifier':
+    case 'CallExpression': {
+      const target = resolve(node);
+      if (!target) {
+        // Imported text-producing helpers cannot be followed into their
+        // module by this syntax-only rule. Flag the opaque boundary when its
+        // name declares that it returns user-facing copy.
+        if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && /(?:label|text|summary|describe)/i.test(node.callee.name)) report(node);
+        return;
+      }
+      const returned = [];
+      const collect = (part) => {
+        if (!part || typeof part.type !== 'string') return;
+        if (part !== target && (part.type === 'FunctionExpression' || part.type === 'ArrowFunctionExpression')) return;
+        if (part.type === 'ReturnStatement') {
+          if (part.argument) returned.push(part.argument);
+          return;
+        }
+        for (const [key, value] of Object.entries(part)) {
+          if (['parent', 'loc', 'range', 'tokens', 'comments'].includes(key)) continue;
+          if (Array.isArray(value)) value.forEach(collect);
+          else if (value && typeof value === 'object') collect(value);
+        }
+      };
+      collect(target);
+      for (const expression of returned) reportCopyLiterals(expression, report, depth + 1, resolve);
+      return;
+    }
     default:
       return;
   }
@@ -117,8 +159,44 @@ module.exports = {
     // the supported reader and already exists in 9.
     if (isIgnoredFile(context.filename ?? context.getFilename())) return {};
 
+    const resolve = (node) => {
+      if (node.type === 'CallExpression') {
+        if (node.callee.type === 'Identifier' && node.callee.name === 'craftComputed') {
+          return node.arguments.find((argument) => argument.type === 'ArrowFunctionExpression' || argument.type === 'FunctionExpression');
+        }
+        if (node.callee.type !== 'Identifier' || node.callee.name === 'i18n') return undefined;
+        const scope = context.sourceCode.getScope(node);
+        let current = scope;
+        while (current) {
+          const variable = current.set.get(node.callee.name);
+          const def = variable && variable.defs[0];
+          if (def) {
+            const target = def.node.type === 'FunctionDeclaration' ? def.node : def.node.init;
+            return target && ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'].includes(target.type) ? target : undefined;
+          }
+          current = current.upper;
+        }
+        return undefined;
+      }
+      const scope = context.sourceCode.getScope(node);
+      let current = scope;
+      while (current) {
+        const variable = current.set.get(node.name);
+        const def = variable && variable.defs[0];
+        if (def) {
+          const target = def.node.type === 'FunctionDeclaration' ? def.node : def.node.init;
+          return target && ['CallExpression', 'FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'].includes(target.type) ? target : undefined;
+        }
+        current = current.upper;
+      }
+      return undefined;
+    };
     return {
       CallExpression(node) {
+        if (node.callee.type === 'Identifier' && node.callee.name === 'craftComputed') {
+          const compute = node.arguments.find((argument) => argument.type === 'ArrowFunctionExpression' || argument.type === 'FunctionExpression');
+          if (compute) reportCopyLiterals(compute, (literal) => context.report({ node: literal, messageId: 'literal' }), 0, resolve);
+        }
         const call = parseHyperscriptCall(node);
         if (!call || !call.tag || !TEXT_HELPERS.has(call.tag)) return;
 
@@ -138,6 +216,8 @@ module.exports = {
         // value supplied by the application. It is intentionally accepted.
         reportCopyLiterals(call.children, (node) =>
           context.report({ node, messageId: 'literal' }),
+          0,
+          resolve,
         );
       },
     };

@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -13,25 +14,26 @@ import { craftComputed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { recordingCaption, viewportCaption } from './replay-labels';
-import { exportTarget, scheduleReplayPreparation } from './replay-session';
+import { ReplaySession } from './replay-session';
 import {
   environmentWarning,
+  ReplayState,
   session,
-  startMode,
   status,
-  targetUrl,
 } from './replay-state';
 import { eventValue } from './view-helpers';
 
 /** The details of the open session, and where its replay starts from. */
 export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
+  const replaySession = yield* ReplaySession();
+  const { startMode, targetUrl } = (yield* ReplayState()).imperative;
   const environmentWarningHidden = yield* craftComputed(
     'environmentWarningHidden',
     () => !environmentWarning(),
   );
   const sessionStartUrl = yield* craftComputed(
     'sessionStartUrl',
-    () => session()?.startUrl ?? 'Aucune session chargée.',
+    () => session()?.startUrl ?? i18n.t("copy.copy045"),
   );
   const recordingLabel = yield* craftComputed(
     'recordingLabel',
@@ -46,19 +48,19 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
     ]);
 
   const target = div([
-    p({ class: ui.fieldLabel }, 'URL locale instrumentée'),
+    p({ class: ui.fieldLabel }, i18n.t("copy.copy046")),
     input('targetUrl', {
       class: ui.fieldInput,
       type: 'url',
       value: targetUrl,
       input: (event: Event) => targetUrl.set(eventValue(event)),
-      change: () => scheduleReplayPreparation(),
-      'aria-label': 'URL de l’application cible',
+      change: () => replaySession.scheduleReplayPreparation(),
+      'aria-label': i18n.t("copy.copy047"),
     }),
   ]);
 
   const start = div([
-    p({ class: ui.fieldLabel }, 'Point de départ'),
+    p({ class: ui.fieldLabel }, i18n.t("copy.copy048")),
     select(
       'startMode',
       {
@@ -66,13 +68,13 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
         value: startMode,
         change: (event: Event) => {
           startMode.set(eventValue(event) === 'snapshot' ? 'snapshot' : 'url');
-          scheduleReplayPreparation();
+          replaySession.scheduleReplayPreparation();
         },
-        'aria-label': 'Mode de démarrage',
+        'aria-label': i18n.t("copy.copy049"),
       },
       [
-        option({ value: 'url' }, 'Recharger l’URL enregistrée'),
-        option({ value: 'snapshot' }, 'Restaurer le dernier snapshot'),
+        option({ value: 'url' }, i18n.t("copy.copy050")),
+        option({ value: 'snapshot' }, i18n.t("copy.copy051")),
       ],
     ),
   ]);
@@ -87,9 +89,9 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
         'Exporte la session de diagnostic capturée par l’application cible, l’ajoute au dashboard et télécharge un fichier JSON.',
       'data-tooltip':
         'Récupère la session de diagnostic de l’application cible, l’ajoute au dashboard et télécharge le JSON.',
-      click: exportTarget,
+      click: replaySession.exportTarget,
     },
-    'Exporter la cible',
+    i18n.t("copy.copy052"),
   );
 
   const environment = p(
@@ -106,20 +108,20 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
     div({ class: ui.scroll }, [
       div({ class: ui.sideStack, 'data-lab': 'left' }, [
         div({ class: ui.sideSection }, [
-          heading({ class: ui.sideSectionTitle }, 'L’enregistrement'),
+          heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy053")),
           fact('Page de départ', sessionStartUrl),
           fact('Contenu', recordingLabel),
           fact('Fenêtre', viewportLabel, 'viewport-caption'),
           environment,
         ]),
         div({ class: ui.sideSection }, [
-          heading({ class: ui.sideSectionTitle }, 'Le replay'),
+          heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy054")),
           fact('État', status, 'status'),
           target,
           start,
           p(
             { class: ui.lede },
-            'L’export récupère la session de l’application rejouée, l’ajoute à l’archive et télécharge son JSON.',
+            i18n.t("copy.copy055"),
           ),
           div([exportButton]),
         ]),

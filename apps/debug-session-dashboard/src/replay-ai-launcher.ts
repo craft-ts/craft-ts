@@ -1,15 +1,14 @@
 import {
   AiSendContextLauncher,
   craftComponent,
-  div,
   type Output,
 } from '@craft-ts/component';
 import { AiChatBridge } from './replay-ai-bridge.service';
-import { page, ReplayState } from './replay-state';
+import { ReplayState } from './replay-state';
 
 /**
- * The assistant chat opens from a floating Report button on dashboard pages.
- * During a replay, the playbar owns the button, so this launcher is hidden.
+ * The assistant chat opens from the same floating Report button on every
+ * dashboard page, including the replay.
  */
 /** Provided in place of the default launcher (`provideSendContextLauncherComponent`). */
 export const AiChatLauncherBridge = craftComponent(
@@ -23,13 +22,6 @@ export const AiChatLauncherBridge = craftComponent(
     yield* ReplayState();
     const chat = yield* AiChatBridge();
     yield* chat.register(() => inputs.onOpen());
-    return div(
-      {
-        hidden: function* () {
-          return page() === 'detail';
-        },
-      },
-      AiSendContextLauncher({ onOpen: inputs.onOpen, label: 'Report' }),
-    );
+    return AiSendContextLauncher({ onOpen: inputs.onOpen, label: 'Report' });
   },
 );

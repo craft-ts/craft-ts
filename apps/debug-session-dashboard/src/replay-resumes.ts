@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -19,7 +20,7 @@ import { ui } from './dashboard.style';
 import { openLinkedTab } from './replay-browser';
 import { sessionDate } from './replay-labels';
 import { plural } from './replay-model';
-import { seekReplayBeforeSequence } from './replay-session';
+import { ReplaySession } from './replay-session';
 import { routeSessionId } from './replay-state';
 import { copyResumePrompt } from './resume-prompt';
 import { ResumeThread, type ResumeMessage } from './resume-thread.service';
@@ -95,6 +96,7 @@ function recipeRunSummary(recipe: ResumeRecipeSummary): string {
  * points it froze, the recipes it wrote, and the sessions those runs recorded.
  */
 export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
+  const replaySession = yield* ReplaySession();
   const archive = yield* SessionArchive();
   const resume = yield* ResumeThread();
   const threadValue = rawReactiveValue(resume.thread.value);
@@ -176,11 +178,11 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
       },
     },
     [
-      heading({ class: ui.sideSectionTitle }, 'Reprise demandée'),
+      heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy100")),
       p({ class: ui.lede }, function* () {
         return noticeValue()?.appTabOpened
-          ? 'L’onglet de reprise est ouvert. Collez le prompt dans la conversation de votre agent : il suit cet onglet et répond ici.'
-          : 'Le navigateur a bloqué l’onglet de reprise : ouvrez-le ci-dessous, puis collez le prompt dans la conversation de votre agent.';
+          ? i18n.t("copy.copy101")
+          : i18n.t("copy.copy102");
       }),
       details([
         summary('Voir le prompt copié'),
@@ -195,9 +197,11 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
             type: 'button',
             class: buttonUi.root,
             'data-variant': 'primary',
-            click: () => copyResumePrompt(noticeValue()?.prompt ?? ''),
+            click: function* () {
+              yield* copyResumePrompt(noticeValue()?.prompt ?? '');
+            },
           },
-          'Copier le prompt',
+          i18n.t("copy.copy103"),
         ),
         button(
           'openResumeAppTab',
@@ -213,7 +217,7 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
               if (href) openLinkedTab(href);
             },
           },
-          'Ouvrir l’onglet de reprise',
+          i18n.t("copy.copy104"),
         ),
         button(
           'dismissResumeNotice',
@@ -223,7 +227,7 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
             'data-variant': 'link',
             click: () => archive.resumeNotice.dismiss(),
           },
-          'Masquer',
+          i18n.t("copy.copy105"),
         ),
       ]),
     ],
@@ -237,7 +241,7 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
       },
     },
     [
-      heading({ class: ui.sideSectionTitle }, 'Fil de l’agent'),
+      heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy106")),
       ul(
         { class: ui.events, 'data-lab': 'resume-thread' },
         forNode(messages, { track: (message) => message.id }, (message) =>
@@ -292,7 +296,7 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
               div({ class: ui.eventInfo }, [
                 span({ class: ui.eventName }, function* () {
                   const item = yield* checkpoint();
-                  return item.label ?? item.goal ?? 'Point de reprise';
+                  return item.label ?? item.goal ?? i18n.t("copy.copy107");
                 }),
                 span({ class: ui.eventMeta }, function* () {
                   const checkpointItem = yield* checkpoint();
@@ -310,10 +314,12 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
                     'Place le replay juste avant l’événement de ce point.',
                   click: function* () {
                     const checkpointItem = yield* checkpoint();
-                    seekReplayBeforeSequence(checkpointItem.beforeSequence);
+                    replaySession.seekReplayBeforeSequence(
+                      checkpointItem.beforeSequence,
+                    );
                   },
                 },
-                'Voir ce moment →',
+                i18n.t("copy.copy108"),
               ),
             ]),
         ),

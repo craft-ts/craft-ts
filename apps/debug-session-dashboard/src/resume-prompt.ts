@@ -1,4 +1,6 @@
 /** What to give the AI host for one exact guided-resume request. */
+import { BrowserNavigator } from '@craft-ts/core';
+
 export function resumePrompt(
   input: Readonly<{
     sessionId: string;
@@ -34,8 +36,6 @@ export function resumePrompt(
 }
 
 /** Best effort: the notice shows the sentence too, for when the copy fails. */
-export function copyResumePrompt(text: string): void {
-  const clipboard =
-    typeof navigator === 'undefined' ? undefined : navigator.clipboard;
-  if (clipboard) void clipboard.writeText(text).catch(() => undefined);
+export function* copyResumePrompt(text: string) {
+  yield* BrowserNavigator.writeClipboardText(text);
 }

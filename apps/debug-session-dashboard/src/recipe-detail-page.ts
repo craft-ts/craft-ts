@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   content,
@@ -21,7 +22,7 @@ import {
 import { DocCallout } from '@craft-ts/ui';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import { launchResumeRecipeTab } from './replay-debug';
+import { ReplayDebug } from './replay-debug';
 import { sessionDate } from './replay-labels';
 import { isRecord, plural } from './replay-model';
 import {
@@ -121,8 +122,8 @@ function recipeOrigin(
       ? 'à la fin de l’enregistrement'
       : `juste avant l’événement ${item.beforeSequence}`;
   return source
-    ? `Session du ${sessionDate.format(new Date(source.createdAt))}, ${moment}.`
-    : `Une session qui n’est plus dans l’archive, ${moment}.`;
+    ? (i18n.t("copy.copy027") + (sessionDate.format(new Date(source.createdAt))) + i18n.t("copy.copy028") + (moment) + ".")
+    : (i18n.t("copy.copy029") + (moment) + ".");
 }
 
 /** One recipe: what it is for, what it does, how its runs went, and where it comes from. */
@@ -132,6 +133,7 @@ export const RecipeDetailPage = craftComponent(
   function* () {
     const route = yield* CraftActivatedRoute();
     const archive = yield* SessionArchive();
+    const replayDebug = yield* ReplayDebug();
     const recipeId = route.snapshot.params['recipeId'];
     archive.recipeDetail.call(recipeId);
 
@@ -153,10 +155,10 @@ export const RecipeDetailPage = craftComponent(
     const feedbackText = rawReactiveValue(feedback.message);
     const loadMessage = yield* craftComputed('loadMessage', () =>
       !recipeId
-        ? 'Identifiant de recette invalide.'
+        ? i18n.t("copy.copy030")
         : detailFailure()
-          ? `Impossible de charger la recette · ${httpFailureReason(detailFailure())}`
-          : 'Chargement de la recette…',
+          ? (i18n.t("copy.copy031") + (httpFailureReason(detailFailure())) + "")
+          : i18n.t("copy.copy032"),
     );
     const steps = yield* craftComputed(
       'steps',
@@ -197,7 +199,10 @@ export const RecipeDetailPage = craftComponent(
         click: function* () {
           const item = recipeValue();
           if (!item) return;
-          const opened = launchResumeRecipeTab(item.id, item.origin);
+          const opened = replayDebug.launchResumeRecipeTab(
+            item.id,
+            item.origin,
+          );
           yield* feedback.setFeedback(
             opened
               ? 'La recette tourne dans un nouvel onglet. Actualisez le statut quand elle a fini.'
@@ -205,7 +210,7 @@ export const RecipeDetailPage = craftComponent(
           );
         },
       },
-      'Prévalider dans un nouvel onglet',
+      i18n.t("copy.copy033"),
     );
 
     const head = div({ class: ui.recipeHead }, [
@@ -219,12 +224,12 @@ export const RecipeDetailPage = craftComponent(
             yield* CraftRouter.navigate({ to: 'recipes' });
           },
         },
-        '← Recettes',
+        i18n.t("copy.copy034"),
       ),
       div({ class: ui.rowTitle }, [
         heading({ class: ui.title }, function* () {
           const item = recipeValue();
-          return item ? recipeName(item) : 'Recette';
+          return item ? recipeName(item) : i18n.t("copy.copy035");
         }),
         span(
           {
@@ -313,12 +318,12 @@ export const RecipeDetailPage = craftComponent(
             if (item) archive.recipeDetail.call(item.id);
           },
         },
-        'Actualiser le statut',
+        i18n.t("copy.copy036"),
       ),
     ]);
 
     const objective = div({ class: ui.recipeCard }, [
-      heading({ class: ui.sideSectionTitle }, 'Objectif'),
+      heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy037")),
       p({ class: ui.factValue }, function* () {
         return recipeValue()?.objective.goal ?? '';
       }),
@@ -330,7 +335,7 @@ export const RecipeDetailPage = craftComponent(
           },
         },
         [
-          p({ class: ui.factLabel }, 'Doit être exact'),
+          p({ class: ui.factLabel }, i18n.t("copy.copy038")),
           ul(
             { class: ui.howToSteps },
             forNode(
@@ -352,7 +357,7 @@ export const RecipeDetailPage = craftComponent(
           },
         },
         [
-          p({ class: ui.factLabel }, 'Peut varier'),
+          p({ class: ui.factLabel }, i18n.t("copy.copy039")),
           ul(
             { class: ui.howToSteps },
             forNode(
@@ -372,7 +377,7 @@ export const RecipeDetailPage = craftComponent(
     ]);
 
     const origin = div({ class: ui.recipeCard }, [
-      heading({ class: ui.sideSectionTitle }, 'Origine'),
+      heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy040")),
       p({ class: ui.factValue }, function* () {
         return recipeOrigin(recipeValue(), sourceValue());
       }),
@@ -397,7 +402,7 @@ export const RecipeDetailPage = craftComponent(
               }
             },
           },
-          'Ouvrir la session d’origine',
+          i18n.t("copy.copy041"),
         ),
       ]),
     ]);

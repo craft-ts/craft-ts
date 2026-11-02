@@ -10,11 +10,7 @@ import {
 } from '@craft-ts/core';
 import { onWindowMessage } from './replay-browser';
 import { isRecord } from './replay-model';
-import {
-  importJson,
-  scheduleReplayPreparation,
-  seekReplayToRecordedEvent,
-} from './replay-session';
+import { ReplaySession } from './replay-session';
 
 const rawDecoder = { decode: (input: unknown) => input };
 
@@ -22,6 +18,7 @@ const rawDecoder = { decode: (input: unknown) => input };
 export const { E2eReplayRoute: E2eReplayRouteService } = craftService(
   { name: 'e2eReplayRoute', providedIn: 'global' },
   function* () {
+    const replaySession = yield* ReplaySession();
     const sourceSession = yield* query('sourceSession', {
       method: (source: string) => source,
       loader: function* ({ params: source }) {
@@ -45,15 +42,15 @@ export const { E2eReplayRoute: E2eReplayRouteService } = craftService(
       const next = sourceValue();
       if (!isRecord(next) || next === loaded) return;
       loaded = next;
-      importJson(JSON.stringify(next));
-      scheduleReplayPreparation();
+      replaySession.importJson(JSON.stringify(next));
+      replaySession.scheduleReplayPreparation();
     });
     onWindowMessage((message) => {
       const data = message.data;
       if (message.origin !== dashboardOrigin) return;
       if (!isRecord(data) || data['protocol'] !== 'craft-e2e-replay') return;
       if (typeof data['eventId'] === 'string' && data['eventId'])
-        seekReplayToRecordedEvent(data['eventId']);
+        replaySession.seekReplayToRecordedEvent(data['eventId']);
     });
   },
 );

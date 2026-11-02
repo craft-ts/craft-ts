@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   content,
@@ -30,9 +31,9 @@ import {
   SessionResumeFilter,
   type SessionListView,
 } from './session-resume-filter.service';
-import { openImport } from './replay-session';
+import { ReplaySession } from './replay-session';
 import type { SessionSummary } from './session-archive.service';
-import { page, pendingDeleteSessionId } from './replay-state';
+import { page, ReplayState } from './replay-state';
 import { SessionArchive } from './session-archive.service';
 import {
   derivationLabel,
@@ -62,6 +63,8 @@ const VIEW_LABELS: Readonly<Record<SessionListView, string>> = {
  * own view, and each recording says what came out of it.
  */
 export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
+  const replaySession = yield* ReplaySession();
+  const { pendingDeleteSessionId } = (yield* ReplayState()).imperative;
   const archive = yield* SessionArchive();
   const listView = yield* SessionResumeFilter();
   const actions = yield* SessionPageActions();
@@ -89,8 +92,9 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const visibleSessionsValue = rawReactiveValue(visibleSessions);
 
   const temporal = yield* CraftTemporalRuntime();
+  const dateNow = temporal.dateNow;
   const expiredSessions = yield* craftComputed('expiredSessions', () => {
-    const cutoff = temporal.dateNow() - retentionDays() * 24 * 60 * 60 * 1000;
+    const cutoff = dateNow() - retentionDays() * 24 * 60 * 60 * 1000;
     return savedSessions().filter(
       (item) =>
         item.status !== 'recording' && Date.parse(item.createdAt) < cutoff,
@@ -120,12 +124,16 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const sessionsSummary = yield* craftComputed(
     'sessionsSummary',
     () =>
-      `${plural(savedSessions().length, 'session')} · ${storageSizeLabel(storageBytes())} · sur cette machine, rien n’est envoyé · effacées après ${retentionDays()} jours`,
+      i18n.t('sessionsStorageSummary', {
+        sessionCount: plural(savedSessions().length, 'session'),
+        storageSize: storageSizeLabel(storageBytes()),
+        retentionDays: retentionDays(),
+      }),
   );
 
   const head = div({ class: ui.listHead }, [
     div([
-      heading({ class: ui.title }, 'Sessions'),
+      heading({ class: ui.title }, i18n.t("copy.copy168")),
       p({ class: ui.lede }, sessionsSummary),
     ]),
     button(
@@ -134,9 +142,9 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
         type: 'button',
         class: buttonUi.root,
         'data-variant': 'secondary',
-        click: openImport,
+        click: replaySession.openImport,
       },
-      'Importer un fichier',
+      i18n.t("copy.copy169"),
     ),
   ]);
 
@@ -225,7 +233,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                 );
             },
           },
-          'Supprimer les incompatibles',
+          i18n.t("copy.copy170"),
         ),
         button(
           'cleanupOldSessions',
@@ -246,7 +254,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               if (count > 0) yield* actions.pruneExpiredSessions(count, days);
             },
           },
-          'Nettoyer les anciennes',
+          i18n.t("copy.copy171"),
         ),
       ]),
     ],
@@ -259,7 +267,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
       body: content(() => [
         p(
           { 'data-lab': 'archive-status', role: 'status' },
-          'Le serveur d’archive ne répond pas. Lancez npm run logs:server : la liste se remplira toute seule.',
+          i18n.t("copy.copy172"),
         ),
       ]),
     }),
@@ -308,10 +316,10 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                 function* () {
                   const item = yield* saved();
                   return item.status === 'recording'
-                    ? 'En cours'
+                    ? i18n.t("copy.copy173")
                     : item.status === 'interrupted'
-                      ? 'Interrompue'
-                      : 'Tronquée';
+                      ? i18n.t("copy.copy174")
+                      : i18n.t("copy.copy175");
                 },
               ),
               span(
@@ -328,7 +336,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                     return hasSupportedVersions(savedItem);
                   },
                 },
-                'Replay incompatible',
+                i18n.t("copy.copy176"),
               ),
             ]),
             span({ class: ui.rowMeta }, function* () {
@@ -453,7 +461,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               },
               'aria-label': function* () {
                 const item = yield* saved();
-                return `Supprimer la session ${item.id}`;
+                return i18n.t('sessionDeleteLabel', { sessionId: item.id });
               },
               'data-tooltip': 'Supprime cette session de l’archive locale.',
               click: function* () {
@@ -461,7 +469,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                 pendingDeleteSessionId.set(item.id);
               },
             },
-            'Supprimer',
+            i18n.t("copy.copy178"),
           ),
           div(
             {
@@ -475,7 +483,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               },
             },
             [
-              span('Supprimer de l’archive ?'),
+              span(i18n.t("copy.copy179")),
               button(
                 'cancelDeleteSession',
                 {
@@ -485,7 +493,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                   'data-lab': 'cancel-delete-session',
                   click: () => pendingDeleteSessionId.set(undefined),
                 },
-                'Annuler',
+                i18n.t("copy.copy180"),
               ),
               button(
                 'confirmDeleteSession',
@@ -499,7 +507,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                     yield* actions.confirmDeleteSession(item.id);
                   },
                 },
-                'Supprimer définitivement',
+                i18n.t("copy.copy181"),
               ),
             ],
           ),
@@ -516,7 +524,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
         return savedSessions().length > 0 || !reachable();
       },
     },
-    'Aucune session pour le moment. Lancez votre application avec l’enregistrement activé : ses sessions apparaissent ici.',
+    i18n.t("copy.copy182"),
   );
   const emptyView = p(
     {
@@ -530,8 +538,8 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     },
     function* () {
       return view() === 'derived'
-        ? 'Aucune reprise ni exécution de recette. Ouvrez un enregistrement et choisissez « Reprendre ici » pour en lancer une.'
-        : 'Aucun enregistrement dans cette vue.';
+        ? i18n.t("copy.copy183")
+        : i18n.t("copy.copy184");
     },
   );
 

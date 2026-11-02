@@ -9,6 +9,7 @@ const noReexposedCraftServiceUtility = require('./no-reexposed-craft-service-uti
 const requireCraftServiceInputScope = require('./require-craft-service-input-scope.cjs');
 const preferDirectCraftServiceExposure = require('./prefer-direct-craft-service-exposure.cjs');
 const preferCraftComputedForReactiveGenerator = require('./prefer-craft-computed-for-reactive-generator.cjs');
+const preferComputedLocalDependency = require('./prefer-computed-local-dependency.cjs');
 const craftSourceNameMatch = require('./craft-source-name-match.cjs');
 const craftSignalSourceNameMatch = require('./craft-signal-source-name-match.cjs');
 const noCraftComputedSideEffects = require('./no-craft-computed-side-effects.cjs');
@@ -34,6 +35,7 @@ const requireCraftMethodForYieldableCallback = require('./require-craft-method-f
 const requireYieldableReactiveRead = require('./require-yieldable-reactive-read.cjs');
 const requireYieldableInsertionWrite = require('./require-yieldable-insertion-write.cjs');
 const preferDirectYieldableCallback = require('./prefer-direct-yieldable-callback.cjs');
+const preferDirectYieldableDestructuring = require('./prefer-direct-yieldable-destructuring.cjs');
 const preferDeepYieldableForItem = require('./prefer-deep-yieldable-for-item.cjs');
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
 const noCraftUse = require('./no-craft-use.cjs');
@@ -65,6 +67,7 @@ const requireCraftComputedForDynamicTemplateLookup = require('./require-craft-co
 const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource-trigger.cjs');
 const noImperativeCraftMethodActions = require('./no-imperative-craft-method-actions.cjs');
 const noExternalStateTransition = require('./no-external-state-transition.cjs');
+const noImportedStateActions = require('./no-imported-state-actions.cjs');
 const noEventOnlyCraftMethod = require('./no-event-only-craft-method.cjs');
 const noRemoteWorkInCraftMethod = require('./no-remote-work-in-craft-method.cjs');
 const noTypeAssertionsInResourceLoader = require('./no-type-assertions-in-resource-loader.cjs');
@@ -157,6 +160,7 @@ const plugin = {
     'prefer-direct-craft-service-exposure': preferDirectCraftServiceExposure,
     'prefer-craft-computed-for-reactive-generator':
       preferCraftComputedForReactiveGenerator,
+    'prefer-computed-local-dependency': preferComputedLocalDependency,
     'craft-source-name-match': craftSourceNameMatch,
     'craft-signal-source-name-match': craftSignalSourceNameMatch,
     'no-craft-computed-side-effects': noCraftComputedSideEffects,
@@ -183,6 +187,8 @@ const plugin = {
     'require-yieldable-reactive-read': requireYieldableReactiveRead,
     'require-yieldable-insertion-write': requireYieldableInsertionWrite,
     'prefer-direct-yieldable-callback': preferDirectYieldableCallback,
+    'prefer-direct-yieldable-destructuring':
+      preferDirectYieldableDestructuring,
     'prefer-deep-yieldable-for-item': preferDeepYieldableForItem,
     'no-craft-use-in-template': noCraftUseInTemplate,
     'no-craft-use': noCraftUse,
@@ -219,6 +225,7 @@ const plugin = {
     'no-imperative-craft-resource-trigger': noImperativeCraftResourceTrigger,
     'no-imperative-craft-method-actions': noImperativeCraftMethodActions,
     'no-external-state-transition': noExternalStateTransition,
+    'no-imported-state-actions': noImportedStateActions,
     'no-event-only-craft-method': noEventOnlyCraftMethod,
     'no-remote-work-in-craft-method': noRemoteWorkInCraftMethod,
     'no-type-assertions-in-resource-loader': noTypeAssertionsInResourceLoader,

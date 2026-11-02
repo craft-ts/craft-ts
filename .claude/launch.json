@@ -60,6 +60,39 @@
         "4210"
       ],
       "port": 4210
+    },
+    {
+      "name": "log-server",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "cd apps/log-server && /Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node dist/main.js"
+      ],
+      "port": 4319
+    },
+    {
+      "name": "debug-session-dashboard",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--config",
+        "apps/debug-session-dashboard/vite.config.ts",
+        "--port",
+        "4210"
+      ],
+      "port": 4210
+    },
+    {
+      "name": "demo-ecommerce",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--config",
+        "apps/demo-ecommerce/vite.config.ts",
+        "--port",
+        "4204"
+      ],
+      "port": 4204
     }
   ]
 }

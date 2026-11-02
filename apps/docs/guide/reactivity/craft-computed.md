@@ -81,6 +81,26 @@ const doubled = yield* counter.doubled();
 `doubled` does not own `state()`, so it yields it. That is how the computed's
 own dependency graph records the read.
 
+The same ownership rule applies to services. If a service is used only by one
+computed, yield it in that computed's generator so its dependency stays local.
+`craft-ts/prefer-computed-local-dependency` reports a service yielded outside
+and captured only by a computed. It does not autofix because the callback may
+need to change into a generator.
+
+```typescript
+// Before: the outer function owns the router even though only the computed uses it.
+const router = yield* CraftRouter();
+const replayFrames = yield* craftComputed('replayFrames', () =>
+  replayFramesOf(report(), router),
+);
+
+// After: the computed owns the router dependency.
+const replayFrames = yield* craftComputed('replayFrames', function* () {
+  const router = yield* CraftRouter();
+  return replayFramesOf(report(), router);
+});
+```
+
 ```typescript
 import { craftComputed, craftService, craftUse, craftExpose } from '@craft-ts/core';
 

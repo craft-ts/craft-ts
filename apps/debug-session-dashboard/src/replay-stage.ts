@@ -1,32 +1,29 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
+  content,
   div,
   p,
   span,
   type Output,
 } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
-import { DocIcon } from '@craft-ts/ui';
+import { DocIcon, DocTooltip } from '@craft-ts/ui';
 import { assign, unit } from '@craft-ts/style';
 import { buttonUi } from '@craft-ts/ui/style';
 import { progressVars, ui } from './dashboard.style';
-import { AiChatBridge } from './replay-ai-bridge.service';
 import { seekProgressLabel, seekShare } from './replay-labels';
-import { pauseReplay, playReplay } from './replay-playback';
-import {
-  cancelReplaySeek,
-  startReplay,
-  stepNextReplayAction,
-} from './replay-session';
+import { ReplayPlayback } from './replay-playback';
+import { ReplaySession } from './replay-session';
 import {
   connected,
-  diagnosticReplay,
   replayableEvents,
   replayIndex,
   replaySkeletonVisible,
   replayState,
   seekTarget,
+  ReplayState,
 } from './replay-state';
 import { ReplayTimeline } from './replay-timeline';
 import { lit } from './view-helpers';
@@ -34,23 +31,30 @@ import { lit } from './view-helpers';
 function replayPlayLabel(state: string): string {
   switch (state) {
     case 'playing':
-      return 'Pause';
+      return i18n.t("copy.copy129");
     case 'paused':
-      return 'Reprendre';
+      return i18n.t("copy.copy130");
     case 'completed':
-      return 'Recommencer';
+      return i18n.t("copy.copy131");
     default:
-      return 'Lecture';
+      return i18n.t("copy.copy132");
   }
 }
 
-function playPauseOrRestartReplay(): void {
-  if (replayState() === 'playing') {
-    pauseReplay();
+function playPauseOrRestartReplay(
+  state: string,
+  actions: Readonly<{
+    pause: () => void;
+    play: () => void;
+    restart: () => void;
+  }>,
+): void {
+  if (state === 'playing') {
+    actions.pause();
     return;
   }
-  if (replayState() === 'completed') startReplay();
-  else playReplay();
+  if (state === 'completed') actions.restart();
+  else actions.play();
 }
 
 /** Where the replayed pages are drawn, under a veil while they load, with their timeline over them. */
@@ -59,6 +63,7 @@ export const ReplayStage = craftComponent(
   {},
   function* (inputs: { readonly retryThumbnails: Output<() => void> }) {
     const { retryThumbnails } = inputs;
+    const replaySession = yield* ReplaySession();
     const skeletonHidden = yield* craftComputed(
       'skeletonHidden',
       () => !replaySkeletonVisible(),
@@ -92,7 +97,7 @@ export const ReplayStage = craftComponent(
           ]),
           p(
             { class: ui.seekTitle, role: 'status' },
-            'Retour accéléré à l’étape choisie',
+            i18n.t("copy.copy133"),
           ),
           div({ class: ui.seekBar }, [
             div({ class: ui.progressTrack }, [
@@ -115,9 +120,9 @@ export const ReplayStage = craftComponent(
               class: buttonUi.root,
               'data-variant': 'secondary',
               'data-lab': 'seek-cancel',
-              click: cancelReplaySeek,
+              click: replaySession.cancelReplaySeek,
             },
-            [DocIcon({ name: lit('close'), size: lit('sm') }), span('Annuler')],
+            [DocIcon({ name: lit('close'), size: lit('sm') }), span(i18n.t("copy.copy134"))],
           ),
         ]),
       ]),
@@ -139,7 +144,9 @@ export const ReplayStage = craftComponent(
 
 /** The transport: play/pause, restart, step, and how far along it is. */
 export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
-  const aiChat = yield* AiChatBridge();
+  const replaySession = yield* ReplaySession();
+  const replayPlayback = yield* ReplayPlayback();
+  const { diagnosticReplay } = (yield* ReplayState()).imperative;
   const canStep = yield* craftComputed(
     'canStep',
     () =>
@@ -151,7 +158,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
     replayPlayLabel(replayState()),
   );
   const diagnosticLabel = yield* craftComputed('diagnosticLabel', () =>
-    diagnosticReplay() ? 'Diagnostic : actif' : 'Diagnostic',
+    diagnosticReplay() ? i18n.t("copy.copy135") : i18n.t("copy.copy136"),
   );
   const playDisabled = yield* craftComputed(
     'playDisabled',
@@ -165,12 +172,6 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
     'restartDisabled',
     () => !['playing', 'paused', 'completed', 'error'].includes(replayState()),
   );
-  const assistantDisabled = yield* craftComputed(
-    'assistantDisabled',
-    function* () {
-      return !(yield* aiChat.chat.available());
-    },
-  );
   const transport = div({ class: ui.transport }, [
     button(
       'play',
@@ -180,12 +181,12 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         'data-variant': 'primary',
         'aria-label': () =>
           replayState() === 'playing'
-            ? 'Mettre le replay en pause'
+            ? i18n.t("copy.copy137")
             : replayState() === 'paused'
-              ? 'Reprendre le replay'
+              ? i18n.t("copy.copy138")
               : replayState() === 'completed'
-                ? 'Recommencer le replay depuis le début'
-                : 'Lecture à vitesse réelle',
+                ? i18n.t("copy.copy139")
+                : i18n.t("copy.copy140"),
         'aria-description': () =>
           replayState() === 'playing'
             ? 'Met en pause la lecture chronométrée.'
@@ -196,7 +197,12 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
             : replayState() === 'paused'
               ? 'Reprend le replay en respectant les délais enregistrés.'
               : 'Lance le replay et respecte les délais réellement enregistrés entre les interactions.',
-        click: playPauseOrRestartReplay,
+        click: () =>
+          playPauseOrRestartReplay(replayState(), {
+            pause: replayPlayback.pauseReplay,
+            play: replayPlayback.playReplay,
+            restart: replaySession.startReplay,
+          }),
         disabled: playDisabled,
       },
       playLabel,
@@ -208,15 +214,15 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         class: buttonUi.root,
         'data-variant': 'secondary',
         'data-lab': 'replay-restart',
-        'aria-label': 'Recommencer le replay depuis le début',
+        'aria-label': i18n.t("copy.copy141"),
         'aria-description':
           'Recharge les pages enregistrées et relance le replay depuis la première interaction.',
         'data-tooltip':
           'Recommence le replay depuis le début en rechargeant les pages enregistrées.',
-        click: startReplay,
+        click: replaySession.startReplay,
         disabled: restartDisabled,
       },
-      'Recommencer',
+      i18n.t("copy.copy142"),
     ),
     button(
       'step',
@@ -229,10 +235,10 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
           'Exécute immédiatement l’interaction affichée à droite.',
         'data-tooltip':
           'Exécute tout de suite l’interaction affichée à droite, sans attendre le délai enregistré.',
-        click: stepNextReplayAction,
+        click: replaySession.stepNextReplayAction,
         disabled: canStep,
       },
-      'Action suivante',
+      i18n.t("copy.copy143"),
     ),
   ]);
 
@@ -244,34 +250,24 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
       'data-variant': function* () {
         return diagnosticReplay() ? 'tonal' : 'secondary';
       },
-      'aria-label': 'Mode diagnostic du replay',
+      'aria-label': i18n.t("copy.copy144"),
       'aria-pressed': diagnosticReplay,
-      'data-tooltip':
-        'Compare chaque observation au plan compilé et signale les écarts sans arrêter le replay.',
+      'aria-describedby': 'replay-diagnostic-mode-tip',
       click: () => diagnosticReplay.update((enabled) => !enabled),
     },
     diagnosticLabel,
   );
 
-  const assistant = button(
-    'aiChat',
-    {
-      type: 'button',
-      class: buttonUi.root,
-      'data-variant': 'secondary',
-      'data-lab': 'ai-chat',
-      'aria-description':
-        'Ouvre le chat qui envoie le contexte de la session à une IA.',
-      'data-tooltip':
-        'Ouvre le chat pour envoyer à une IA le contexte de cette session.',
-      click: aiChat.open,
-      disabled: assistantDisabled,
-    },
-    [DocIcon({ name: lit('sparkle'), size: lit('sm') }), span('Report')],
-  );
-
   return div({ class: ui.playbar }, [
     transport,
-    div({ class: ui.playbarEnd }, [diagnostic, assistant]),
+    div({ class: ui.playbarEnd }, [
+      DocTooltip({
+        tip: lit(
+          'Ajoute une vérification des événements attendus : les écarts sont signalés, sans interrompre le replay.',
+        ),
+        tipId: lit('replay-diagnostic-mode-tip'),
+        body: content(() => diagnostic),
+      }),
+    ]),
   ]);
 });

@@ -221,7 +221,8 @@ function staticTextContent(node) {
       node.callee.type === 'MemberExpression' &&
       !node.callee.computed &&
       node.callee.property.type === 'Identifier' &&
-      node.callee.property.name === 'translate'
+      (node.callee.property.name === 'translate' ||
+        node.callee.property.name === 't')
     ) {
       return 'dynamic text';
     }

@@ -23,6 +23,7 @@ export default [
       ...craftRules.configs.style.rules,
       ...craftRules.configs.a11y.rules,
       ...craftRules.configs.typedCss.rules,
+      ...craftRules.configs.i18n.rules,
     },
   },
   {

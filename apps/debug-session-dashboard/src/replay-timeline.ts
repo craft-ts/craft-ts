@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import { craftComponent, div, p, span, type Output } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
@@ -14,7 +15,7 @@ import {
   timeProgressLabel,
   timeRemainingLabel,
 } from './replay-labels';
-import { seekReplayToIndex, seekReplayToShare } from './replay-session';
+import { ReplaySession } from './replay-session';
 import { replayIndex, replayableEvents } from './replay-state';
 import {
   ReplayThumbnailMarks,
@@ -22,7 +23,10 @@ import {
 } from './replay-thumbnails';
 
 /** The arrow keys walk the recording an action at a time; Home and End go to its ends. */
-function scrubKey(event: KeyboardEvent): void {
+function scrubKey(
+  event: KeyboardEvent,
+  seekToIndex: (index: number) => void,
+): void {
   const total = replayableEvents().length;
   const target = {
     ArrowRight: replayIndex() + 1,
@@ -32,7 +36,7 @@ function scrubKey(event: KeyboardEvent): void {
   }[event.key];
   if (target === undefined || total === 0) return;
   event.preventDefault();
-  seekReplayToIndex(target);
+  seekToIndex(target);
 }
 
 /**
@@ -46,6 +50,7 @@ export const ReplayTimeline = craftComponent(
   {},
   function* (inputs: { readonly retryThumbnails: Output<() => void> }) {
     const { retryThumbnails } = inputs;
+    const replaySession = yield* ReplaySession();
     const ariaValueMax = yield* craftComputed('ariaValueMax', () =>
       Math.round(replayDurationMs() / 1000),
     );
@@ -54,7 +59,7 @@ export const ReplayTimeline = craftComponent(
     );
     const ariaValueText = yield* craftComputed('ariaValueText', scrubValueText);
     const ariaDisabled = yield* craftComputed('ariaDisabled', () =>
-      replayableEvents().length === 0 ? 'true' : 'false',
+      replayableEvents().length === 0 ? i18n.t("copy.copy146") : i18n.t("copy.copy147"),
     );
     const timeProgress = yield* craftComputed(
       'timeProgress',
@@ -98,8 +103,10 @@ export const ReplayTimeline = craftComponent(
         'aria-valuenow': ariaValueNow,
         'aria-valuetext': ariaValueText,
         'aria-disabled': ariaDisabled,
-        click: (event: MouseEvent) => seekReplayToShare(pointerShare(event)),
-        keydown: scrubKey,
+        click: (event: MouseEvent) =>
+          replaySession.seekReplayToShare(pointerShare(event)),
+        keydown: (event: KeyboardEvent) =>
+          scrubKey(event, replaySession.seekReplayToIndex),
       },
       [
         div({ class: ui.scrubTrack }, [

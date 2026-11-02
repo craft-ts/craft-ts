@@ -9,24 +9,15 @@ import {
   craftService,
   rawReactiveValue,
   ɵuntracked as untracked,
+  rawReactiveValue,
 } from '@craft-ts/core';
 import { installReplayPlatform, isReplayWorkerMode } from './replay-browser';
+import { ReplaySession } from './replay-session';
+import { ReplayPlayback } from './replay-playback';
 import {
-  beginSessionLoad,
-  completeSessionLoad,
-  failSessionLoad,
-  installImportNavigation,
-  leaveReplayPage,
-} from './replay-session';
-import { endReplayLoadingIndicator } from './replay-playback';
-import {
-  page,
-  pendingDeleteSessionId,
   ReplayState,
-  registers,
   routeSessionId,
   syncActiveRouteSessionId,
-  thumbnailManifest,
 } from './replay-state';
 import { installReplayWorkerSurface } from './replay-worker';
 import { httpFailureReason, SessionArchive } from './session-archive.service';
@@ -46,7 +37,11 @@ import {
 export const { ReplayRoute, provideReplayRoute } = craftService(
   { name: 'replayRoute', providedIn: 'toProvide' },
   function* () {
-    yield* ReplayState();
+    const replayState = yield* ReplayState();
+    const { page, pendingDeleteSessionId, registers, thumbnailManifest } =
+      replayState.imperative;
+    const replaySession = yield* ReplaySession();
+    const playback = yield* ReplayPlayback();
     // The engine's clock, ids and hash come from Craft: the temporal runtime
     // and the browser boundaries, resolved once here for the code that is not
     // a generator (message listeners, timers, layout passes).
@@ -65,7 +60,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     // Opened by the thumbnail worker: it replays and is photographed, it does
     // not ask for thumbnails of its own.
     const workerMode = isReplayWorkerMode();
-    if (workerMode) installReplayWorkerSurface();
+    if (workerMode) installReplayWorkerSurface(playback.playReplay);
 
     const archive = yield* SessionArchive();
     const e2eComparison = yield* E2eComparison();
@@ -75,7 +70,9 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     // Resolved here, once: asking for the router from inside an effect's own
     // injector builds another one, and this page stops hearing navigations.
     const router = yield* CraftRouter();
-    installImportNavigation(() => void router.navigate({ to: 'import' }));
+    replaySession.installImportNavigation(
+      () => void router.navigate({ to: 'import' }),
+    );
     const archivedValue = rawReactiveValue(archive.archived.value);
     const archivedException = rawReactiveValue(archive.archived.exception);
     const deletedValue = rawReactiveValue(archive.deleteSession.value);
@@ -94,7 +91,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       requestedId = id;
       thumbnails.stop();
       thumbnailManifest.set(undefined);
-      beginSessionLoad(id);
+      replaySession.beginSessionLoad(id);
       archive.archived.call(id);
       archive.resumeCheckpoints.call(id);
       if (!workerMode) resumeThread.watchSession(id);
@@ -112,7 +109,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       if (archived === openedArchive) return;
       openedArchive = archived;
       untracked(() => {
-        completeSessionLoad(id, archived);
+        replaySession.completeSessionLoad(id, archived);
         if (!workerMode) thumbnails.watch(id);
       });
     });
@@ -135,7 +132,9 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     yield* craftEffect('failArchivedSession', () => {
       const exception = archivedException();
       if (exception !== undefined)
-        untracked(() => failSessionLoad(httpFailureReason(exception)));
+        untracked(() =>
+          replaySession.failSessionLoad(httpFailureReason(exception)),
+        );
     });
 
     yield* craftEffect('closeRemovedSession', () => {
@@ -161,7 +160,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       const comparison = routePaths.includes('compare');
       const recipes = routePaths.includes('recipes');
       const e2eReplay = routePaths.includes('e2e-replay');
-      const wasDetailPage = page() === 'detail';
+      const wasDetailPage = rawReactiveValue(page)() === 'detail';
       page.set(
         comparison
           ? 'compare'
@@ -185,8 +184,8 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
         thumbnailManifest.set(undefined);
       }
       if (!id && !importedSession && !e2eReplay) {
-        endReplayLoadingIndicator();
-        if (wasDetailPage) leaveReplayPage();
+        playback.endReplayLoadingIndicator();
+        if (wasDetailPage) replaySession.leaveReplayPage();
         registers.loadedArchiveSessionId = undefined;
       }
     };

@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -9,19 +10,19 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { DocIcon, DocSwitch, DocTooltip } from '@craft-ts/ui';
 import { buttonUi, iconButtonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { eventElapsedLabel, journalSummary } from './replay-labels';
 import { eventDiagnosticLabel, eventSeverity } from './replay-model';
 import { ReplayOrchestration } from './replay-orchestration';
-import { launchDebugApp } from './replay-debug';
-import { setShowAllEvents } from './replay-session';
+import { ReplayDebug } from './replay-debug';
+import { ReplaySession } from './replay-session';
 import {
   activeReplayEventId,
-  eventTimelinePage,
   eventTimelinePageCount,
+  ReplayState,
   showAllEvents,
   visibleEventPage,
 } from './replay-state';
@@ -32,12 +33,18 @@ import { lit } from './view-helpers';
  * name with the DOM `toggle` event, so the type of a handler admits the event
  * as well; only the boolean is ever sent.
  */
-function showAllEventsSwitch(next: boolean | Event): void {
+function showAllEventsSwitch(
+  next: boolean | Event,
+  setShowAllEvents: (next: boolean) => void,
+): void {
   if (typeof next === 'boolean') setShowAllEvents(next);
 }
 
 /** The journal: the errors of the recording, or every event, a page at a time. */
 export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
+  const replayDebug = yield* ReplayDebug();
+  const replaySession = yield* ReplaySession();
+  const { eventTimelinePage } = (yield* ReplayState()).imperative;
   const journalSummaryText = yield* craftComputed(
     'journalSummaryText',
     journalSummary,
@@ -48,15 +55,15 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
   );
   const previousDisabled = yield* craftComputed(
     'previousDisabled',
-    () => eventTimelinePage() === 0,
+    function* () { return (yield* eventTimelinePage()) === 0; },
   );
   const pageLabel = yield* craftComputed(
     'pageLabel',
-    () => `${eventTimelinePage() + 1} / ${eventTimelinePageCount()}`,
+    function* () { return `${(yield* eventTimelinePage()) + 1} / ${eventTimelinePageCount()}`; },
   );
   const nextDisabled = yield* craftComputed(
     'nextDisabled',
-    () => eventTimelinePage() + 1 >= eventTimelinePageCount(),
+    function* () { return (yield* eventTimelinePage()) + 1 >= eventTimelinePageCount(); },
   );
 
   const filter = div({ class: ui.pager }, [
@@ -64,11 +71,10 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
     DocSwitch({
       label: lit('Tout afficher'),
       controlId: lit('journal-all'),
-      on: function* () {
-        return showAllEvents();
-      },
+      on: showAllEvents,
       disabled: lit(false),
-      toggle: showAllEventsSwitch,
+      toggle: (next: boolean | Event) =>
+        showAllEventsSwitch(next, replaySession.setShowAllEvents),
     }),
   ]);
 
@@ -85,11 +91,11 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
             type: 'button',
             class: [iconButtonUi.root, ui.eventAction],
             'data-lab': 'debug-from-event',
-            'aria-label': 'Déboguer avant cet événement',
+            'aria-label': i18n.t("copy.copy065"),
             'aria-describedby': tipId,
             click: function* () {
               const item = yield* event();
-              launchDebugApp(item.sequence, item.participantId);
+              replayDebug.launchDebugApp(item.sequence, item.participantId);
             },
           },
           DocIcon({ name: lit('external'), size: lit('sm') }),
@@ -109,7 +115,9 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           [
             div({ class: ui.eventInfo }, [
               span({ class: ui.eventName }, function* () {
-                return eventDiagnosticLabel(yield* event());
+                return i18n.t('eventDiagnosticLabel', {
+                  eventDiagnostic: eventDiagnosticLabel(yield* event()),
+                });
               }),
               span({ class: ui.eventMeta }, [
                 span(function* () {
@@ -117,7 +125,9 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
                   return `${item.kind} · ${item.phase}`;
                 }),
                 span(function* () {
-                  return eventElapsedLabel(yield* event());
+                  return i18n.t('elapsedLabel', {
+                    elapsed: eventElapsedLabel(yield* event()),
+                  });
                 }),
               ]),
             ]),
@@ -147,9 +157,9 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           'data-variant': 'link',
           disabled: previousDisabled,
           click: () =>
-            eventTimelinePage.set(Math.max(0, eventTimelinePage() - 1)),
+            eventTimelinePage.set(Math.max(0, rawReactiveValue(eventTimelinePage)() - 1)),
         },
-        'Événements précédents',
+        i18n.t("copy.copy066"),
       ),
       span(pageLabel),
       button(
@@ -161,10 +171,10 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           disabled: nextDisabled,
           click: () =>
             eventTimelinePage.set(
-              Math.min(eventTimelinePageCount() - 1, eventTimelinePage() + 1),
+              Math.min(eventTimelinePageCount() - 1, rawReactiveValue(eventTimelinePage)() + 1),
             ),
         },
-        'Événements suivants',
+        i18n.t("copy.copy067"),
       ),
     ],
   );

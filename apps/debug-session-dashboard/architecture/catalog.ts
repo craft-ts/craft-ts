@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "11fc1eaff8bb4f56",
+  "graphHash": "1aecf40323ba6e08",
   "routes": [
     "",
     ":recipeId",
@@ -34,8 +34,12 @@ export const architectureCatalog = {
     "docToastQueue",
     "e2eComparison",
     "e2eReplayRoute",
+    "replayBridge",
     "replayDashboardState",
+    "replayDebug",
+    "replayPlayback",
     "replayRoute",
+    "replaySession",
     "resumeRequest",
     "resumeThread",
     "sessionArchive",
@@ -110,7 +114,6 @@ export const architectureCatalog = {
     "ariaValueMax",
     "ariaValueNow",
     "ariaValueText",
-    "assistantDisabled",
     "autoSkipDifferences",
     "available",
     "busy",
@@ -363,11 +366,11 @@ export const architectureCatalog = {
     },
     {
       "method": "GET",
-      "url": "<unresolved:e2e-replay-route.service.ts:28>"
+      "url": "<unresolved:e2e-replay-route.service.ts:25>"
     },
     {
       "method": "GET",
-      "url": "<unresolved:resume-thread.service.ts:81>"
+      "url": "<unresolved:resume-thread.service.ts:79>"
     },
     {
       "method": "POST",
@@ -536,7 +539,11 @@ export const architectureCatalog = {
     "e2eComparison": "global",
     "e2eReplayRoute": "global",
     "aiChatBridge": "global",
+    "replayBridge": "global",
+    "replayDebug": "global",
+    "replayPlayback": "global",
     "replayRoute": "toProvide",
+    "replaySession": "global",
     "replayDashboardState": "global",
     "resumeRequest": "global",
     "resumeThread": "global",

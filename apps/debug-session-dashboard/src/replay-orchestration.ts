@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   craftComponent,
   details,
@@ -33,8 +34,11 @@ function replayPlanStateMessage(
   plan: ReturnType<typeof replayPlan>,
 ): string {
   return plan
-    ? `${plan.observations.length} observation(s) à comparer · ${plan.issues.length} problème(s) de prévalidation`
-    : 'Aucune archive chargée.';
+    ? i18n.t('replayPlanSummary', {
+        observationCount: plan.observations.length,
+        issueCount: plan.issues.length,
+      })
+    : i18n.t("copy.copy094");
 }
 
 function replayCommandStatus(item: ReplayCommand): string {
@@ -43,8 +47,8 @@ function replayCommandStatus(item: ReplayCommand): string {
   );
   if (item.kind === 'restore-snapshot')
     return startMode() === 'snapshot'
-      ? 'point de reprise sélectionné'
-      : 'point de reprise disponible';
+      ? i18n.t("copy.copy095")
+      : i18n.t("copy.copy096");
   const commandIndex = actionCommands.indexOf(item);
   const commandState =
     commandIndex < replayIndex()
@@ -52,7 +56,14 @@ function replayCommandStatus(item: ReplayCommand): string {
       : commandIndex === replayIndex()
         ? 'en attente'
         : 'à venir';
-  return `${commandState} · ${item.expected.length} observation(s) attendue(s)${item.dependsOn.length ? ` · après ${item.dependsOn.join(', ')}` : ''}`;
+  const dependencyText = item.dependsOn.length
+    ? ` · après ${item.dependsOn.join(', ')}`
+    : '';
+  return i18n.t('replayCommandSummary', {
+    commandState,
+    expectedCount: item.expected.length,
+    dependencyText,
+  });
 }
 
 /** The compiled replay plan and its commands, grouped with the journal. */

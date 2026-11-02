@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -15,16 +16,16 @@ import { DocIcon } from '@craft-ts/ui';
 import { buttonUi, iconButtonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { requestFrameFullscreen } from './replay-browser';
-import { launchDebugAppAtReplay } from './replay-debug';
+import { ReplayDebug } from './replay-debug';
 import { sessionDate } from './replay-labels';
 import { isRecord, participantOptionLabel, plural } from './replay-model';
-import { selectParticipant } from './replay-session';
+import { ReplaySession } from './replay-session';
 import {
   activeRouteSessionId,
   connected,
   replayableParticipants,
   replayParticipantIds,
-  resumeDialogOpen,
+  ReplayState,
   routeSessionId,
   selectedParticipantId,
   session,
@@ -92,6 +93,9 @@ export const ReplayHead = craftComponent(
   'ReplayHead',
   {},
   function* (input: { readonly pageTitle: ContentSlot }) {
+    const replayDebug = yield* ReplayDebug();
+    const replaySession = yield* ReplaySession();
+    const { resumeDialogOpen } = (yield* ReplayState()).imperative;
     const archive = yield* SessionArchive();
     const savedSessions = rawReactiveValue(archive.savedSessions);
     const recipes = rawReactiveValue(archive.resumeRecipeList);
@@ -106,7 +110,9 @@ export const ReplayHead = craftComponent(
     const derivation = yield* craftComputed('derivation', () => {
       const selected = summaryValue();
       return selected
-        ? derivationLabel(selected, savedSessions(), recipes())
+        ? i18n.t('derivationSummary', {
+            derivation: derivationLabel(selected, savedSessions(), recipes()),
+          })
         : '';
     });
     const sourceId = yield* craftComputed('sourceId', () => {
@@ -128,7 +134,7 @@ export const ReplayHead = craftComponent(
           yield* CraftRouter.navigate({ to: '' });
         },
       },
-      '← Sessions',
+      i18n.t("copy.copy056"),
     );
 
     const lineage = p(
@@ -160,7 +166,7 @@ export const ReplayHead = craftComponent(
                 });
             },
           },
-          'Ouvrir la session d’origine →',
+          i18n.t("copy.copy057"),
         ),
       ],
     );
@@ -181,11 +187,12 @@ export const ReplayHead = craftComponent(
           'hidden',
           () => replayableParticipants().length <= 1,
         ),
-        change: (event: Event) => selectParticipant(eventValue(event)),
-        'aria-label': 'Onglets à visionner',
+        change: (event: Event) =>
+          replaySession.selectParticipant(eventValue(event)),
+        'aria-label': i18n.t("copy.copy058"),
       },
       [
-        option({ value: 'all' }, 'Tous les onglets'),
+        option({ value: 'all' }, i18n.t("copy.copy059")),
         forNode(
           replayableParticipants,
           { track: (participant) => participant.id },
@@ -198,7 +205,9 @@ export const ReplayHead = craftComponent(
                 },
               },
               function* () {
-                return participantOptionLabel(yield* participant());
+                return i18n.t('participantLabel', {
+                  participant: participantOptionLabel(yield* participant()),
+                });
               },
             ),
         ),
@@ -210,7 +219,7 @@ export const ReplayHead = craftComponent(
       {
         type: 'button',
         class: iconButtonUi.root,
-        'aria-label': 'Plein écran',
+        'aria-label': i18n.t("copy.copy060"),
         'aria-description': 'Affiche l’application cible en plein écran.',
         'data-tooltip':
           'Agrandit l’application rejouée en plein écran pour l’inspecter.',
@@ -237,12 +246,12 @@ export const ReplayHead = craftComponent(
           'Ouvre l’application vivante dans un nouvel onglet, à l’état où le replay est arrivé.',
         'data-tooltip':
           'Restaure tout de suite l’état enregistré dans un nouvel onglet, sans IA. Idéal pour inspecter.',
-        click: launchDebugAppAtReplay,
+        click: replayDebug.launchDebugAppAtReplay,
         disabled: yield* craftComputed('disabled', () => !session()),
       },
       [
         DocIcon({ name: lit('external'), size: lit('sm') }),
-        span('Déboguer ici'),
+        span(i18n.t("copy.copy061")),
       ],
     );
 
@@ -253,7 +262,7 @@ export const ReplayHead = craftComponent(
         class: buttonUi.root,
         'data-variant': 'tonal',
         'data-lab': 'resume-here',
-        'aria-label': 'Reprendre ici',
+        'aria-label': i18n.t("copy.copy062"),
         'aria-description':
           'Demande à un agent IA de rouvrir l’application à ce moment, avec de vraies données.',
         'data-tooltip':
@@ -267,7 +276,7 @@ export const ReplayHead = craftComponent(
       },
       [
         DocIcon({ name: lit('sparkle'), size: lit('sm') }),
-        span('Reprendre ici'),
+        span(i18n.t("copy.copy063")),
       ],
     );
 
@@ -277,7 +286,7 @@ export const ReplayHead = craftComponent(
         role: 'group',
         'aria-label': 'Ouvrir l’application à ce moment du replay',
       },
-      [span({ class: ui.momentLabel }, 'À ce moment'), debug, resume],
+      [span({ class: ui.momentLabel }, i18n.t("copy.copy064")), debug, resume],
     );
 
     return div({ class: ui.head }, [

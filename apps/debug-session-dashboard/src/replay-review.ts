@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -16,7 +17,7 @@ import { craftComputed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { copyReplayNote } from './replay-notices';
-import { seekReplayToWarning } from './replay-session';
+import { ReplaySession } from './replay-session';
 import {
   autoSkipDifferences,
   dismissedWarnings,
@@ -38,6 +39,7 @@ const RESOLUTION_LABEL: Readonly<Record<string, string>> = {
  * reproduce). Both used to be popovers of the head; they are one view now.
  */
 export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
+  const replaySession = yield* ReplaySession();
   const nothingHidden = yield* craftComputed(
     'nothingHidden',
     () => replayDifferences().length > 0 || replayWarnings().length > 0,
@@ -45,13 +47,13 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
 
   const differenceTitle = yield* craftComputed('differenceTitle', () =>
     replayDifferences().length > 1
-      ? `${replayDifferences().length} décalages avec l’enregistrement`
-      : '1 décalage avec l’enregistrement',
+      ? (i18n.t("copy.copy109") + (replayDifferences().length) + i18n.t("copy.copy110"))
+      : i18n.t("copy.copy111"),
   );
   const notesTitle = yield* craftComputed('notesTitle', () =>
     replayWarnings().length > 1
-      ? `${replayWarnings().length} notes du replay`
-      : '1 note du replay',
+      ? (i18n.t("copy.copy112") + (replayWarnings().length) + i18n.t("copy.copy113"))
+      : i18n.t("copy.copy114"),
   );
 
   const differences = div(
@@ -74,7 +76,7 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
           hidden: yield* craftComputed('hidden', () => !autoSkipDifferences()),
           click: () => rememberAutoSkipDifferences(false),
         },
-        'Désactiver le passage automatique',
+        i18n.t("copy.copy115"),
       ),
       ul(
         { class: ui.events },
@@ -84,8 +86,14 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
               span({ class: ui.eventName }, function* () {
                 const item = yield* entry();
                 return item.transport
-                  ? `Transport ${item.transport.transportId} · ${item.transport.direction} ${item.transport.sequence}`
-                  : `Événement ${item.eventId ?? '?'}`;
+                  ? i18n.t('transportSummary', {
+                      transportId: item.transport.transportId,
+                      direction: item.transport.direction,
+                      sequence: item.transport.sequence,
+                    })
+                  : i18n.t('eventSummary', {
+                      eventId: item.eventId ?? '?',
+                    });
               }),
               span({ class: ui.eventMeta }, function* () {
                 const item = yield* entry();
@@ -95,14 +103,14 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
                 summary('Attendu et observé'),
                 div({ class: ui.compare }, [
                   div([
-                    span({ class: ui.compareLabel }, 'Attendu'),
+                    span({ class: ui.compareLabel }, i18n.t("copy.copy120")),
                     pre({ class: ui.code }, function* () {
                       const item = yield* entry();
                       return JSON.stringify(item.expected, null, 2);
                     }),
                   ]),
                   div([
-                    span({ class: ui.compareLabel }, 'Observé'),
+                    span({ class: ui.compareLabel }, i18n.t("copy.copy121")),
                     pre({ class: ui.code }, function* () {
                       const item = yield* entry();
                       return JSON.stringify(item.actual, null, 2);
@@ -132,7 +140,7 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
       heading({ class: ui.sideSectionTitle }, notesTitle),
       p(
         { class: ui.lede },
-        'Les plus récentes d’abord. « Revoir » relance le replay et s’arrête juste avant l’action concernée.',
+        i18n.t("copy.copy122"),
       ),
       ul(
         { class: ui.events },
@@ -162,11 +170,11 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
                     class: [buttonUi.root, ui.noteText, ui.warningHistoryCopy],
                     'data-variant': 'link',
                     'data-lab': 'copy-replay-warning',
-                    'aria-label': 'Copier la note du replay',
+                    'aria-label': i18n.t("copy.copy123"),
                     'data-tooltip': 'Copier cette note dans le presse-papiers.',
                     title: warning,
                     click: function* () {
-                      copyReplayNote(yield* warning());
+                      yield* copyReplayNote(yield* warning());
                     },
                   },
                   span({ class: ui.noteText }, warning),
@@ -181,16 +189,16 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
                     hidden: function* () {
                       return isReplayErrorNote(yield* warning());
                     },
-                    'aria-label': 'Rejouer jusqu’à cette action',
+                    'aria-label': i18n.t("copy.copy124"),
                     'aria-description':
                       'Relance le replay depuis le début et s’arrête juste avant l’action à l’origine de cette note.',
                     'data-tooltip':
                       'Relance le replay sans attendre les délais et s’arrête juste avant l’action à l’origine de cette note. « Action suivante » l’exécute ensuite.',
                     click: function* () {
-                      seekReplayToWarning(yield* warning());
+                      replaySession.seekReplayToWarning(yield* warning());
                     },
                   },
-                  'Revoir',
+                  i18n.t("copy.copy125"),
                 ),
               ],
             ),
@@ -201,7 +209,7 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
 
   const empty = p(
     { class: ui.lede, hidden: nothingHidden },
-    'Le replay suit l’enregistrement : aucun décalage, aucune note pour l’instant.',
+    i18n.t("copy.copy126"),
   );
 
   return div({ class: ui.sideBody }, [

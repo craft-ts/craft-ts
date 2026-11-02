@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   content,
@@ -11,16 +12,14 @@ import { craftComputed } from '@craft-ts/core';
 import { DocDialog } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import {
-  closeImport,
-  importPastedSession,
-  importSelectedFile,
-} from './replay-session';
-import { importOpen, loadError, sessionText } from './replay-state';
+import { ReplaySession } from './replay-session';
+import { importOpen, loadError, ReplayState } from './replay-state';
 import { eventValue, lit } from './view-helpers';
 
 /** The sheet where a session is imported from a file or pasted as JSON. */
 export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
+  const replaySession = yield* ReplaySession();
+  const { sessionText } = (yield* ReplayState()).imperative;
   const loadErrorHidden = yield* craftComputed(
     'loadErrorHidden',
     () => loadError() === undefined,
@@ -35,26 +34,26 @@ export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
     open: function* () {
       return importOpen();
     },
-    dismiss: closeImport,
+    dismiss: replaySession.closeImport,
     body: content(() => [
       div({ class: ui.importFields }, [
         p(
           { class: ui.lede },
-          'Un export JSON craft-debug-session. Les sessions tronquées restent consultables mais ne sont pas rejouables.',
+          i18n.t("copy.copy022"),
         ),
         input('sessionFile', {
           type: 'file',
           accept: 'application/json,.json',
-          'aria-label': 'Importer une session JSON',
-          change: importSelectedFile,
+          'aria-label': i18n.t("copy.copy023"),
+          change: replaySession.importSelectedFile,
         }),
         textarea('sessionJson', {
           class: ui.importText,
           rows: 8,
-          placeholder: 'Ou colle un export craft-debug-session…',
+          placeholder: i18n.t("copy.copy024"),
           value: sessionText,
           input: (event: Event) => sessionText.set(eventValue(event)),
-          'aria-label': 'Session JSON',
+          'aria-label': i18n.t("copy.copy025"),
         }),
         p(
           {
@@ -71,9 +70,9 @@ export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
               type: 'button',
               class: buttonUi.root,
               'data-variant': 'primary',
-              click: importPastedSession,
+              click: replaySession.importPastedSession,
             },
-            'Valider la session',
+            i18n.t("copy.copy026"),
           ),
         ]),
       ]),

@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import { craftComponent, div, heading } from '@craft-ts/component';
 import { CraftActivatedRoute } from '@craft-ts/core';
 import { E2eReplayRouteService } from './e2e-replay-route.service';
@@ -30,7 +31,7 @@ export const E2eReplayRoute = craftComponent(
       sourceFromQuery(route.snapshot.queryParams['source']),
     );
     return div([
-      heading('Replay E2E'),
+      heading(i18n.t("copy.copy021")),
       div({ hidden: true, 'aria-hidden': 'true' }, []),
     ]);
   },

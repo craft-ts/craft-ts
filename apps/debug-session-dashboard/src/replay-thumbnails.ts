@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -22,7 +23,7 @@ import {
   thumbnailReasonLabel,
   thumbnailsSummary,
 } from './replay-labels';
-import { seekReplayToEvent } from './replay-session';
+import { ReplaySession } from './replay-session';
 import {
   replayActionOffsetsMs,
   replayIndex,
@@ -52,8 +53,12 @@ type Mark = Readonly<{
  * moment: where the replay is once the action it names has run.
  */
 /** The point's look: the one the replay is at, or one it has already passed. */
-function goToMark(item: Mark): void {
-  seekReplayToEvent(item.entry.eventId, item.entry.participantId);
+function goToMark(
+  item: Mark,
+  seekReplayToEvent: (eventId: string, participantId?: string) => void,
+): void {
+  if (item.entry.eventId)
+    seekReplayToEvent(item.entry.eventId, item.entry.participantId);
 }
 
 /** Where a picture is served from, once the archive has told which ones it holds. */
@@ -67,11 +72,13 @@ export const ReplayThumbnailMarks = craftComponent(
   'ReplayThumbnailMarks',
   {},
   function* () {
-    const marks = yield* craftComputed('marks', function* () {
+    const replaySession = yield* ReplaySession();
+    const preview = yield* ThumbnailPreview();
+    const renderedMarks = yield* craftComputed('renderedMarks', function* () {
       const steps = replayableEvents();
       const offsets = replayActionOffsetsMs();
       const duration = replayDurationMs();
-      return (thumbnailManifest()?.entries ?? []).map((entry) => {
+      const marks = (thumbnailManifest()?.entries ?? []).map((entry) => {
         const position =
           entry.eventId === undefined
             ? 0
@@ -82,24 +89,14 @@ export const ReplayThumbnailMarks = craftComponent(
         const share = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
         return { entry, position, share };
       });
-    });
-    const currentEntryIndex = yield* craftComputed(
-      'currentEntryIndex',
-      function* () {
-        const done = replayIndex();
-        return (yield* marks()).reduce<number | undefined>(
-          (current, mark) =>
-            mark.position <= done ? mark.entry.index : current,
-          undefined,
-        );
-      },
-    );
-    const preview = yield* ThumbnailPreview();
-    const renderedMarks = yield* craftComputed('renderedMarks', function* () {
-      const current = yield* currentEntryIndex();
-      const open = yield* preview.openEntryIndex();
       const done = replayIndex();
-      return (yield* marks()).map<Mark>((mark) => ({
+      const current = marks.reduce<number | undefined>(
+        (selected, mark) =>
+          mark.position <= done ? mark.entry.index : selected,
+        undefined,
+      );
+      const open = yield* preview.openEntryIndex();
+      return marks.map<Mark>((mark) => ({
         ...mark,
         phase:
           mark.entry.index === current
@@ -160,7 +157,7 @@ export const ReplayThumbnailMarks = craftComponent(
                   yield* preview.show(undefined);
                 },
                 click: function* () {
-                  goToMark(yield* mark());
+                  goToMark(yield* mark(), replaySession.seekReplayToEvent);
                 },
               }),
               div(
@@ -192,7 +189,9 @@ export const ReplayThumbnailMarks = craftComponent(
                   }),
                   span({ class: ui.markAction }, function* () {
                     const item = yield* mark();
-                    return thumbnailActionLabel(item.entry);
+                    return i18n.t('thumbnailActionLabel', {
+                      actionLabel: thumbnailActionLabel(item.entry),
+                    });
                   }),
                 ],
               ),
@@ -238,7 +237,7 @@ export const ReplayThumbnailsStatus = craftComponent(
               'data-lab': 'thumbnails-retry',
               click: retryThumbnails,
             },
-            'Réessayer',
+            i18n.t("copy.copy145"),
           ),
         ]),
       ],

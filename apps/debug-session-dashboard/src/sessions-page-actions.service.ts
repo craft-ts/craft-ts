@@ -5,13 +5,14 @@ import {
   craftService,
 } from '@craft-ts/core';
 import { plural } from './replay-model';
-import { pendingDeleteSessionId, routeSessionId } from './replay-state';
+import { ReplayState, routeSessionId } from './replay-state';
 import { SessionArchive } from './session-archive.service';
 
 export const { SessionPageActions } = craftService(
   { name: 'sessionPageActions', providedIn: 'global' },
   function* () {
     const archive = yield* SessionArchive();
+    const { pendingDeleteSessionId } = (yield* ReplayState()).imperative;
     yield* craftExpose('deleteIncompatibleSessions', function* (ids: string[]) {
       if (ids.length === 0) return;
       if (

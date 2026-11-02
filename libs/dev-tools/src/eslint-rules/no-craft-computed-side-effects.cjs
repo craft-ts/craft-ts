@@ -144,6 +144,12 @@ module.exports = {
       // ReactiveReadRequest. It is a safe dependency inside craftComputed,
       // even though the callable is not projected with the template brands.
       return (
+        // CraftRouter is a synchronous routing capability. Acquiring it is
+        // safe in a computed; navigation methods remain checked separately
+        // and are still rejected as writes/generator calls.
+        (node.callee.type === 'Identifier' &&
+          (node.callee.name === 'CraftRouter' ||
+            importedNames.get(node.callee.name) === 'CraftRouter')) ||
         hasBrand(type, REACTIVE_READ_BRAND) ||
         hasBrand(type, INPUT_BRAND) ||
         hasAlias(type, 'CraftServiceInput')

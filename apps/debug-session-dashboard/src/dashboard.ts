@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -42,8 +43,8 @@ export const DebugSessionDashboard = craftComponent(
       div({ class: ui.brand }, [
         div({ class: ui.brandMark }, [DocLogo({})]),
         div([
-          span({ class: ui.brandName }, 'craft-ts'),
-          span({ class: ui.brandKind }, ' · replay'),
+          span({ class: ui.brandName }, i18n.t("copy.copy001")),
+          span({ class: ui.brandKind }, i18n.t("copy.copy002")),
         ]),
       ]),
       // The two lists of the archive. A replay belongs to the sessions.
@@ -68,7 +69,7 @@ export const DebugSessionDashboard = craftComponent(
               yield* CraftRouter.navigate({ to: '' });
             },
           },
-          'Sessions',
+          i18n.t("copy.copy003"),
         ),
         button(
           'navRecipes',
@@ -86,7 +87,7 @@ export const DebugSessionDashboard = craftComponent(
               yield* CraftRouter.navigate({ to: 'recipes' });
             },
           },
-          'Recettes',
+          i18n.t("copy.copy004"),
         ),
       ]),
       div({ class: ui.barTools }, [

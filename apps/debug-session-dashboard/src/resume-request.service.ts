@@ -1,13 +1,7 @@
 import { craftExpose, craftService } from '@craft-ts/core';
 import { newUuid } from './replay-browser';
-import { launchGuidedResumeTab, replayPoint } from './replay-debug';
-import {
-  resumeDialogOpen,
-  resumeIntent,
-  routeSessionId,
-  sidePanelOpen,
-  sideTab,
-} from './replay-state';
+import { ReplayDebug } from './replay-debug';
+import { ReplayState, routeSessionId } from './replay-state';
 import { copyResumePrompt, resumePrompt } from './resume-prompt';
 import { ResumeThread } from './resume-thread.service';
 import { SessionArchive } from './session-archive.service';
@@ -21,15 +15,18 @@ import { SessionArchive } from './session-archive.service';
 export const { ResumeRequest } = craftService(
   { name: 'resumeRequest', providedIn: 'global' },
   function* () {
+    const replayDebug = yield* ReplayDebug();
+    const { resumeDialogOpen, resumeIntent, sidePanelOpen, sideTab } =
+      (yield* ReplayState()).imperative;
     const archive = yield* SessionArchive();
     const resumeThread = yield* ResumeThread();
     yield* craftExpose('submit', function* () {
       const sessionId = routeSessionId();
-      const intent = resumeIntent().trim();
+      const intent = (yield* resumeIntent()).trim();
       if (sessionId === undefined || !intent) return;
-      const point = replayPoint();
+      const point = replayDebug.replayPoint();
       const requestId = newUuid();
-      const appTab = launchGuidedResumeTab(
+      const appTab = replayDebug.launchGuidedResumeTab(
         point.beforeSequence,
         point.participantId,
         requestId,
@@ -43,7 +40,7 @@ export const { ResumeRequest } = craftService(
         appUrl: appTab.url,
         intent,
       });
-      copyResumePrompt(prompt);
+      yield* copyResumePrompt(prompt);
       const sent = yield* archive.requestResume(
         { sessionId, ...point },
         requestId,

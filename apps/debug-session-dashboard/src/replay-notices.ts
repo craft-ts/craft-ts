@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   content,
@@ -8,14 +9,11 @@ import {
   span,
 } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
+import { BrowserNavigator } from '@craft-ts/core';
 import { DocCallout } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import {
-  forceReplayRecovery,
-  skipReplayWait,
-  skipToCheckpoint,
-} from './replay-session';
+import { ReplaySession } from './replay-session';
 import {
   autoSkipDifferences,
   canForceRecovery,
@@ -36,10 +34,8 @@ import {
 import { lit } from './view-helpers';
 
 /** Best effort: a note goes to the clipboard when the browser lets it. */
-export function copyReplayNote(text: string): void {
-  const clipboard =
-    typeof navigator === 'undefined' ? undefined : navigator.clipboard;
-  if (clipboard) void clipboard.writeText(text).catch(() => undefined);
+export function* copyReplayNote(text: string) {
+  yield* BrowserNavigator.writeClipboardText(text);
 }
 
 function differenceMessageFor(
@@ -60,17 +56,18 @@ function differenceMessageFor(
       api === 'websocket'
         ? 'la connexion WebSocket demandée'
         : `la requête réseau (${transportName})`;
-    return `Le replay a bloqué ${networkAction}, absente de l’enregistrement. Aucun appel réseau réel n’a été envoyé.`;
+    return (i18n.t("copy.copy068") + (networkAction) + i18n.t("copy.copy069"));
   }
-  return 'Le replay a divergé de l’enregistrement. Le détail attendu / observé est dans « Écarts ».';
+  return i18n.t("copy.copy070");
 }
 
 /** What the replay has to say when it leaves the recording or cannot go on. */
 export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
+  const replaySession = yield* ReplaySession();
   const partialMessage = yield* craftComputed('partialMessage', () => {
     const skipped = partialReplay();
     return skipped
-      ? `Replay partiel · portion ${skipped.from}–${skipped.to} ignorée · checkpoint ${skipped.checkpointEventId}`
+      ? (i18n.t("copy.copy071") + (skipped.from) + i18n.t("copy.copy072") + (skipped.to) + i18n.t("copy.copy073") + (skipped.checkpointEventId) + "")
       : '';
   });
   const problemMessage = yield* craftComputed(
@@ -106,9 +103,9 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
         },
         yield* craftComputed('toleranceMessage', () => {
           const rules = difference()?.tolerances ?? [];
-          return `Règles évaluées avant cet écart : ${rules
+          return (i18n.t("copy.copy074") + (rules
             .map((rule) => `${rule.kind} ${rule.path} (${rule.assertionId})`)
-            .join(', ')}.`;
+            .join(', ')) + ".");
         }),
       ),
       div({ class: ui.gapActions }, [
@@ -123,9 +120,9 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
               'hidden',
               () => !canSkipDifference() || autoSkipDifferences(),
             ),
-            click: skipToCheckpoint,
+            click: replaySession.skipToCheckpoint,
           },
-          'Aller à la suite',
+          i18n.t("copy.copy075"),
         ),
         button(
           'forceReplayRecovery',
@@ -135,9 +132,9 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             'data-variant': 'secondary',
             'data-lab': 'force-recovery',
             hidden: yield* craftComputed('hidden', () => !canForceRecovery()),
-            click: forceReplayRecovery,
+            click: replaySession.forceReplayRecovery,
           },
-          'Forcer l’état attendu',
+          i18n.t("copy.copy076"),
         ),
         button(
           'openDifferenceReview',
@@ -148,7 +145,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             'data-lab': 'open-difference-review',
             click: () => toggleSideTab('review'),
           },
-          'Voir le détail',
+          i18n.t("copy.copy077"),
         ),
         button(
           'dismissDifferenceNotice',
@@ -157,10 +154,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             class: buttonUi.root,
             'data-variant': 'link',
             'data-lab': 'dismiss-difference-notice',
-            'aria-label': 'Masquer le message de décalage',
+            'aria-label': i18n.t("copy.copy078"),
             click: dismissDifferenceNotice,
           },
-          'Fermer',
+          i18n.t("copy.copy079"),
         ),
         span(
           {
@@ -169,7 +166,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
               () => !autoSkipDifferences(),
             ),
           },
-          'Passage au checkpoint automatique activé.',
+          i18n.t("copy.copy080"),
         ),
       ]),
       p(
@@ -179,7 +176,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             () => autoSkipDifferences() || !canSkipDifference(),
           ),
         },
-        'Ce choix sera mémorisé pour les prochains replays.',
+        i18n.t("copy.copy081"),
       ),
     ],
   );
@@ -246,11 +243,11 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
               class: [buttonUi.root, ui.toastText, ui.warningToastCopy],
               'data-variant': 'link',
               'data-lab': 'copy-replay-warning',
-              'aria-label': 'Copier la note du replay',
+              'aria-label': i18n.t("copy.copy082"),
               'data-tooltip': 'Copier cette note dans le presse-papiers.',
               title: warning,
               click: function* () {
-                copyReplayNote(yield* warning());
+                yield* copyReplayNote(yield* warning());
               },
             },
             span({ class: ui.toastText }, warning),
@@ -261,13 +258,13 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
               type: 'button',
               class: buttonUi.root,
               'data-variant': 'link',
-              'aria-label': 'Ignorer cette note',
+              'aria-label': i18n.t("copy.copy083"),
               'data-lab': 'dismiss-warning',
               'data-tooltip':
                 'Ignore cette note et passe tout de suite à l’action suivante au lieu d’attendre le délai enregistré.',
               click: function* () {
                 dismissWarning(yield* warning());
-                skipReplayWait();
+                replaySession.skipReplayWait();
               },
             },
             '×',
@@ -287,8 +284,8 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             yield* craftComputed('toastMessage', () => {
               const hidden = pendingWarnings().length - 2;
               return hidden > 0
-                ? `+${hidden} plus ancienne(s) · ${pendingWarnings().length} notes`
-                : `${pendingWarnings().length} notes`;
+                ? (i18n.t("copy.copy084") + (hidden) + i18n.t("copy.copy085") + (pendingWarnings().length) + i18n.t("copy.copy086"))
+                : (i18n.t("copy.copy087") + (pendingWarnings().length) + i18n.t("copy.copy088"));
             }),
           ),
           button(
@@ -299,7 +296,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
               'data-variant': 'link',
               click: () => toggleSideTab('review'),
             },
-            'Tout voir',
+            i18n.t("copy.copy089"),
           ),
           button(
             'dismissAllWarnings',
@@ -312,10 +309,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
                 'Ignore toutes les notes et passe tout de suite à l’action suivante.',
               click: () => {
                 dismissAllWarnings();
-                skipReplayWait();
+                replaySession.skipReplayWait();
               },
             },
-            'Tout ignorer',
+            i18n.t("copy.copy090"),
           ),
         ],
       ),

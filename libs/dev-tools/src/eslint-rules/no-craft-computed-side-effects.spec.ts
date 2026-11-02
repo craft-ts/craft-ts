@@ -78,6 +78,23 @@ describe('no-craft-computed-side-effects', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it('allows acquiring CraftRouter to build a URL inside a computed', async () => {
+    const result = await lintFixture(`
+      declare function CraftRouter(): Generator<never, {
+        createUrlTree: (commands: unknown) => unknown;
+        serializeUrl: (tree: unknown) => string;
+      }, unknown>;
+      declare function craftComputed(name: string, factory: Function): unknown;
+
+      craftComputed('url', function* () {
+        const router = yield* CraftRouter();
+        return router.serializeUrl(router.createUrlTree({ to: 'home' }));
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('reports yieldable writes, async generators, and promise-returning calls', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;

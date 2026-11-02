@@ -61,6 +61,7 @@ function childNodes(node, sourceCode) {
 function translationCount(node, sourceCode) {
   if (!node) return 0;
   if (isTranslationCall(node)) return 1;
+  if (node.type === 'CallExpression' && parseHyperscriptCall(node)) return 0;
   return childNodes(node, sourceCode).reduce(
     (count, child) => count + translationCount(child, sourceCode),
     0,
@@ -74,6 +75,7 @@ function isDirectTranslation(node) {
 function hasOtherPiece(node, sourceCode) {
   if (!node) return false;
   if (isTranslationCall(node)) return false;
+  if (node.type === 'CallExpression' && parseHyperscriptCall(node)) return false;
 
   if (node.type === 'TemplateLiteral') {
     return (
@@ -124,6 +126,10 @@ function isComposedTranslation(node, sourceCode) {
 
 function findComposedTranslation(node, sourceCode) {
   if (!node || isTranslationCall(node)) return undefined;
+  // A hyperscript or component call starts a separate visible position. Its
+  // children are checked by that call's own listener; text inside a nested
+  // span/button must not be composed with its sibling icon or controls.
+  if (node.type === 'CallExpression') return undefined;
   if (isComposedTranslation(node, sourceCode)) return node;
 
   for (const child of childNodes(node, sourceCode)) {

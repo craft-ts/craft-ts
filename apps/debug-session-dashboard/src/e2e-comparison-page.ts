@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -42,10 +43,10 @@ function comparisonSummary(
   exception: unknown,
 ): string {
   if (result && 'error' in result)
-    return `Chargement impossible · ${result.error}`;
+    return (i18n.t("copy.copy005") + (result.error) + "");
   if (!result && exception !== undefined)
-    return `Chargement impossible · ${typeof exception === 'string' ? exception : httpFailureReason(exception)}. Le lien vient de l’outil sessions.compare ; vérifiez que le test, le projet et le run existent dans l’archive.`;
-  if (!result) return 'Chargement des runs et de leur historique…';
+    return (i18n.t("copy.copy006") + (typeof exception === 'string' ? exception : httpFailureReason(exception)) + i18n.t("copy.copy007"));
+  if (!result) return i18n.t("copy.copy008");
   const references =
     result.baselineCount > 1
       ? `${result.baselineCount} références vertes`
@@ -54,7 +55,7 @@ function comparisonSummary(
     result.baselineCount === 1
       ? ' · une seule référence : les variations normales ne sont pas connues'
       : '';
-  return `${result.comparison.findings.length} trouvailles · ${references}${single}.`;
+  return (i18n.t("copy.copy009") + (result.comparison.findings.length) + i18n.t("copy.copy010") + (references) + i18n.t("copy.copy011") + (single) + ".");
 }
 
 /** The two replay frames: the latest green reference and the observed run. */
@@ -105,7 +106,6 @@ export const E2eComparisonPage = craftComponent(
   'E2eComparisonPage',
   {},
   function* () {
-    const router = yield* CraftRouter();
     const service = yield* E2eComparison();
     const report = rawReactiveValue(service.comparison.value);
     const queryException = rawReactiveValue(service.comparison.exception);
@@ -113,8 +113,8 @@ export const E2eComparisonPage = craftComponent(
     const title = yield* craftComputed('title', () => {
       const result = report();
       return result && !('error' in result)
-        ? `Comparaison · ${result.testId} · ${result.project}`
-        : 'Comparaison de session E2E';
+        ? (i18n.t("copy.copy012") + (result.testId) + i18n.t("copy.copy013") + (result.project) + "")
+        : i18n.t("copy.copy014");
     });
     const summaryText = yield* craftComputed('summaryText', () =>
       comparisonSummary(report(), queryException()),
@@ -128,8 +128,10 @@ export const E2eComparisonPage = craftComponent(
       () => {
         const first = comparison()?.firstDivergence;
         return first
-          ? `Première divergence · ${sessionTraceFindingLabel(first)}`
-          : 'Aucune divergence bloquante';
+          ? i18n.t('findingHeading', {
+              findingLabel: sessionTraceFindingLabel(first),
+            })
+          : i18n.t("copy.copy016");
       },
     );
     const firstDivergenceText = yield* craftComputed(
@@ -137,19 +139,22 @@ export const E2eComparisonPage = craftComponent(
       () => {
         const first = comparison()?.firstDivergence;
         return first
-          ? describeSessionTraceFinding(first)
-          : 'Les pas stables des runs verts se retrouvent dans le run observé.';
+          ? i18n.t('findingDetails', {
+              findingDetails: describeSessionTraceFinding(first),
+            })
+          : i18n.t("copy.copy017");
       },
     );
     const reportText = yield* craftComputed('reportText', () => {
       const current = comparison();
       return current
         ? JSON.stringify(current, null, 2)
-        : 'En attente du serveur local…';
+        : i18n.t("copy.copy018");
     });
-    const replayFrames = yield* craftComputed('replayFrames', () =>
-      replayFramesOf(report(), router),
-    );
+    const replayFrames = yield* craftComputed('replayFrames', function* () {
+      const router = yield* CraftRouter();
+      return replayFramesOf(report(), router);
+    });
     const findings = yield* craftComputed('findings', () => {
       const current = comparison();
       // Decoded from JSON, the first divergence is a copy of one finding, not the same object.
@@ -185,7 +190,7 @@ export const E2eComparisonPage = craftComponent(
                   yield* CraftRouter.navigate({ to: '' });
                 },
               },
-              '← Sessions',
+              i18n.t("copy.copy019"),
             ),
             heading({ class: ui.title }, title),
             p({ class: ui.lede, role: 'status' }, summaryText),
@@ -255,7 +260,7 @@ export const E2eComparisonPage = craftComponent(
                     'data-lab': 'e2e-comparison-findings-panel',
                   },
                   [
-                    p({ class: ui.sideSectionTitle }, 'Trouvailles'),
+                    p({ class: ui.sideSectionTitle }, i18n.t("copy.copy020")),
                     ul(
                       {
                         class: ui.sessions,

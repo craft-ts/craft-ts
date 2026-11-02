@@ -177,6 +177,7 @@ export interface BrowserNavigatorServiceApi {
   cookieEnabled(): boolean;
   sendBeacon(url: string | URL, data?: BodyInit | null): boolean;
   share(data?: ShareData): Promise<void>;
+  writeClipboardText(text: string): Promise<boolean>;
 }
 
 export interface BrowserPerformanceServiceApi {
@@ -771,6 +772,16 @@ const browserNavigatorService: BrowserBoundaryService<
     cookieEnabled: () => getBrowserNavigator().cookieEnabled,
     sendBeacon: (url, data) => getBrowserNavigator().sendBeacon(url, data),
     share: (data) => getBrowserNavigator().share(data),
+    writeClipboardText: async (text) => {
+      const clipboard = getBrowserNavigator().clipboard;
+      if (!clipboard) return false;
+      try {
+        await clipboard.writeText(text);
+        return true;
+      } catch {
+        return false;
+      }
+    },
   }),
 );
 export const BrowserNavigatorService: BrowserBoundaryService<
@@ -1094,6 +1105,7 @@ export const BrowserNavigator: BrowserBoundaryDsl<
   cookieEnabled: callBrowserNavigator('cookieEnabled'),
   sendBeacon: callBrowserNavigator('sendBeacon'),
   share: callBrowserNavigator('share'),
+  writeClipboardText: callBrowserNavigator('writeClipboardText'),
 };
 
 export const BrowserPerformance: BrowserBoundaryDsl<

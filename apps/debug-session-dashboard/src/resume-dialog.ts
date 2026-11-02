@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   content,
@@ -13,14 +14,9 @@ import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { DocDialog } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import { replayPoint } from './replay-debug';
+import { ReplayDebug } from './replay-debug';
 import { parseLocalTarget } from './replay-model';
-import {
-  resumeDialogOpen,
-  resumeIntent,
-  routeSessionId,
-  targetUrl,
-} from './replay-state';
+import { routeSessionId, ReplayState } from './replay-state';
 import { ResumeRequest } from './resume-request.service';
 import {
   SessionArchive,
@@ -70,17 +66,25 @@ function existingAtMoment(
   const names = recipes.map((recipe) => `« ${recipeName(recipe)} »`).join(', ');
   if (checkpoint) {
     const until = new Date(checkpoint.expiresAt).toLocaleString('fr-FR');
-    return `Un point de reprise existe déjà à ce moment, valable jusqu’au ${until}${recipes.length ? `, avec ${recipes.length > 1 ? 'les recettes' : 'la recette'} ${names}` : ''}. L’agent le réutilisera s’il convient.`;
+    const recipeInfo = recipes.length
+      ? i18n.t('checkpointRecipeInfo', {
+          recipeInfo: `${recipes.length > 1 ? 'les recettes' : 'la recette'} ${names}`,
+        })
+      : '';
+    return i18n.t('existingCheckpoint', {
+      deadline: until,
+      recipeInfo,
+    });
   }
   if (recipes.length) {
-    return `${recipes.length > 1 ? 'Des recettes existent' : 'Une recette existe'} déjà à ce moment : ${names}. L’agent pourra ${recipes.length > 1 ? 'les' : 'la'} rejouer.`;
+    return i18n.t('existingRecipes', {
+      recipeAvailability:
+        recipes.length > 1 ? 'Des recettes existent' : 'Une recette existe',
+      recipeNames: names,
+      replayPronoun: recipes.length > 1 ? 'les' : 'la',
+    });
   }
   return '';
-}
-
-/** Closed without asking anything: what was typed stays for next time. */
-function closeResumeDialog(): void {
-  resumeDialogOpen.set(false);
 }
 
 /**
@@ -89,6 +93,10 @@ function closeResumeDialog(): void {
  * opens and a prompt lands in the clipboard.
  */
 export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
+  const replayDebug = yield* ReplayDebug();
+  const replayState = yield* ReplayState();
+  const { resumeDialogOpen, resumeIntent, targetUrl } = replayState.imperative;
+  const { closeResumeDialog } = replayState;
   const archive = yield* SessionArchive();
   const request = yield* ResumeRequest();
   const resumeRecipes = rawReactiveValue(archive.resumeRecipeList);
@@ -97,31 +105,35 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
   const failed = rawReactiveValue(archive.resumeRequestFailed);
 
   const momentText = yield* craftComputed('momentText', () => {
-    const point = replayPoint();
+    const point = replayDebug.replayPoint();
     return point.beforeSequence === undefined
-      ? 'Le replay est à la fin de l’enregistrement : l’agent reprendra l’application dans cet état final.'
-      : `Le replay est juste avant l’événement ${point.beforeSequence} : l’agent reprendra l’application à ce moment précis.`;
+      ? i18n.t("copy.copy155")
+      : (i18n.t("copy.copy156") + (point.beforeSequence) + i18n.t("copy.copy157"));
   });
-  const existingText = yield* craftComputed('existingText', () => {
-    const before = replayPoint().beforeSequence;
+  const existingText = yield* craftComputed('existingText', function* () {
+    const before = replayDebug.replayPoint().beforeSequence;
     return existingAtMoment(
-      readyCheckpointFor(resumeCheckpoints(), targetUrl(), before),
-      readyRecipesFor(resumeRecipes(), routeSessionId(), targetUrl(), before),
+      readyCheckpointFor(resumeCheckpoints(), yield* targetUrl(), before),
+      readyRecipesFor(resumeRecipes(), routeSessionId(), yield* targetUrl(), before),
     );
   });
   const existingValue = rawReactiveValue(existingText);
   const failedHidden = yield* craftComputed('failedHidden', () => !failed());
   const submitDisabled = yield* craftComputed(
     'submitDisabled',
-    () => resumeIntent().trim() === '' || sending() || !routeSessionId(),
+    function* () {
+      return (
+        (yield* resumeIntent()).trim() === '' ||
+        sending() ||
+        !routeSessionId()
+      );
+    },
   );
 
   return DocDialog({
     heading: lit('Reprendre avec un agent IA'),
     dialogId: lit('resume-here'),
-    open: function* () {
-      return resumeDialogOpen();
-    },
+    open: resumeDialogOpen,
     dismiss: closeResumeDialog,
     body: content(() => [
       div({ class: ui.importFields }, [
@@ -147,15 +159,15 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
         ),
         label(
           { class: ui.fieldLabel, for: 'resume-intent' },
-          'Que voulez-vous observer ou vérifier ?',
+          i18n.t("copy.copy158"),
         ),
         textarea('resumeIntent', {
           id: 'resume-intent',
-          'aria-label': 'Que voulez-vous observer ou vérifier ?',
+          'aria-label': i18n.t("copy.copy159"),
           class: ui.importText,
           rows: 4,
           placeholder:
-            'Ex. : retrouver le panier avec un produit épuisé pour vérifier le message d’erreur, sans écrire sur le serveur.',
+            i18n.t("copy.copy160"),
           value: resumeIntent,
           input: (event: Event) => resumeIntent.set(eventValue(event)),
         }),
@@ -165,7 +177,7 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
             role: 'alert',
             hidden: failedHidden,
           },
-          'L’archive locale n’a pas reçu la demande. Vérifiez que npm run logs:server tourne, puis réessayez.',
+          i18n.t("copy.copy161"),
         ),
         div({ class: ui.importActions }, [
           button(
@@ -176,7 +188,7 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
               'data-variant': 'secondary',
               click: closeResumeDialog,
             },
-            'Annuler',
+            i18n.t("copy.copy162"),
           ),
           button(
             'confirmResume',
@@ -188,7 +200,7 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
               disabled: submitDisabled,
               click: request.submit,
             },
-            'Ouvrir l’onglet et copier le prompt',
+            i18n.t("copy.copy163"),
           ),
         ]),
       ]),

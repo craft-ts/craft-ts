@@ -1,3 +1,4 @@
+import { i18n } from './i18n/catalog';
 import {
   button,
   craftComponent,
@@ -22,6 +23,7 @@ import {
   pendingWarnings,
   replayDifferences,
   replayWarnings,
+  ReplayState,
   routeSessionId,
   sidePanelOpen,
   sideTab,
@@ -80,7 +82,10 @@ export const ReplaySidePanel = craftComponent(
   'ReplaySidePanel',
   {},
   function* () {
-    const closed = yield* craftComputed('closed', () => !sidePanelOpen());
+    const { sidePanelOpen: panelOpen } = (yield* ReplayState()).imperative;
+    const closed = yield* craftComputed('closed', function* () {
+      return !(yield* panelOpen());
+    });
     const title = yield* craftComputed('title', () => TAB_TITLES[sideTab()]);
 
     const head = div({ class: ui.sideHead }, [
@@ -91,10 +96,10 @@ export const ReplaySidePanel = craftComponent(
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'link',
-          'aria-label': 'Fermer le panneau',
-          click: () => sidePanelOpen.set(false),
+          'aria-label': i18n.t("copy.copy127"),
+          click: () => panelOpen.set(false),
         },
-        'Fermer',
+        i18n.t("copy.copy128"),
       ),
     ]);
 
