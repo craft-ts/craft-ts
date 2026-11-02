@@ -94,6 +94,18 @@ describe('behaviorProofsFromTrace', () => {
     ).toEqual(['http-exception:GET /api/lines#Forbidden']);
   });
 
+  it('proves nothing from a step no assertion came after', () => {
+    expect(
+      behaviorProofsFromTrace(catalog, {
+        ...trace(
+          ['route', 'route-activation:admin', { outcome: 'activated' }],
+          ['invocation', 'invocation:service:cart / craftMethod:empty', { outcome: 'succeeded' }],
+        ),
+        observedSteps: 1,
+      }),
+    ).toEqual(['route:ecommerce:admin']);
+  });
+
   it('indexes proofs per test, sorted', () => {
     expect(
       behaviorProofIndex(catalog, {

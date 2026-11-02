@@ -3,5 +3,5 @@
 // so the published log server applies exactly the same rules.
 export { isSessionHistory, SESSION_HISTORY_FILE } from '@craft-ts/session-trace';
 export { historyBytes, readBaselines, readHistory, recordRun } from './history-store.js';
-export { readReferenceTraces, readReferenceTracesAtBase } from './reference-traces.js';
+export { readReferenceTraces, readReferenceTracesAtBase, type ReferenceTrace } from './reference-traces.js';
 export type { Baseline, HistoryRun, PortableSession, RunMeta, SessionHistory } from './history-store.js';

@@ -18,6 +18,12 @@ export type SessionHistoryRun = Readonly<{
   sizeBytes: number;
   /** Steps recorded by the fixture, inserted into the trace by time. */
   markers?: readonly SessionTraceMarker[];
+  /**
+   * When the test's last assertion passed (`Date.now()`, the clock of the
+   * session events); `null` when none did. The steps after it were exercised,
+   * never observed. Absent before the check existed.
+   */
+  lastAssertionAt?: number | null;
 }>;
 export type SessionHistory = Readonly<{
   format: 'craft-e2e-session-history';
@@ -50,7 +56,8 @@ function isSessionHistoryRun(run: unknown): run is SessionHistoryRun {
     && typeof run['specFile'] === 'string'
     && isRecord(run['environment']) && Object.values(run['environment']).every((item) => typeof item === 'string')
     && Number.isInteger(run['sizeBytes'])
-    && (run['markers'] === undefined || (Array.isArray(run['markers']) && run['markers'].every((marker) => isRecord(marker) && typeof marker['label'] === 'string' && typeof marker['at'] === 'number')));
+    && (run['markers'] === undefined || (Array.isArray(run['markers']) && run['markers'].every((marker) => isRecord(marker) && typeof marker['label'] === 'string' && typeof marker['at'] === 'number')))
+    && (run['lastAssertionAt'] === undefined || run['lastAssertionAt'] === null || (typeof run['lastAssertionAt'] === 'number' && Number.isFinite(run['lastAssertionAt'])));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value); }

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { join, relative } from 'node:path';
-import { test as base, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { test as base, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, lastAssertionPassedAt, resetAssertionClock } from './assertions.js';
 import type { SessionTraceMarker } from '@craft-ts/session-trace';
 import { replayBaselineInDashboard, BASELINE_REPLAY_TIMEOUT_MS } from './baseline-replay.js';
 import { parseTestCraftSession, type CraftSessionContract } from './contract.js';
@@ -81,7 +82,9 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
         return base.step(label, body);
       },
     };
+    resetAssertionClock();
     await use(api);
+    const lastAssertionAt = lastAssertionPassedAt();
 
     try {
       if (!marker) return;
@@ -116,6 +119,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
         serverUrl,
         historyDir: join(testInfo.project.testDir, '__sessions__', craftSessionContract.id, testInfo.project.name),
         markers,
+        ...(lastAssertionAt === undefined ? {} : { lastAssertionAt }),
         meta: {
           recordedAt: new Date().toISOString(), durationMs: testInfo.duration,
           retry: testInfo.retry, gitSha: craftSessionGit.sha, dirty: craftSessionGit.dirty,

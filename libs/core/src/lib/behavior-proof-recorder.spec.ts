@@ -40,7 +40,7 @@ describe('behaviour proof recording', () => {
     sut.add('a');
     sut.add('b');
 
-    expect(ɵstopBehaviorProofRecording()).toEqual([
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([
       {
         key: 'invocation:service:basket / method:add',
         kind: 'invocation',
@@ -55,7 +55,7 @@ describe('behaviour proof recording', () => {
     sut.reserve();
     expect(() => sut.crash()).toThrow('boom');
 
-    expect(ɵstopBehaviorProofRecording()).toEqual([
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([
       {
         key: 'invocation:service:basket / method:reserve',
         kind: 'invocation',
@@ -69,13 +69,33 @@ describe('behaviour proof recording', () => {
     ]);
   });
 
+  it('tells the steps an assertion came after from those none did', () => {
+    ɵstartBehaviorProofRecording({
+      assertions: () => expect.getState().assertionCalls,
+    });
+    const { sut } = setupCraftServiceTest(Basket, {});
+    expect(sut.add('a')).toBe('a');
+    expect(sut.reserve()).toMatchObject({ _tag: 'OutOfStock' });
+    // vitest counts an assertion at `expect(…)`, before its matcher runs:
+    // a call made by the matcher itself has no assertion after it.
+    expect(() => sut.crash()).toThrow('boom');
+
+    const { steps, observedSteps } = ɵstopBehaviorProofRecording();
+    expect(steps.map((step) => step.key)).toEqual([
+      'invocation:service:basket / method:add',
+      'invocation:service:basket / method:reserve',
+      'invocation:service:basket / method:crash',
+    ]);
+    expect(observedSteps).toBe(2);
+  });
+
   it('records nothing outside a recording, nor once its providers are gone', () => {
     setupCraftServiceTest(Basket, {}).sut.add('a');
-    expect(ɵstopBehaviorProofRecording()).toEqual([]);
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([]);
 
     unregister();
     ɵstartBehaviorProofRecording();
     setupCraftServiceTest(Basket, {}).sut.add('a');
-    expect(ɵstopBehaviorProofRecording()).toEqual([]);
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([]);
   });
 });

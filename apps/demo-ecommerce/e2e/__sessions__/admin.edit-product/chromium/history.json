@@ -5,27 +5,28 @@
   "project": "chromium",
   "runs": [
     {
-      "dirty": false,
-      "durationMs": 1541,
+      "dirty": true,
+      "durationMs": 2428,
       "environment": {
         "browser": "chromium",
         "browserVersion": "153.0.8010.12",
         "platform": "darwin"
       },
-      "file": "2026-10-25T16-11-51-171Z-24d1a5.session.json.gz",
-      "gitSha": "a91ba84ac",
+      "file": "2026-11-02T11-58-49-243Z-dd060a.session.json.gz",
+      "gitSha": "39f926a4b",
+      "lastAssertionAt": 1793620729235,
       "markers": [
         {
-          "at": 1792944710919,
+          "at": 1793620728626,
           "label": "modifier le stock"
         }
       ],
-      "recordedAt": "2026-10-25T16:11:51.171Z",
+      "recordedAt": "2026-11-02T11:58:49.243Z",
       "retry": 0,
-      "sizeBytes": 7925,
+      "sizeBytes": 11370,
       "specFile": "apps/demo-ecommerce/e2e/admin.spec.ts",
       "title": "se connecter et modifier un produit dans l’administration",
-      "traceHash": "f21642ea5690d9955a4f06f65cb9b7a117255e71502ffbd4e4f184801ae085ab",
+      "traceHash": "dfddd6525279195d50bd0ba5107c50d490be9def8ee9d27d816558df8edb8faf",
       "traceSchemaVersion": 2
     }
   ],

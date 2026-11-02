@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { normalizeSessionTrace } from '@craft-ts/session-trace';
-import { readBaselines, readHistory, recordRun } from './history-store.js';
+import { observedStepCount, readBaselines, readHistory, recordRun } from './history-store.js';
 
 const directories: string[] = [];
 afterEach(() => { for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true }); });
@@ -35,6 +35,17 @@ describe('session history store', () => {
     recordRun(data.dir, { ...input, trace: { ...data.trace, hash: 'written-by-an-old-normalizer' } });
     expect(recordRun(data.dir, input)).toBe('unchanged');
     expect(readBaselines(data.dir)[0]?.trace.hash).toBe(data.trace.hash);
+  });
+
+  it('counts the steps that came before the last passing assertion', () => {
+    const session = { events: [
+      { id: 'a', sequence: 1, timestamp: 1_000, kind: 'route-activation', payload: { routePath: 'cart', outcome: 'activated' } },
+      { id: 'b', sequence: 2, timestamp: 2_000, kind: 'route-activation', payload: { routePath: 'pay', outcome: 'activated' } },
+    ] };
+    const trace = normalizeSessionTrace(session);
+    expect(observedStepCount(trace, session, 1_500)).toBe(1);
+    expect(observedStepCount(trace, session, 2_000)).toBe(2);
+    expect(observedStepCount(trace, session, null)).toBe(0);
   });
 
   it('rotates the oldest sessions when keep is exceeded', () => {

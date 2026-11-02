@@ -40,7 +40,7 @@ function input(overrides: Partial<FinalizeInput> & Pick<FinalizeInput, 'sessionI
   const value: FinalizeInput = {
     testId: 'shop.checkout', project: 'chromium', title: 'checkout',
     contract: { id: 'shop.checkout', keep: 2, reason: 'test', capture: 'required' },
-    mode: 'update', status: 'passed', serverUrl: 'http://log.test', historyDir, markers: [{ label: 'payer', at: 1_005 }],
+    mode: 'update', status: 'passed', serverUrl: 'http://log.test', historyDir, markers: [{ label: 'payer', at: 1_005 }], lastAssertionAt: 1_020,
     meta: { recordedAt: '2026-10-25T08:00:00.000Z', durationMs: 10, retry: 0, gitSha: 'abc', dirty: false, title: 'checkout', specFile: 'e2e/checkout.spec.ts', environment: {} },
     lookupTimeoutMs: 1_000,
     attach: async (name, body) => { attachments.push({ name, body: body.toString() }); },
@@ -56,7 +56,19 @@ describe('finalizeCraftSession', () => {
     const { value, historyDir } = input({ sessionIds: [ID_A, ID_A], fetch: server.fetch });
     expect((await finalizeCraftSession(value)).recorded).toEqual(['written']);
     expect(server.requests).toEqual([ID_A]);
-    expect(readHistory(historyDir)?.runs).toEqual([expect.objectContaining({ traceSchemaVersion: 2, markers: [{ label: 'payer', at: 1_005 }] })]);
+    expect(readHistory(historyDir)?.runs).toEqual([expect.objectContaining({ traceSchemaVersion: 2, markers: [{ label: 'payer', at: 1_005 }], lastAssertionAt: 1_020 })]);
+  });
+
+  it('keeps when the last passing assertion came, or that none did', async () => {
+    const server = archive({ [ID_A]: session(200) });
+    const early = input({ sessionIds: [ID_A], fetch: server.fetch, lastAssertionAt: 999 });
+    await finalizeCraftSession(early.value);
+    expect(readHistory(early.historyDir)?.runs[0]?.lastAssertionAt).toBe(999);
+
+    const { lastAssertionAt: _, ...none } = input({ sessionIds: [ID_A], fetch: server.fetch }).value;
+    const result = await finalizeCraftSession(none);
+    expect(result.warnings).toEqual([expect.stringContaining('Aucune assertion réussie')]);
+    expect(readHistory(none.historyDir)?.runs[0]?.lastAssertionAt).toBeNull();
   });
 
   it('warns when the test session was split in two', async () => {

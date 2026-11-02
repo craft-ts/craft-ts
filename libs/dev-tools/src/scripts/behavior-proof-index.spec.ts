@@ -19,7 +19,7 @@ afterAll(() => rmSync(rootDir, { recursive: true, force: true }));
 
 const step = (key: string) => ({ key, kind: 'invocation', detail: { outcome: 'succeeded' } });
 
-type FakeTest = { name: string; state: 'passed' | 'failed'; steps?: ReturnType<typeof step>[] };
+type FakeTest = { name: string; state: 'passed' | 'failed'; steps?: ReturnType<typeof step>[]; observedSteps?: number };
 
 const testModule = (file: string, tests: FakeTest[]) =>
   ({
@@ -28,7 +28,8 @@ const testModule = (file: string, tests: FakeTest[]) =>
       allTests: () =>
         tests.map((test) => ({
           fullName: test.name,
-          meta: () => (test.steps ? { craftBehaviorProof: { steps: test.steps } } : {}),
+          meta: () =>
+            test.steps ? { craftBehaviorProof: { steps: test.steps, observedSteps: test.observedSteps } } : {},
           result: () => ({ state: test.state }),
         })),
     },
@@ -46,12 +47,12 @@ describe('behaviorProofReporter', () => {
   it('keeps the passing tests only, keyed by file and full name', async () => {
     await run(
       testModule('src/cart.spec.ts', [
-        { name: 'cart > adds', state: 'passed', steps: [step('invocation:service:cart / method:add')] },
+        { name: 'cart > adds', state: 'passed', steps: [step('invocation:service:cart / method:add')], observedSteps: 1 },
         { name: 'cart > breaks', state: 'failed', steps: [step('invocation:service:cart / method:clear')] },
       ]),
     );
     expect(readBehaviorProofIndex(rootDir)).toEqual({
-      'src/cart.spec.ts > cart > adds': { steps: [step('invocation:service:cart / method:add')] },
+      'src/cart.spec.ts > cart > adds': { steps: [step('invocation:service:cart / method:add')], observedSteps: 1 },
     });
   });
 

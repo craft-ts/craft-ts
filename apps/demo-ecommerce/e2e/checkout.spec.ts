@@ -1,4 +1,4 @@
-import { test, craftSession } from './fixtures';
+import { test, craftSession, expect } from './fixtures';
 
 test('parcourt boutique, panier et confirmation de commande', {
   annotation: craftSession({ id: 'shop.checkout', keep: 1 }),
@@ -11,6 +11,6 @@ test('parcourt boutique, panier et confirmation de commande', {
     await page.getByRole('link', { name: /Panier/ }).click();
     await page.getByRole('link', { name: /Passer commande/ }).click();
     await page.getByRole('button', { name: 'Confirmer la commande' }).click();
-    await page.getByText('Merci pour votre commande').waitFor();
+    await expect(page.getByText('Merci pour votre commande')).toBeVisible();
   });
 });

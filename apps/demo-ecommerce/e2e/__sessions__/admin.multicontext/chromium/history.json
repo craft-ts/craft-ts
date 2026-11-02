@@ -5,6 +5,26 @@
   "project": "chromium",
   "runs": [
     {
+      "dirty": true,
+      "durationMs": 1482,
+      "environment": {
+        "browser": "chromium",
+        "browserVersion": "153.0.8010.12",
+        "platform": "darwin"
+      },
+      "file": "2026-11-02T11-58-51-791Z-943615.session.json.gz",
+      "gitSha": "39f926a4b",
+      "lastAssertionAt": 1793620731774,
+      "markers": [],
+      "recordedAt": "2026-11-02T11:58:51.791Z",
+      "retry": 0,
+      "sizeBytes": 9190,
+      "specFile": "apps/demo-ecommerce/e2e/multicontext.spec.ts",
+      "title": "rattache les contextes boutique et administration à une session",
+      "traceHash": "9b0436ffb9e25107733b47a1ac41d6eaed265688fa62e4bf4a44353bf8b00cb9",
+      "traceSchemaVersion": 2
+    },
+    {
       "dirty": false,
       "durationMs": 1111,
       "environment": {
@@ -20,7 +40,7 @@
       "sizeBytes": 6538,
       "specFile": "apps/demo-ecommerce/e2e/multicontext.spec.ts",
       "title": "rattache les contextes boutique et administration à une session",
-      "traceHash": "1c06719ba762a115695b099ae1210940bf65ad98e6c53fbd0820023453299f46",
+      "traceHash": "2bb36c3d7c4f0ed816c6b8ae839257e98426edf3ce45756ef912702712603716",
       "traceSchemaVersion": 2
     }
   ],

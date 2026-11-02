@@ -58,7 +58,10 @@ export function behaviorProofReporter(
           // Set by the setup file of `@craft-ts/core`, which declares the field.
           const proof = (test.meta() as { craftBehaviorProof?: BehaviorTraceLike }).craftBehaviorProof;
           if (test.result().state !== 'passed' || !proof) continue;
-          fresh[`${file}${SEPARATOR}${test.fullName}`] = { steps: proof.steps };
+          fresh[`${file}${SEPARATOR}${test.fullName}`] = {
+            steps: proof.steps,
+            ...(proof.observedSteps === undefined ? {} : { observedSteps: proof.observedSteps }),
+          };
         }
       }
       const kept = Object.entries(index.tests).filter(

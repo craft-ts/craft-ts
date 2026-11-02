@@ -48,14 +48,27 @@ const END_PHASES = new Set(['succeeded', 'failed']);
 export function normalizeSessionTrace(session: PortableSessionForTrace, options: NormalizeSessionTraceOptions = {}): SessionTrace {
   const serverFunctionPaths = new Set(options.serverFunctionPaths ?? DEFAULT_SERVER_FUNCTION_PATHS);
   const events = [...session.events].sort((a, b) => number(a['sequence']) - number(b['sequence']));
+  // A page numbers its operations from 1: once reloaded (its participant
+  // announces a new initial state) it reuses the ids. An operation is one
+  // page load of one participant, then its id.
+  const loads = new Map<string, number>();
+  const operationKeys = new Map<Event, string>();
+  for (const event of events) {
+    const participant = String(event['participantId'] ?? '');
+    if (event['kind'] === 'participant' && record(event['payload'])['initial'] === true)
+      loads.set(participant, (loads.get(participant) ?? 0) + 1);
+    if (typeof event['operationId'] === 'string')
+      operationKeys.set(event, `${participant}\u0000${loads.get(participant) ?? 0}\u0000${event['operationId']}`);
+  }
+  const operationKey = (event: Event) => operationKeys.get(event) ?? '';
   const operations = new Map<string, Operation>();
   for (const event of events) {
-    const operationId = event['operationId'];
-    if (!OPERATION_KINDS.has(String(event['kind'])) || typeof operationId !== 'string') continue;
-    const operation = operations.get(operationId) ?? {};
+    if (!OPERATION_KINDS.has(String(event['kind'])) || typeof event['operationId'] !== 'string') continue;
+    const key = operationKey(event);
+    const operation = operations.get(key) ?? {};
     if (event['phase'] === 'started') operation.start ??= event;
     else if (END_PHASES.has(String(event['phase']))) operation.end ??= event;
-    operations.set(operationId, operation);
+    operations.set(key, operation);
   }
   const ignored: Record<string, number> = {};
   const lastValueByAddress = new Map<string, string>();
@@ -68,7 +81,7 @@ export function normalizeSessionTrace(session: PortableSessionForTrace, options:
     const kind = String(event['kind'] ?? '');
     const payload = record(event['payload']);
     if (OPERATION_KINDS.has(kind) && typeof event['operationId'] === 'string') {
-      const operation = operations.get(event['operationId'])!;
+      const operation = operations.get(operationKey(event))!;
       // One step per operation, at its start; an end without a start stands alone.
       if (event !== (operation.start ?? operation.end)) continue;
       const start = operation.start ?? {};

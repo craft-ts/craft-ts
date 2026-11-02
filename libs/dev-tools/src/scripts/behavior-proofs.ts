@@ -24,6 +24,12 @@ export type BehaviorTraceLike = {
     readonly kind: string;
     readonly detail: Readonly<Record<string, unknown>>;
   }[];
+  /**
+   * How many steps a passing assertion came after. The steps from this index
+   * on were exercised but never observed, and prove nothing. Absent: not
+   * recorded (a reference older than the check), every step counts.
+   */
+  readonly observedSteps?: number;
 };
 
 /** Test id → the obligations its trace proves, sorted. */
@@ -66,7 +72,8 @@ export function behaviorProofsFromTrace(
     candidates?.length === 1 ? candidates[0] : undefined;
 
   const proven = new Set<string>();
-  for (const step of trace.steps) {
+  const observed = trace.steps.slice(0, trace.observedSteps ?? trace.steps.length);
+  for (const step of observed) {
     if (step.kind === 'invocation' && step.key.startsWith('invocation:')) {
       const target = invocationTarget(step.key.slice('invocation:'.length));
       if (!target) continue;

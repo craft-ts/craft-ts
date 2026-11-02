@@ -18,18 +18,51 @@ export type ɵBehaviorProofStep = Readonly<{
   detail: Readonly<{ outcome: 'succeeded' | 'failed'; exception?: string }>;
 }>;
 
-let recording: Map<string, ɵBehaviorProofStep> | undefined;
+export type ɵBehaviorProofRecording = Readonly<{
+  /** In the order they first settled. */
+  steps: ɵBehaviorProofStep[];
+  /**
+   * How many of the steps an assertion came after — the steps from this
+   * index on were exercised but never observed. Absent when the recording
+   * was started without an assertion counter.
+   */
+  observedSteps?: number;
+}>;
 
-/** Starts a fresh recording; the previous one, if any, is dropped. */
-export function ɵstartBehaviorProofRecording(): void {
-  recording = new Map();
+type Recording = {
+  steps: Map<string, { step: ɵBehaviorProofStep; assertionsBefore: number }>;
+  assertions?: () => number;
+};
+
+let recording: Recording | undefined;
+
+/**
+ * Starts a fresh recording; the previous one, if any, is dropped. With an
+ * assertion counter (vitest: `expect.getState().assertionCalls`), the
+ * recording also tells which steps an assertion followed.
+ */
+export function ɵstartBehaviorProofRecording(
+  options: Readonly<{ assertions?: () => number }> = {},
+): void {
+  recording = { steps: new Map(), ...options };
 }
 
-/** Ends the recording and returns its steps in the order they first settled. */
-export function ɵstopBehaviorProofRecording(): ɵBehaviorProofStep[] {
-  const steps = [...(recording?.values() ?? [])];
+export function ɵstopBehaviorProofRecording(): ɵBehaviorProofRecording {
+  const current = recording;
   recording = undefined;
-  return steps;
+  const entries = [...(current?.steps.values() ?? [])];
+  const steps = entries.map((entry) => entry.step);
+  if (!current?.assertions) return { steps };
+  // Steps are kept in the order they first settled, so the counts before
+  // them never decrease: the observed ones are a prefix.
+  const assertions = current.assertions();
+  const unobserved = entries.findIndex(
+    (entry) => entry.assertionsBefore >= assertions,
+  );
+  return {
+    steps,
+    observedSteps: unobserved === -1 ? entries.length : unobserved,
+  };
 }
 
 const HOST_FACTORY_TAG = /^(service|component|route):/;
@@ -44,7 +77,12 @@ function record(
     kind: 'invocation',
     detail,
   };
-  recording?.set(JSON.stringify([step.key, detail]), step);
+  const id = JSON.stringify([step.key, detail]);
+  if (!recording || recording.steps.has(id)) return;
+  recording.steps.set(id, {
+    step,
+    assertionsBefore: recording.assertions?.() ?? 0,
+  });
 }
 
 /**

@@ -67,6 +67,21 @@ export function readBaselines(dir: string): readonly Baseline[] {
   });
 }
 
+/**
+ * How many steps of a trace came before the test's last passing assertion
+ * (`Date.now()`, the clock of the page events). `null`, no assertion: none.
+ * Computed when read, so that a new normalizer never makes it stale.
+ */
+export function observedStepCount(trace: SessionTrace, session: PortableSession, lastAssertionAt: number | null): number {
+  if (lastAssertionAt === null) return 0;
+  const timestamps = new Map(portable(session).events.map((event) => [String(event['id'] ?? ''), event['timestamp']]));
+  const index = trace.steps.findIndex((step) => {
+    const at = timestamps.get(step.eventId);
+    return typeof at === 'number' && at > lastAssertionAt;
+  });
+  return index === -1 ? trace.steps.length : index;
+}
+
 export function historyBytes(dir: string): number {
   return readdirSync(dir).reduce((total, name) => total + statSync(join(dir, name)).size, 0);
 }

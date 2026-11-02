@@ -32,7 +32,9 @@ export type FinalizeInput = Readonly<{
   serverUrl: string;
   historyDir: string;
   markers: readonly SessionTraceMarker[];
-  meta: Omit<RunMeta, 'markers'>;
+  /** When the test's last assertion passed; absent when none did. */
+  lastAssertionAt?: number;
+  meta: Omit<RunMeta, 'markers' | 'lastAssertionAt'>;
   budgetBytes?: Readonly<{ session: number; test: number }>;
   /** Comparison view of the dashboard for a session id. */
   compareUrl?: (sessionId: string) => string;
@@ -68,6 +70,8 @@ export async function finalizeCraftSession(input: FinalizeInput): Promise<Finali
     return result;
   }
   if (!record && !compare) return result;
+  if (record && input.lastAssertionAt === undefined)
+    result.warnings.push('Aucune assertion réussie vue : ce test ne prouve aucun comportement. Importez `expect` de @craft-ts/playwright-sessions.');
   if (ids.length > 1) result.warnings.push(`La session a été coupée en ${ids.length} : ${ids.join(', ')}. Une page a sans doute perdu l’id de session du test.`);
 
   for (const id of ids) {
@@ -86,7 +90,7 @@ export async function finalizeCraftSession(input: FinalizeInput): Promise<Finali
         throw new Error(`${input.title}: export de session (${bytes} octets) au-dessus du budget.`);
       result.recorded.push(recordRun(input.historyDir, {
         id: input.testId, project: input.project, keep: input.contract.keep, session, trace,
-        meta: { ...input.meta, markers: input.markers },
+        meta: { ...input.meta, markers: input.markers, lastAssertionAt: input.lastAssertionAt ?? null },
       }));
       continue;
     }

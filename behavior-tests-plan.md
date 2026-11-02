@@ -1,6 +1,6 @@
 # Plan : contraindre des tests de comportement
 
-> Statut (2026-11-02) : lot 1 fait et commité ; lot 2 fait (e2e et tests de service/template), sauf la vérification « observé » ; lot 3 à faire.
+> Statut (2026-11-02) : lots 1 et 2 faits et commités ; lot 3 à faire.
 
 ## Objectif
 
@@ -262,13 +262,36 @@ vitest et lecture de l'index).
 - [x] Cliquet complet : obligation prouvée sur la base, toujours là, plus
   prouvée → bloquant (waivable avec raison). Couverture affichée, jamais
   imposée.
-- [ ] Vérification « observé » (assertion après l'événement) : non fait ; les
-  assertions Playwright n'apparaissent pas dans les traces.
+- [x] Vérification « observé » : une étape ne prouve que si une assertion
+  réussie vient après elle. Le contrôle est faible exprès : il attrape le
+  test sans assertion et le travail qui suit la dernière, pas une assertion
+  qui regarde autre chose (c'est le rôle des mutants, lot 3).
+  - vitest : le compteur `expect.getState().assertionCalls` au moment où
+    chaque étape se règle. vitest compte à `expect(…)`, avant le matcher :
+    un appel fait par le matcher lui-même (`expect(() => f()).toThrow()`)
+    n'a pas d'assertion après lui. Les exceptions Craft sont des valeurs
+    (`expect(craftUse(…))`), donc pas concernées.
+  - e2e : `expect` de `@craft-ts/playwright-sessions` (réexporté par les
+    fixtures) note l'heure de la dernière assertion réussie ;
+    `lastAssertionAt` est rangé dans le run de `history.json` (`null` :
+    aucune, avec un avertissement) et le nombre d'étapes observées est
+    recalculé à la lecture, pour qu'un nouveau normaliseur ne le rende
+    jamais faux. Une référence d'avant le contrôle compte toutes ses étapes.
+  - Premier effet : `shop.checkout` finissait par `waitFor()`, sans aucune
+    assertion ; il vérifie maintenant la confirmation.
 - [x] Avertissement test orphelin.
 
-Observation : `admin.edit-product` clique sur « +1 stock », mais sa référence
-(2026-10-25) ne contient ni `adminAction` ni `ecommerce.product.save`. À
-regarder : référence ancienne ou capture incomplète.
+- [x] `admin.edit-product` ne montrait ni `adminAction` ni
+  `ecommerce.product.save` : bug du normaliseur de `@craft-ts/session-trace`.
+  Une page rechargée (`page.goto`) garde son participant mais renumérote ses
+  opérations depuis 1, et les opérations étaient regroupées par id seul : la
+  seconde page perdait les siennes. Une opération est maintenant
+  participant × chargement de page × id. Références `admin.edit-product`,
+  `admin.multicontext` et `shop.checkout` réenregistrées ; `demo-ecommerce`
+  passe à 22 obligations prouvées sur 34. `guided-resume` garde son
+  ancienne référence : son e2e échoue sur le dashboard (alias
+  `@craft-ts/i18n` absent de son `vite.config.ts`, puis `source$` appelé hors
+  contexte d'injection dans `replay-state.ts`), sans rapport avec ce lot.
 
 - [x] L'enregistreur e2e (`send-context-to-ai.ts`) comptait comme réussie une
   invocation qui rend une exception Craft en valeur (une preuve `#success`

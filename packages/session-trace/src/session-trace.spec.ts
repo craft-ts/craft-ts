@@ -63,6 +63,16 @@ describe('normalizeSessionTrace', () => {
     expect(step(normalizeSessionTrace(broken), 'server-fn:ecommerce.checkout').detail).toEqual({ status: 500, outcome: 'error', bodyKeys: ['error'] });
   });
 
+  it('keeps the operations of a reloaded page, which numbers its ids from 1 again', () => {
+    const load = (sequence: number) => ({ id: `p${sequence}`, sequence, timestamp: sequence, kind: 'participant', phase: 'emitted', participantId: 'tab', payload: { initial: true } });
+    const call = (sequence: number, phase: string, host: string) => ({ id: `c${sequence}`, sequence, timestamp: sequence, kind: 'craft', phase, operationId: 'craft-call-1', participantId: 'tab', payload: { hostTags: ['service:shop', host] } });
+    const trace = normalizeSessionTrace(session([
+      load(1), call(2, 'started', 'query:currentUser'), call(3, 'succeeded', 'query:currentUser'),
+      load(4), call(5, 'started', 'query:adminAction'), call(6, 'succeeded', 'query:adminAction'),
+    ]));
+    expect(keys(trace)).toEqual(['invocation:service:shop / query:currentUser', 'invocation:service:shop / query:adminAction']);
+  });
+
   it('marks an operation without an end as pending', () => {
     const trace = normalizeSessionTrace(session([
       { id: 'a', kind: 'http', phase: 'started', operationId: 'fetch-1', sequence: 1, payload: { method: 'GET', url: 'http://localhost/api/cart?b=1' } },

@@ -15,9 +15,12 @@ const session = (routePath: string) => ({
   format: 'craft-debug-session', version: 6, startUrl: 'http://localhost/', exportedAt: 1, truncated: false, clips: [],
   events: [{ id: 'e1', sequence: 1, timestamp: 1, kind: 'route-activation', phase: 'succeeded', name: routePath, payload: { routePath, outcome: 'activated' } }],
 });
-function record(sessionsDir: string, id: string, routePath: string) {
+function record(sessionsDir: string, id: string, routePath: string, lastAssertionAt?: number | null) {
   const value = session(routePath);
-  recordRun(join(sessionsDir, id, 'chromium'), { id, project: 'chromium', keep: 1, session: value, trace: normalizeSessionTrace(value), meta });
+  recordRun(join(sessionsDir, id, 'chromium'), {
+    id, project: 'chromium', keep: 1, session: value, trace: normalizeSessionTrace(value),
+    meta: lastAssertionAt === undefined ? meta : { ...meta, lastAssertionAt },
+  });
 }
 const keys = (traces: Record<string, { steps: readonly { key: string }[] }> | undefined) =>
   traces && Object.fromEntries(Object.entries(traces).map(([test, trace]) => [test, trace.steps.map((step) => step.key)]));
@@ -33,6 +36,18 @@ describe('reference traces', () => {
       'shop.cart/chromium': ['route-activation:cart'],
     });
     expect(readReferenceTraces(join(dir, 'missing'))).toEqual({});
+  });
+
+  it('tells how many steps the last passing assertion came after, when it was recorded', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'craft-reference-traces-'));
+    directories.push(dir);
+    record(dir, 'shop.cart', 'cart', 1);
+    record(dir, 'shop.pay', 'pay', null);
+    record(dir, 'shop.old', 'old');
+    const traces = readReferenceTraces(dir);
+    expect(traces['shop.cart/chromium']?.observedSteps).toBe(1);
+    expect(traces['shop.pay/chromium']?.observedSteps).toBe(0);
+    expect(traces['shop.old/chromium']?.observedSteps).toBeUndefined();
   });
 
   it('reads them as committed at the merge base with the base branch', () => {

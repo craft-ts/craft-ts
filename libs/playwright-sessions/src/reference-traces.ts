@@ -3,7 +3,13 @@ import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { isSessionHistory, normalizeSessionTrace, type SessionTrace } from '@craft-ts/session-trace';
-import { portable, readBaselines, type PortableSession } from './history-store.js';
+import { observedStepCount, portable, readBaselines, type PortableSession } from './history-store.js';
+
+/** A reference's trace, with how many of its steps an assertion followed. */
+export type ReferenceTrace = SessionTrace & Readonly<{ observedSteps?: number }>;
+
+const referenceTrace = (trace: SessionTrace, session: PortableSession, lastAssertionAt: number | null | undefined): ReferenceTrace =>
+  lastAssertionAt === undefined ? trace : { ...trace, observedSteps: observedStepCount(trace, session, lastAssertionAt) };
 
 /**
  * The trace of each test's most recent green reference, keyed `<id>/<project>`.
@@ -11,13 +17,13 @@ import { portable, readBaselines, type PortableSession } from './history-store.j
  * The references are committed already: reading them costs no storage, and
  * the behaviour catalog reads its e2e proofs from them.
  */
-export function readReferenceTraces(sessionsDir: string): Record<string, SessionTrace> {
-  const traces: Record<string, SessionTrace> = {};
+export function readReferenceTraces(sessionsDir: string): Record<string, ReferenceTrace> {
+  const traces: Record<string, ReferenceTrace> = {};
   if (!existsSync(sessionsDir)) return traces;
   for (const id of directories(sessionsDir)) {
     for (const project of directories(join(sessionsDir, id))) {
       const [latest] = readBaselines(join(sessionsDir, id, project));
-      if (latest) traces[`${id}/${project}`] = latest.trace;
+      if (latest) traces[`${id}/${project}`] = referenceTrace(latest.trace, latest.session, latest.run.lastAssertionAt);
     }
   }
   return sortedRecord(traces);
@@ -34,7 +40,7 @@ export function readReferenceTracesAtBase(options: Readonly<{
   sessionsDir: string;
   /** Tried in order; defaults to `CRAFT_BEHAVIOR_BASE` or `main`, then `origin/main`. */
   baseRef?: string | readonly string[];
-}>): Record<string, SessionTrace> | undefined {
+}>): Record<string, ReferenceTrace> | undefined {
   const git = (...args: string[]) => execFileSync('git', args, { cwd: options.cwd, stdio: ['ignore', 'pipe', 'ignore'] });
   const refs = typeof options.baseRef === 'string'
     ? [options.baseRef]
@@ -51,14 +57,14 @@ export function readReferenceTracesAtBase(options: Readonly<{
       .toString('utf8')
       .split('\n')
       .filter((path) => path.endsWith('/history.json'));
-    const traces: Record<string, SessionTrace> = {};
+    const traces: Record<string, ReferenceTrace> = {};
     for (const path of histories) {
       const history: unknown = JSON.parse(git('show', `${base}:./${path}`).toString('utf8'));
       const run = isSessionHistory(history) ? history.runs[0] : undefined;
       if (!run) continue;
       const session = JSON.parse(gunzipSync(git('show', `${base}:./${dirname(path)}/${run.file}`)).toString('utf8')) as PortableSession;
       const [id, project] = dirname(path).slice(options.sessionsDir.replace(/\/$/, '').length + 1).split('/');
-      traces[`${id}/${project}`] = normalizeSessionTrace(portable(session), { markers: run.markers ?? [] });
+      traces[`${id}/${project}`] = referenceTrace(normalizeSessionTrace(portable(session), { markers: run.markers ?? [] }), session, run.lastAssertionAt);
     }
     return sortedRecord(traces);
   }

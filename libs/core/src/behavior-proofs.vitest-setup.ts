@@ -6,27 +6,30 @@
  *   setupFiles: ['@craft-ts/core/behavior-proofs-setup'],
  *   reporters: ['default', behaviorProofReporter({ rootDir })],
  */
-import { afterEach, beforeEach } from 'vitest';
+import { afterEach, beforeEach, expect } from 'vitest';
 import {
   ɵprovideBehaviorProofRecording,
   ɵstartBehaviorProofRecording,
   ɵstopBehaviorProofRecording,
-  type ɵBehaviorProofStep,
+  type ɵBehaviorProofRecording,
 } from './lib/behavior-proof-recorder';
 import { ɵregisterCraftTestProviders } from './lib/craft-test-providers';
 
 declare module 'vitest' {
   interface TaskMeta {
-    craftBehaviorProof?: { steps: ɵBehaviorProofStep[] };
+    craftBehaviorProof?: ɵBehaviorProofRecording;
   }
 }
 
 ɵregisterCraftTestProviders([ɵprovideBehaviorProofRecording()]);
 
 beforeEach(() => {
-  ɵstartBehaviorProofRecording();
+  // An invocation no assertion came after was exercised, not observed.
+  ɵstartBehaviorProofRecording({
+    assertions: () => expect.getState().assertionCalls,
+  });
 });
 
 afterEach(({ task }) => {
-  task.meta.craftBehaviorProof = { steps: ɵstopBehaviorProofRecording() };
+  task.meta.craftBehaviorProof = ɵstopBehaviorProofRecording();
 });
