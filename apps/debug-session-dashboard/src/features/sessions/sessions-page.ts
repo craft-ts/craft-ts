@@ -458,7 +458,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               'data-variant': 'link',
               hidden: function* () {
                 const item = yield* saved();
-                return pendingDeleteSessionId() === item.id;
+                return (yield* pendingDeleteSessionId()) === item.id;
               },
               'aria-label': function* () {
                 const item = yield* saved();
@@ -480,7 +480,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               'aria-label': 'Confirmer la suppression de la session',
               hidden: function* () {
                 const item = yield* saved();
-                return pendingDeleteSessionId() !== item.id;
+                return (yield* pendingDeleteSessionId()) !== item.id;
               },
             },
             [
