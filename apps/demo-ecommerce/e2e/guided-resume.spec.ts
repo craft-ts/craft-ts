@@ -165,7 +165,7 @@ test.describe('reprise guidée par une IA simulée', () => {
         .getByRole('button', { name: /Se connecter en tant que Camille/ })
         .click();
       await page.getByRole('link', { name: 'Mon compte' }).waitFor();
-      await expect(page.locator('.admin-row').first()).toBeVisible();
+      await expect(page.getByRole('list', { name: 'Produits' }).getByRole('listitem').first()).toBeVisible();
       let sessionId = '';
       await expect
         .poll(

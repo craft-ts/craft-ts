@@ -12,6 +12,7 @@ export default defineConfig({
       '@craft-ts/session-trace': workspace('packages/session-trace/src/index.ts'),
       '@craft-ts/dev-tools/dependency-graph': workspace('libs/dev-tools/src/scripts/dependency-graph.ts'),
       '@craft-ts/dev-tools/architecture-graph': workspace('libs/dev-tools/src/scripts/architecture-graph.ts'),
+      '@craft-ts/dev-tools/behavior-catalog': workspace('libs/dev-tools/src/scripts/behavior-catalog.ts'),
     },
   },
   test: { environment: 'node', include: ['architecture/**/*.spec.ts'] },

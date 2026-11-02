@@ -2,7 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
   assertDeclarativeArchitecture,
   assertLazyRouteTargetsStayLazy,
+  behaviorCatalogToTypeScript,
+  behaviorObligationsReport,
+  findBehaviorTestFiles,
+  readBehaviorCatalogAtBase,
 } from '@craft-ts/dev-tools';
+import { behaviorWaiverList } from './behavior-waivers';
 import { loadArchitectureGraph } from './load-graph';
 import { architectureWaiverList } from './waivers';
 
@@ -40,5 +45,31 @@ describe('architecture', () => {
         'folder-layout-layers': 'error',
       },
     });
+  });
+
+  it('lists what a user can trigger, and lets no new behaviour arrive without its test', async () => {
+    const rootDir = graph.graph.rootDir;
+    const report = behaviorObligationsReport(graph.graph, {
+      sourceRoots: ['apps/debug-session-dashboard/src'],
+      // URLs built at run time: the graph cannot read them, so they are named
+      // here. Neither declares a typed exception, so neither owes one a test.
+      httpContracts: {
+        'apps/debug-session-dashboard/src/features/e2e-replay/e2e-replay-route.service.ts#sourceSession':
+          { method: 'GET', url: '<portable export named by the route>', exceptions: [] },
+        'apps/debug-session-dashboard/src/shared/data-access/resume-thread.service.ts#thread':
+          { method: 'GET', url: '/sessions/resume-requests/:lookup', exceptions: [] },
+      },
+      base: readBehaviorCatalogAtBase({
+        rootDir,
+        catalogPath: 'apps/debug-session-dashboard/architecture/behaviors.catalog.ts',
+      }),
+      waivers: behaviorWaiverList,
+      testFiles: findBehaviorTestFiles(rootDir, ['apps/debug-session-dashboard/src']),
+    });
+    // Rewritten with `vitest -u`; in CI a stale catalog fails here.
+    await expect
+      .soft(behaviorCatalogToTypeScript(report.catalog))
+      .toMatchFileSnapshot('./behaviors.catalog.ts');
+    expect(report.violations).toEqual([]);
   });
 });

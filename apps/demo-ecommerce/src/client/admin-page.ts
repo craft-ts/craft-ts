@@ -304,7 +304,8 @@ const AdminDashboard = craftComponent(
         ),
       ]),
       div(
-        { class: 'admin-table' },
+        // A list a user (and an e2e test) finds by its name, not by its class.
+        { class: 'admin-table', role: 'list', 'aria-label': 'Produits' },
         forNode(
           adminStore.products,
           {
@@ -316,7 +317,7 @@ const AdminDashboard = craftComponent(
               ),
           },
           (product) =>
-            div({ class: 'admin-row' }, [
+            div({ class: 'admin-row', role: 'listitem' }, [
               div(
                 {
                   class: 'visual',

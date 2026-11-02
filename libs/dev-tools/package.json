@@ -57,6 +57,10 @@
       "types": "./src/scripts/architecture-graph.d.ts",
       "default": "./src/scripts/architecture-graph.js"
     },
+    "./behavior-catalog": {
+      "types": "./src/scripts/behavior-catalog.d.ts",
+      "default": "./src/scripts/behavior-catalog.js"
+    },
     "./graph-metrics": {
       "types": "./src/scripts/graph-metrics.d.ts",
       "default": "./src/scripts/graph-metrics.js"

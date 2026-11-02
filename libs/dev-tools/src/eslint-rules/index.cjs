@@ -142,6 +142,8 @@ const requireI18nText = require('./require-i18n-text.cjs');
 const noI18nComposition = require('./no-i18n-composition.cjs');
 const noDirectCraftReactivity = require('./no-direct-craft-reactivity.cjs');
 const e2eSessionContract = require('./e2e-session-contract.cjs');
+const e2eUserFacingLocators = require('./e2e-user-facing-locators.cjs');
+const noSpyOnSystemUnderTest = require('./no-spy-on-system-under-test.cjs');
 const requireCatchTagExhaustiveReaction = require('./require-catch-tag-exhaustive-reaction.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 const securityRules = require('./security-config.cjs');
@@ -149,6 +151,8 @@ const securityRules = require('./security-config.cjs');
 const plugin = {
   rules: {
     'e2e-session-contract': e2eSessionContract,
+    'e2e-user-facing-locators': e2eUserFacingLocators,
+    'no-spy-on-system-under-test': noSpyOnSystemUnderTest,
     'app-start-registry-match': appStartRegistryMatch,
     'global-exception-registry-match': globalExceptionRegistryMatch,
     'craft-method-name-match': craftMethodNameMatch,
@@ -332,7 +336,11 @@ const a11yRuleSeverity = {
 plugin.configs = {
   e2e: {
     plugins: { 'craft-ts': plugin },
-    rules: { 'craft-ts/e2e-session-contract': 'error' },
+    rules: {
+      'craft-ts/e2e-session-contract': 'error',
+      // A test that finds elements as a user does survives a restyling.
+      'craft-ts/e2e-user-facing-locators': 'error',
+    },
   },
   recommended: {
     plugins: { 'craft-ts': plugin },

@@ -28,6 +28,8 @@ module.exports = {
   'craft-ts/require-reactive-template-bindings': 'error',
   'craft-ts/no-craft-computed-side-effects': 'error',
   'craft-ts/no-craft-component-return-type': 'error',
+  // A behaviour test checks what the service exposes, never that it calls itself.
+  'craft-ts/no-spy-on-system-under-test': 'error',
   'craft-ts/require-craft-component-for-exported-node-factory': 'error',
   'craft-ts/no-raw-craft-router-url': 'error',
   'craft-ts/no-manual-craft-routing': 'error',

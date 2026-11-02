@@ -6038,6 +6038,12 @@ function addPrimitiveNode(
 ): DependencyGraphNode {
   const name = getStringArgument(call, 0) ?? primitive;
   const usage = primitiveUsageName(call);
+  // `query('save', { method: … })` runs when it is called: a command the user
+  // triggers, not a read. The behaviour catalog owes it a test.
+  const options = unwrapExpression(call.getArguments()[1]);
+  const triggeredByMethod =
+    Node.isObjectLiteralExpression(options) &&
+    options.getProperty('method') !== undefined;
   return addNode(
     builder,
     {
@@ -6051,6 +6057,7 @@ function addPrimitiveNode(
         name,
         ownerId,
         ...(usage ? { usage } : {}),
+        ...(triggeredByMethod ? { triggeredByMethod: true } : {}),
       },
     },
     call,
