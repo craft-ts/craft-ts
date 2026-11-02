@@ -281,9 +281,14 @@ vitest et lecture de l'index).
 - [x] `demo-ecommerce` : `architecture` dépend de `test` (nx), l'index est une
   sortie de `test`. Premier test de service (`cart-logs-state.spec.ts`) :
   15 obligations sur 34 prouvées (12 par les e2e).
-- [ ] Les preuves unitaires prouvent mais ne sont pas comparées à la base
-  (index hors git) : retirer le seul test unitaire d'une obligation ne bloque
-  pas encore. Il faudrait l'index de `main` en artefact de CI.
+- [x] Preuves unitaires comparées à la base (2026-11-02) :
+  `readBehaviorProofIndexAtBase` lit l'index que le dernier passage sur
+  `main` a publié (`CRAFT_BEHAVIOR_BASE_PROOFS`, sinon
+  `.craft/behavior-proofs.base.json`) et le garde entier, fichiers de test
+  supprimés compris. Sans ce fichier (en local) rien n'est comparé, comme
+  avant. Vérifié sur demo-ecommerce : un test unitaire disparu qui prouvait
+  `session.signOutProcess` sur la base fait échouer le cliquet. La
+  publication de l'index par la CI est dans P4 (passage CI).
 - [x] Extraction depuis les références e2e déjà versionnées
   (`e2e/__sessions__`) : aucun stockage en plus. `demo-ecommerce` : 12
   obligations sur 34 prouvées par ses 3 tests.

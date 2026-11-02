@@ -20,6 +20,12 @@ import type { BehaviorTraceLike } from './behavior-proofs.ts';
 
 export const BEHAVIOR_PROOF_INDEX = '.craft/behavior-proofs.json';
 
+/**
+ * Where the index of the base branch is looked for when no path is given:
+ * CI downloads the one its last run on `main` published, as an artifact.
+ */
+export const BEHAVIOR_PROOF_INDEX_AT_BASE = '.craft/behavior-proofs.base.json';
+
 type BehaviorProofIndexFile = {
   version: 1;
   tests: Record<string, BehaviorTraceLike>;
@@ -93,4 +99,21 @@ export function readBehaviorProofIndex(
       ),
     ),
   );
+}
+
+/**
+ * The fingerprints the unit tests left on the base branch — the index its
+ * last run published, at `CRAFT_BEHAVIOR_BASE_PROOFS` or
+ * `.craft/behavior-proofs.base.json` — so that the ratchet tells a unit proof
+ * that was lost. Unlike the current index, a test whose file is gone is kept:
+ * its proofs are exactly what the comparison is looking for. `undefined` when
+ * there is no such index (a local run): nothing is compared.
+ */
+export function readBehaviorProofIndexAtBase(
+  rootDir: string,
+  indexFile: string = process.env['CRAFT_BEHAVIOR_BASE_PROOFS'] ?? BEHAVIOR_PROOF_INDEX_AT_BASE,
+): Record<string, BehaviorTraceLike> | undefined {
+  const path = resolve(rootDir, indexFile);
+  if (!existsSync(path)) return undefined;
+  return sorted(readIndexFile(path).tests);
 }

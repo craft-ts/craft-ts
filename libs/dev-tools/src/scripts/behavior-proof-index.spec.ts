@@ -10,8 +10,10 @@ import type { TestModule } from 'vitest/node';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
   BEHAVIOR_PROOF_INDEX,
+  BEHAVIOR_PROOF_INDEX_AT_BASE,
   behaviorProofReporter,
   readBehaviorProofIndex,
+  readBehaviorProofIndexAtBase,
 } from './behavior-proof-index.ts';
 
 const rootDir = mkdtempSync(join(tmpdir(), 'behavior-proof-index-'));
@@ -69,5 +71,15 @@ describe('behaviorProofReporter', () => {
   it('forgets the proofs of a deleted test file', () => {
     rmSync(join(rootDir, 'src/session.spec.ts'));
     expect(Object.keys(readBehaviorProofIndex(rootDir))).toEqual(['src/cart.spec.ts > cart > empties']);
+  });
+
+  it('reads the base branch index whole, deleted test files included', () => {
+    expect(readBehaviorProofIndexAtBase(rootDir)).toBeUndefined();
+    const tests = { 'src/gone.spec.ts > clears': { steps: [step('invocation:service:cart / method:clear')] } };
+    mkdirSync(join(rootDir, '.craft'), { recursive: true });
+    writeFileSync(join(rootDir, BEHAVIOR_PROOF_INDEX_AT_BASE), JSON.stringify({ version: 1, tests }));
+    expect(readBehaviorProofIndexAtBase(rootDir)).toEqual(tests);
+    writeFileSync(join(rootDir, 'main-proofs.json'), JSON.stringify({ version: 1, tests: {} }));
+    expect(readBehaviorProofIndexAtBase(rootDir, 'main-proofs.json')).toEqual({});
   });
 });

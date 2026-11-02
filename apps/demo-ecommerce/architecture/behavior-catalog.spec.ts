@@ -9,6 +9,7 @@ import {
   behaviorCoverage,
   readBehaviorMutantOutcomes,
   readBehaviorProofIndex,
+  readBehaviorProofIndexAtBase,
   writeBehaviorCoverage,
 } from '@craft-ts/dev-tools/behavior-catalog';
 import { readReferenceTraces, readReferenceTracesAtBase } from '@craft-ts/playwright-sessions/history';
@@ -31,7 +32,12 @@ describe('demo e-commerce behaviour obligations', () => {
         ...readReferenceTraces(join(rootDir, 'e2e/__sessions__')),
         ...readBehaviorProofIndex(rootDir),
       },
-      baseTraces: readReferenceTracesAtBase({ cwd: rootDir, sessionsDir: 'e2e/__sessions__' }),
+      // At the base: its committed references, and the unit index its last
+      // CI run published (absent locally, where unit proofs are not compared).
+      baseTraces: {
+        ...readReferenceTracesAtBase({ cwd: rootDir, sessionsDir: 'e2e/__sessions__' }),
+        ...readBehaviorProofIndexAtBase(rootDir),
+      },
     });
     console.info(`[craft behaviours] ${report.coverage.proven}/${report.coverage.total} proven by tests`);
     for (const warning of report.warnings) console.warn(`[craft behaviours] ${warning}`);
