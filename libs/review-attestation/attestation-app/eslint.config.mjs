@@ -57,4 +57,12 @@ export default [
       'craft-ts/require-primitive-derived-property': 'off',
     },
   },
+  {
+    // The review e2e (this app's and the library's, linted with this config)
+    // find elements by role, label or text. They record no Craft session of
+    // their own, so the session contract does not apply.
+    files: ['**/e2e/**/*.spec.ts'],
+    plugins: { 'craft-ts': craftRules },
+    rules: { 'craft-ts/e2e-user-facing-locators': 'error' },
+  },
 ];

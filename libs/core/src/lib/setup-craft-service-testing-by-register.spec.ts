@@ -10,7 +10,7 @@ import {
 } from './craft-service';
 import { setupCraftServiceTestingByRegister } from './setup-craft-service-testing-by-register';
 import { state } from './state';
-import { craftExpose } from './craft-primitive-gen';
+import { craftExpose, craftPrivate } from './craft-primitive-gen';
 
 describe('setupCraftServiceTestingByRegister', () => {
   it('should return the real sut, keep only explicit mocks and allow notReached descendants', async () => {
@@ -329,6 +329,26 @@ describe('setupCraftServiceTestingByRegister', () => {
     };
     expect(counterMocks.Counter.increment).toHaveBeenCalledTimes(1);
     expect(counterMocks.Counter.decrement).toHaveBeenCalledTimes(1);
+  });
+
+  it('should keep craftPrivate members out of the sut', async () => {
+    const { Draft } = craftService(
+      { name: 'Draft', providedIn: 'function' },
+      function* () {
+        const draft = yield* craftPrivate(state('draft', 'saved'));
+        yield* craftExpose('read', () => craftUse(draft()));
+      },
+    );
+
+    const { sut } = await setupCraftServiceTestingByRegister(Draft, {
+      Draft: 'real',
+    });
+
+    // A test reaches the service through what it exposes, never its internals.
+    //@ts-expect-error a private member is not part of the sut
+    expect(sut.draft).toBeUndefined();
+    expect(Object.keys(sut)).toEqual(['read']);
+    expect(sut.read()).toBe('saved');
   });
 
   it('should require a provider for manuallyProvidedAtRoot dependencies', async () => {

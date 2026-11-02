@@ -152,7 +152,7 @@ adressable nomment chacun de leur côté).
 
 ## Lots
 
-### Lot 1 — Statique, sans dépendance aux tests ✅
+### Lot 1 — Statique, sans dépendance aux tests ✅ (terminé 2026-11-02)
 
 Code : `libs/dev-tools/src/scripts/behavior-catalog.ts` (+ spec), exporté par
 `@craft-ts/dev-tools` et `@craft-ts/dev-tools/behavior-catalog`.
@@ -182,8 +182,13 @@ Code : `libs/dev-tools/src/scripts/behavior-catalog.ts` (+ spec), exporté par
 - [x] Marquage explicite : option `declared` de la suite d'architecture.
 - [x] Branché dans `demo-ecommerce` (34 obligations) et
   `debug-session-dashboard` (21 obligations).
-- [ ] Autres apps (`demo`, `demo-effect`, `demo-ssr`, `quickstart-effect`,
-  `demo-with-server-function`, attestation-app) : non branchées.
+- [x] Autres apps branchées dans leur suite d'architecture (2026-11-02) :
+  `demo` (81), `demo-effect` (15), `demo-ssr` (7), `quickstart-effect` (1),
+  `demo-with-server-function` (23), attestation-app (64). Catalogue, cliquet
+  et fichier de couverture ; pas encore de preuves (ni index unitaire ni
+  références e2e lues), donc tout y est non prouvé jusqu'au premier test.
+  `demo` : 3 waivers `behavior-test-mocks-boundaries` pour les tests de
+  gabarit des exemples (`setupCraftComponentTemplateTest` reçoit sa vue).
 - Non retenu pour l'instant : les méthodes exposées des `state`
   (`select`, `close`…), trop proches de simples setters ; les transitions
   une par une des machines à états (le graphe ne les expose pas).
@@ -195,16 +200,26 @@ Code : `libs/dev-tools/src/scripts/behavior-catalog.ts` (+ spec), exporté par
   frontière (HTTP ou server function, directement ou par une primitive ;
   `browserBoundary` ; code hors de l'app). Une chaîne (`'notReached'`) ou un
   `provideX()` garde le vrai service. Waiver `<spec>:<clé>`.
-- [ ] Pas d'import d'un membre `craftPrivate` dans un test : non fait (à
-  vérifier d'abord si le typage de `sut` ne l'interdit pas déjà).
+- [x] Pas d'accès à un membre `craftPrivate` dans un test : déjà garanti,
+  sans règle. Un tel membre vit dans le générateur du service (rien à
+  importer), `sut` ne le type pas et ne le porte pas à l'exécution. Figé par
+  un test de `setup-craft-service-testing-by-register.spec.ts`.
 - [x] Règle ESLint `craft-ts/no-spy-on-system-under-test` (dans
   `recommended`) : pas de `toHaveBeenCalled*` ni de `spyOn` sur le `sut` ; les
   appels aux mocks de frontière restent permis.
 - [x] Règle ESLint `craft-ts/e2e-user-facing-locators` (dans `configs.e2e`) :
   pas de sélecteur de classe ou d'id. `demo-ecommerce` corrigé : rôles
   `list`/`listitem` sur la liste des produits de l'admin, e2e `admin` vérifié.
-- [ ] `debug-session-dashboard` (7) et `review-attestation` (23) ont encore
-  des sélecteurs de classe ; leurs e2e ne prennent pas `configs.e2e`.
+- [x] `debug-session-dashboard` et `review-attestation` corrigés : rôles,
+  libellés et textes ; la mécanique du replay (cadre, viewport, marqueur de
+  clic) par son `data-lab`. Règle seule branchée (pas `e2e-session-contract` :
+  ces e2e n'enregistrent pas de session) ; le lint de la lib couvre désormais
+  `libs/review-attestation/e2e`. Une exception commentée :
+  `#craft-replay-frame`, l'id étant le contrat testé. Assertion creuse
+  trouvée : `.folder-layout-view` n'existait plus, remplacée par
+  `[data-folder-layout="view"]`. Non couvert par la règle : `frameLocator`.
+  Toute la suite `review-replay` est rouge sur HEAD (le cadre rejoué ne
+  s'affiche pas) : ses localisateurs n'ont pas pu être exécutés.
 
 **P5. Cliquet**
 

@@ -130,7 +130,7 @@ test('keeps folder-layout cards out of the review queue when switching views', a
 
     await reviewTab.click();
     await expect(reviewTab).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.folder-layout-view')).toHaveCount(0);
+    await expect(page.locator('[data-folder-layout="view"]')).toHaveCount(0);
     await expect(page.locator('[data-testid="review-card"]')).toHaveCount(0);
 
     await folderLayoutTab.click();
@@ -179,7 +179,6 @@ test('routes between review sections and restores the selected section on reload
     await expect(
       page.locator('[data-craft-name="ShowReviewQueue"]'),
     ).toHaveAttribute('aria-pressed', 'true');
-
   } finally {
     await running.close();
   }
@@ -245,7 +244,7 @@ test('keeps decision hints readable when their action is disabled', async ({
     await expect(accept).toBeDisabled();
 
     for (const theme of ['light', 'dark'] as const) {
-      await page.locator('#review-theme').selectOption(theme);
+      await page.getByLabel('Theme').selectOption(theme);
       const styles = await accept.evaluate((element) => {
         return {
           buttonOpacity: getComputedStyle(element).opacity,
@@ -283,7 +282,7 @@ test('keeps primary decision labels and shortcut keys at WCAG AA contrast', asyn
     await expect(accept).toBeVisible();
 
     for (const theme of ['light', 'dark'] as const) {
-      await page.locator('#review-theme').selectOption(theme);
+      await page.getByLabel('Theme').selectOption(theme);
       const contrast = await accept.evaluate((element) => {
         const button = element as HTMLElement;
         const key = button.querySelector('[data-testid="key"]');
@@ -369,9 +368,9 @@ test('persists the selected view and scenario in the URL', async ({
     );
     await page.locator('[data-craft-name="ConfirmIterationHandoff"]').click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.locator('#iteration-prompt')).toHaveValue(
-      /# Codex iteration prompt/,
-    );
+    await expect(
+      page.getByRole('textbox', { name: 'Codex iteration prompt' }),
+    ).toHaveValue(/# Codex iteration prompt/);
     await expect(page.getByRole('dialog')).toContainText('1 rejected card');
     await page.reload();
     await page.goto(`${running.url}/#/template?view=template`);

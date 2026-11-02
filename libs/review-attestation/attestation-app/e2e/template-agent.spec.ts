@@ -80,7 +80,7 @@ test('agent review persists authorized decisions and leaves human obligations fo
   });
   try {
     await page.goto(running.url);
-    await page.locator('#review-locale').selectOption('fr');
+    await page.getByLabel('Language').selectOption('fr');
     await expect(
       page.locator('[data-testid="template-group-header"]'),
     ).toContainText('Le composant affiche');

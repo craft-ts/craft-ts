@@ -47,7 +47,7 @@ test('opens a review subject in the selected editor and remembers the choice', a
       'href',
       '/api/open-in-ide?ide=vscode&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',
     );
-    await page.locator('#review-ide').selectOption('cursor');
+    await page.getByLabel('Editor').selectOption('cursor');
     await expect(source).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=cursor&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',
@@ -69,7 +69,7 @@ test('opens a review subject in the selected editor and remembers the choice', a
     await source.click();
     await opened;
     await page.reload();
-    await expect(page.locator('#review-ide')).toHaveValue('cursor');
+    await expect(page.getByLabel('Editor')).toHaveValue('cursor');
     await expect(source).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=cursor&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',

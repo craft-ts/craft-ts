@@ -246,8 +246,10 @@ test('retires a removed promise with a reason and comment', async ({
 
   try {
     await page.goto(running.url);
-    await page.locator('#review-note').fill('Saving is automatic now.');
-    await page.locator('#retirement-reason').selectOption('superseded');
+    await page
+      .getByRole('textbox', { name: 'Decision note' })
+      .fill('Saving is automatic now.');
+    await page.getByLabel('Retirement reason').selectOption('superseded');
     await page.getByRole('button', { name: 'Retire' }).click();
 
     await expect(page.getByText('Review complete')).toBeVisible();

@@ -11,6 +11,16 @@ import {
 } from '@craft-ts/dev-tools/architecture-graph';
 import { loadArchitectureGraph } from './load-graph';
 import { architectureWaiverList } from './waivers';
+import {
+  behaviorCatalogToTypeScript,
+  behaviorCoverage,
+  behaviorObligationsReport,
+  findBehaviorTestFiles,
+  readBehaviorCatalogAtBase,
+  readBehaviorMutantOutcomes,
+  writeBehaviorCoverage,
+} from '@craft-ts/dev-tools/behavior-catalog';
+import { behaviorWaiverList } from './behavior-waivers';
 
 describe('quickstart architecture', () => {
   let graph: Awaited<ReturnType<typeof loadArchitectureGraph>>;
@@ -82,5 +92,33 @@ describe('quickstart architecture', () => {
       waivers: architectureWaiverList,
       allow: ['sendContextToAi'],
     });
+  });
+
+  it('lists what a user can trigger, and lets no new behaviour arrive without its test', async () => {
+    const rootDir = graph.graph.rootDir;
+    const report = behaviorObligationsReport(graph.graph, {
+      sourceRoots: ['apps/quickstart-effect/src'],
+      base: readBehaviorCatalogAtBase({
+        rootDir,
+        catalogPath: 'apps/quickstart-effect/architecture/behaviors.catalog.ts',
+      }),
+      waivers: behaviorWaiverList,
+      testFiles: findBehaviorTestFiles(rootDir, ['apps/quickstart-effect/src']),
+    });
+    // Read by the log server for the dashboard's coverage page.
+    const appDir = `${rootDir}/apps/quickstart-effect`;
+    writeBehaviorCoverage(
+      appDir,
+      behaviorCoverage(report, {
+        app: 'quickstart-effect',
+        waivers: behaviorWaiverList,
+        mutants: readBehaviorMutantOutcomes(appDir),
+      }),
+    );
+    // Rewritten with `vitest -u`; in CI a stale catalog fails here.
+    await expect
+      .soft(behaviorCatalogToTypeScript(report.catalog))
+      .toMatchFileSnapshot('./behaviors.catalog.ts');
+    expect(report.violations).toEqual([]);
   });
 });

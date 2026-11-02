@@ -18,6 +18,26 @@ async function openDetails(dashboard: Page): Promise<void> {
   if ((await toggle.getAttribute('aria-expanded')) !== 'true')
     await toggle.click();
 }
+
+/**
+ * The replay's own machinery — the frame, its viewport, the click marker —
+ * has no role a reader would name; the tests find it by the part the sheet
+ * gives it, and a tab's tile by the frame of its participant.
+ */
+function replayTile(dashboard: Page, participantId: string) {
+  return dashboard.locator('[data-lab="replay-tile"]', {
+    has: dashboard.locator(`[data-replay-participant="${participantId}"]`),
+  });
+}
+
+function primaryReplayPart(
+  dashboard: Page,
+  part: 'frame' | 'viewport-frame' | 'click-marker',
+) {
+  return part === 'frame'
+    ? dashboard.locator('iframe[data-replay-participant]').first()
+    : dashboard.locator(`[data-lab="${part}"]`).first();
+}
 type StoredSession = Readonly<{
   version?: number;
   status?: string;
@@ -159,7 +179,7 @@ test('opens an archived replay after the frame grid mounts and ignores Vite HMR 
   await expect(page.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
-  await expect(page.locator('#replay-target')).toBeAttached();
+  await expect(primaryReplayPart(page, 'frame')).toBeAttached();
 
   await page.getByRole('button', { name: 'Lecture à vitesse réelle' }).click();
   await expect(page.locator('[data-lab="replay-progress"]')).toContainText(
@@ -219,28 +239,38 @@ test('thumbnail worker keeps playback on the recorded timeline', async ({
     .poll(() =>
       page.evaluate(
         () =>
-          (window as unknown as {
-            __craftReplayWorker?: {
-              snapshot(): { ready: boolean };
-            };
-          }).__craftReplayWorker?.snapshot().ready ?? false,
+          (
+            window as unknown as {
+              __craftReplayWorker?: {
+                snapshot(): { ready: boolean };
+              };
+            }
+          ).__craftReplayWorker?.snapshot().ready ?? false,
       ),
     )
     .toBe(true);
   await page.evaluate(() =>
-    (window as unknown as {
-      __craftReplayWorker: { advanceTo(index: number): void };
-    }).__craftReplayWorker.advanceTo(2),
+    (
+      window as unknown as {
+        __craftReplayWorker: { advanceTo(index: number): void };
+      }
+    ).__craftReplayWorker.advanceTo(2),
   );
 
   await expect
     .poll(() =>
       page.evaluate(() =>
-        (window as unknown as {
-          __craftReplayWorker: {
-            snapshot(): { replayIndex: number; state: string; seeking: boolean };
-          };
-        }).__craftReplayWorker.snapshot(),
+        (
+          window as unknown as {
+            __craftReplayWorker: {
+              snapshot(): {
+                replayIndex: number;
+                state: string;
+                seeking: boolean;
+              };
+            };
+          }
+        ).__craftReplayWorker.snapshot(),
       ),
     )
     .toMatchObject({ replayIndex: 1, state: 'playing', seeking: false });
@@ -991,7 +1021,9 @@ test('switches the visible replay iframe when the recorded active tab changes', 
     ),
   ).toContainText('ACTIF');
   await expect(
-    dashboard.locator('#replay-frame-placeholder-tab-b'),
+    replayTile(dashboard, 'tab-b').locator(
+      '[data-lab="replay-frame-placeholder"]',
+    ),
   ).toContainText('s’ouvrira au moment enregistré');
 
   await dashboard
@@ -1122,13 +1154,13 @@ test('dims replay tabs recorded as hidden while keeping them in the all-tabs vie
   await expect(
     dashboard.locator('[data-lab="replay-tile"]:not([hidden])'),
   ).toHaveCount(2);
-  const hiddenOverlay = dashboard.locator(
-    '#replay-frame-card-hidden-tab [data-lab="replay-visibility-overlay"]',
+  const hiddenOverlay = replayTile(dashboard, 'hidden-tab').locator(
+    '[data-lab="replay-visibility-overlay"]',
   );
   await expect(hiddenOverlay).toBeVisible();
   await expect(hiddenOverlay).toHaveText('Non visible');
-  const closedOverlay = dashboard.locator(
-    '#replay-frame-card-visible-tab [data-lab="replay-visibility-overlay"]',
+  const closedOverlay = replayTile(dashboard, 'visible-tab').locator(
+    '[data-lab="replay-visibility-overlay"]',
   );
   await expect(closedOverlay).toBeVisible();
   await expect(closedOverlay).toHaveText('Onglet fermé');
@@ -1488,8 +1520,8 @@ test('replays every recorded user action and targets the recorded user', async (
   ).toContainText(
     `Viewport enregistré · ${session.viewport!.width} × ${session.viewport!.height} px`,
   );
-  const replayFrame = dashboard.locator('#replay-target');
-  const viewportFrame = dashboard.locator('#replay-viewport-frame');
+  const replayFrame = primaryReplayPart(dashboard, 'frame');
+  const viewportFrame = primaryReplayPart(dashboard, 'viewport-frame');
   await expect(replayFrame).toHaveCSS('width', `${session.viewport!.width}px`);
   await expect(replayFrame).toHaveCSS(
     'height',
@@ -1547,7 +1579,7 @@ test('replays every recorded user action and targets the recorded user', async (
   };
 
   await stepThrough(clickInteractions[0]!);
-  const clickMarker = dashboard.locator('#replay-click-marker');
+  const clickMarker = primaryReplayPart(dashboard, 'click-marker');
   await expect(clickMarker).toBeVisible();
   const firstClick = clickInteractions[0]?.payload;
   if (
@@ -1871,8 +1903,8 @@ test('replays hover cues and registered form insertion methods', async ({
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '1 /',
   );
-  await expect(dashboard.locator('#replay-click-marker')).toBeVisible();
-  await expect(dashboard.locator('#replay-click-marker')).toHaveAttribute(
+  await expect(primaryReplayPart(dashboard, 'click-marker')).toBeVisible();
+  await expect(primaryReplayPart(dashboard, 'click-marker')).toHaveAttribute(
     'aria-label',
     /Survol rejoué/,
   );
@@ -2325,7 +2357,9 @@ test('hides the seek overlay after resumed playback passes its target following 
   await expect(dashboard.locator('[data-lab="diff"]')).toBeVisible();
   await expect(seekOverlay).toBeVisible();
 
-  await dashboard.getByRole('button', { name: 'Forcer l’état attendu' }).click();
+  await dashboard
+    .getByRole('button', { name: 'Forcer l’état attendu' })
+    .click();
   await expect(dashboard.locator('[data-lab="diff"]')).toBeHidden();
   await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Reprise forcée',

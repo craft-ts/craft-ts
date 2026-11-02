@@ -1,9 +1,18 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   startReviewServer,
   type RunningReviewServer,
 } from '../src/lib/review/server.ts';
 import { collectCapture, type LayoutDigest } from '../src/lib/digest.ts';
+
+/**
+ * The frame under review, by the id the review model looks it up with: here
+ * the id is the contract being tested — exactly one frame answers to it — not
+ * how the page happens to be styled. Every card's frame bears the same title.
+ */
+const reviewedFrame = (page: Page) =>
+  // eslint-disable-next-line craft-ts/e2e-user-facing-locators
+  page.locator('#craft-replay-frame');
 
 /**
  * The review surface, driving a frozen page for real.
@@ -102,22 +111,20 @@ test('replays the frozen page, checks it, and marks the three tiers', async ({
 
   // Attested nodes carry the address the digest gave them — computed from the
   // replayed tree, not mapped from coordinates.
-  await expect(frame.locator('.title')).toHaveAttribute(
-    'data-craft-path',
-    /div/,
-  );
-  await expect(frame.locator('.title')).toHaveAttribute(
-    'data-craft-tier',
-    /changed|attested/,
-  );
+  await expect(
+    frame.getByText('Account settings', { exact: true }),
+  ).toHaveAttribute('data-craft-path', /div/);
+  await expect(
+    frame.getByText('Account settings', { exact: true }),
+  ).toHaveAttribute('data-craft-tier', /changed|attested/);
   // Decor is outside the subject: dimmed, never addressed.
-  await expect(frame.locator('.decor')).not.toHaveAttribute(
+  await expect(frame.getByText('nav', { exact: true })).not.toHaveAttribute(
     'data-craft-path',
     /./,
   );
   // The page's own chrome that sits over the subject is marked so it can be
   // lifted — the one thing a screenshot can never do.
-  await expect(frame.locator('.pinned')).toHaveAttribute(
+  await expect(frame.getByText('chrome', { exact: true })).toHaveAttribute(
     'data-craft-chrome',
     '',
   );
@@ -185,7 +192,9 @@ test('a dark-scheme capture replays without a scheme being imposed', async ({
     const page = await browser.newPage();
     await page.goto(dark.url);
     await expect(
-      page.frameLocator('#craft-replay-frame').locator('.title'),
+      page
+        .frameLocator('#craft-replay-frame')
+        .getByText('Account settings', { exact: true }),
     ).toBeVisible();
 
     await expect(
@@ -203,7 +212,7 @@ test('a dark-scheme capture replays without a scheme being imposed', async ({
 test('lifting the page chrome reveals what it covered', async ({ page }) => {
   await page.goto(running.url);
   const frame = page.frameLocator('#craft-replay-frame');
-  await expect(frame.locator('.pinned')).toBeVisible();
+  await expect(frame.getByText('chrome', { exact: true })).toBeVisible();
 
   // The control says what it does; what it does it *to* is named in the
   // explanation. `Hide div.pinned` put a class selector out of one application
@@ -218,13 +227,13 @@ test('lifting the page chrome reveals what it covered', async ({ page }) => {
   );
   await lift.click();
   await expect(lift).toHaveText('Put it back');
-  await expect(frame.locator('.pinned')).toBeHidden();
+  await expect(frame.getByText('chrome', { exact: true })).toBeHidden();
 
   // And it can be put back: lifting must not be a one-way trip, which it was
   // while the probe ran through its own `visibility: hidden`.
   await lift.click();
   await expect(lift).toHaveText('Lift what covers this');
-  await expect(frame.locator('.pinned')).toBeVisible();
+  await expect(frame.getByText('chrome', { exact: true })).toBeVisible();
 
   // Lifting re-runs the check, and the check must find the same page. It did
   // not while the marking left a `color-scheme` behind it: the first pass
@@ -279,7 +288,9 @@ test('the lift is not offered when nothing is covering the subject', async ({
     const page = await browser.newPage();
     await page.goto(uncovered.url);
     await expect(
-      page.frameLocator('#craft-replay-frame').locator('.title'),
+      page
+        .frameLocator('#craft-replay-frame')
+        .getByText('Account settings', { exact: true }),
     ).toBeVisible();
     await expect(
       page.locator('[data-testid="overlay-toggle"]:not([hidden])'),
@@ -440,9 +451,11 @@ test('the check measures the card on screen, not the first one', async ({
     await page.getByRole('button', { name: /Next/ }).click();
 
     // Exactly one frame answers to the id, and it is the one being reviewed.
-    await expect(page.locator('#craft-replay-frame')).toHaveCount(1);
+    await expect(reviewedFrame(page)).toHaveCount(1);
     await expect(
-      page.frameLocator('#craft-replay-frame').locator('.title'),
+      page
+        .frameLocator('#craft-replay-frame')
+        .getByText('Account settings', { exact: true }),
     ).toHaveText('Billing');
     // Nothing to warn about: the card on screen replays faithfully.
     // Every card renders a panel, so the claim is that none of them is
@@ -530,10 +543,12 @@ test('refining a selection edits its reference instead of adding one', async ({
   await page.goto(running.url);
   const frame = page.frameLocator('#craft-replay-frame');
 
-  await frame.locator('.title').click();
+  await frame.getByText('Account settings', { exact: true }).click();
   await expect(page.locator('[data-mention-id]')).toHaveText(['[#1: 1 node]']);
 
-  await frame.locator('.body').click({ modifiers: ['ControlOrMeta'] });
+  await frame
+    .getByText('Manage your profile', { exact: true })
+    .click({ modifiers: ['ControlOrMeta'] });
   await expect(page.locator('[data-mention-id]')).toHaveText(['[#1: 2 nodes]']);
 
   // Pointing at a reference paints the nodes it stands for, without touching
@@ -545,8 +560,12 @@ test('refining a selection edits its reference instead of adding one', async ({
 
   // Emptying the selection takes the reference back out: a reference to
   // nothing is worse than none.
-  await frame.locator('.body').click({ modifiers: ['ControlOrMeta'] });
-  await frame.locator('.title').click({ modifiers: ['ControlOrMeta'] });
+  await frame
+    .getByText('Manage your profile', { exact: true })
+    .click({ modifiers: ['ControlOrMeta'] });
+  await frame
+    .getByText('Account settings', { exact: true })
+    .click({ modifiers: ['ControlOrMeta'] });
   await expect(page.locator('[data-mention-id]')).toHaveCount(0);
 });
 
@@ -558,8 +577,8 @@ test('a drag selects every node the box touches', async ({ page }) => {
   // A box dragged over both rows of the component. One remark covering a whole
   // region is the common case; adding the nodes one at a time means retyping
   // the same sentence for each.
-  await page.locator('#craft-replay-frame').scrollIntoViewIfNeeded();
-  const box = await page.locator('#craft-replay-frame').boundingBox();
+  await reviewedFrame(page).scrollIntoViewIfNeeded();
+  const box = await reviewedFrame(page).boundingBox();
   if (!box) throw new Error('no frame box');
   await page.mouse.move(box.x + 8, box.y + 45);
   await page.mouse.down();
@@ -580,7 +599,9 @@ test('a drag selects every node the box touches', async ({ page }) => {
   );
 
   // Ctrl-click takes one back out without disturbing the rest.
-  await frame.locator('.title').click({ modifiers: ['ControlOrMeta'] });
+  await frame
+    .getByText('Account settings', { exact: true })
+    .click({ modifiers: ['ControlOrMeta'] });
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(2);
 });
 
@@ -647,7 +668,9 @@ test('the theme moves the tool and never the render', async ({ browser }) => {
   const page = await context.newPage();
   await page.goto(running.url);
   await expect(
-    page.frameLocator('#craft-replay-frame').locator('.title'),
+    page
+      .frameLocator('#craft-replay-frame')
+      .getByText('Account settings', { exact: true }),
   ).toBeVisible();
 
   const frameGround = () =>
@@ -694,7 +717,7 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
   await reason.pressSequentially('The title is cut at 34px in German. ');
 
   // Selecting *is* referencing: there is no second gesture to remember.
-  await frame.locator('.title').click();
+  await frame.getByText('Account settings', { exact: true }).click();
   await expect(page.locator('[data-mention-id]')).toHaveCount(1);
   await expect(page.locator('[data-mention-id]').first()).toHaveText(
     '[#1: 1 node]',
@@ -706,7 +729,7 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
 
   // Typing ends that reference: the next selection starts its own.
   await reason.pressSequentially('And the body overflows its box. ');
-  await frame.locator('.body').click();
+  await frame.getByText('Manage your profile', { exact: true }).click();
   await expect(page.locator('[data-mention-id]')).toHaveCount(2);
 
   await page.getByRole('button', { name: /Reject R/ }).click();

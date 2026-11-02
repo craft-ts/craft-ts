@@ -36,6 +36,14 @@ export default [
     rules: { ...craftRules.configs.recommended.rules },
   },
   {
+    // The dashboard's e2e find what a reader sees by role, label or text, and
+    // the replay's own machinery by the part the sheet names. They record no
+    // Craft session of their own, so the session contract does not apply.
+    files: ['e2e/**/*.spec.ts'],
+    plugins: { 'craft-ts': craftRules },
+    rules: { 'craft-ts/e2e-user-facing-locators': 'error' },
+  },
+  {
     files: ['**/vite.config.ts', '**/vitest.config.ts'],
     rules: {
       '@nx/enforce-module-boundaries': 'off',

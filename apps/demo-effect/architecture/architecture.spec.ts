@@ -18,6 +18,16 @@ import {
 } from '@craft-ts/dev-tools/architecture-graph';
 import { loadArchitectureGraph } from './load-graph';
 import { architectureWaiverList } from './waivers';
+import {
+  behaviorCatalogToTypeScript,
+  behaviorCoverage,
+  behaviorObligationsReport,
+  findBehaviorTestFiles,
+  readBehaviorCatalogAtBase,
+  readBehaviorMutantOutcomes,
+  writeBehaviorCoverage,
+} from '@craft-ts/dev-tools/behavior-catalog';
+import { behaviorWaiverList } from './behavior-waivers';
 
 /**
  * The graph is loaded once for the whole suite. Keep all graph assertions in
@@ -176,5 +186,33 @@ describe('architecture', () => {
       waivers: architectureWaiverList,
       allow: ['sendContextToAi'],
     });
+  });
+
+  it('lists what a user can trigger, and lets no new behaviour arrive without its test', async () => {
+    const rootDir = graph.graph.rootDir;
+    const report = behaviorObligationsReport(graph.graph, {
+      sourceRoots: ['apps/demo-effect/src'],
+      base: readBehaviorCatalogAtBase({
+        rootDir,
+        catalogPath: 'apps/demo-effect/architecture/behaviors.catalog.ts',
+      }),
+      waivers: behaviorWaiverList,
+      testFiles: findBehaviorTestFiles(rootDir, ['apps/demo-effect/src']),
+    });
+    // Read by the log server for the dashboard's coverage page.
+    const appDir = `${rootDir}/apps/demo-effect`;
+    writeBehaviorCoverage(
+      appDir,
+      behaviorCoverage(report, {
+        app: 'demo-effect',
+        waivers: behaviorWaiverList,
+        mutants: readBehaviorMutantOutcomes(appDir),
+      }),
+    );
+    // Rewritten with `vitest -u`; in CI a stale catalog fails here.
+    await expect
+      .soft(behaviorCatalogToTypeScript(report.catalog))
+      .toMatchFileSnapshot('./behaviors.catalog.ts');
+    expect(report.violations).toEqual([]);
   });
 });

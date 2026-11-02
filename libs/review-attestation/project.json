@@ -57,7 +57,8 @@
       "options": {
         "eslintConfig": "libs/review-attestation/attestation-app/eslint.config.mjs",
         "lintFilePatterns": [
-          "libs/review-attestation/attestation-app/src/**/*.ts"
+          "libs/review-attestation/attestation-app/src/**/*.ts",
+          "libs/review-attestation/e2e/**/*.ts"
         ],
         "maxWarnings": -1
       }
