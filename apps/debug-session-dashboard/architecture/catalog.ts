@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "1aecf40323ba6e08",
+  "graphHash": "bf96c5ac937ee335",
   "routes": [
     "",
     ":recipeId",
@@ -132,7 +132,6 @@ export const architectureCatalog = {
     "connected",
     "continuationsState",
     "copied",
-    "currentEntryIndex",
     "dashboardReplayStatus",
     "deleteSession",
     "deleteSessions",
@@ -180,7 +179,6 @@ export const architectureCatalog = {
     "loadErrorHidden",
     "loadErrorText",
     "loadMessage",
-    "marks",
     "messages",
     "mode",
     "momentText",
@@ -325,10 +323,9 @@ export const architectureCatalog = {
   ],
   "sources": [
     "refreshRequested$ (source$)",
-    "set$ (source$)",
+    "replayStateBatch$ (source$)",
     "signalSource (signalSource)",
-    "source$ (source$)",
-    "update$ (source$)"
+    "source$ (source$)"
   ],
   "serverFunctionFamilies": [],
   "httpEndpoints": [
@@ -443,21 +440,21 @@ export const architectureCatalog = {
       {
         "kind": "component",
         "name": "DebugSessionDashboard",
-        "file": "apps/debug-session-dashboard/src/dashboard.ts"
+        "file": "apps/debug-session-dashboard/src/app/dashboard.ts"
       }
     ],
     "docSeasonView": [
       {
         "kind": "component",
         "name": "DebugSessionDashboard",
-        "file": "apps/debug-session-dashboard/src/dashboard.ts"
+        "file": "apps/debug-session-dashboard/src/app/dashboard.ts"
       }
     ],
     "replayRoute": [
       {
         "kind": "component",
         "name": "DebugSessionDashboard",
-        "file": "apps/debug-session-dashboard/src/dashboard.ts"
+        "file": "apps/debug-session-dashboard/src/app/dashboard.ts"
       }
     ],
     "aiContextMenuDismissal": [
@@ -525,33 +522,33 @@ export const architectureCatalog = {
     "components": {},
     "routes": {
       "": [
-        "apps/debug-session-dashboard/src/app.routes.ts",
-        "apps/debug-session-dashboard/src/comparison.routes.ts",
-        "apps/debug-session-dashboard/src/e2e-replay.routes.ts",
-        "apps/debug-session-dashboard/src/recipes.routes.ts",
-        "apps/debug-session-dashboard/src/replay.routes.ts",
-        "apps/debug-session-dashboard/src/sessions.routes.ts"
+        "apps/debug-session-dashboard/src/app/app.routes.ts",
+        "apps/debug-session-dashboard/src/features/comparison/comparison.routes.ts",
+        "apps/debug-session-dashboard/src/features/e2e-replay/e2e-replay.routes.ts",
+        "apps/debug-session-dashboard/src/features/recipes/recipes.routes.ts",
+        "apps/debug-session-dashboard/src/features/replay/replay.routes.ts",
+        "apps/debug-session-dashboard/src/features/sessions/sessions.routes.ts"
       ]
     }
   },
   "browserBoundaryServices": [],
   "scopes": {
-    "e2eComparison": "global",
-    "e2eReplayRoute": "global",
     "aiChatBridge": "global",
+    "e2eReplayRoute": "global",
+    "resumeRequest": "global",
+    "thumbnailPreview": "global",
+    "sessionResumeFilter": "global",
+    "sessionPageActions": "global",
+    "e2eComparison": "global",
+    "resumeThread": "global",
+    "sessionArchive": "global",
+    "thumbnailArchive": "global",
     "replayBridge": "global",
     "replayDebug": "global",
     "replayPlayback": "global",
     "replayRoute": "toProvide",
     "replaySession": "global",
     "replayDashboardState": "global",
-    "resumeRequest": "global",
-    "resumeThread": "global",
-    "sessionArchive": "global",
-    "sessionResumeFilter": "global",
-    "sessionPageActions": "global",
-    "thumbnailArchive": "global",
-    "thumbnailPreview": "global",
     "aiContextMenuDismissal": "toProvide",
     "aiSendContextChatState": "toProvide",
     "aiSendDialogState": "toProvide",

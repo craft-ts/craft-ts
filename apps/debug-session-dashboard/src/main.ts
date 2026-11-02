@@ -1,6 +1,6 @@
 import 'virtual:craft-style.css';
 import { bootstrapCraft } from '@craft-ts/component';
-import { appConfig } from './app.config';
+import { appConfig } from './app/app.config';
 
 bootstrapCraft({
   config: appConfig,

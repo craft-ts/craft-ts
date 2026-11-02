@@ -1,0 +1,62 @@
+import { craftExpose, craftService } from '@craft-ts/core';
+import { newUuid } from '../../shared/util/replay-browser';
+import { ReplayDebug } from '../../shared/state/replay-debug';
+import { ReplayState, routeSessionId } from '../../shared/state/replay-state';
+import { copyResumePrompt, resumePrompt } from './resume-prompt';
+import { ResumeThread } from '../../shared/data-access/resume-thread.service';
+import { SessionArchive } from '../../shared/data-access/session-archive.service';
+
+/**
+ * « Reprendre ici », once the person said what it is for: the app tab opens
+ * first (still inside the click, or the browser blocks it), the prompt goes to
+ * the clipboard, the archive records the request, and the panel turns to the
+ * « Reprises » view where the agent's progress shows.
+ */
+export const { ResumeRequest } = craftService(
+  { name: 'resumeRequest', providedIn: 'global' },
+  function* () {
+    const replayDebug = yield* ReplayDebug();
+    const { resumeDialogOpen, resumeIntent, sidePanelOpen, sideTab } =
+      (yield* ReplayState()).imperative;
+    const archive = yield* SessionArchive();
+    const resumeThread = yield* ResumeThread();
+    yield* craftExpose('submit', function* () {
+      const sessionId = routeSessionId();
+      const intent = (yield* resumeIntent()).trim();
+      if (sessionId === undefined || !intent) return;
+      const point = replayDebug.replayPoint();
+      const requestId = newUuid();
+      const appTab = replayDebug.launchGuidedResumeTab(
+        point.beforeSequence,
+        point.participantId,
+        requestId,
+        sessionId,
+      );
+      const prompt = resumePrompt({
+        sessionId,
+        beforeSequence: point.beforeSequence,
+        participantId: point.participantId,
+        requestId,
+        appUrl: appTab.url,
+        intent,
+      });
+      yield* copyResumePrompt(prompt);
+      const sent = yield* archive.requestResume(
+        { sessionId, ...point },
+        requestId,
+        prompt,
+        appTab.url,
+        appTab.opened,
+      );
+      if (!sent) {
+        appTab.tab?.close();
+        return;
+      }
+      resumeThread.watchRequest(requestId);
+      yield* resumeIntent.set('');
+      yield* resumeDialogOpen.set(false);
+      yield* sideTab.set('resumes');
+      yield* sidePanelOpen.set(true);
+    });
+  },
+);

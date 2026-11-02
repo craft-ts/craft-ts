@@ -28,7 +28,7 @@ npx vite --config apps/debug-session-dashboard/vite.config.ts
 
 The dashboard is drawn with the Herbier design system (`@craft-ts/ui`): its
 theme, its buttons, callouts, badges, tabs, switch and dialog, in light or dark.
-The layout lives in `src/dashboard.style.ts`.
+The layout lives in `src/shared/ui/dashboard.style.ts`.
 The floating _✦ Report_ launcher opens the AI context chat on dashboard pages;
 the replay page keeps _Report_ in its playback bar instead.
 
@@ -285,7 +285,7 @@ archive folder.
 ## Styling and checks
 
 The dashboard has no CSS file and no inline CSS. Everything is drawn with the
-design system: `src/dashboard.style.ts` declares the sheet (`craftStyles`), the
+design system: `src/shared/ui/dashboard.style.ts` declares the sheet (`craftStyles`), the
 states are axes (`data-tile-focus`, `data-veil`, `data-frame-scheme`, `data-entry`)
 and what only the browser can know (the scaled size of a replayed page, where a
 click landed, how far the replay got) goes through typed custom properties
@@ -303,8 +303,9 @@ npx nx run debug-session-dashboard:typecheck-architecture
 for every file under `src`, and `recommended` for the code. `architecture/`
 runs the declarative architecture rules, the design-system ones included.
 
-No file is exempt from them: there is no ESLint override, no `eslint-disable`
-and no architecture waiver. The replay engine is split by what it is:
+No file is exempt from them: there is no ESLint override and no
+`eslint-disable`; each architecture waiver is listed with its reason in
+`architecture/waivers.ts`. The replay engine is split by what it is:
 
 - `session-archive.service.ts` and `replay-route.service.ts` are `craftService`s:
   the archive goes through `CraftHttpClient` (a `query` for the list and for one
@@ -324,3 +325,23 @@ and no architecture waiver. The replay engine is split by what it is:
   adapter and listens to `message` and `hashchange`.
 - The view is a tree of small components (`dashboard.ts`, `sessions-page.ts`,
   `replay-page.ts`, …), none of which reaches the browser.
+
+### Folder layout
+
+The folders follow the imports, as the `folder-layout-placement` rule computes
+them (see `apps/docs/guide/testing/folder-layout.md`). It fails the architecture
+test here instead of warning:
+
+- `src/app/` — what only the shell reaches: the app config, the routes table,
+  the root component and the AI chat launcher;
+- `src/features/<feature>/` — one folder per routes module (`sessions`,
+  `replay`, `recipes`, `comparison`, `e2e-replay`), with what only that feature
+  reaches. `replay/stage/` and `replay/side-panel/` hold what only the stage or
+  the side panel reaches;
+- `src/shared/<layer>/` — what several features (or a feature and the shell)
+  reach, split into `ui`, `state`, `data-access` and `util`.
+
+Imports point down the layers (`ui` → `state` → `data-access` → `util`). The
+four imports that point up are waived in `architecture/waivers.ts`, each with
+the split that would remove it. To place a new file, run `craft organize` on
+the app's graph, or let the architecture test name the folder.

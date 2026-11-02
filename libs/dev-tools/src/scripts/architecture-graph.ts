@@ -5,6 +5,7 @@ import { dirname, relative, resolve } from 'node:path';
 import { STYLE_ARCHITECTURE_RULES } from './architecture-style-rules.ts';
 import { SERVICE_ARCHITECTURE_RULES } from './architecture-service-rules.ts';
 import { STABILITY_ARCHITECTURE_RULES } from './architecture-stability-rules.ts';
+import { FOLDER_LAYOUT_ARCHITECTURE_RULES } from './folder-layout-rule.ts';
 import {
   applyArchitectureWaivers,
   type ArchitectureRuleName,
@@ -4939,6 +4940,9 @@ export const DEFAULT_ARCHITECTURE_RULE_SEVERITY: Partial<
   // New obligations: reported first, raised to `error` once the tests exist.
   'route-needs-stability-test': 'warn',
   'looping-async-process-needs-budget': 'warn',
+  // Existing apps predate the layout: reported until they are reorganized.
+  'folder-layout-placement': 'warn',
+  'folder-layout-layers': 'warn',
 };
 
 export type ArchitectureViolationsOptions = {
@@ -5031,6 +5035,7 @@ export function architectureReport(
   for (const [rule, find] of [
     ...SERVICE_ARCHITECTURE_RULES,
     ...STABILITY_ARCHITECTURE_RULES,
+    ...FOLDER_LAYOUT_ARCHITECTURE_RULES,
   ] as readonly (readonly [
     string,
     (graph: DependencyGraph) => readonly { target: string; message: string }[],

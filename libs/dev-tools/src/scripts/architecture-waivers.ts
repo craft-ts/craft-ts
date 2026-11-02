@@ -39,6 +39,8 @@ export const ARCHITECTURE_RULE_NAMES = [
   'route-needs-stability-test',
   'looping-async-process-needs-budget',
   'prefer-path-param-navigation',
+  'folder-layout-placement',
+  'folder-layout-layers',
 ] as const;
 
 export type ArchitectureRuleName = (typeof ARCHITECTURE_RULE_NAMES)[number];

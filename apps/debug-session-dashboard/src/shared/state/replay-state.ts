@@ -1,0 +1,1277 @@
+import {
+  craftComputed,
+  craftEffect,
+  craftExpose,
+  craftService,
+  BrowserDocumentService,
+  LocalStorage,
+  LocalStorageService,
+  on$,
+  rawReactiveValue,
+  source$,
+  state,
+  type SendContextEnvironmentProfile,
+  type SendContextEvent,
+  type SendContextReplayExport,
+  type SendContextSessionParticipant,
+  type InsertionStateFactoryContext,
+  type YieldableReactiveValue,
+} from '@craft-ts/core';
+import {
+  captureDebugSessionEnvironment,
+  compileReplayPlan,
+  environmentDifferences,
+  getReplaySteps,
+} from '@craft-ts/component';
+import type { ThumbnailManifest } from '../data-access/thumbnail-archive.service';
+import {
+  alignSharedTimeline,
+  eventSeverity,
+  participantContinuations,
+  participantGroup,
+  participantSession,
+  type PartialReplay,
+  type RecordingClock,
+  type ReplayDifference,
+  type ReplayFrameConnection,
+  type ReplayParticipantState,
+  type ReplaySlice,
+  type ReplayStartMode,
+  type ReplayTimer,
+  type ReplayViewport,
+  type VisibilityChange,
+} from '../util/replay-model';
+
+type ReadBridge<T> = {
+  readonly value: () => T;
+  bind(read: () => T): void;
+};
+
+const replayStateBatch$ = source$<StateBatch>('replayStateBatch$');
+
+function setReplayStates(updates: StateBatch): void {
+  replayStateBatch$.emit(updates);
+}
+
+function createReadBridge<T>(_name: string, initialValue: T): ReadBridge<T> {
+  let read = () => initialValue;
+  return {
+    value: () => read(),
+    bind(nextRead) {
+      read = nextRead;
+    },
+  };
+}
+
+/**
+ * What the dashboard knows right now: the recording that is open, where the
+ * replay is, and what the page around it is showing. The engine writes it, the
+ * view reads it. One module holds it so that neither has to import the other.
+ */
+
+/* ── the recording ──────────────────────────────────────────────────────── */
+
+const sessionTextBridge = createReadBridge('sessionText', '');
+export const sessionText = sessionTextBridge.value;
+const sessionBridge = createReadBridge<SendContextReplayExport | undefined>(
+  'session',
+  undefined,
+);
+export const session = sessionBridge.value;
+const eventsBridge = createReadBridge<readonly SendContextEvent[]>(
+  'events',
+  [],
+);
+export const events = eventsBridge.value;
+const sessionParticipantsBridge = createReadBridge<
+  readonly SendContextSessionParticipant[]
+>('sessionParticipants', []);
+export const sessionParticipants = sessionParticipantsBridge.value;
+const selectedParticipantIdBridge = createReadBridge(
+  'selectedParticipantId',
+  'all',
+);
+export const selectedParticipantId = selectedParticipantIdBridge.value;
+const loadErrorBridge = createReadBridge<string | undefined>(
+  'loadError',
+  undefined,
+);
+export const loadError = loadErrorBridge.value;
+
+/** The thumbnails the archive prepared for the open recording, as far as known. */
+const thumbnailManifestBridge = createReadBridge<
+  ThumbnailManifest | undefined
+>('openThumbnailManifest', undefined);
+export const thumbnailManifest = thumbnailManifestBridge.value;
+
+/* ── the page ───────────────────────────────────────────────────────────── */
+
+const pageBridge = createReadBridge<
+  'sessions' | 'recipes' | 'detail' | 'compare'
+>('page', 'sessions');
+export const page = pageBridge.value;
+const importOpenBridge = createReadBridge('importOpen', false);
+export const importOpen = importOpenBridge.value;
+const sidePanelOpenBridge = createReadBridge('sidePanelOpen', false);
+export const sidePanelOpen = sidePanelOpenBridge.value;
+/** The side panel's four views, opened from the head of the replay. */
+export type SideTab = 'journal' | 'review' | 'resumes' | 'details';
+const sideTabBridge = createReadBridge<SideTab>('sideTab', 'journal');
+export const sideTab = sideTabBridge.value;
+/** Opens the side panel on one view; the same button again closes it. */
+export function toggleSideTab(tab: SideTab): void {
+  if (sidePanelOpen() && sideTab() === tab) {
+    setReplayStates({ sidePanelOpen: false });
+    return;
+  }
+  setReplayStates({ sideTab: tab, sidePanelOpen: true });
+}
+/** The dialog that asks what a guided resume is for, before anything opens. */
+const resumeDialogOpenBridge = createReadBridge('resumeDialogOpen', false);
+export const resumeDialogOpen = resumeDialogOpenBridge.value;
+/** What the person wants from the resume, typed in that dialog. */
+const resumeIntentBridge = createReadBridge('resumeIntent', '');
+export const resumeIntent = resumeIntentBridge.value;
+const showAllEventsBridge = createReadBridge('showAllEvents', false);
+export const showAllEvents = showAllEventsBridge.value;
+const pendingDeleteSessionIdBridge = createReadBridge<string | undefined>(
+  'pendingDeleteSessionId',
+  undefined,
+);
+export const pendingDeleteSessionId = pendingDeleteSessionIdBridge.value;
+const eventTimelinePageBridge = createReadBridge('eventTimelinePage', 0);
+export const eventTimelinePage = eventTimelinePageBridge.value;
+export const eventTimelinePageSize = 250;
+
+/* ── the replay ─────────────────────────────────────────────────────────── */
+
+const targetUrlBridge = createReadBridge(
+  'targetUrl',
+  import.meta.env['VITE_CRAFT_REPLAY_TARGET_URL'] ?? 'http://localhost:4200/',
+);
+export const targetUrl = targetUrlBridge.value;
+const startModeBridge = createReadBridge<ReplayStartMode>('startMode', 'url');
+export const startMode = startModeBridge.value;
+const statusBridge = createReadBridge(
+  'dashboardReplayStatus',
+  'Importe une session v6 pour commencer.',
+);
+export const status = statusBridge.value;
+const connectedBridge = createReadBridge('connected', false);
+export const connected = connectedBridge.value;
+const differenceBridge = createReadBridge<ReplayDifference | undefined>(
+  'difference',
+  undefined,
+);
+export const difference = differenceBridge.value;
+const differenceNoticeDismissedBridge = createReadBridge(
+  'differenceNoticeDismissed',
+  false,
+);
+export const differenceNoticeDismissed = differenceNoticeDismissedBridge.value;
+const AUTO_SKIP_STORAGE_KEY =
+  'craft-debug-session-dashboard:auto-skip-differences:v1';
+
+export type ReplayDifferenceEntry = Readonly<{
+  id: number;
+  participantId: string;
+  eventId?: string;
+  expected: unknown;
+  actual: unknown;
+  transport?: ReplayDifference['transport'];
+  checkpointEventId?: string;
+  resolution: 'pending' | 'skipped' | 'recovered';
+}>;
+const replayDifferencesBridge = createReadBridge<
+  readonly ReplayDifferenceEntry[]
+>('replayDifferences', []);
+export const replayDifferences = replayDifferencesBridge.value;
+const differenceHistoryOpenBridge = createReadBridge(
+  'differenceHistoryOpen',
+  false,
+);
+export const differenceHistoryOpen = differenceHistoryOpenBridge.value;
+const autoSkipDifferencesBridge = createReadBridge(
+  'autoSkipDifferences',
+  false,
+);
+export const autoSkipDifferences = autoSkipDifferencesBridge.value;
+const partialReplayBridge = createReadBridge<PartialReplay | undefined>(
+  'partialReplay',
+  undefined,
+);
+export const partialReplay = partialReplayBridge.value;
+const replayIndexBridge = createReadBridge('replayIndex', 0);
+export const replayIndex = replayIndexBridge.value;
+const replayStateBridge = createReadBridge('replayState', 'idle');
+export const replayState = replayStateBridge.value;
+/** Run playback with command/observation comparison notes enabled. */
+const diagnosticReplayBridge = createReadBridge('diagnosticReplay', false);
+export const diagnosticReplay = diagnosticReplayBridge.value;
+/** Every note the replay made, kept so that they can all be read again. */
+const replayWarningsBridge = createReadBridge<readonly string[]>(
+  'replayWarnings',
+  [],
+);
+export const replayWarnings = replayWarningsBridge.value;
+/** Errors stay in the notes history but do not behave like dismissible waits. */
+export const REPLAY_ERROR_NOTE_PREFIX = 'Erreur à corriger · ';
+export function isReplayErrorNote(note: string): boolean {
+  return note.startsWith(REPLAY_ERROR_NOTE_PREFIX);
+}
+/** Stale visual/CSS targets stay in history without covering the replay. */
+export function isReplayVisualWarning(note: string): boolean {
+  return [
+    'Replay CSS',
+    'Replay Craft target',
+    'Replay Craft hover target',
+    'Replay target selector',
+    'Replay hover target',
+    'Replay scroll target',
+  ].some((prefix) => note.startsWith(prefix));
+}
+/** The notes someone has already put away; they stay in the history. */
+const dismissedWarningsBridge = createReadBridge<readonly string[]>(
+  'dismissedWarnings',
+  [],
+);
+export const dismissedWarnings = dismissedWarningsBridge.value;
+const warningHistoryOpenBridge = createReadBridge('warningHistoryOpen', false);
+export const warningHistoryOpen = warningHistoryOpenBridge.value;
+/** Which action each note was raised on: the actions already run at that point. */
+export const warningIndexes = new Map<string, number>();
+/** "Go to this action": the replay steps by itself until this many actions have run. */
+const seekTargetBridge = createReadBridge<number | undefined>(
+  'seekTarget',
+  undefined,
+);
+export const seekTarget = seekTargetBridge.value;
+/** The session module's seek driver, called by the bridge after a step. */
+export const seekHooks: { drive: () => void; settle: () => void } = {
+  drive: () => undefined,
+  settle: () => undefined,
+};
+const replaySkeletonVisibleBridge = createReadBridge(
+  'replaySkeletonVisible',
+  false,
+);
+export const replaySkeletonVisible = replaySkeletonVisibleBridge.value;
+const activeReplayParticipantIdBridge = createReadBridge<string | undefined>(
+  'activeReplayParticipantId',
+  undefined,
+);
+export const activeReplayParticipantId = activeReplayParticipantIdBridge.value;
+const replayViewportScaleBridge = createReadBridge('replayViewportScale', 1);
+export const replayViewportScale = replayViewportScaleBridge.value;
+const replayViewportBridge = createReadBridge<ReplayViewport | undefined>(
+  'replayViewport',
+  undefined,
+);
+export const replayViewport = replayViewportBridge.value;
+const nextActionDelayMsBridge = createReadBridge<number | undefined>(
+  'nextActionDelayMs',
+  undefined,
+);
+export const nextActionDelayMs = nextActionDelayMsBridge.value;
+
+type ReplayStateValues = {
+  sessionText: string;
+  session: SendContextReplayExport | undefined;
+  events: readonly SendContextEvent[];
+  sessionParticipants: readonly SendContextSessionParticipant[];
+  selectedParticipantId: string;
+  loadError: string | undefined;
+  thumbnailManifest: ThumbnailManifest | undefined;
+  page: 'sessions' | 'recipes' | 'detail' | 'compare';
+  activeRouteSessionId: string | undefined;
+  importOpen: boolean;
+  sidePanelOpen: boolean;
+  sideTab: SideTab;
+  resumeDialogOpen: boolean;
+  resumeIntent: string;
+  showAllEvents: boolean;
+  pendingDeleteSessionId: string | undefined;
+  eventTimelinePage: number;
+  targetUrl: string;
+  startMode: ReplayStartMode;
+  status: string;
+  connected: boolean;
+  difference: ReplayDifference | undefined;
+  differenceNoticeDismissed: boolean;
+  replayDifferences: readonly ReplayDifferenceEntry[];
+  differenceHistoryOpen: boolean;
+  autoSkipDifferences: boolean;
+  partialReplay: PartialReplay | undefined;
+  replayIndex: number;
+  replayState: string;
+  diagnosticReplay: boolean;
+  replayWarnings: readonly string[];
+  dismissedWarnings: readonly string[];
+  warningHistoryOpen: boolean;
+  seekTarget: number | undefined;
+  replaySkeletonVisible: boolean;
+  activeReplayParticipantId: string | undefined;
+  replayViewportScale: number;
+  replayViewport: ReplayViewport | undefined;
+  nextActionDelayMs: number | undefined;
+};
+type StateBatch = Partial<ReplayStateValues>;
+
+function hasStateUpdate<Key extends keyof ReplayStateValues>(
+  updates: StateBatch,
+  key: Key,
+): updates is StateBatch & Record<Key, ReplayStateValues[Key]> {
+  return Object.prototype.hasOwnProperty.call(updates, key);
+}
+
+function createStateWriter<T>(
+  name: keyof ReplayStateValues,
+  bridge: ReadBridge<T>,
+  batch$: ReturnType<typeof source$<StateBatch>>,
+) {
+  return {
+    insertion: ({
+      set,
+      update,
+    }: InsertionStateFactoryContext<T, Record<never, never>>) => ({
+      set,
+      update,
+      setFromBatch: on$(batch$, (updates) => {
+        if (hasStateUpdate(updates, name)) {
+          set(updates[name]);
+        }
+      }),
+    }),
+    bind<StateValue extends YieldableReactiveValue<T>>(stateValue: StateValue) {
+      bridge.bind(rawReactiveValue(stateValue));
+      return stateValue;
+    },
+  };
+}
+
+/** Craft owner for replay state; read facades remain for synchronous views. */
+export const { ReplayDashboardState: ReplayState } = craftService(
+  { name: 'replayDashboardState', providedIn: 'global' },
+  function* () {
+    const localStorage = LocalStorage;
+    const browserDocument = yield* BrowserDocumentService();
+    const isValidSelector = browserDocument.isValidSelector;
+    const autoSkipPreference =
+      (yield* localStorage.getItem(AUTO_SKIP_STORAGE_KEY)) === 'true';
+    const sessionTextWriter = createStateWriter(
+      'sessionText',
+      sessionTextBridge, replayStateBatch$,
+    );
+    const sessionTextState = sessionTextWriter.bind(
+      yield* state('sessionText', '', sessionTextWriter.insertion),
+    );
+    const sessionWriter = createStateWriter('session', sessionBridge, replayStateBatch$);
+    const sessionState = sessionWriter.bind(
+      yield* state(
+        'session',
+        sessionBridge.initialValue,
+        sessionWriter.insertion,
+      ),
+    );
+    const eventsWriter = createStateWriter('events', eventsBridge, replayStateBatch$);
+    const eventsState = eventsWriter.bind(
+      yield* state('events', eventsBridge.initialValue, eventsWriter.insertion),
+    );
+    const sessionParticipantsWriter = createStateWriter(
+      'sessionParticipants',
+      sessionParticipantsBridge, replayStateBatch$,
+    );
+    const sessionParticipantsState = sessionParticipantsWriter.bind(
+      yield* state(
+        'sessionParticipants',
+        sessionParticipantsBridge.initialValue,
+        sessionParticipantsWriter.insertion,
+      ),
+    );
+    const selectedParticipantIdWriter = createStateWriter(
+      'selectedParticipantId',
+      selectedParticipantIdBridge, replayStateBatch$,
+    );
+    const selectedParticipantIdState = selectedParticipantIdWriter.bind(
+      yield* state(
+        'selectedParticipantId',
+        'all',
+        selectedParticipantIdWriter.insertion,
+      ),
+    );
+    const loadErrorWriter = createStateWriter('loadError', loadErrorBridge, replayStateBatch$);
+    const loadErrorState = loadErrorWriter.bind(
+      yield* state(
+        'loadError',
+        loadErrorBridge.initialValue,
+        loadErrorWriter.insertion,
+      ),
+    );
+    const thumbnailManifestWriter = createStateWriter(
+      'thumbnailManifest',
+      thumbnailManifestBridge, replayStateBatch$,
+    );
+    const thumbnailManifestState = thumbnailManifestWriter.bind(
+      yield* state(
+        'openThumbnailManifest',
+        thumbnailManifestBridge.initialValue,
+        thumbnailManifestWriter.insertion,
+      ),
+    );
+    const pageWriter = createStateWriter('page', pageBridge, replayStateBatch$);
+    const pageState = pageWriter.bind(
+      yield* state('page', pageBridge.initialValue, pageWriter.insertion),
+    );
+    const activeRouteSessionIdWriter = createStateWriter(
+      'activeRouteSessionId',
+      activeRouteSessionIdBridge, replayStateBatch$,
+    );
+    activeRouteSessionIdWriter.bind(
+      yield* state(
+        'activeRouteSessionId',
+        activeRouteSessionIdBridge.initialValue,
+        activeRouteSessionIdWriter.insertion,
+      ),
+    );
+    const importOpenWriter = createStateWriter('importOpen', importOpenBridge, replayStateBatch$);
+    const importOpenState = importOpenWriter.bind(
+      yield* state('importOpen', false, importOpenWriter.insertion),
+    );
+    const sidePanelOpenWriter = createStateWriter(
+      'sidePanelOpen',
+      sidePanelOpenBridge, replayStateBatch$,
+    );
+    const sidePanelOpenState = sidePanelOpenWriter.bind(
+      yield* state('sidePanelOpen', false, sidePanelOpenWriter.insertion),
+    );
+    const sideTabWriter = createStateWriter('sideTab', sideTabBridge, replayStateBatch$);
+    const sideTabState = sideTabWriter.bind(
+      yield* state(
+        'sideTab',
+        sideTabBridge.initialValue,
+        sideTabWriter.insertion,
+      ),
+    );
+    const resumeDialogOpenWriter = createStateWriter(
+      'resumeDialogOpen',
+      resumeDialogOpenBridge, replayStateBatch$,
+    );
+    const resumeDialogOpenState = resumeDialogOpenWriter.bind(
+      yield* state('resumeDialogOpen', false, resumeDialogOpenWriter.insertion),
+    );
+    const resumeIntentWriter = createStateWriter(
+      'resumeIntent',
+      resumeIntentBridge, replayStateBatch$,
+    );
+    const resumeIntentState = resumeIntentWriter.bind(
+      yield* state('resumeIntent', '', resumeIntentWriter.insertion),
+    );
+    const showAllEventsWriter = createStateWriter(
+      'showAllEvents',
+      showAllEventsBridge, replayStateBatch$,
+    );
+    const showAllEventsState = showAllEventsWriter.bind(
+      yield* state('showAllEvents', false, showAllEventsWriter.insertion),
+    );
+    const pendingDeleteSessionIdWriter = createStateWriter(
+      'pendingDeleteSessionId',
+      pendingDeleteSessionIdBridge, replayStateBatch$,
+    );
+    const pendingDeleteSessionIdState = pendingDeleteSessionIdWriter.bind(
+      yield* state(
+        'pendingDeleteSessionId',
+        pendingDeleteSessionIdBridge.initialValue,
+        pendingDeleteSessionIdWriter.insertion,
+      ),
+    );
+    const eventTimelinePageWriter = createStateWriter(
+      'eventTimelinePage',
+      eventTimelinePageBridge, replayStateBatch$,
+    );
+    const eventTimelinePageState = eventTimelinePageWriter.bind(
+      yield* state('eventTimelinePage', 0, eventTimelinePageWriter.insertion),
+    );
+    const targetUrlWriter = createStateWriter('targetUrl', targetUrlBridge, replayStateBatch$);
+    const targetUrlState = targetUrlWriter.bind(
+      yield* state(
+        'targetUrl',
+        import.meta.env['VITE_CRAFT_REPLAY_TARGET_URL'] ??
+          'http://localhost:4200/',
+        targetUrlWriter.insertion,
+      ),
+    );
+    const startModeWriter = createStateWriter('startMode', startModeBridge, replayStateBatch$);
+    const startModeState = startModeWriter.bind(
+      yield* state(
+        'startMode',
+        startModeBridge.initialValue,
+        startModeWriter.insertion,
+      ),
+    );
+    const statusWriter = createStateWriter(
+      'status',
+      statusBridge, replayStateBatch$,
+    );
+    const statusState = statusWriter.bind(
+      yield* state(
+        'dashboardReplayStatus',
+        'Importe une session v6 pour commencer.',
+        statusWriter.insertion,
+      ),
+    );
+    const connectedWriter = createStateWriter('connected', connectedBridge, replayStateBatch$);
+    const connectedState = connectedWriter.bind(
+      yield* state('connected', false, connectedWriter.insertion),
+    );
+    const differenceWriter = createStateWriter('difference', differenceBridge, replayStateBatch$);
+    const differenceState = differenceWriter.bind(
+      yield* state(
+        'difference',
+        differenceBridge.initialValue,
+        differenceWriter.insertion,
+      ),
+    );
+    const differenceNoticeDismissedWriter = createStateWriter(
+      'differenceNoticeDismissed',
+      differenceNoticeDismissedBridge, replayStateBatch$,
+    );
+    const differenceNoticeDismissedState = differenceNoticeDismissedWriter.bind(
+      yield* state(
+        'differenceNoticeDismissed',
+        differenceNoticeDismissedBridge.initialValue,
+        differenceNoticeDismissedWriter.insertion,
+      ),
+    );
+    const replayDifferencesWriter = createStateWriter(
+      'replayDifferences',
+      replayDifferencesBridge, replayStateBatch$,
+    );
+    const replayDifferencesState = replayDifferencesWriter.bind(
+      yield* state(
+        'replayDifferences',
+        replayDifferencesBridge.initialValue,
+        replayDifferencesWriter.insertion,
+      ),
+    );
+    const differenceHistoryOpenWriter = createStateWriter(
+      'differenceHistoryOpen',
+      differenceHistoryOpenBridge, replayStateBatch$,
+    );
+    const differenceHistoryOpenState = differenceHistoryOpenWriter.bind(
+      yield* state(
+        'differenceHistoryOpen',
+        false,
+        differenceHistoryOpenWriter.insertion,
+      ),
+    );
+    const autoSkipDifferencesWriter = createStateWriter(
+      'autoSkipDifferences',
+      autoSkipDifferencesBridge, replayStateBatch$,
+    );
+    const autoSkipDifferencesState = autoSkipDifferencesWriter.bind(
+      yield* state(
+        'autoSkipDifferences',
+        autoSkipPreference,
+        autoSkipDifferencesWriter.insertion,
+      ),
+    );
+    yield* craftEffect('persistAutoSkipPreference', function* () {
+      const storage = yield* LocalStorageService();
+      const enabled = rawReactiveValue(autoSkipDifferencesState);
+      return () => storage.setItem(AUTO_SKIP_STORAGE_KEY, String(enabled()));
+    });
+    const partialReplayWriter = createStateWriter(
+      'partialReplay',
+      partialReplayBridge, replayStateBatch$,
+    );
+    const partialReplayState = partialReplayWriter.bind(
+      yield* state(
+        'partialReplay',
+        partialReplayBridge.initialValue,
+        partialReplayWriter.insertion,
+      ),
+    );
+    const replayIndexWriter = createStateWriter(
+      'replayIndex',
+      replayIndexBridge, replayStateBatch$,
+    );
+    const replayIndexState = replayIndexWriter.bind(
+      yield* state('replayIndex', 0, replayIndexWriter.insertion),
+    );
+    const replayStateWriter = createStateWriter(
+      'replayState',
+      replayStateBridge, replayStateBatch$,
+    );
+    const replayStateState = replayStateWriter.bind(
+      yield* state('replayState', 'idle', replayStateWriter.insertion),
+    );
+    const diagnosticReplayWriter = createStateWriter(
+      'diagnosticReplay',
+      diagnosticReplayBridge, replayStateBatch$,
+    );
+    diagnosticReplayWriter.bind(
+      yield* state('diagnosticReplay', false, diagnosticReplayWriter.insertion),
+    );
+    const replayWarningsWriter = createStateWriter(
+      'replayWarnings',
+      replayWarningsBridge, replayStateBatch$,
+    );
+    const replayWarningsState = replayWarningsWriter.bind(
+      yield* state(
+        'replayWarnings',
+        replayWarningsBridge.initialValue,
+        replayWarningsWriter.insertion,
+      ),
+    );
+    const dismissedWarningsWriter = createStateWriter(
+      'dismissedWarnings',
+      dismissedWarningsBridge, replayStateBatch$,
+    );
+    const dismissedWarningsState = dismissedWarningsWriter.bind(
+      yield* state(
+        'dismissedWarnings',
+        dismissedWarningsBridge.initialValue,
+        dismissedWarningsWriter.insertion,
+      ),
+    );
+    const warningHistoryOpenWriter = createStateWriter(
+      'warningHistoryOpen',
+      warningHistoryOpenBridge, replayStateBatch$,
+    );
+    const warningHistoryOpenState = warningHistoryOpenWriter.bind(
+      yield* state(
+        'warningHistoryOpen',
+        false,
+        warningHistoryOpenWriter.insertion,
+      ),
+    );
+    const seekTargetWriter = createStateWriter('seekTarget', seekTargetBridge, replayStateBatch$);
+    const seekTargetState = seekTargetWriter.bind(
+      yield* state(
+        'seekTarget',
+        seekTargetBridge.initialValue,
+        seekTargetWriter.insertion,
+      ),
+    );
+    const replaySkeletonVisibleWriter = createStateWriter(
+      'replaySkeletonVisible',
+      replaySkeletonVisibleBridge, replayStateBatch$,
+    );
+    const replaySkeletonVisibleState = replaySkeletonVisibleWriter.bind(
+      yield* state(
+        'replaySkeletonVisible',
+        false,
+        replaySkeletonVisibleWriter.insertion,
+      ),
+    );
+    const activeReplayParticipantIdWriter = createStateWriter(
+      'activeReplayParticipantId',
+      activeReplayParticipantIdBridge, replayStateBatch$,
+    );
+    const activeReplayParticipantIdState = activeReplayParticipantIdWriter.bind(
+      yield* state(
+        'activeReplayParticipantId',
+        activeReplayParticipantIdBridge.initialValue,
+        activeReplayParticipantIdWriter.insertion,
+      ),
+    );
+    const replayViewportScaleWriter = createStateWriter(
+      'replayViewportScale',
+      replayViewportScaleBridge, replayStateBatch$,
+    );
+    const replayViewportScaleState = replayViewportScaleWriter.bind(
+      yield* state(
+        'replayViewportScale',
+        1,
+        replayViewportScaleWriter.insertion,
+      ),
+    );
+    const replayViewportWriter = createStateWriter(
+      'replayViewport',
+      replayViewportBridge, replayStateBatch$,
+    );
+    const replayViewportState = replayViewportWriter.bind(
+      yield* state(
+        'replayViewport',
+        replayViewportBridge.initialValue,
+        replayViewportWriter.insertion,
+      ),
+    );
+    const nextActionDelayMsWriter = createStateWriter(
+      'nextActionDelayMs',
+      nextActionDelayMsBridge, replayStateBatch$,
+    );
+    const nextActionDelayMsState = nextActionDelayMsWriter.bind(
+      yield* state(
+        'nextActionDelayMs',
+        nextActionDelayMsBridge.initialValue,
+        nextActionDelayMsWriter.insertion,
+      ),
+    );
+
+    const continuationsState = yield* craftComputed(
+      'continuationsState',
+      function* () {
+        return participantContinuations(
+          yield* sessionParticipantsState(),
+          yield* eventsState(),
+        );
+      },
+    );
+    continuationsBridge.bind(rawReactiveValue(continuationsState));
+    const replayableParticipantsState = yield* craftComputed(
+      'replayableParticipantsState',
+      function* () {
+        return (yield* sessionParticipantsState()).filter(
+          (participant) =>
+            !continuations().has(participant.id) &&
+            hasReplayableParticipantData(participant),
+        );
+      },
+    );
+    replayableParticipantsBridge.bind(
+      rawReactiveValue(replayableParticipantsState),
+    );
+    const environmentWarningState = yield* craftComputed(
+      'environmentWarningState',
+      computeEnvironmentWarning,
+    );
+    environmentWarningBridge.bind(rawReactiveValue(environmentWarningState));
+    const visibleEventsState = yield* craftComputed(
+      'visibleEventsState',
+      computeVisibleEvents,
+    );
+    visibleEventsBridge.bind(rawReactiveValue(visibleEventsState));
+    const problemEventsState = yield* craftComputed('problemEventsState', () =>
+      visibleEvents().filter((event) => eventSeverity(event) === 'error'),
+    );
+    problemEventsBridge.bind(rawReactiveValue(problemEventsState));
+    const errorCountState = yield* craftComputed(
+      'errorCountState',
+      () => problemEvents().length,
+    );
+    errorCountBridge.bind(rawReactiveValue(errorCountState));
+    const journalEventsState = yield* craftComputed(
+      'journalEventsState',
+      function* () {
+        return (yield* showAllEventsState())
+          ? visibleEvents()
+          : problemEvents();
+      },
+    );
+    journalEventsBridge.bind(rawReactiveValue(journalEventsState));
+    const visibleEventPageState = yield* craftComputed(
+      'visibleEventPageState',
+      computeVisibleEventPage,
+    );
+    visibleEventPageBridge.bind(rawReactiveValue(visibleEventPageState));
+    const eventTimelinePageCountState = yield* craftComputed(
+      'eventTimelinePageCountState',
+      () =>
+        Math.max(1, Math.ceil(journalEvents().length / eventTimelinePageSize)),
+    );
+    eventTimelinePageCountBridge.bind(
+      rawReactiveValue(eventTimelinePageCountState),
+    );
+    const replayableEventsState = yield* craftComputed(
+      'replayableEventsState',
+      () => getReplaySteps(visibleEvents()),
+    );
+    replayableEventsBridge.bind(rawReactiveValue(replayableEventsState));
+    const replayPlanState = yield* craftComputed(
+      'replayPlanState',
+      function* () {
+        const current = yield* sessionState();
+        return current
+          ? compileReplayPlan(
+              current,
+              undefined,
+              isValidSelector,
+            )
+          : undefined;
+      },
+    );
+    replayPlanBridge.bind(rawReactiveValue(replayPlanState));
+    const replayActionOffsetsMsState = yield* craftComputed(
+      'replayActionOffsetsMsState',
+      computeReplayActionOffsetsMs,
+    );
+    replayActionOffsetsMsBridge.bind(
+      rawReactiveValue(replayActionOffsetsMsState),
+    );
+    const activeReplayEventIdState = yield* craftComputed(
+      'activeReplayEventIdState',
+      function* () {
+        const replayIndexValue = yield* replayIndexState();
+        return replayableEvents()[Math.max(0, replayIndexValue - 1)]?.id;
+      },
+    );
+    activeReplayEventIdBridge.bind(rawReactiveValue(activeReplayEventIdState));
+    const pendingWarningsState = yield* craftComputed(
+      'pendingWarningsState',
+      function* () {
+        const dismissedWarningsValue = yield* dismissedWarningsState();
+        return (yield* replayWarningsState()).filter(
+          (warning) =>
+            !isReplayErrorNote(warning) &&
+            !isReplayVisualWarning(warning) &&
+            !dismissedWarningsValue.includes(warning),
+        );
+      },
+    );
+    pendingWarningsBridge.bind(rawReactiveValue(pendingWarningsState));
+    const hasDifferenceState = yield* craftComputed(
+      'hasDifferenceState',
+      function* () {
+        return (yield* differenceState()) !== undefined;
+      },
+    );
+    hasDifferenceBridge.bind(rawReactiveValue(hasDifferenceState));
+    const canForceRecoveryState = yield* craftComputed(
+      'canForceRecoveryState',
+      function* () {
+        return (yield* differenceState())?.recovery !== undefined;
+      },
+    );
+    canForceRecoveryBridge.bind(rawReactiveValue(canForceRecoveryState));
+    const canSkipDifferenceState = yield* craftComputed(
+      'canSkipDifferenceState',
+      function* () {
+        return (yield* differenceState())?.skip !== undefined;
+      },
+    );
+    canSkipDifferenceBridge.bind(rawReactiveValue(canSkipDifferenceState));
+
+    // Imperative replay callbacks resolve their mutable capabilities through
+    // this service too, so ownership stays with the dashboard injector.
+    yield* craftExpose('imperative', {
+      setStates: setReplayStates,
+      activeReplayParticipantId: activeReplayParticipantIdState,
+      autoSkipDifferences: autoSkipDifferencesState,
+      completedReplayEventIds,
+      connected: connectedState,
+      diagnosticReplay,
+      difference: differenceState,
+      differenceHistoryOpen: differenceHistoryOpenState,
+      differenceNoticeDismissed: differenceNoticeDismissedState,
+      dismissedWarnings: dismissedWarningsState,
+      dialogTimers,
+      eventTimelinePage: eventTimelinePageState,
+      events: eventsState,
+      frameConnections,
+      hasDifference,
+      handshakeTimers,
+      importOpen: importOpenState,
+      loadError: loadErrorState,
+      nextActionDelayMs: nextActionDelayMsState,
+      page: pageState,
+      participantStates,
+      pendingDeleteSessionId: pendingDeleteSessionIdState,
+      partialReplay: partialReplayState,
+      registers,
+      replayActionOffsetsMs,
+      replayDifferences: replayDifferencesState,
+      replayIndex: replayIndexState,
+      replayableEvents,
+      replayScales,
+      replaySkeletonVisible: replaySkeletonVisibleState,
+      replayState: replayStateState,
+      replayViewport: replayViewportState,
+      replayViewportScale: replayViewportScaleState,
+      replayViewports,
+      replayWarnings: replayWarningsState,
+      resumeDialogOpen: resumeDialogOpenState,
+      resumeIntent: resumeIntentState,
+      seekHooks,
+      seekTarget: seekTargetState,
+      selectedParticipantId: selectedParticipantIdState,
+      session: sessionState,
+      sessionParticipants: sessionParticipantsState,
+      sessionText: sessionTextState,
+      sidePanelOpen: sidePanelOpenState,
+      sideTab: sideTabState,
+      showAllEvents: showAllEventsState,
+      startMode: startModeState,
+      status: statusState,
+      targetUrl: targetUrlState,
+      thumbnailManifest: thumbnailManifestState,
+      warningHistoryOpen: warningHistoryOpenState,
+      warningIndexes,
+    });
+    yield* craftExpose('closeResumeDialog', () =>
+      setReplayStates({ resumeDialogOpen: false }),
+    );
+  },
+);
+
+/**
+ * The engine's own bookkeeping: what a message handler or a timer needs to
+ * remember between two calls, and that no template reads.
+ */
+type ReplayRegisters = {
+  /** The archived session the page currently shows. */
+  loadedArchiveSessionId: string | undefined;
+  loadedArchiveCreatedAtMs: number | undefined;
+  differenceParticipantId: string | undefined;
+  bridgeListening: boolean;
+  playbackRequested: boolean;
+  clockStartedAt: number | undefined;
+  clockElapsedMs: number;
+  clockTimer: ReplayTimer | undefined;
+  skeletonTimer: ReplayTimer | undefined;
+  countdownTimer: ReplayTimer | undefined;
+  visibilityTimeline: VisibilityChange[];
+  visibilityCursor: number;
+  visibilityOriginMs: number;
+  visibilityParticipantIds: readonly string[];
+  recordedActiveParticipantId: string | undefined;
+  actionParticipantId: string | undefined;
+  /** A step sent for a seek is on its way and has not answered yet. */
+  seekStepping: boolean;
+  /** The next start keeps the notes: it is a seek, not a new replay. */
+  keepNotesOnStart: boolean;
+};
+
+export const registers: ReplayRegisters = {
+  loadedArchiveSessionId: undefined,
+  loadedArchiveCreatedAtMs: undefined,
+  differenceParticipantId: undefined,
+  bridgeListening: false,
+  playbackRequested: false,
+  clockStartedAt: undefined,
+  clockElapsedMs: 0,
+  clockTimer: undefined,
+  skeletonTimer: undefined,
+  countdownTimer: undefined,
+  visibilityTimeline: [],
+  visibilityCursor: 0,
+  visibilityOriginMs: 0,
+  visibilityParticipantIds: [],
+  recordedActiveParticipantId: undefined,
+  actionParticipantId: undefined,
+  seekStepping: false,
+  keepNotesOnStart: false,
+};
+
+export const frameConnections = new Map<string, ReplayFrameConnection>();
+export const replayViewports = new Map<string, ReplayViewport>();
+export const replayScales = new Map<string, number>();
+export const completedReplayEventIds = new Set<string>();
+export const handshakeTimers = new Map<string, ReplayTimer>();
+export const dialogTimers = new Map<string, ReplayTimer>();
+export const participantStates = new Map<
+  string,
+  Readonly<{ state: ReplayParticipantState; time: number }>
+>();
+
+/* ── the route ──────────────────────────────────────────────────────────── */
+
+const activeRouteSessionIdBridge = createReadBridge<string | undefined>(
+  'activeRouteSessionId',
+  undefined,
+);
+/** Reactive route id set by the active typed route. */
+export const activeRouteSessionId = activeRouteSessionIdBridge.value;
+
+export function syncActiveRouteSessionId(sessionId: string | undefined): void {
+  setReplayStates({ activeRouteSessionId: sessionId });
+}
+
+/** The session id supplied by the active Craft route, if it has one. */
+export function routeSessionId(): string | undefined {
+  return activeRouteSessionId();
+}
+
+/* ── what follows from the recording ────────────────────────────────────── */
+
+/** Which tabs are the continuation of another one (a Clear Cache reload). */
+const continuationsBridge = createReadBridge<ReadonlyMap<string, string>>(
+  'continuations',
+  new Map(),
+);
+export const continuations = continuationsBridge.value;
+const replayableParticipantsBridge = createReadBridge<
+  readonly SendContextSessionParticipant[]
+>('replayableParticipants', []);
+export const replayableParticipants = replayableParticipantsBridge.value;
+
+const currentEnvironment = captureDebugSessionEnvironment();
+
+const environmentWarningBridge = createReadBridge('environmentWarning', '');
+export const environmentWarning = environmentWarningBridge.value;
+
+function computeEnvironmentWarning(): string {
+  const profiles = sessionParticipants()
+    .map((participant) => participant.environment)
+    .filter((profile): profile is SendContextEnvironmentProfile =>
+      Boolean(profile),
+    );
+  const differences = [
+    ...new Set(
+      profiles.flatMap((profile) =>
+        environmentDifferences(profile, currentEnvironment),
+      ),
+    ),
+  ];
+  return differences.length
+    ? `Environnement différent de l’enregistrement : ${differences.join(', ')}. Le user-agent n’est pas simulé et l’iframe utilise le navigateur actuel ; le schéma clair/sombre enregistré est appliqué quand il est disponible.`
+    : '';
+}
+
+/** The recording as one tab saw it. */
+export function sessionForParticipant(
+  participantId: string,
+): SendContextReplayExport | undefined {
+  const imported = session();
+  if (!imported) return undefined;
+  return participantSession(
+    imported,
+    sessionParticipants(),
+    participantId,
+    continuations(),
+  );
+}
+
+const visibleEventsBridge = createReadBridge<readonly SendContextEvent[]>(
+  'visibleEvents',
+  [],
+);
+export const visibleEvents = visibleEventsBridge.value;
+
+function computeVisibleEvents(): readonly SendContextEvent[] {
+  const selected = selectedParticipantId();
+  if (selected === 'all') {
+    const participants = sessionParticipants();
+    if (participants.length <= 1) return events();
+    const replayableIds = new Set(
+      participants
+        .filter((participant) => Boolean(sessionForParticipant(participant.id)))
+        .map((participant) => participant.id),
+    );
+    return events()
+      .filter(
+        (event) =>
+          event.participantId && replayableIds.has(event.participantId),
+      )
+      .sort(
+        (left, right) =>
+          (left.globalElapsedMs ?? left.timestamp) -
+          (right.globalElapsedMs ?? right.timestamp),
+      );
+  }
+  const group = participantGroup(
+    continuations().get(selected) ?? selected,
+    continuations(),
+  );
+  return events().filter(
+    (event) => event.participantId && group.has(event.participantId),
+  );
+}
+
+// Slow tasks are context, not a verdict: they appear under "Tout afficher",
+// marked, but they neither fill the default journal nor raise the badge.
+const problemEventsBridge = createReadBridge<readonly SendContextEvent[]>(
+  'problemEvents',
+  [],
+);
+export const problemEvents = problemEventsBridge.value;
+const errorCountBridge = createReadBridge('errorCount', 0);
+export const errorCount = errorCountBridge.value;
+const journalEventsBridge = createReadBridge<readonly SendContextEvent[]>(
+  'journalEvents',
+  [],
+);
+export const journalEvents = journalEventsBridge.value;
+const visibleEventPageBridge = createReadBridge<readonly SendContextEvent[]>(
+  'visibleEventPage',
+  [],
+);
+export const visibleEventPage = visibleEventPageBridge.value;
+const eventTimelinePageCountBridge = createReadBridge(
+  'eventTimelinePageCount',
+  1,
+);
+export const eventTimelinePageCount = eventTimelinePageCountBridge.value;
+const replayableEventsBridge = createReadBridge<
+  ReturnType<typeof getReplaySteps>
+>('replayableEvents', []);
+export const replayableEvents = replayableEventsBridge.value;
+const replayPlanBridge = createReadBridge<
+  ReturnType<typeof compileReplayPlan> | undefined
+>('replayPlan', undefined);
+export const replayPlan = replayPlanBridge.value;
+const replayActionOffsetsMsBridge = createReadBridge<readonly number[]>(
+  'replayActionOffsetsMs',
+  [],
+);
+export const replayActionOffsetsMs = replayActionOffsetsMsBridge.value;
+const activeReplayEventIdBridge = createReadBridge<string | undefined>(
+  'activeReplayEventId',
+  undefined,
+);
+export const activeReplayEventId = activeReplayEventIdBridge.value;
+const pendingWarningsBridge = createReadBridge<readonly string[]>(
+  'pendingWarnings',
+  [],
+);
+export const pendingWarnings = pendingWarningsBridge.value;
+const hasDifferenceBridge = createReadBridge('hasDifference', false);
+export const hasDifference = hasDifferenceBridge.value;
+const canForceRecoveryBridge = createReadBridge('canForceRecovery', false);
+export const canForceRecovery = canForceRecoveryBridge.value;
+const canSkipDifferenceBridge = createReadBridge('canSkipDifference', false);
+export const canSkipDifference = canSkipDifferenceBridge.value;
+
+function computeVisibleEventPage(): readonly SendContextEvent[] {
+  const start = eventTimelinePage() * eventTimelinePageSize;
+  return journalEvents().slice(start, start + eventTimelinePageSize);
+}
+
+/**
+ * When each replayable action happens, in milliseconds from the first one.
+ * Prefer the archive clock when present: a page reload can reset elapsedMs
+ * even though the participant's events continue in the same session.
+ */
+function computeReplayActionOffsetsMs(): readonly number[] {
+  const times = replayableEvents().map(
+    (event) => event.globalElapsedMs ?? event.elapsedMs ?? event.timestamp,
+  );
+  const origin = times[0] ?? 0;
+  let latest = 0;
+  return times.map((time) => (latest = Math.max(latest, time - origin)));
+}
+
+export function dismissWarning(warning: string): void {
+  const dismissed = dismissedWarnings();
+  if (!dismissed.includes(warning)) {
+    setReplayStates({ dismissedWarnings: [...dismissed, warning] });
+  }
+}
+
+export function dismissDifferenceNotice(): void {
+  setReplayStates({ differenceNoticeDismissed: true });
+}
+
+export function dismissAllWarnings(): void {
+  setReplayStates({ dismissedWarnings: replayWarnings() });
+}
+
+export function rememberAutoSkipDifferences(enabled: boolean): void {
+  setReplayStates({ autoSkipDifferences: enabled });
+}
+
+export function recordReplayDifference(
+  participantId: string,
+  found: ReplayDifference,
+): void {
+  const entries = replayDifferences();
+  setReplayStates({ replayDifferences: [
+    ...entries,
+    {
+      id: entries.length + 1,
+      participantId,
+      ...(found.eventId === undefined ? {} : { eventId: found.eventId }),
+      expected: found.expected,
+      actual: found.actual,
+      ...(found.transport === undefined ? {} : { transport: found.transport }),
+      ...(found.skip === undefined
+        ? {}
+        : { checkpointEventId: found.skip.checkpointEventId }),
+      resolution: 'pending',
+    },
+  ] });
+}
+
+export function resolveLatestReplayDifference(
+  participantId: string,
+  resolution: 'skipped' | 'recovered',
+): void {
+  const entries = replayDifferences();
+  let index = entries.length - 1;
+  while (
+    index >= 0 &&
+    (entries[index]?.resolution !== 'pending' ||
+      entries[index]?.participantId !== participantId)
+  )
+    index--;
+  if (index < 0) return;
+  setReplayStates({
+    replayDifferences: entries.map((entry, entryIndex) =>
+      entryIndex === index ? { ...entry, resolution } : entry,
+    ),
+  });
+}
+
+/** What the tab calls itself; the page it runs when the recording does not say. */
+export function participantTitle(participantId: string): string {
+  return (
+    sessionParticipants().find(
+      (participant) => participant.id === participantId,
+    )?.title ?? 'Application cible'
+  );
+}
+
+function hasReplayableParticipantData(
+  participant: SendContextSessionParticipant,
+): boolean {
+  const replay = sessionForParticipant(participant.id);
+  if (!replay || replay.truncated) return false;
+  // A hidden tab that produced no replay events or snapshots is a transient
+  // browser participant, not a screen the replay can show. An empty recording
+  // clip alone does not make it a replayable screen.
+  return !(
+    replay.events.length === 0 &&
+    (replay.snapshots?.length ?? 0) === 0 &&
+    !replay.initialSnapshot &&
+    participant.state === 'hidden'
+  );
+}
+
+/** The tabs the replay plays, in the order the stage lays them out. */
+export function replayParticipantIds(): readonly string[] {
+  const participants = sessionParticipants();
+  if (participants.length === 0) return ['default'];
+  const selected = selectedParticipantId();
+  const candidates =
+    selected === 'all'
+      ? participants
+      : participants.filter((participant) => participant.id === selected);
+  return candidates
+    .filter((participant) => {
+      if (continuations().has(participant.id)) return false;
+      return hasReplayableParticipantData(participant);
+    })
+    .map((participant) => participant.id);
+}
+
+/** Each replayable tab's slice of the recording, on one shared timeline. */
+export function sessionsForReplay(): readonly ReplaySlice[] {
+  const imported = session();
+  if (!imported) return [];
+  const slices = replayParticipantIds().flatMap((participantId) => {
+    const replay = sessionForParticipant(participantId);
+    return replay && !replay.truncated
+      ? [{ participantId, session: replay }]
+      : [];
+  });
+  if (selectedParticipantId() !== 'all' || slices.length <= 1) return slices;
+  return alignSharedTimeline(slices);
+}
+
+export function canReplaySelectedSession(): boolean {
+  const slices = sessionsForReplay();
+  return (
+    slices.length > 0 &&
+    (startMode() !== 'snapshot' ||
+      slices.every((item) => (item.session.snapshots?.length ?? 0) > 0))
+  );
+}
+
+/** What the recording says about when its tabs were created. */
+export function recordingClock(): RecordingClock {
+  return {
+    events: events(),
+    participants: sessionParticipants(),
+    archiveCreatedAtMs: registers.loadedArchiveCreatedAtMs,
+  };
+}

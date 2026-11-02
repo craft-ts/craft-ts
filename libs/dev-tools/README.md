@@ -183,27 +183,33 @@ Files with no route, shell, or importer reachability are marked `delete` in the
 proposal and shown in a separate orphaned-files section. This is a proposed
 deletion in the review output; `craft organize` does not remove source files.
 
-The layout is feature first. Each route anchors a feature folder on its full
-path (a collection loaded by a route nests under it; route params are not
-folders). A file belongs to the features that use it, following CraftTS
-relations from user to used; imports only decide for files the graph says
-nothing about. A file then goes to:
+The layout follows the app's imports. The shell (`main.ts`) and every module a
+`loadChildren` loads are zones; a zone reaches what its entry imports without
+crossing into another zone. A file then goes to:
 
-- `core/` — `main`/`app.*` files, app config, global boundaries, and what the
-  application shell reaches (`main.ts` itself stays in place);
-- `features/<route>/` — the one feature using it, or the deepest one when its
-  users sit on a single route lineage;
-- `features/<ancestor>/` — the common ancestor feature of sibling users;
-- `shared/` — only what several top-level features use.
+- `app/` — what only the shell reaches (`main.ts` itself stays in place);
+- `features/<feature>/` — what one feature reaches, nested the way
+  `loadChildren` calls nest;
+- `features/<feature>/shared/<layer>/` — what several zones under that feature
+  reach;
+- `shared/<layer>/` — what several zones of the app reach.
 
-Existing directory names are not used as architectural evidence. Use `--target-root` when the
-proposed application root should not be inferred from the project tsconfig.
+The layer comes from the file's Craft nodes: `ui`, `state`, `data-access`,
+`util`, or `wiring` for entries, routes and app configs. Imports point down
+`ui` → `state` → `data-access` → `util`. Inside a zone, a file that alone leads
+to at least three files, one level below the pages, gets a sub-folder.
+
+The same computation, `computeFolderLayout`, backs the
+`folder-layout-placement` and `folder-layout-layers` architecture rules, which
+warn by default. Existing directory names are not used as architectural
+evidence. Use `--target-root` when the proposed tree should live under another
+folder than the project's `src/`.
 
 ### Customize an organizer run
 
 `organizeProject` is exported from `@craft-ts/dev-tools` and
-`@craft-ts/dev-tools/folder-layout`. Pass `weights` and `thresholds` to tune
-the scoring and feature depth. Add serializable `placementRules` to override
+`@craft-ts/dev-tools/folder-layout`. Pass `thresholds` to tune
+the group size and hub detection. Add serializable `placementRules` to override
 the default placement for files whose Craft graph nodes match the rule:
 
 ```ts
@@ -214,7 +220,7 @@ organizeProject({
   graph: 'craft-dependency-graph.json',
   out: 'apps/shop/folder-layout',
   weights: { calls: 4 },
-  thresholds: { maxDepth: 2 },
+  thresholds: { groupMinFiles: 4 },
   placementRules: [
     {
       id: 'app-start-services',
@@ -232,7 +238,7 @@ The same rules can be kept in a JSON file and loaded by the CLI:
 ```json
 {
   "weights": { "calls": 4 },
-  "thresholds": { "maxDepth": 2 },
+  "thresholds": { "groupMinFiles": 4 },
   "placementRules": [
     {
       "id": "app-start-services",
@@ -253,7 +259,7 @@ craft organize \
   --out apps/shop/folder-layout
 ```
 
-Rules run in array order before the default ownership classification. The first
+Rules run in array order before the computed layout. The first
 rule matching any Craft node in a file chooses that file's scope and folder;
 the folder is relative to the organizer's target root. Since proposals move
 files, a matching rule applies to the whole file. Each rule needs a unique `id`,

@@ -33,6 +33,12 @@ describe('architecture', () => {
       // The AI chat's own mutation is the framework's, not this app's: nothing
       // in a replay dashboard has a query to refresh after it.
       allow: ['sendContextToAi'],
+      // The app follows the folder layout: a misplaced file or an upward
+      // import fails here instead of warning.
+      severity: {
+        'folder-layout-placement': 'error',
+        'folder-layout-layers': 'error',
+      },
     });
   });
 });

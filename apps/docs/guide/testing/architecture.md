@@ -816,6 +816,17 @@ warn by default; raise them with `severity`, or waive one route
 (`target: 'primitive:asyncProcess:follow'`). See
 [page stability](/guide/testing/page-stability).
 
+### `folder-layout-placement` and `folder-layout-layers`: warnings
+
+Every file has one folder its imports give it: the shell's own files in
+`app/`, a feature's own files in `features/<feature>/`, and what several zones
+use in the `shared/<layer>/` of their closest common zone. Imports point down
+the layers `ui` → `state` → `data-access` → `util`. The first rule reports a
+file outside its folder, the second an import that points up. Both warn by
+default; raise them with `severity` once the app is reorganized with
+`craft organize`, and waive one file with `target: 'file:<path>'`. See
+[folder layout](/guide/testing/folder-layout).
+
 ### Waivers
 
 A deliberate bypass — a third-party widget, HTML rendered from markdown — is a

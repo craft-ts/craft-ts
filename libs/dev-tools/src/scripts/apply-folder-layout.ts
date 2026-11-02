@@ -17,6 +17,8 @@ export interface FolderLayoutGitPlan {
   readonly manualReviews: number;
 }
 
+const SOURCE_EXTENSION = /^\.([cm]?[jt]sx?|json)$/;
+
 const shellQuote = (value: string): string =>
   `'${value.replaceAll("'", "'\\''")}'`;
 
@@ -109,7 +111,10 @@ function rewrittenModuleSpecifier(
 
   let relativeTarget = relative(dirname(importerAfter), targetAfter).split(sep).join('/');
   if (!relativeTarget.startsWith('.')) relativeTarget = `./${relativeTarget}`;
-  const sourceExtension = extname(specifier);
+  // `./app.config` has no extension: `.config` is part of the file name.
+  const sourceExtension = SOURCE_EXTENSION.test(extname(specifier))
+    ? extname(specifier)
+    : '';
   const targetExtension = extname(targetAfter);
   if (sourceExtension) {
     relativeTarget = relativeTarget.slice(0, -targetExtension.length) + sourceExtension;
