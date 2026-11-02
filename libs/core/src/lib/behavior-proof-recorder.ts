@@ -67,13 +67,22 @@ export function ɵstopBehaviorProofRecording(): ɵBehaviorProofRecording {
 
 const HOST_FACTORY_TAG = /^(service|component|route):/;
 
-function record(
+/**
+ * The step key of an invocation, from the host tags it ran under — `undefined`
+ * for a service or component body, the host being built, not something a
+ * user triggers.
+ */
+export function ɵbehaviorInvocationKey(
   hostTags: readonly string[],
-  detail: ɵBehaviorProofStep['detail'],
-): void {
-  const address = hostTags.map((tag) => tag.replace(/#\d+$/, '')).join(' / ');
+): string | undefined {
+  const host = hostTags[hostTags.length - 1];
+  if (!host || HOST_FACTORY_TAG.test(host)) return undefined;
+  return `invocation:${hostTags.map((tag) => tag.replace(/#\d+$/, '')).join(' / ')}`;
+}
+
+function record(key: string, detail: ɵBehaviorProofStep['detail']): void {
   const step: ɵBehaviorProofStep = {
-    key: `invocation:${address}`,
+    key,
     kind: 'invocation',
     detail,
   };
@@ -97,16 +106,12 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   } catch {
     return yield* factory.apply(thisArg, args);
   }
-  // A service or component body is the host being built, not something a
-  // user triggers.
-  const host = hostTags[hostTags.length - 1];
-  if (!host || HOST_FACTORY_TAG.test(host)) {
-    return yield* factory.apply(thisArg, args);
-  }
+  const key = ɵbehaviorInvocationKey(hostTags);
+  if (!key) return yield* factory.apply(thisArg, args);
   try {
     const result = yield* factory.apply(thisArg, args);
     record(
-      hostTags,
+      key,
       isCraftException(result)
         ? { outcome: 'failed', exception: result._tag }
         : { outcome: 'succeeded' },
@@ -114,7 +119,7 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
     return result;
   } catch (error) {
     const tag = (error as { _tag?: unknown } | null)?._tag;
-    record(hostTags, {
+    record(key, {
       outcome: 'failed',
       exception:
         typeof tag === 'string'

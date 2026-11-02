@@ -304,6 +304,7 @@ export * from './lib/craft-target-runtime';
 export * from './lib/craft-node-directive';
 export * from './lib/fn-wrapper';
 export * from './lib/behavior-proof-recorder';
+export * from './lib/behavior-mutant';
 export * from './lib/craft-test-providers';
 export {
   GUARD_AWAIT_REQUEST_MARKER,

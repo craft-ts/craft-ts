@@ -48,6 +48,9 @@ export function behaviorProofReporter(
   const outputFile = resolve(options.rootDir, options.outputFile ?? BEHAVIOR_PROOF_INDEX);
   return {
     onTestRunEnd(testModules: ReadonlyArray<TestModule>) {
+      // A mutant run (`craft mutants`) breaks the code on purpose: its
+      // results prove nothing.
+      if (process.env['CRAFT_BEHAVIOR_MUTANT']) return;
       const index = readIndexFile(outputFile);
       const ran = new Set<string>();
       const fresh: Record<string, BehaviorTraceLike> = {};

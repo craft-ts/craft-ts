@@ -38,6 +38,7 @@ import {
 
 export * from './behavior-proofs.ts';
 export * from './behavior-proof-index.ts';
+export * from './behavior-mutants.ts';
 import type { DependencyGraph, DependencyGraphNode } from './dependency-graph.js';
 
 export const BEHAVIOR_KINDS = [

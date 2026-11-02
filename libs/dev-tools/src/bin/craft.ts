@@ -45,6 +45,16 @@ import {
 import {
   applyFolderLayoutProposal,
 } from '../scripts/apply-folder-layout.js';
+import {
+  changedBehaviorObligations,
+  formatBehaviorMutantRun,
+  parseBehaviorCatalogSource,
+  planBehaviorMutants,
+  readBehaviorCatalogAtBase,
+  readBehaviorProofIndex,
+  runBehaviorMutants,
+  vitestMutantRunner,
+} from '../scripts/behavior-catalog.js';
 
 type CommonOptions = {
   rootDir?: string;
@@ -76,6 +86,9 @@ async function main(argv: string[]): Promise<number> {
       child.on('exit', (code) => resolve(code ?? 1));
       child.on('error', () => resolve(1));
     });
+  }
+  if (argv[0] === 'mutants') {
+    return runMutants(argv.slice(1));
   }
   if (argv[0] === 'organize') {
     if (argv[1] === 'apply') return runOrganizeApply(argv.slice(2));
@@ -221,6 +234,60 @@ async function main(argv: string[]): Promise<number> {
   } finally {
     readline.close();
   }
+}
+
+/**
+ * `craft mutants`: breaks each behaviour the unit tests prove and reruns the
+ * tests that prove it. Reads the fingerprints `nx test` left in
+ * `.craft/behavior-proofs.json`; exits 1 when a mutant survives.
+ */
+function runMutants(argv: string[]): number {
+  let rootDir = process.cwd();
+  let config = 'vitest.config.ts';
+  let catalogPath = 'architecture/behaviors.catalog.ts';
+  const sourceRoots: string[] = [];
+  let changed = false;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--root') rootDir = argv[++index] ?? rootDir;
+    else if (argument === '--config') config = argv[++index] ?? config;
+    else if (argument === '--catalog') catalogPath = argv[++index] ?? catalogPath;
+    else if (argument === '--source') sourceRoots.push(argv[++index] ?? 'src');
+    else if (argument === '--changed') changed = true;
+    else if (argument === '--json') json = true;
+    else if (argument === '--help' || argument === '-h') {
+      console.log(
+        'Usage: craft mutants [--root <app directory>] [--config <vitest config>] [--catalog <behaviors.catalog.ts>] [--source <dir>]... [--changed] [--json]',
+      );
+      return 0;
+    } else throw new Error(`craft mutants: unknown argument ${argument}`);
+  }
+  rootDir = resolve(rootDir);
+  const catalog = parseBehaviorCatalogSource(
+    readFileSync(resolve(rootDir, catalogPath), 'utf8'),
+  );
+  if (!catalog) throw new Error(`craft mutants: ${catalogPath} is not a behaviour catalog.`);
+  const traces = readBehaviorProofIndex(rootDir);
+  const obligations = changed
+    ? changedBehaviorObligations({
+        rootDir,
+        catalog,
+        base: readBehaviorCatalogAtBase({ rootDir, catalogPath }),
+        traces,
+      })
+    : undefined;
+  const run = runBehaviorMutants({
+    rootDir,
+    plans: planBehaviorMutants(catalog, traces, { obligations }),
+    sourceRoots: sourceRoots.length > 0 ? sourceRoots : ['src'],
+    runner: vitestMutantRunner({ rootDir, config }),
+  });
+  console.log(json ? JSON.stringify(run, null, 2) : formatBehaviorMutantRun(run));
+  return run.baseline === 'red' ||
+    run.results.some((result) => result.outcome === 'survived')
+    ? 1
+    : 0;
 }
 
 function runOrganize(argv: string[]): number {
@@ -1150,6 +1217,7 @@ function printHelp(): void {
   craft i18n check|test
   craft graph [options]
   craft organize --project <tsconfig> --graph <graph.json> [options]
+  craft mutants [--root <app dir>] [--config <vitest config>] [--changed] [--json]
   craft organize apply --proposal <folder-layout-proposal.json> --project <tsconfig>
   craft agents sync [--agents <list>] [--root <dir>] [--dry-run] [--json]
   craft security check [--strict] [--root <dir>]

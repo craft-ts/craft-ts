@@ -1,6 +1,7 @@
 # Plan : contraindre des tests de comportement
 
-> Statut (2026-11-02) : lots 1 et 2 faits et commités ; lot 3 à faire.
+> Statut (2026-11-02) : lots 1 et 2 faits et commités ; lot 3 : mutants des
+> tests unitaires faits (P4), e2e et vue Couverture à faire.
 
 ## Objectif
 
@@ -309,13 +310,42 @@ son discriminant).
 
 **P4. Mutants sémantiques**
 
-- [ ] Un mutant par type d'obligation via override runtime : loader de mutation
-  vide, exception remplacée par un succès, transition bloquée, `reactOn` coupé.
-- [ ] Sélection des tests par empreinte, arrêt au premier échec.
-- [ ] Cache des résultats.
-- [ ] Garde-fous e2e instables (baseline verte, échec après l'événement).
-- [ ] Commande locale `craft mutants --changed`.
-- [ ] Passage de nuit non bloquant, puis PR bloquante pour le neuf.
+Code : `libs/core/src/lib/behavior-mutant.ts` (le mutant, un
+`provideFnWrapper`), le setup vitest de `core` (le lit dans
+`CRAFT_BEHAVIOR_MUTANT`), `libs/dev-tools/src/scripts/behavior-mutants.ts`
+(plan, exécution, cache), commande `craft mutants`.
+
+- [x] Un mutant par obligation, appliqué au runtime **à l'étape qui la
+  prouve** (clé d'invocation de l'empreinte), sans toucher au code :
+  - `skip` pour `method`, `mutation`, `command`, `async-process`,
+    `state-machine` : l'invocation ne fait rien et ne rend rien ;
+  - `succeed` pour `http-exception` : l'exception (valeur Craft ou throw)
+    devient un succès vide.
+  Le point d'override retenu est le `FN_WRAPPER` de l'enregistreur, pas
+  `SERVICE_RUNTIME_OVERRIDES` : il voit déjà chaque invocation sous la même
+  adresse que l'empreinte. Une transition de machine ou un `reactOn` coupé
+  un par un restent à faire (le graphe ne les expose pas).
+- [x] Sélection des tests par empreinte : seuls les tests dont l'empreinte
+  prouve l'obligation tournent (les autres sont `skip` par le setup), arrêt
+  au premier échec (`--bail=1`).
+- [x] Cache `.craft/behavior-mutants.json` (hors git), par obligation :
+  hash du mutant, de ses tests et des sources de l'app (`src`, tests
+  compris). Une app inchangée ne relance rien.
+- [x] Garde-fous : les tests tournent d'abord sans mutant (rouge → rien
+  n'est conclu) ; un mutant qu'aucun test n'a atteint (index périmé) est
+  « non atteint », ni tué ni survivant. Le reporter n'écrit pas l'index
+  pendant un passage de mutants.
+- [x] Commande `craft mutants [--root] [--config] [--changed] [--json]`,
+  sortie 1 sur un survivant ; `--changed` = obligations nouvelles depuis le
+  catalogue de base, déclarées dans un fichier modifié ou prouvées par un
+  test modifié (toutes, sans base). Cible nx `demo-ecommerce:mutants`
+  (dépend de `test`).
+- [x] `demo-ecommerce` : 4 mutants, 4 tués, ~8 s. Vérifié à la main qu'un
+  test creux (`toBeGreaterThanOrEqual(0)` après `emptyCart`) laisse
+  survivre son mutant.
+- [ ] Mutants e2e (rejouer un test Playwright par mutant ; ne compter comme
+  tué qu'un échec après l'événement de l'obligation dans la trace).
+- [ ] Passage de nuit non bloquant, puis PR bloquante pour le neuf (CI).
 
 **P6. Combler les trous**
 

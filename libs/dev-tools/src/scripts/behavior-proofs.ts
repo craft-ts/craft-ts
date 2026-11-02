@@ -57,6 +57,17 @@ export function behaviorProofsFromTrace(
   catalog: BehaviorCatalog,
   trace: BehaviorTraceLike,
 ): string[] {
+  return [...behaviorProofSteps(catalog, trace).keys()].sort();
+}
+
+/**
+ * Obligation → the keys of the observed steps that prove it, in trace order.
+ * The mutant runner breaks exactly these steps.
+ */
+export function behaviorProofSteps(
+  catalog: BehaviorCatalog,
+  trace: BehaviorTraceLike,
+): Map<string, string[]> {
   const invoked = new Map<string, string[]>();
   const routes = new Map<string, string[]>();
   const exceptions = new Map<string, string[]>();
@@ -71,18 +82,23 @@ export function behaviorProofsFromTrace(
   const unique = (candidates: readonly string[] | undefined) =>
     candidates?.length === 1 ? candidates[0] : undefined;
 
-  const proven = new Set<string>();
+  const proven = new Map<string, string[]>();
+  const prove = (id: string | undefined, key: string) => {
+    if (!id) return;
+    const keys = proven.get(id) ?? [];
+    if (!keys.includes(key)) keys.push(key);
+    proven.set(id, keys);
+  };
   const observed = trace.steps.slice(0, trace.observedSteps ?? trace.steps.length);
   for (const step of observed) {
     if (step.kind === 'invocation' && step.key.startsWith('invocation:')) {
       const target = invocationTarget(step.key.slice('invocation:'.length));
       if (!target) continue;
       if (step.detail['outcome'] === 'succeeded') {
-        for (const id of invoked.get(target) ?? []) proven.add(id);
+        for (const id of invoked.get(target) ?? []) prove(id, step.key);
       }
       if (step.detail['outcome'] === 'failed') {
-        const id = unique(exceptions.get(String(step.detail['exception'])));
-        if (id) proven.add(id);
+        prove(unique(exceptions.get(String(step.detail['exception']))), step.key);
       }
     }
     if (
@@ -91,18 +107,17 @@ export function behaviorProofsFromTrace(
       step.detail['outcome'] === 'ok'
     ) {
       const id = `server-function:${step.key.slice('server-fn:'.length)}`;
-      if (ids.has(id)) proven.add(id);
+      if (ids.has(id)) prove(id, step.key);
     }
     if (
       step.kind === 'route' &&
       step.key.startsWith('route-activation:') &&
       step.detail['outcome'] === 'activated'
     ) {
-      const id = unique(routes.get(step.key.slice('route-activation:'.length)));
-      if (id) proven.add(id);
+      prove(unique(routes.get(step.key.slice('route-activation:'.length))), step.key);
     }
   }
-  return [...proven].sort();
+  return proven;
 }
 
 /**
