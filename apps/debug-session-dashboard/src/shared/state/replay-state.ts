@@ -43,19 +43,26 @@ import {
 } from '../util/replay-model';
 
 type ReadBridge<T> = {
+  readonly initialValue: T;
   readonly value: () => T;
   bind(read: () => T): void;
 };
 
-const replayStateBatch$ = source$<StateBatch>('replayStateBatch$');
+type ReplayStateBatch$ = ReturnType<typeof source$<StateBatch>>;
+
+// A source needs an injection context, so ReplayDashboardState creates it and
+// binds it here; the module-level writers below emit through it. Every writer
+// runs after a view has yielded the service, as the read bridges assume too.
+let boundReplayStateBatch$: ReplayStateBatch$ | undefined;
 
 function setReplayStates(updates: StateBatch): void {
-  replayStateBatch$.emit(updates);
+  boundReplayStateBatch$?.emit(updates);
 }
 
 function createReadBridge<T>(_name: string, initialValue: T): ReadBridge<T> {
   let read = () => initialValue;
   return {
+    initialValue,
     value: () => read(),
     bind(nextRead) {
       read = nextRead;
@@ -327,7 +334,7 @@ function hasStateUpdate<Key extends keyof ReplayStateValues>(
 function createStateWriter<T>(
   name: keyof ReplayStateValues,
   bridge: ReadBridge<T>,
-  batch$: ReturnType<typeof source$<StateBatch>>,
+  batch$: ReplayStateBatch$,
 ) {
   return {
     insertion: ({
@@ -353,6 +360,8 @@ function createStateWriter<T>(
 export const { ReplayDashboardState: ReplayState } = craftService(
   { name: 'replayDashboardState', providedIn: 'global' },
   function* () {
+    const replayStateBatch$ = source$<StateBatch>('replayStateBatch$');
+    boundReplayStateBatch$ = replayStateBatch$;
     const localStorage = LocalStorage;
     const browserDocument = yield* BrowserDocumentService();
     const isValidSelector = browserDocument.isValidSelector;

@@ -621,10 +621,7 @@ test.describe('reprise guidée par une IA simulée', () => {
       ).toContainText('Point figé, valide une heure.', { timeout: 20_000 });
       await expect(
         dashboard.locator('[data-lab="resume-recipes"]'),
-      ).toContainText(
-        'Vérifier le brouillon de prix d’un Espresso créé par la recette',
-        { timeout: 20_000 },
-      );
+      ).toContainText('Vérifier le brouillon Espresso', { timeout: 20_000 });
       await dashboardContext.close();
     },
   );

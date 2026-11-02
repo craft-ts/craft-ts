@@ -57,6 +57,7 @@ export default defineConfig({
         '../../libs/component/src/index.ts',
       ),
       '@craft-ts/style': path.resolve(root, '../../libs/style/src/index.ts'),
+      '@craft-ts/i18n': path.resolve(root, '../../libs/i18n/src/index.ts'),
     },
   },
   server: {

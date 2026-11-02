@@ -23,7 +23,6 @@ import {
   activeReplayEventId,
   eventTimelinePageCount,
   ReplayState,
-  showAllEvents,
   visibleEventPage,
 } from '../../../shared/state/replay-state';
 import { lit } from '../../../shared/util/view-helpers';
@@ -44,7 +43,7 @@ function showAllEventsSwitch(
 export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
   const replayDebug = yield* ReplayDebug();
   const replaySession = yield* ReplaySession();
-  const { eventTimelinePage, setStates } =
+  const { eventTimelinePage, setStates, showAllEvents } =
     (yield* ReplayState()).imperative;
   const journalSummaryText = yield* craftComputed(
     'journalSummaryText',
