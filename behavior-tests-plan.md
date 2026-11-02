@@ -1,6 +1,6 @@
 # Plan : contraindre des tests de comportement
 
-> Statut : lot 1 implémenté, non commité (2026-11-02) ; lots 2 et 3 à faire.
+> Statut (2026-11-02) : lot 1 fait et commité ; lot 2 fait pour les e2e (pas pour les tests de service/template) ; lot 3 à faire.
 
 ## Objectif
 
@@ -214,24 +214,47 @@ Code : `libs/dev-tools/src/scripts/behavior-catalog.ts` (+ spec), exporté par
 - Le cliquet ne s'active qu'une fois `behaviors.catalog.ts` présent sur
   `main` : avant le merge, il n'y a pas de base et il ne bloque rien.
 
-### Lot 2 — Preuve par la trace
+### Lot 2 — Preuve par la trace (e2e fait, service/template à faire)
+
+Code : `libs/dev-tools/src/scripts/behavior-proofs.ts` (trace → obligations),
+`libs/playwright-sessions/src/reference-traces.ts` (références e2e, maintenant
+et au merge-base).
 
 **P2. Empreintes de couverture**
 
-- [ ] Identifiants partagés : le runtime émet les identifiants du catalogue
-  dans ses événements de trace.
+- [x] Correspondance trace → obligations **par nom**, sans changer le
+  runtime : `service:session / query:signInProcess` prouve
+  `…:session.signInProcess#…` quel que soit le type de primitive ;
+  `server-fn:<id>` ok → `server-function:<id>` ; `route-activation:<chemin>`
+  → la route de ce chemin ; exception d'une invocation → la
+  `http-exception` de ce discriminant. Deux candidats possibles → aucune
+  preuve (jamais deviné).
+- [ ] Le runtime n'émet pas encore les identifiants du catalogue ; la
+  correspondance par nom en tient lieu.
 - [ ] Reporter vitest pour `setupCraftServiceTestingByRegister` et
-  `setupCraftComponentTemplateTest` : écrit l'empreinte, pas de trace complète.
-- [ ] Extraction de l'empreinte depuis les traces e2e existantes.
-- [ ] Index des empreintes en cache/artefact de CI de `main`.
-- [ ] Règle `missing-behavior-proof` ; cliquet complet (obligation qui perd sa
-  preuve → bloquant).
-- [ ] Vérification « observé » : une assertion sur une surface publique après
-  l'événement de l'obligation.
-- [ ] Avertissement test orphelin.
+  `setupCraftComponentTemplateTest` : **non fait**. Les tests n'enregistrent
+  pas d'événements craft ; piste : un `provideFnWrapper` de test qui lit
+  `ɵHOST_TAG_LIST` (comme `correlation-id-plugin.ts`) et note l'issue de
+  chaque loader.
+- [x] Extraction depuis les références e2e déjà versionnées
+  (`e2e/__sessions__`) : aucun stockage en plus. `demo-ecommerce` : 12
+  obligations sur 34 prouvées par ses 3 tests.
+- [x] Index : pas de fichier ; recalculé depuis les références, et au
+  merge-base depuis git (`git show`).
+- [x] Cliquet complet : obligation prouvée sur la base, toujours là, plus
+  prouvée → bloquant (waivable avec raison). Couverture affichée, jamais
+  imposée.
+- [ ] Vérification « observé » (assertion après l'événement) : non fait ; les
+  assertions Playwright n'apparaissent pas dans les traces.
+- [x] Avertissement test orphelin.
 
-Fini quand : retirer le test qui couvre une obligation fait échouer la PR, et
-une exception HTTP prouvée par un test de service suffit (pas d'e2e exigé).
+Observation : `admin.edit-product` clique sur « +1 stock », mais sa référence
+(2026-10-25) ne contient ni `adminAction` ni `ecommerce.product.save`. À
+regarder : référence ancienne ou capture incomplète.
+
+Fini quand : retirer le test qui couvre une obligation fait échouer la PR
+(fait pour les e2e), et une exception HTTP prouvée par un test de service
+suffit (à faire avec le reporter vitest).
 
 ### Lot 3 — Discrimination, puis aide
 

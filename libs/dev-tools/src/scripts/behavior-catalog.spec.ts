@@ -365,6 +365,7 @@ describe('behaviorRatchet', () => {
     expect(behaviorRatchet({ base: undefined, next, waivers })).toEqual({
       baseline: 'missing',
       unproven: [],
+      lost: [],
       waiverProblems: [],
     });
     // Once merged, the obligation exists on the base: the waiver still names a

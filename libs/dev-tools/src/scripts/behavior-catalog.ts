@@ -20,14 +20,23 @@
  *
  * The ratchet compares the catalog generated from the working tree with the
  * one committed on the base branch, obligation by obligation: a removed one is
- * always fine, a new one arrives with its proof or a reasoned waiver. Proofs
- * come from test traces (lot 2); until then a new obligation needs a waiver.
+ * always fine, a new one arrives with its proof or a reasoned waiver, and one
+ * proven on the base keeps its proof. Proofs come from test traces
+ * (`behavior-proofs.ts`).
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import ts from 'typescript';
 import { relativeGraphPath } from './architecture-graph.ts';
+import {
+  behaviorProofIndex,
+  provenBehaviors,
+  type BehaviorProofIndex,
+  type BehaviorTraceLike,
+} from './behavior-proofs.ts';
+
+export * from './behavior-proofs.ts';
 import type { DependencyGraph, DependencyGraphNode } from './dependency-graph.js';
 
 export const BEHAVIOR_KINDS = [
@@ -403,6 +412,12 @@ export type BehaviorRatchetReport = {
   readonly diff?: BehaviorCatalogDiff;
   /** New obligations with neither proof nor waiver. */
   readonly unproven: readonly string[];
+  /**
+   * Obligations proven on the base, still there, and proven no more: the
+   * test that covered them was removed or weakened. The regression that
+   * counts, and the one a coverage rate hides.
+   */
+  readonly lost: readonly string[];
   /** Waivers refused for themselves: empty reason, stale, unknown rule. */
   readonly waiverProblems: readonly string[];
 };
@@ -411,14 +426,16 @@ export type BehaviorRatchetReport = {
  * Obligation by obligation, never a rate: a rate punishes deleting a
  * well-tested feature and lets a loss hide behind a gain elsewhere.
  *
- * `proven` is empty until test traces exist (lot 2); a waiver names a gap on
- * purpose and goes stale once its obligation is gone.
+ * `proven` comes from the traces of the tests that ran (`behavior-proofs.ts`),
+ * `baseProven` from the same tests at the base. A waiver names a gap on
+ * purpose and goes stale once its obligation is gone or proven.
  */
 export function behaviorRatchet(options: {
   readonly base: BehaviorCatalog | undefined;
   readonly next: BehaviorCatalog;
   readonly waivers?: readonly BehaviorWaiver[];
   readonly proven?: ReadonlySet<string>;
+  readonly baseProven?: ReadonlySet<string>;
 }): BehaviorRatchetReport {
   const ids = new Set(options.next.behaviors.map((entry) => entry.id));
   const waiverProblems: string[] = [];
@@ -443,7 +460,7 @@ export function behaviorRatchet(options: {
     }
   }
   if (!options.base) {
-    return { baseline: 'missing', unproven: [], waiverProblems };
+    return { baseline: 'missing', unproven: [], lost: [], waiverProblems };
   }
   const diff = diffBehaviorCatalogs(options.base, options.next);
   return {
@@ -451,6 +468,12 @@ export function behaviorRatchet(options: {
     diff,
     unproven: diff.added.filter(
       (id) => !waived.has(id) && !options.proven?.has(id),
+    ),
+    lost: diff.kept.filter(
+      (id) =>
+        options.baseProven?.has(id) === true &&
+        !options.proven?.has(id) &&
+        !waived.has(id),
     ),
     waiverProblems,
   };
@@ -690,12 +713,21 @@ export type BehaviorObligationsOptions = BehaviorCatalogOptions & {
   readonly waivers?: readonly BehaviorWaiver[];
   /** Spec files, relative to the graph root, checked for mocks. */
   readonly testFiles?: readonly string[];
+  /** Test id → trace, for the tests as they are now. */
+  readonly traces?: Readonly<Record<string, BehaviorTraceLike>>;
+  /** The same tests at the base, read against the base catalog. */
+  readonly baseTraces?: Readonly<Record<string, BehaviorTraceLike>>;
 };
 
 export type BehaviorObligationsReport = {
   readonly catalog: BehaviorCatalog;
   readonly ratchet: BehaviorRatchetReport;
+  readonly proofs: BehaviorProofIndex;
+  /** Obligations proven / in the catalog: shown, never enforced. */
+  readonly coverage: { readonly proven: number; readonly total: number };
   readonly violations: readonly string[];
+  /** Tests that proved something on the base and prove nothing now. */
+  readonly warnings: readonly string[];
 };
 
 /**
@@ -708,10 +740,18 @@ export function behaviorObligationsReport(
   options: BehaviorObligationsOptions,
 ): BehaviorObligationsReport {
   const { catalog, problems } = buildBehaviorCatalog(graph, options);
+  const proofs = behaviorProofIndex(catalog, options.traces ?? {});
+  const baseProofs =
+    options.base && options.baseTraces
+      ? behaviorProofIndex(options.base, options.baseTraces)
+      : {};
+  const proven = provenBehaviors(proofs);
   const ratchet = behaviorRatchet({
     base: options.base,
     next: catalog,
     waivers: options.waivers,
+    proven,
+    baseProven: provenBehaviors(baseProofs),
   });
   const violations = [
     ...problems.map((problem) => problem.message),
@@ -720,7 +760,23 @@ export function behaviorObligationsReport(
       (id) =>
         `New behaviour '${id}' has no proof. Cover it with a test, or add a reasoned { rule: 'behavior-unproven', target: '${id}' } to architecture/behavior-waivers.ts.`,
     ),
+    ...ratchet.lost.map(
+      (id) =>
+        `Behaviour '${id}' was proven on the base and is not any more: the test that covered it was removed or no longer reaches it. Restore the proof, or waive it with a reason.`,
+    ),
   ];
+  const removed = new Set(ratchet.diff?.removed ?? []);
+  const warnings = Object.entries(baseProofs)
+    .filter(
+      ([test, before]) =>
+        before.length > 0 &&
+        before.every((id) => removed.has(id)) &&
+        (proofs[test]?.length ?? 0) === 0,
+    )
+    .map(
+      ([test]) =>
+        `Test '${test}' only proved behaviours that are gone: delete it, unless it is kept for another reason.`,
+    );
 
   const mockViolations = behaviorTestMockViolations(graph, {
     sourceRoots: options.sourceRoots,
@@ -743,7 +799,14 @@ export function behaviorObligationsReport(
       );
   }
 
-  return { catalog, ratchet, violations };
+  return {
+    catalog,
+    ratchet,
+    proofs,
+    coverage: { proven: proven.size, total: catalog.behaviors.length },
+    violations,
+    warnings,
+  };
 }
 
 export function assertBehaviorObligations(
@@ -751,6 +814,8 @@ export function assertBehaviorObligations(
   options: BehaviorObligationsOptions,
 ): BehaviorObligationsReport {
   const report = behaviorObligationsReport(graph, options);
+  for (const warning of report.warnings)
+    console.warn(`[craft behaviours] ${warning}`);
   if (report.violations.length > 0)
     throw new Error(report.violations.join('\n'));
   return report;
