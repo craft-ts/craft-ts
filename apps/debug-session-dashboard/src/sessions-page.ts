@@ -64,7 +64,8 @@ const VIEW_LABELS: Readonly<Record<SessionListView, string>> = {
  */
 export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const replaySession = yield* ReplaySession();
-  const { pendingDeleteSessionId } = (yield* ReplayState()).imperative;
+  const { pendingDeleteSessionId, setStates } =
+    (yield* ReplayState()).imperative;
   const archive = yield* SessionArchive();
   const listView = yield* SessionResumeFilter();
   const actions = yield* SessionPageActions();
@@ -466,7 +467,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               'data-tooltip': 'Supprime cette session de l’archive locale.',
               click: function* () {
                 const item = yield* saved();
-                pendingDeleteSessionId.set(item.id);
+                setStates({ pendingDeleteSessionId: item.id });
               },
             },
             i18n.t("copy.copy178"),
@@ -491,7 +492,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                   class: buttonUi.root,
                   'data-variant': 'secondary',
                   'data-lab': 'cancel-delete-session',
-                  click: () => pendingDeleteSessionId.set(undefined),
+                  click: () => setStates({ pendingDeleteSessionId: undefined }),
                 },
                 i18n.t("copy.copy180"),
               ),

@@ -224,6 +224,40 @@ component dependencies, then passes only the capabilities this helper needs.
 Inside a service, use the yielded API directly. There is no autofix because the
 right owner and lifetime are application decisions.
 
+## Keep state writes yieldable
+
+`craft-ts/no-state-facade` rejects a custom callable type that combines a
+synchronous state reader with mutation methods such as `set` or `update`. That
+shape hides the state's Craft owner and makes writes look like ordinary signal
+mutations. ESLint cannot choose the correct owner or execution boundary, so
+there is no automatic fix; replace the facade manually.
+
+Before — rejected: a local facade invents a second state API:
+
+```ts
+type StateFacade<T> = (() => T) & {
+  set(value: T): void;
+  update(change: (current: T) => T): void;
+};
+```
+
+After — expose insertion methods from `state(...)` and yield their writes:
+
+```ts
+const counter = yield* state('counter', 0, ({ set, update }) => ({
+  set,
+  update,
+}));
+
+yield* counter.set(1);
+yield* counter.update((value) => value + 1);
+```
+
+For a synchronous platform callback, send one intent event and let the owning
+state react with `on$()`; do not publish a mutable state facade to the rest of
+the feature. `craft-ts/no-imported-state-actions` separately rejects mutation
+calls made directly on imported bindings.
+
 ## Scope-matched craft service inputs
 
 `craft-ts/require-craft-service-input-scope` is enabled at `error` in the
@@ -421,6 +455,7 @@ What each rule does:
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/no-external-state-transition`: rejects generic `replace`, `set`, `update`, or `patch` calls on a value returned by Craft `state(...)` outside its state insertion. Put the transition behind a named state method that accepts intent and computes the next value internally.
 - `craft-ts/no-imported-state-actions`: rejects mutable actions on imported bindings, including inside Craft callbacks. Resolve the owner through Craft DI and pass the needed capability as an explicit function input; the rule has no autofix.
+- `craft-ts/no-state-facade`: rejects custom callable state types that combine a synchronous mutation method with a reader. Expose state operations through a `state(...)` insertion and delegate writes with `yield*`.
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values and message-catalog interpolation helpers remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files. Declare primitive dependencies with `yield*` in a service, method, or effect body; component templates are synchronous and consume the resulting view API directly.
 - `craft-ts/no-craft-service-return`: forbids returning a value from a `craftService` factory. Its API is assembled from the named values yielded by its generator; use `yield* craftPrivate(...)` for primitives that should stay internal, and `craftExpose(name, value)` for standalone values that belong in the API. The rule autofixes simple returned objects whose properties already match yielded primitive names.

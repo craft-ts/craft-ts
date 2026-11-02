@@ -53,6 +53,7 @@ module.exports = {
   'craft-ts/no-imperative-craft-method-actions': 'error',
   'craft-ts/no-external-state-transition': 'error',
   'craft-ts/no-imported-state-actions': 'error',
+  'craft-ts/no-state-facade': 'error',
   'craft-ts/no-event-only-craft-method': 'error',
   'craft-ts/no-remote-work-in-craft-method': 'error',
   'craft-ts/no-type-assertions-in-resource-loader': 'error',

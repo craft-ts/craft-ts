@@ -59,8 +59,6 @@ export const { ReplaySession } = craftService(
       events,
       frameConnections,
       handshakeTimers,
-      importOpen,
-      loadError,
       registers,
       replayableEvents,
       replayActionOffsetsMs,
@@ -75,7 +73,6 @@ export const { ReplaySession } = craftService(
       sessionParticipants,
       sessionText,
       startMode,
-      status,
       targetUrl,
     } = (yield* ReplayState()).imperative;
 
@@ -91,7 +88,7 @@ export const { ReplaySession } = craftService(
       if (!hasFrameGrid()) return;
       const participantIds = replayParticipantIds();
       if (!participantIds.includes(rawReactiveValue(activeReplayParticipantId)() ?? ''))
-        activeReplayParticipantId.set(participantIds[0]);
+        setStates({ activeReplayParticipantId: participantIds[0] });
       renderFrames(
         participantIds.map((participantId) => {
           const participant = rawReactiveValue(sessionParticipants)().find(
@@ -117,7 +114,7 @@ export const { ReplaySession } = craftService(
 
     function importJson(text: string): void {
       registers.loadedArchiveCreatedAtMs = undefined;
-      sessionText.set(text);
+      setStates({ sessionText: text });
       const result = validateDebugSessionExport(text.trim());
       if (!result.ok) {
         endReplayLoadingIndicator();
@@ -171,7 +168,7 @@ export const { ReplaySession } = craftService(
     /** An archived session was asked for: clear what the last one left. */
     function beginSessionLoad(id: string): void {
       beginReplayLoadingIndicator();
-      loadError.set(undefined);
+      setStates({ loadError: undefined });
       if (registers.loadedArchiveSessionId !== id) {
         setStates({
           session: undefined,
@@ -199,11 +196,11 @@ export const { ReplaySession } = craftService(
         (participants.length > 1 || rawReactiveValue(session)()?.truncated) &&
         replayParticipantIds().length === 0
       ) {
-        status.set(
-          isRecord(archived) && archived['truncated']
+        setStates({
+          status: isRecord(archived) && archived['truncated']
             ? 'Session tronquée · aucun onglet avec un historique complet ne peut être rejoué.'
             : 'Session chargée · aucun onglet ne contient d’action rejouable.',
-        );
+        });
         endReplayLoadingIndicator();
         return;
       }
@@ -211,7 +208,7 @@ export const { ReplaySession } = craftService(
         if (routeSessionId() !== id || registers.loadedArchiveSessionId !== id)
           return;
         if (!canReplaySelectedSession()) {
-          status.set('Session chargée · aucun replay fiable à préparer.');
+          setStates({ status: 'Session chargée · aucun replay fiable à préparer.' });
           endReplayLoadingIndicator();
           return;
         }
@@ -242,7 +239,7 @@ export const { ReplaySession } = craftService(
     }
 
     function closeImport(): void {
-      importOpen.set(false);
+      setStates({ importOpen: false });
     }
 
     /**
@@ -257,7 +254,7 @@ export const { ReplaySession } = craftService(
     /** A recording that parsed leaves the dialog for the replay page. */
     function openImportedRecording(): void {
       if (!rawReactiveValue(session)()) return;
-      importOpen.set(false);
+      setStates({ importOpen: false });
       if (!routeSessionId()) showImportedRecording();
     }
 
@@ -280,7 +277,7 @@ export const { ReplaySession } = craftService(
           openImportedRecording();
           scheduleReplayPreparation();
         })
-        .catch((error: unknown) => status.set(String(error)));
+        .catch((error: unknown) => setStates({ status: String(error) }));
     }
 
     function setShowAllEvents(next: boolean): void {
@@ -301,9 +298,10 @@ export const { ReplaySession } = craftService(
         slices.some((item) => !item.session.snapshots?.length)
       ) {
         endReplayLoadingIndicator();
-        status.set(
-          'Au moins un onglet ne contient pas de snapshot versionné complet. Choisis le démarrage à l’URL.',
-        );
+        setStates({
+          status:
+            'Au moins un onglet ne contient pas de snapshot versionné complet. Choisis le démarrage à l’URL.',
+        });
         return;
       }
       registers.differenceParticipantId = undefined;
@@ -346,11 +344,11 @@ export const { ReplaySession } = craftService(
       const replayRunId = newUuid();
       const sharedTimeline =
         rawReactiveValue(selectedParticipantId)() === 'all' && slices.length > 1;
-      status.set(
-        sharedTimeline
+      setStates({
+        status: sharedTimeline
           ? `Préparation de ${slices.length} onglets…`
           : 'Chargement et préparation du replay…',
-      );
+      });
       for (const { participantId, session: replaySession } of slices) {
         const useRecordedUrl = mode === 'url' || sharedTimeline;
         const target = parseLocalTarget(
@@ -358,12 +356,15 @@ export const { ReplaySession } = craftService(
         );
         if (!target.ok || !hasFrame(participantId)) {
           endReplayLoadingIndicator();
-          status.set(
-            target.ok ? 'La frame de replay est introuvable.' : target.error,
-          );
+          setStates({
+            status: target.ok
+              ? 'La frame de replay est introuvable.'
+              : target.error,
+          });
           continue;
         }
-        if (!sharedTimeline && mode === 'url') targetUrl.set(target.url.href);
+        if (!sharedTimeline && mode === 'url')
+          setStates({ targetUrl: target.url.href });
         if (useRecordedUrl)
           target.url.searchParams.set(REPLAY_QUERY_MARKER, '1');
         const participantTimelineOriginMs = participantStartAtMs(
@@ -496,7 +497,7 @@ export const { ReplaySession } = craftService(
         (item) => item.id === eventId,
       );
       if (position < 0) {
-        status.set('Cet aperçu ne correspond à aucune action de ce replay.');
+        setStates({ status: 'Cet aperçu ne correspond à aucune action de ce replay.' });
         return false;
       }
       seekReplayToIndex(position + 1, { participantId });
@@ -568,14 +569,14 @@ export const { ReplaySession } = craftService(
         ['error', 'completed'].includes(rawReactiveValue(replayState)()) ||
         rawReactiveValue(replayIndex)() >= target
       ) {
-        seekTarget.set(undefined);
+        setStates({ seekTarget: undefined });
         if (
           rawReactiveValue(replayIndex)() >= target &&
           !['error', 'completed'].includes(rawReactiveValue(replayState)())
         )
-          status.set(
-            `Replay · arrêté avant l’action ${target + 1}. « Action suivante » l’exécute.`,
-          );
+          setStates({
+            status: `Replay · arrêté avant l’action ${target + 1}. « Action suivante » l’exécute.`,
+          });
         return true;
       }
       return false;
@@ -641,7 +642,7 @@ export const { ReplaySession } = craftService(
 
     /** Asks the replayed page to apply the state the recording expected. */
     function forceReplayRecovery(): void {
-      status.set('Application de la reprise forcée…');
+      setStates({ status: 'Application de la reprise forcée…' });
       if (registers.differenceParticipantId)
         send('force-recover', {}, registers.differenceParticipantId);
     }
@@ -650,7 +651,7 @@ export const { ReplaySession } = craftService(
     function skipToCheckpoint(): void {
       if (!rawReactiveValue(difference)()?.skip) return;
       rememberAutoSkipDifferences(true);
-      status.set('Restauration du prochain checkpoint…');
+      setStates({ status: 'Restauration du prochain checkpoint…' });
       if (registers.differenceParticipantId)
         send('skip-to-checkpoint', {}, registers.differenceParticipantId);
     }
@@ -662,7 +663,7 @@ export const { ReplaySession } = craftService(
           ? replayParticipantIds()[0]
           : rawReactiveValue(selectedParticipantId)();
       if (participantId) send('export', {}, participantId);
-      status.set('Export demandé à l’application cible…');
+      setStates({ status: 'Export demandé à l’application cible…' });
     }
 
     yield* craftExpose('renderReplayFrames', renderReplayFrames);

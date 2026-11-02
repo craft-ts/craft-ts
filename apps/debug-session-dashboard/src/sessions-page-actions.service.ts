@@ -36,7 +36,7 @@ export const { SessionPageActions } = craftService(
     );
     yield* craftExpose('confirmDeleteSession', function* (id: string) {
       yield* archive.deleteSession.mutate(id);
-      pendingDeleteSessionId.set(undefined);
+      yield* pendingDeleteSessionId.set(undefined);
       if (routeSessionId() === id) yield* CraftRouter.navigate({ to: '' });
     });
   },

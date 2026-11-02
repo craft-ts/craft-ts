@@ -95,7 +95,7 @@ export const ReplayHead = craftComponent(
   function* (input: { readonly pageTitle: ContentSlot }) {
     const replayDebug = yield* ReplayDebug();
     const replaySession = yield* ReplaySession();
-    const { resumeDialogOpen } = (yield* ReplayState()).imperative;
+    const { setStates } = (yield* ReplayState()).imperative;
     const archive = yield* SessionArchive();
     const savedSessions = rawReactiveValue(archive.savedSessions);
     const recipes = rawReactiveValue(archive.resumeRecipeList);
@@ -272,7 +272,7 @@ export const ReplayHead = craftComponent(
           'disabled',
           () => activeRouteSessionId() === undefined,
         ),
-        click: () => resumeDialogOpen.set(true),
+        click: () => setStates({ resumeDialogOpen: true }),
       },
       [
         DocIcon({ name: lit('sparkle'), size: lit('sm') }),

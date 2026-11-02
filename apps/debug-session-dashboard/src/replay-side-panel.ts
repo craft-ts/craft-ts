@@ -82,7 +82,8 @@ export const ReplaySidePanel = craftComponent(
   'ReplaySidePanel',
   {},
   function* () {
-    const { sidePanelOpen: panelOpen } = (yield* ReplayState()).imperative;
+    const { setStates, sidePanelOpen: panelOpen } =
+      (yield* ReplayState()).imperative;
     const closed = yield* craftComputed('closed', function* () {
       return !(yield* panelOpen());
     });
@@ -97,7 +98,7 @@ export const ReplaySidePanel = craftComponent(
           class: buttonUi.root,
           'data-variant': 'link',
           'aria-label': i18n.t("copy.copy127"),
-          click: () => panelOpen.set(false),
+          click: () => setStates({ sidePanelOpen: false }),
         },
         i18n.t("copy.copy128"),
       ),

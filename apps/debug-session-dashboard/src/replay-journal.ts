@@ -44,7 +44,8 @@ function showAllEventsSwitch(
 export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
   const replayDebug = yield* ReplayDebug();
   const replaySession = yield* ReplaySession();
-  const { eventTimelinePage } = (yield* ReplayState()).imperative;
+  const { eventTimelinePage, setStates } =
+    (yield* ReplayState()).imperative;
   const journalSummaryText = yield* craftComputed(
     'journalSummaryText',
     journalSummary,
@@ -157,7 +158,12 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           'data-variant': 'link',
           disabled: previousDisabled,
           click: () =>
-            eventTimelinePage.set(Math.max(0, rawReactiveValue(eventTimelinePage)() - 1)),
+            setStates({
+              eventTimelinePage: Math.max(
+                0,
+                rawReactiveValue(eventTimelinePage)() - 1,
+              ),
+            }),
         },
         i18n.t("copy.copy066"),
       ),
@@ -170,9 +176,12 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           'data-variant': 'link',
           disabled: nextDisabled,
           click: () =>
-            eventTimelinePage.set(
-              Math.min(eventTimelinePageCount() - 1, rawReactiveValue(eventTimelinePage)() + 1),
-            ),
+            setStates({
+              eventTimelinePage: Math.min(
+                eventTimelinePageCount() - 1,
+                rawReactiveValue(eventTimelinePage)() + 1,
+              ),
+            }),
         },
         i18n.t("copy.copy067"),
       ),

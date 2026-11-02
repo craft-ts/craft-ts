@@ -26,7 +26,8 @@ import { eventValue } from './view-helpers';
 /** The details of the open session, and where its replay starts from. */
 export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
   const replaySession = yield* ReplaySession();
-  const { startMode, targetUrl } = (yield* ReplayState()).imperative;
+  const { setStates, startMode, targetUrl } =
+    (yield* ReplayState()).imperative;
   const environmentWarningHidden = yield* craftComputed(
     'environmentWarningHidden',
     () => !environmentWarning(),
@@ -53,7 +54,7 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
       class: ui.fieldInput,
       type: 'url',
       value: targetUrl,
-      input: (event: Event) => targetUrl.set(eventValue(event)),
+      input: (event: Event) => setStates({ targetUrl: eventValue(event) }),
       change: () => replaySession.scheduleReplayPreparation(),
       'aria-label': i18n.t("copy.copy047"),
     }),
@@ -67,7 +68,9 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
         class: ui.tabSelect,
         value: startMode,
         change: (event: Event) => {
-          startMode.set(eventValue(event) === 'snapshot' ? 'snapshot' : 'url');
+          setStates({
+            startMode: eventValue(event) === 'snapshot' ? 'snapshot' : 'url',
+          });
           replaySession.scheduleReplayPreparation();
         },
         'aria-label': i18n.t("copy.copy049"),

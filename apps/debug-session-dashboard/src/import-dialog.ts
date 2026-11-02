@@ -19,7 +19,7 @@ import { eventValue, lit } from './view-helpers';
 /** The sheet where a session is imported from a file or pasted as JSON. */
 export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
   const replaySession = yield* ReplaySession();
-  const { sessionText } = (yield* ReplayState()).imperative;
+  const { sessionText, setStates } = (yield* ReplayState()).imperative;
   const loadErrorHidden = yield* craftComputed(
     'loadErrorHidden',
     () => loadError() === undefined,
@@ -52,7 +52,8 @@ export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
           rows: 8,
           placeholder: i18n.t("copy.copy024"),
           value: sessionText,
-          input: (event: Event) => sessionText.set(eventValue(event)),
+          input: (event: Event) =>
+            setStates({ sessionText: eventValue(event) }),
           'aria-label': i18n.t("copy.copy025"),
         }),
         p(

@@ -95,7 +95,8 @@ function existingAtMoment(
 export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
   const replayDebug = yield* ReplayDebug();
   const replayState = yield* ReplayState();
-  const { resumeDialogOpen, resumeIntent, targetUrl } = replayState.imperative;
+  const { resumeDialogOpen, resumeIntent, setStates, targetUrl } =
+    replayState.imperative;
   const { closeResumeDialog } = replayState;
   const archive = yield* SessionArchive();
   const request = yield* ResumeRequest();
@@ -169,7 +170,7 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
           placeholder:
             i18n.t("copy.copy160"),
           value: resumeIntent,
-          input: (event: Event) => resumeIntent.set(eventValue(event)),
+          input: (event: Event) => setStates({ resumeIntent: eventValue(event) }),
         }),
         p(
           {

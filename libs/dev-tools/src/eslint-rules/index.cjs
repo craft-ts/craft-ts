@@ -68,6 +68,7 @@ const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource
 const noImperativeCraftMethodActions = require('./no-imperative-craft-method-actions.cjs');
 const noExternalStateTransition = require('./no-external-state-transition.cjs');
 const noImportedStateActions = require('./no-imported-state-actions.cjs');
+const noStateFacade = require('./no-state-facade.cjs');
 const noEventOnlyCraftMethod = require('./no-event-only-craft-method.cjs');
 const noRemoteWorkInCraftMethod = require('./no-remote-work-in-craft-method.cjs');
 const noTypeAssertionsInResourceLoader = require('./no-type-assertions-in-resource-loader.cjs');
@@ -226,6 +227,7 @@ const plugin = {
     'no-imperative-craft-method-actions': noImperativeCraftMethodActions,
     'no-external-state-transition': noExternalStateTransition,
     'no-imported-state-actions': noImportedStateActions,
+    'no-state-facade': noStateFacade,
     'no-event-only-craft-method': noEventOnlyCraftMethod,
     'no-remote-work-in-craft-method': noRemoteWorkInCraftMethod,
     'no-type-assertions-in-resource-loader': noTypeAssertionsInResourceLoader,

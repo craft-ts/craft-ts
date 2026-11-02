@@ -20,9 +20,10 @@ export const { ReplayDebug } = craftService(
       activeReplayParticipantId,
       replayableEvents,
       replayIndex,
-      status,
+      setStates,
       targetUrl,
     } = (yield* ReplayState()).imperative;
+    const setStatus = (message: string): void => setStates({ status: message });
 
     /**
      * Debug launches: the app opened in its own tab, live, from the state a
@@ -71,7 +72,7 @@ export const { ReplayDebug } = craftService(
             const warnings = Array.isArray(data['warnings'])
               ? data['warnings'].filter((entry) => typeof entry === 'string')
               : [];
-            status.set(
+            setStatus(
               [
                 'Application lancée en mode debug à l’état choisi.',
                 ...(launch.snapshot.inFlight
@@ -90,7 +91,7 @@ export const { ReplayDebug } = craftService(
                 : [];
             const relaunched = names(data['relaunched']);
             const failed = names(data['failed']);
-            status.set(
+            setStatus(
               [
                 `Application lancée en mode debug. ${relaunched.length} opération(s) en cours relancée(s).`,
                 ...(failed.length
@@ -103,7 +104,7 @@ export const { ReplayDebug } = craftService(
           }
           case 'snapshot-error':
             launches.delete(launchId);
-            status.set(
+            setStatus(
               `Le lancement en mode debug a échoué : ${String(data['message'])}`,
             );
             return;
@@ -123,12 +124,12 @@ export const { ReplayDebug } = craftService(
       const owner = participantId ?? replayParticipantIds()[0];
       const recording = owner ? sessionForParticipant(owner) : undefined;
       if (!recording) {
-        status.set('Aucune session à ouvrir en mode debug.');
+        setStatus('Aucune session à ouvrir en mode debug.');
         return;
       }
       const target = parseLocalTarget(rawReactiveValue(targetUrl)().trim());
       if (!target.ok) {
-        status.set(target.error);
+        setStatus(target.error);
         return;
       }
       const snapshot = buildDebugAppSnapshot(recording, beforeSequence);
@@ -138,13 +139,13 @@ export const { ReplayDebug } = craftService(
       listenToDebugTabs();
       const tab = openLinkedTab(url.href);
       if (!tab) {
-        status.set(
+        setStatus(
           'Le navigateur a bloqué l’ouverture de l’onglet de debug. Autorise les fenêtres surgissantes pour ce dashboard.',
         );
         return;
       }
       launches.set(launchId, { tab, origin: target.url.origin, snapshot });
-      status.set(`Ouverture de l’application sur ${snapshot.route}…`);
+      setStatus(`Ouverture de l’application sur ${snapshot.route}…`);
     }
 
     /** Opens a clean, dedicated app tab for one immutable guided-resume request. */
@@ -157,12 +158,12 @@ export const { ReplayDebug } = craftService(
       const owner = participantId ?? replayParticipantIds()[0];
       const recording = owner ? sessionForParticipant(owner) : undefined;
       if (!recording) {
-        status.set('Aucune session à ouvrir pour la reprise guidée.');
+        setStatus('Aucune session à ouvrir pour la reprise guidée.');
         return { url: '', opened: false, tab: null };
       }
       const target = parseLocalTarget(rawReactiveValue(targetUrl)().trim());
       if (!target.ok) {
-        status.set(target.error);
+        setStatus(target.error);
         return { url: '', opened: false, tab: null };
       }
       const snapshot = buildDebugAppSnapshot(recording, beforeSequence);
@@ -174,7 +175,7 @@ export const { ReplayDebug } = craftService(
       if (participantId)
         url.searchParams.set('craft-resume-participant', participantId);
       const tab = openLinkedTab(url.href);
-      status.set(
+      setStatus(
         tab
           ? `Onglet de reprise ouvert sur ${snapshot.route}.`
           : 'Le navigateur a bloqué l’ouverture de l’onglet de reprise. Autorise les fenêtres surgissantes pour ce dashboard.',
@@ -187,14 +188,14 @@ export const { ReplayDebug } = craftService(
     function launchResumeRecipeTab(recipeId: string, origin: string): boolean {
       const target = parseLocalTarget(origin);
       if (!target.ok) {
-        status.set(target.error);
+        setStatus(target.error);
         return false;
       }
       const url = new URL('/', target.url.origin);
       url.searchParams.set('craft-resume-recipe', recipeId);
       url.searchParams.set('craft-resume-recipe-launch', newUuid());
       const tab = openLinkedTab(url.href);
-      status.set(
+      setStatus(
         tab
           ? 'Prévalidation ouverte dans un nouvel onglet. Le statut de la recette suivra les attentes et le point d’observation.'
           : 'Le navigateur a bloqué l’ouverture de la recette. Autorise les fenêtres surgissantes pour ce dashboard.',

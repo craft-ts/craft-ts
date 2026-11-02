@@ -46,7 +46,6 @@ export const { ReplayPlayback } = craftService(
       dialogTimers,
       frameConnections,
       hasDifference,
-      nextActionDelayMs,
       participantStates,
       registers,
       replayableEvents,
@@ -55,7 +54,6 @@ export const { ReplayPlayback } = craftService(
       replaySkeletonVisible,
       replayState,
       replayViewports,
-      replayViewportScale,
       selectedParticipantId,
       session,
       sessionParticipants,
@@ -74,9 +72,9 @@ export const { ReplayPlayback } = craftService(
     function beginReplayLoadingIndicator(): void {
       if (rawReactiveValue(replaySkeletonVisible)() || registers.skeletonTimer !== undefined)
         return;
-      replaySkeletonVisible.set(false);
+      setStates({ replaySkeletonVisible: false });
       registers.skeletonTimer = after(300, () => {
-        replaySkeletonVisible.set(true);
+        setStates({ replaySkeletonVisible: true });
         registers.skeletonTimer = undefined;
       });
     }
@@ -86,7 +84,7 @@ export const { ReplayPlayback } = craftService(
         cancelAfter(registers.skeletonTimer);
         registers.skeletonTimer = undefined;
       }
-      replaySkeletonVisible.set(false);
+      setStates({ replaySkeletonVisible: false });
     }
 
     /* ── the countdown to the next action ───────────────────────────────────── */
@@ -97,17 +95,17 @@ export const { ReplayPlayback } = craftService(
         registers.countdownTimer = undefined;
       }
       if (delayMs === undefined || !Number.isFinite(delayMs)) {
-        nextActionDelayMs.set(undefined);
+        setStates({ nextActionDelayMs: undefined });
         return;
       }
 
       const duration = Math.max(0, delayMs);
       const startedAt = monotonicMs();
-      nextActionDelayMs.set(duration);
+      setStates({ nextActionDelayMs: duration });
       if (duration === 0) return;
       registers.countdownTimer = every(100, () => {
         const remaining = Math.max(0, duration - (monotonicMs() - startedAt));
-        nextActionDelayMs.set(remaining);
+        setStates({ nextActionDelayMs: remaining });
         if (remaining === 0 && registers.countdownTimer !== undefined) {
           cancelEvery(registers.countdownTimer);
           registers.countdownTimer = undefined;
@@ -134,7 +132,7 @@ export const { ReplayPlayback } = craftService(
         if (participantId === rawReactiveValue(selectedParticipantId)() || primaryScale === 1)
           primaryScale = scale;
       }
-      replayViewportScale.set(primaryScale);
+      setStates({ replayViewportScale: primaryScale });
     }
 
     function observeReplayStage(): void {
@@ -225,7 +223,7 @@ export const { ReplayPlayback } = craftService(
 
     function setReplayActionTarget(participantId: string): void {
       registers.actionParticipantId = participantId;
-      activeReplayParticipantId.set(participantId);
+      setStates({ activeReplayParticipantId: participantId });
       updateReplayTileIndicators();
     }
 
@@ -268,7 +266,7 @@ export const { ReplayPlayback } = craftService(
       registers.recordedActiveParticipantId = focused?.[0];
       if (!participantId) return;
       if (participantId !== rawReactiveValue(activeReplayParticipantId)())
-        activeReplayParticipantId.set(participantId);
+        setStates({ activeReplayParticipantId: participantId });
       updateReplayTileIndicators();
       for (const id of participantIds) {
         const scheduled = frameConnections.get(id)?.status === 'scheduled';
@@ -345,7 +343,7 @@ export const { ReplayPlayback } = craftService(
         next = ordered[completedPrefix]
       )
         completedPrefix += 1;
-      replayIndex.set(completedPrefix);
+      setStates({ replayIndex: completedPrefix });
     }
 
     function updateGlobalReplayState(): void {

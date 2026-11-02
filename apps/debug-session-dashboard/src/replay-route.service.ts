@@ -38,8 +38,11 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
   { name: 'replayRoute', providedIn: 'toProvide' },
   function* () {
     const replayState = yield* ReplayState();
-    const { page, pendingDeleteSessionId, registers, thumbnailManifest } =
-      replayState.imperative;
+    const {
+      page,
+      registers,
+      setStates,
+    } = replayState.imperative;
     const replaySession = yield* ReplaySession();
     const playback = yield* ReplayPlayback();
     // The engine's clock, ids and hash come from Craft: the temporal runtime
@@ -90,7 +93,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     const open = (id: string): void => {
       requestedId = id;
       thumbnails.stop();
-      thumbnailManifest.set(undefined);
+      setStates({ thumbnailManifest: undefined });
       replaySession.beginSessionLoad(id);
       archive.archived.call(id);
       archive.resumeCheckpoints.call(id);
@@ -118,7 +121,8 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     // the archive says as the work goes on. An answer about another recording
     // (the user moved on) is dropped.
     const showManifest = (manifest: ThumbnailManifest): void => {
-      if (manifest.sessionId === requestedId) thumbnailManifest.set(manifest);
+      if (manifest.sessionId === requestedId)
+        setStates({ thumbnailManifest: manifest });
     };
     yield* craftEffect('showPreparedThumbnails', () => {
       const manifest = preparedValue();
@@ -144,7 +148,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       const shouldNavigate = routeSessionId() === id;
       untracked(() => {
         removingId = undefined;
-        pendingDeleteSessionId.set(undefined);
+        setStates({ pendingDeleteSessionId: undefined });
       });
       if (shouldNavigate) void router.navigate({ to: '' });
     });
@@ -161,15 +165,15 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       const recipes = routePaths.includes('recipes');
       const e2eReplay = routePaths.includes('e2e-replay');
       const wasDetailPage = rawReactiveValue(page)() === 'detail';
-      page.set(
-        comparison
+      setStates({
+        page: comparison
           ? 'compare'
           : recipes
             ? 'recipes'
             : id || importedSession || e2eReplay
               ? 'detail'
               : 'sessions',
-      );
+      });
       if (comparison) {
         e2eComparison.comparison.call({
           test: route.queryParams['test'] ?? '',
@@ -181,7 +185,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       if (!id) {
         thumbnails.stop();
         resumeThread.stop();
-        thumbnailManifest.set(undefined);
+        setStates({ thumbnailManifest: undefined });
       }
       if (!id && !importedSession && !e2eReplay) {
         playback.endReplayLoadingIndicator();

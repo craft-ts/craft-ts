@@ -53,10 +53,10 @@ export const { ResumeRequest } = craftService(
         return;
       }
       resumeThread.watchRequest(requestId);
-      resumeIntent.set('');
-      resumeDialogOpen.set(false);
-      sideTab.set('resumes');
-      sidePanelOpen.set(true);
+      yield* resumeIntent.set('');
+      yield* resumeDialogOpen.set(false);
+      yield* sideTab.set('resumes');
+      yield* sidePanelOpen.set(true);
     });
   },
 );

@@ -146,7 +146,7 @@ export const ReplayStage = craftComponent(
 export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
   const replaySession = yield* ReplaySession();
   const replayPlayback = yield* ReplayPlayback();
-  const { diagnosticReplay } = (yield* ReplayState()).imperative;
+  const { diagnosticReplay, setStates } = (yield* ReplayState()).imperative;
   const canStep = yield* craftComputed(
     'canStep',
     () =>
@@ -253,7 +253,10 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
       'aria-label': i18n.t("copy.copy144"),
       'aria-pressed': diagnosticReplay,
       'aria-describedby': 'replay-diagnostic-mode-tip',
-      click: () => diagnosticReplay.update((enabled) => !enabled),
+      click: () =>
+        setStates({
+          diagnosticReplay: !diagnosticReplay(),
+        }),
     },
     diagnosticLabel,
   );
