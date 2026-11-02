@@ -18,6 +18,7 @@ import type {
 } from './behavior-catalog.ts';
 import {
   BEHAVIOR_MUTANT_CACHE,
+  BEHAVIOR_MUTANT_E2E_CACHE,
   type BehaviorMutantOutcome,
 } from './behavior-mutants.ts';
 import { behaviorStepMatches, type BehaviorStepMatch } from './behavior-proofs.ts';
@@ -84,12 +85,27 @@ export function behaviorCoverage(
   };
 }
 
-/** The verdicts `craft mutants` left in its cache, by obligation. */
+/**
+ * The verdicts `craft mutants` left in its caches, by obligation — the unit
+ * one and the e2e one. When both judged an obligation, the worse wins: one
+ * hollow proof is enough to say so.
+ */
 export function readBehaviorMutantOutcomes(
   rootDir: string,
-  cacheFile: string = BEHAVIOR_MUTANT_CACHE,
+  cacheFiles: readonly string[] = [BEHAVIOR_MUTANT_CACHE, BEHAVIOR_MUTANT_E2E_CACHE],
 ): Record<string, BehaviorMutantOutcome> {
-  const path = resolve(rootDir, cacheFile);
+  const rank: Record<BehaviorMutantOutcome, number> = { survived: 0, killed: 1, 'not-reached': 2 };
+  const outcomes: Record<string, BehaviorMutantOutcome> = {};
+  for (const cacheFile of cacheFiles) {
+    for (const [id, outcome] of Object.entries(readMutantCache(resolve(rootDir, cacheFile)))) {
+      const known = outcomes[id];
+      if (!known || rank[outcome] < rank[known]) outcomes[id] = outcome;
+    }
+  }
+  return outcomes;
+}
+
+function readMutantCache(path: string): Record<string, BehaviorMutantOutcome> {
   if (!existsSync(path)) return {};
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as {

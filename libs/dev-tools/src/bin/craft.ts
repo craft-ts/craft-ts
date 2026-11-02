@@ -2,8 +2,9 @@
 
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   listAngularProjects,
   runRouteAdd,
@@ -46,14 +47,18 @@ import {
   applyFolderLayoutProposal,
 } from '../scripts/apply-folder-layout.js';
 import {
+  BEHAVIOR_MUTANT_E2E_CACHE,
   changedBehaviorObligations,
+  e2eReferenceTestOf,
   formatBehaviorMutantRun,
   parseBehaviorCatalogSource,
   planBehaviorMutants,
+  playwrightMutantRunner,
   readBehaviorCatalogAtBase,
   readBehaviorProofIndex,
   runBehaviorMutants,
   vitestMutantRunner,
+  type BehaviorTraceLike,
 } from '../scripts/behavior-catalog.js';
 
 type CommonOptions = {
@@ -88,7 +93,7 @@ async function main(argv: string[]): Promise<number> {
     });
   }
   if (argv[0] === 'mutants') {
-    return runMutants(argv.slice(1));
+    return await runMutants(argv.slice(1));
   }
   if (argv[0] === 'organize') {
     if (argv[1] === 'apply') return runOrganizeApply(argv.slice(2));
@@ -237,28 +242,34 @@ async function main(argv: string[]): Promise<number> {
 }
 
 /**
- * `craft mutants`: breaks each behaviour the unit tests prove and reruns the
- * tests that prove it. Reads the fingerprints `nx test` left in
- * `.craft/behavior-proofs.json`; exits 1 when a mutant survives.
+ * `craft mutants`: breaks each behaviour the tests prove and reruns the tests
+ * that prove it. Reads the fingerprints `nx test` left in
+ * `.craft/behavior-proofs.json`, or with `--e2e` the committed e2e references
+ * (one Playwright run per mutant: the nightly run, not a PR); exits 1 when a
+ * mutant survives.
  */
-function runMutants(argv: string[]): number {
+async function runMutants(argv: string[]): Promise<number> {
   let rootDir = process.cwd();
-  let config = 'vitest.config.ts';
+  let config: string | undefined;
   let catalogPath = 'architecture/behaviors.catalog.ts';
+  let sessionsDir = 'e2e/__sessions__';
   const sourceRoots: string[] = [];
   let changed = false;
+  let e2e = false;
   let json = false;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--root') rootDir = argv[++index] ?? rootDir;
     else if (argument === '--config') config = argv[++index] ?? config;
     else if (argument === '--catalog') catalogPath = argv[++index] ?? catalogPath;
+    else if (argument === '--sessions') sessionsDir = argv[++index] ?? sessionsDir;
     else if (argument === '--source') sourceRoots.push(argv[++index] ?? 'src');
     else if (argument === '--changed') changed = true;
+    else if (argument === '--e2e') e2e = true;
     else if (argument === '--json') json = true;
     else if (argument === '--help' || argument === '-h') {
       console.log(
-        'Usage: craft mutants [--root <app directory>] [--config <vitest config>] [--catalog <behaviors.catalog.ts>] [--source <dir>]... [--changed] [--json]',
+        'Usage: craft mutants [--root <app directory>] [--e2e] [--config <vitest or playwright config>] [--catalog <behaviors.catalog.ts>] [--sessions <e2e references>] [--source <dir>]... [--changed] [--json]',
       );
       return 0;
     } else throw new Error(`craft mutants: unknown argument ${argument}`);
@@ -268,7 +279,9 @@ function runMutants(argv: string[]): number {
     readFileSync(resolve(rootDir, catalogPath), 'utf8'),
   );
   if (!catalog) throw new Error(`craft mutants: ${catalogPath} is not a behaviour catalog.`);
-  const traces = readBehaviorProofIndex(rootDir);
+  const traces = e2e
+    ? await readE2eReferences(rootDir, sessionsDir)
+    : readBehaviorProofIndex(rootDir);
   const obligations = changed
     ? changedBehaviorObligations({
         rootDir,
@@ -279,15 +292,39 @@ function runMutants(argv: string[]): number {
     : undefined;
   const run = runBehaviorMutants({
     rootDir,
-    plans: planBehaviorMutants(catalog, traces, { obligations }),
+    plans: planBehaviorMutants(catalog, traces, {
+      obligations,
+      ...(e2e ? { testOf: e2eReferenceTestOf } : {}),
+    }),
     sourceRoots: sourceRoots.length > 0 ? sourceRoots : ['src'],
-    runner: vitestMutantRunner({ rootDir, config }),
+    runner: e2e
+      ? playwrightMutantRunner({ rootDir, config: config ?? 'playwright.config.ts', cwd: process.cwd() })
+      : vitestMutantRunner({ rootDir, config: config ?? 'vitest.config.ts' }),
+    ...(e2e ? { cacheFile: BEHAVIOR_MUTANT_E2E_CACHE } : {}),
   });
   console.log(json ? JSON.stringify(run, null, 2) : formatBehaviorMutantRun(run));
   return run.baseline === 'red' ||
     run.results.some((result) => result.outcome === 'survived')
     ? 1
     : 0;
+}
+
+/**
+ * The e2e references, read by `@craft-ts/playwright-sessions` as the app
+ * resolves it — like vitest for the unit run, a tool the app brings, not a
+ * dependency of dev-tools.
+ */
+async function readE2eReferences(
+  rootDir: string,
+  sessionsDir: string,
+): Promise<Record<string, BehaviorTraceLike>> {
+  const require = createRequire(join(rootDir, 'package.json'));
+  const history = (await import(
+    pathToFileURL(require.resolve('@craft-ts/playwright-sessions/history')).href
+  )) as {
+    readReferenceTraces(dir: string): Record<string, BehaviorTraceLike>;
+  };
+  return history.readReferenceTraces(resolve(rootDir, sessionsDir));
 }
 
 function runOrganize(argv: string[]): number {
@@ -1217,7 +1254,7 @@ function printHelp(): void {
   craft i18n check|test
   craft graph [options]
   craft organize --project <tsconfig> --graph <graph.json> [options]
-  craft mutants [--root <app dir>] [--config <vitest config>] [--changed] [--json]
+  craft mutants [--root <app dir>] [--e2e] [--config <vitest or playwright config>] [--changed] [--json]
   craft organize apply --proposal <folder-layout-proposal.json> --project <tsconfig>
   craft agents sync [--agents <list>] [--root <dir>] [--dry-run] [--json]
   craft security check [--strict] [--root <dir>]

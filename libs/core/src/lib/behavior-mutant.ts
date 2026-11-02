@@ -61,3 +61,41 @@ export function ɵprovideBehaviorMutant(
     wrapper,
   );
 }
+
+/**
+ * Where an end-to-end run puts the mutant for the page to read, and the
+ * binding the page calls once it applied it. `@craft-ts/playwright-sessions`
+ * sets both (an init script and `exposeBinding`, so that they survive a
+ * navigation); keep the two names in step with its `behavior-mutant.ts`.
+ */
+export const ɵBEHAVIOR_MUTANT_PAGE_GLOBAL = '__craftBehaviorMutant';
+export const ɵBEHAVIOR_MUTANT_APPLIED_BINDING = '__craftBehaviorMutantApplied';
+
+/**
+ * The mutant an end-to-end run asked this page for, or nothing: inert in
+ * every page no mutant run opened. Part of `provideCraftDevTools`, so an app
+ * with the dev tools can have its e2e tests mutated without any change.
+ */
+export function ɵprovidePageBehaviorMutant(): readonly Provider[] {
+  const page = globalThis as typeof globalThis & {
+    [ɵBEHAVIOR_MUTANT_PAGE_GLOBAL]?: unknown;
+    [ɵBEHAVIOR_MUTANT_APPLIED_BINDING]?: () => unknown;
+  };
+  const requested = page[ɵBEHAVIOR_MUTANT_PAGE_GLOBAL];
+  if (!isBehaviorMutant(requested)) return [];
+  return [
+    ɵprovideBehaviorMutant(requested, () => {
+      void page[ɵBEHAVIOR_MUTANT_APPLIED_BINDING]?.();
+    }),
+  ];
+}
+
+function isBehaviorMutant(value: unknown): value is ɵBehaviorMutant {
+  if (typeof value !== 'object' || value === null) return false;
+  const { keys, mode } = value as Record<string, unknown>;
+  return (
+    Array.isArray(keys) &&
+    keys.every((key) => typeof key === 'string') &&
+    (mode === 'skip' || mode === 'succeed')
+  );
+}

@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { BehaviorCatalog } from './behavior-catalog.ts';
 import {
+  e2eReferenceTestOf,
   planBehaviorMutants,
   runBehaviorMutants,
   type BehaviorMutantRunner,
@@ -65,6 +66,21 @@ describe('planBehaviorMutants', () => {
         mode: 'skip',
         keys: ['invocation:service:cart / method:add'],
         tests: { 'src/cart.spec.ts': ['cart > adds', 'cart > adds twice'] },
+      },
+    ]);
+  });
+
+  it('groups the e2e references by project, by their craftSession id', () => {
+    const references = {
+      'shop.checkout/chromium': { steps: [succeeded('invocation:service:cart / state:lines / method:add', 'cart.add')] },
+      'shop.checkout/firefox': { steps: [succeeded('invocation:service:cart / state:lines / method:add', 'cart.add')] },
+    };
+    expect(planBehaviorMutants(catalog, references, { testOf: e2eReferenceTestOf })).toEqual([
+      {
+        obligation: 'method:cart.add',
+        mode: 'skip',
+        keys: ['invocation:service:cart / state:lines / method:add'],
+        tests: { chromium: ['shop.checkout'], firefox: ['shop.checkout'] },
       },
     ]);
   });

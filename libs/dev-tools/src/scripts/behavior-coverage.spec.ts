@@ -84,6 +84,23 @@ describe('behaviorCoverage', () => {
       expect(readBehaviorMutantOutcomes(rootDir)).toEqual({ 'method:cart.add': 'survived' });
     });
 
+    it('adds the e2e verdicts, the worse one winning', () => {
+      writeFileSync(
+        join(rootDir, '.craft/behavior-mutants.e2e.json'),
+        JSON.stringify({
+          version: 1,
+          results: {
+            'method:cart.add': { hash: 'h', outcome: 'killed' },
+            'route-less:cart.clear': { hash: 'h', outcome: 'killed' },
+          },
+        }),
+      );
+      expect(readBehaviorMutantOutcomes(rootDir)).toEqual({
+        'method:cart.add': 'survived',
+        'route-less:cart.clear': 'killed',
+      });
+    });
+
     it('writes the file the log server reads', () => {
       writeBehaviorCoverage(rootDir, behaviorCoverage(report, { app: 'shop' }));
       expect(JSON.parse(readFileSync(join(rootDir, BEHAVIOR_COVERAGE_FILE), 'utf8'))).toMatchObject({

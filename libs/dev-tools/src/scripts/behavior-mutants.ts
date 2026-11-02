@@ -8,10 +8,13 @@
  * reruns only the tests whose fingerprint proves it: if they all still pass,
  * the mutant SURVIVED and the proof is hollow.
  *
- * Only the service and template tests are mutated here (their fingerprints
- * come from `.craft/behavior-proofs.json`): an e2e run per mutant does not fit
- * a PR budget. The mutant itself is applied by the vitest setup file of
- * `@craft-ts/core`, which reads it from `CRAFT_BEHAVIOR_MUTANT`.
+ * The service and template tests (fingerprints in
+ * `.craft/behavior-proofs.json`) are mutated by `vitest`: the setup file of
+ * `@craft-ts/core` reads the mutant from `CRAFT_BEHAVIOR_MUTANT`. The e2e
+ * tests (their committed references) are mutated by Playwright, one run per
+ * mutant — too slow for a PR, meant for the nightly run: the fixture of
+ * `@craft-ts/playwright-sessions` hands the mutant to the page, which applies
+ * it through the dev tools of `@craft-ts/core`.
  *
  * - The tests run once unmutated first: a red baseline concludes nothing.
  * - A mutant the tests never reached (a stale index) is reported as such,
@@ -37,6 +40,7 @@ import type { BehaviorCatalog, BehaviorKind } from './behavior-catalog.ts';
 import { behaviorProofSteps, type BehaviorTraceLike } from './behavior-proofs.ts';
 
 export const BEHAVIOR_MUTANT_CACHE = '.craft/behavior-mutants.json';
+export const BEHAVIOR_MUTANT_E2E_CACHE = '.craft/behavior-mutants.e2e.json';
 
 export type BehaviorMutantMode = 'skip' | 'succeed';
 
@@ -45,7 +49,10 @@ export type BehaviorMutantPlan = {
   readonly mode: BehaviorMutantMode;
   /** The step keys that prove the obligation, as the tests recorded them. */
   readonly keys: readonly string[];
-  /** Test file → full names (without the file) of the tests that prove it. */
+  /**
+   * The tests that prove it, grouped: unit test file → full names (without
+   * the file), or Playwright project → craftSession ids.
+   */
   readonly tests: Readonly<Record<string, readonly string[]>>;
 };
 
@@ -86,16 +93,32 @@ const MUTANT_MODES: Partial<Record<BehaviorKind, BehaviorMutantMode>> = {
 
 const SEPARATOR = ' > ';
 
+/** A trace key → its group and its name in the plan's `tests`. */
+export type BehaviorMutantTestOf = (traceKey: string) => readonly [group: string, name: string] | undefined;
+
+/** `<test file> > <full name>`, as `readBehaviorProofIndex` keys a unit test. */
+export const unitTestOf: BehaviorMutantTestOf = (traceKey) => {
+  const cut = traceKey.indexOf(SEPARATOR);
+  return cut < 0 ? undefined : [traceKey.slice(0, cut), traceKey.slice(cut + SEPARATOR.length)];
+};
+
+/** `<craftSession id>/<project>`, as `readReferenceTraces` keys an e2e test. */
+export const e2eReferenceTestOf: BehaviorMutantTestOf = (traceKey) => {
+  const cut = traceKey.lastIndexOf('/');
+  return cut < 0 ? undefined : [traceKey.slice(cut + 1), traceKey.slice(0, cut)];
+};
+
 /**
- * One mutant per obligation the unit tests prove, restricted to
- * `obligations` when given. `traces` are keyed `<test file> > <full name>`,
- * as `readBehaviorProofIndex` returns them.
+ * One mutant per obligation the tests prove, restricted to `obligations`
+ * when given. `traces` are the unit fingerprints by default; pass
+ * `testOf: e2eReferenceTestOf` for the e2e references.
  */
 export function planBehaviorMutants(
   catalog: BehaviorCatalog,
   traces: Readonly<Record<string, BehaviorTraceLike>>,
-  options: Readonly<{ obligations?: ReadonlySet<string> }> = {},
+  options: Readonly<{ obligations?: ReadonlySet<string>; testOf?: BehaviorMutantTestOf }> = {},
 ): BehaviorMutantPlan[] {
+  const testOf = options.testOf ?? unitTestOf;
   const modes = new Map(
     catalog.behaviors.flatMap((entry) => {
       const mode = MUTANT_MODES[entry.kind];
@@ -104,10 +127,9 @@ export function planBehaviorMutants(
   );
   const plans = new Map<string, { keys: Set<string>; tests: Map<string, Set<string>> }>();
   for (const [test, trace] of Object.entries(traces)) {
-    const cut = test.indexOf(SEPARATOR);
-    if (cut < 0) continue;
-    const file = test.slice(0, cut);
-    const name = test.slice(cut + SEPARATOR.length);
+    const located = testOf(test);
+    if (!located) continue;
+    const [file, name] = located;
     for (const [obligation, keys] of behaviorProofSteps(catalog, trace)) {
       if (!modes.has(obligation)) continue;
       if (options.obligations && !options.obligations.has(obligation)) continue;
@@ -250,6 +272,55 @@ export function vitestMutantRunner(
 }
 
 /**
+ * The e2e runner: `playwright test` on the app's config, the mutant handed to
+ * the session fixture of `@craft-ts/playwright-sessions` (which skips the
+ * tests not listed and lets the page apply it). Sessions are captured (a
+ * test may read its own) but in `compare` mode: a mutated run never becomes
+ * a reference.
+ */
+export function playwrightMutantRunner(
+  options: Readonly<{ rootDir: string; config: string; cwd?: string }>,
+): BehaviorMutantRunner {
+  const rootDir = resolve(options.rootDir);
+  const require = createRequire(join(rootDir, 'package.json'));
+  const playwright = join(dirname(require.resolve('@playwright/test/package.json')), 'cli.js');
+  return ({ mutant, tests }) => {
+    const dir = mkdtempSync(join(tmpdir(), 'craft-e2e-mutant-'));
+    const appliedFile = join(dir, 'applied');
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          playwright,
+          'test',
+          '--config',
+          resolve(rootDir, options.config),
+          '--max-failures=1',
+          '--reporter=dot',
+          ...Object.keys(tests).flatMap((project) => ['--project', project]),
+        ],
+        {
+          cwd: options.cwd ?? rootDir,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            CRAFT_SESSIONS: 'compare',
+            CRAFT_BEHAVIOR_MUTANT: JSON.stringify({ ...mutant, tests, appliedFile }),
+          },
+        },
+      );
+      return {
+        passed: result.status === 0,
+        applied: existsSync(appliedFile),
+        output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+}
+
+/**
  * The obligations a change touches: new since the base catalog, declared in
  * a changed file, or proven by a changed test file. Every obligation when
  * there is no base to compare with.
@@ -272,7 +343,9 @@ export function changedBehaviorObligations(
     if (!before.has(entry.id) || (entry.file && changed.has(entry.file))) touched.add(entry.id);
   }
   for (const [test, trace] of Object.entries(options.traces)) {
-    if (!changed.has(test.slice(0, test.indexOf(SEPARATOR)))) continue;
+    // A unit test names its file; an e2e reference does not, only its id.
+    const file = unitTestOf(test)?.[0];
+    if (!file || !changed.has(file)) continue;
     for (const obligation of behaviorProofSteps(options.catalog, trace).keys()) touched.add(obligation);
   }
   return touched;

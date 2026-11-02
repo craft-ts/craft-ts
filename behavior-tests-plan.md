@@ -377,8 +377,21 @@ Code : `libs/core/src/lib/behavior-mutant.ts` (le mutant, un
 - [x] `demo-ecommerce` : 4 mutants, 4 tués, ~8 s. Vérifié à la main qu'un
   test creux (`toBeGreaterThanOrEqual(0)` après `emptyCart`) laisse
   survivre son mutant.
-- [ ] Mutants e2e (rejouer un test Playwright par mutant ; ne compter comme
-  tué qu'un échec après l'événement de l'obligation dans la trace).
+- [x] Mutants e2e (2026-11-02), `craft mutants --e2e` (cible nx
+  `demo-ecommerce:mutants-e2e`) : plan tiré des références versionnées
+  (groupées par projet Playwright et id `craftSession`), une passe
+  Playwright par mutant. La fixture de `playwright-sessions` lit
+  `CRAFT_BEHAVIOR_MUTANT`, saute les tests qui ne prouvent pas l'obligation,
+  pose le mutant dans chaque contexte (script d'init) ; la page l'applique
+  via `provideCraftDevTools` (`ɵprovidePageBehaviorMutant`, inerte sinon) et
+  appelle une binding exposée, qui survit aux navigations. « Tué » = échec
+  après que le mutant a agi ; jamais atteint = « non atteint ». Capture en
+  mode `compare` : un test peut lire sa session, aucune passe mutée ne
+  devient référence. Cache `.craft/behavior-mutants.e2e.json` ; la
+  couverture fusionne les deux caches, le pire verdict l'emporte.
+  demo-ecommerce : 5 mutants en ~6 min, 4 tués, **1 survivant** :
+  `mutation:cart.syncServerCart#success` ne fait rien et `shop.checkout`
+  passe quand même (preuve creuse, test non modifié).
 - [ ] Passage de nuit non bloquant, puis PR bloquante pour le neuf (CI).
 
 **P6. Combler les trous**

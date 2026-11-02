@@ -6,6 +6,7 @@ import {
   type ServiceRuntimeOverride,
 } from './craft-service';
 import type { ConsoleServiceApi } from './browser-boundaries';
+import { ɵprovidePageBehaviorMutant } from './behavior-mutant';
 import { ɵanswerCraftBridgeRequest } from './dev-tools-bridge-methods';
 import { collectCraftPageControls } from './dev-tools-page-actor';
 import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
@@ -52,6 +53,8 @@ export function provideCraftDevTools(
     ),
     provideCraftLogForwarding(),
     provideCraftMcpPageBridge(options.mcpBridgeUrl ?? DEFAULT_MCP_BRIDGE_URL),
+    // Inert unless an end-to-end mutant run asked this page for one.
+    ...ɵprovidePageBehaviorMutant(),
   ];
 }
 

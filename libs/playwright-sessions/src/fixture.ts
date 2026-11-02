@@ -4,6 +4,7 @@ import { test as base, type Browser, type BrowserContext, type Page } from '@pla
 import { expect, lastAssertionPassedAt, resetAssertionClock } from './assertions.js';
 import type { SessionTraceMarker } from '@craft-ts/session-trace';
 import { replayBaselineInDashboard, BASELINE_REPLAY_TIMEOUT_MS } from './baseline-replay.js';
+import { applyE2eBehaviorMutant, readE2eBehaviorMutant, runsUnderMutant } from './behavior-mutant.js';
 import { parseTestCraftSession, type CraftSessionContract } from './contract.js';
 import { finalizeCraftSession } from './finalize.js';
 import { readGitState, type GitState } from './git.js';
@@ -37,6 +38,9 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   // eslint-disable-next-line no-empty-pattern
   craftSessionContract: [async ({}, use, testInfo) => { await use(parseTestCraftSession(testInfo)); }, { auto: true }],
   craftSessions: [async ({ browser, context, craftSessionContract, craftSessionsOptions, craftSessionGit }, use, testInfo) => {
+    const mutant = readE2eBehaviorMutant(process.env);
+    // A mutant run replays only the tests whose reference proves the obligation.
+    testInfo.skip(mutant !== undefined && !runsUnderMutant(mutant, testInfo.project.name, craftSessionContract.id), 'ne prouve pas l’obligation mutée');
     const mode = resolveCraftSessionMode(process.env, craftSessionsOptions);
     const captured = mode !== 'off' && craftSessionContract.capture !== 'none';
     const runId = captured ? randomUUID() : undefined;
@@ -59,6 +63,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     const markers: SessionTraceMarker[] = [];
     const attach = async (target: BrowserContext) => {
       contexts.add(target);
+      if (mutant) await applyE2eBehaviorMutant(target, mutant, `${craftSessionContract.id}/${testInfo.project.name}`);
       if (!marker) return;
       await target.addInitScript((value) => {
         (globalThis as typeof globalThis & { __CRAFT_E2E_SESSION__?: Marker }).__CRAFT_E2E_SESSION__ = value;
