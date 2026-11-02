@@ -10,7 +10,12 @@ import {
   runInInjectionContext,
 } from '../host-runtime';
 import {
+  craftException,
+  craftMethod,
   craftService,
+  setCurrentStartCorrelationId,
+  setupCraftServiceTest,
+  type CraftServiceProvider,
   ɵgetCraftRootDefaultProviders,
   ɵinjectSendContextSession,
   ɵregisterCraftReplayTarget,
@@ -138,6 +143,46 @@ describe('provideSendContextToAi', () => {
       'during-startup-session',
     ]);
     parent.destroy();
+  });
+
+  it('records a call that returns a Craft exception as failed, not succeeded', () => {
+    const { Basket } = craftService(
+      { name: 'basket', providedIn: 'toProvide' },
+      function* () {
+        yield* craftMethod('add', function* () {
+          return 'added';
+        });
+        yield* craftMethod('reserve', function* () {
+          return craftException({ _tag: 'OutOfStock' });
+        });
+      },
+    );
+    const { sut, injector } = setupCraftServiceTest(
+      Basket,
+      {},
+      {
+        providers: provideSendContextToAi({
+          recording: true,
+        }) as unknown as CraftServiceProvider[],
+      },
+    );
+    const session = injector.run(() => ɵinjectSendContextSession());
+    setCurrentStartCorrelationId('click-1');
+    try {
+      sut.add();
+      sut.reserve();
+    } finally {
+      setCurrentStartCorrelationId(null);
+    }
+
+    expect(
+      session?.events
+        .filter((event) => event.kind === 'craft' && event.phase !== 'started')
+        .map((event) => [event.name, event.phase, event.response]),
+    ).toEqual([
+      ['method:add', 'succeeded', undefined],
+      ['method:reserve', 'failed', { _tag: 'OutOfStock' }],
+    ]);
   });
 
   it('records the page scroll position with each replayable click', async () => {

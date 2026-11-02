@@ -39,6 +39,7 @@ import {
   type SendContextSession,
   type SendContextSessionSnapshot,
   ɵcraftValueService,
+  isCraftException,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import type { Output } from '../types';
@@ -1070,8 +1071,17 @@ export function provideCraftDebugSessionCapture(
         }
         try {
           const result = yield* factory.apply(thisArg, args);
+          // A server function or a typed loader fails by RETURNING a Craft
+          // exception: recording it as a success would let a trace prove a
+          // behaviour that did not happen.
           if (correlationId)
-            captureCraftEvent(activeSession, 'succeeded', details);
+            captureCraftEvent(
+              activeSession,
+              isCraftException(result) ? 'failed' : 'succeeded',
+              isCraftException(result)
+                ? { ...details, response: { _tag: result._tag } }
+                : details,
+            );
           return result;
         } catch (error) {
           captureCraftEvent(activeSession, 'failed', {

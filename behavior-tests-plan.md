@@ -270,10 +270,12 @@ Observation : `admin.edit-product` clique sur « +1 stock », mais sa référenc
 (2026-10-25) ne contient ni `adminAction` ni `ecommerce.product.save`. À
 regarder : référence ancienne ou capture incomplète.
 
-Observation : l'enregistreur e2e (`send-context-to-ai.ts`) compte comme
-réussie une invocation qui rend une exception Craft en valeur ; une preuve
-`#success` lue dans une trace e2e peut donc venir d'un échec. L'enregistreur
-de test, lui, la compte comme échec.
+- [x] L'enregistreur e2e (`send-context-to-ai.ts`) comptait comme réussie une
+  invocation qui rend une exception Craft en valeur (une preuve `#success`
+  pouvait venir d'un échec) : elle est maintenant `failed`, avec son `_tag`,
+  comme dans l'enregistreur de test. Les références e2e enregistrées avant
+  ce correctif gardent l'ancienne issue jusqu'à leur prochain
+  réenregistrement.
 
 Fini quand : retirer le test qui couvre une obligation fait échouer la PR
 (fait pour les e2e, pas encore pour les tests unitaires), et une exception
