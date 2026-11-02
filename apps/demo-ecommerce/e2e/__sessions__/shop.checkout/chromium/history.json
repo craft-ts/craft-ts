@@ -6,31 +6,31 @@
   "runs": [
     {
       "dirty": true,
-      "durationMs": 970,
+      "durationMs": 4052,
       "environment": {
         "browser": "chromium",
         "browserVersion": "153.0.8010.12",
         "platform": "darwin"
       },
-      "file": "2026-11-02T11-58-50-259Z-009abe.session.json.gz",
-      "gitSha": "39f926a4b",
-      "lastAssertionAt": 1793620730252,
+      "file": "2026-11-02T18-53-48-352Z-a3e2b8.session.json.gz",
+      "gitSha": "1d5aa03be",
+      "lastAssertionAt": 1793645628318,
       "markers": [
         {
-          "at": 1793620729311,
+          "at": 1793645624785,
           "label": "ouvrir la boutique"
         },
         {
-          "at": 1793620729986,
+          "at": 1793645628045,
           "label": "confirmer la commande"
         }
       ],
-      "recordedAt": "2026-11-02T11:58:50.259Z",
+      "recordedAt": "2026-11-02T18:53:48.352Z",
       "retry": 0,
-      "sizeBytes": 12524,
+      "sizeBytes": 14062,
       "specFile": "apps/demo-ecommerce/e2e/checkout.spec.ts",
       "title": "parcourt boutique, panier et confirmation de commande",
-      "traceHash": "9e95b4e462c098d364db1fc910495393123f4fdc4691645207a848cdb04bc97e",
+      "traceHash": "08b6dfbe22b069ae01de183a881c820c5953f3c2a9ca471a79bceaa7e19e1e44",
       "traceSchemaVersion": 2
     }
   ],

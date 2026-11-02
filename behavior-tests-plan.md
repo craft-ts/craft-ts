@@ -389,9 +389,12 @@ Code : `libs/core/src/lib/behavior-mutant.ts` (le mutant, un
   mode `compare` : un test peut lire sa session, aucune passe mutée ne
   devient référence. Cache `.craft/behavior-mutants.e2e.json` ; la
   couverture fusionne les deux caches, le pire verdict l'emporte.
-  demo-ecommerce : 5 mutants en ~6 min, 4 tués, **1 survivant** :
-  `mutation:cart.syncServerCart#success` ne fait rien et `shop.checkout`
-  passe quand même (preuve creuse, test non modifié).
+  Le cache e2e hache `src` et `e2e` : un test e2e modifié relance son
+  mutant. demo-ecommerce : 5 mutants en ~6 min, tous tués. Le survivant du
+  premier passage (`mutation:cart.syncServerCart#success` : le panier
+  serveur n'apparaît nulle part dans la boutique, `shop.checkout` passait
+  sans lui) est tué depuis que le test vérifie le panier serveur dans le
+  magasin du run, seule frontière où la synchronisation se voit.
 - [x] Passage CI (2026-11-02, accord de l'utilisateur pour réintroduire un
   workflow) : `.github/workflows/behaviors.yml`. Sur PR et push sur `main` :
   `nx run-many -t architecture` (cliquet de toutes les apps). Sur PR,
