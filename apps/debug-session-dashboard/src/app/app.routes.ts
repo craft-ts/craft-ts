@@ -71,8 +71,12 @@ type DashboardRouteRegistry = {
   [Path in DashboardRoutePath]: Path extends 'e2e-replay'
     ? { path: Path; queryParams: { source: string } }
     : Path extends 'sessions/:sessionId'
-      ? // `event`: the recorded event the replay opens at, optional.
-        { path: Path; queryParams: { event: string } }
+      ? // Optional: `event`, the recorded event the replay opens at; with
+        // `behavior` and `app`, « Reprendre ici » opens to write its e2e.
+        {
+          path: Path;
+          queryParams: { event: string; behavior: string; app: string };
+        }
       : { path: Path };
 }[DashboardRoutePath][];
 

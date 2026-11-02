@@ -381,8 +381,13 @@ page `apps/debug-session-dashboard/src/features/coverage`.
   22/34 prouvées, 7 vues en session sans test (dont `/`, `/connexion`,
   `session.signOutProcess`, `ecommerce.product.delete`) ; le lien place le
   replay à l'étape 53/199, l'ouverture sans `?event` reste au début.
-- [ ] « Générer l'e2e » en un clic (aujourd'hui : ouvrir la session puis
-  « Reprendre ici », qui ne dit pas encore à l'IA quelle obligation prouver).
+- [x] « Écrire l'e2e » sur un comportement vu en session : la session s'ouvre
+  à l'événement (`?event=&behavior=&app=`), puis « Reprendre ici » s'ouvre
+  avec l'intention remplie (écrire le test Playwright qui prouve cette
+  obligation, assertion par rôles et textes, `craftSession`, le lancer pour
+  que sa référence prouve). La personne garde le dernier clic : l'onglet de
+  l'agent doit s'ouvrir dans un vrai clic. Vérifié sur le dashboard 4210 (le
+  dialogue fermé sans envoi).
 - [ ] Le runtime et le catalogue ne partagent toujours pas d'identifiants :
   la recherche dans les sessions est par nom, comme les preuves.
 

@@ -177,6 +177,33 @@ export const CoveragePage = craftComponent('CoveragePage', {}, function* () {
                     },
                     i18n.t('copy.copy197'),
                   ),
+                  button(
+                    'writeCoverageE2e',
+                    {
+                      type: 'button',
+                      class: [buttonUi.root, ui.inlineAction],
+                      'data-variant': 'link',
+                      'data-lab': 'coverage-write-e2e',
+                      hidden: function* () {
+                        return (yield* row()).observation === undefined;
+                      },
+                      click: function* () {
+                        const item = yield* row();
+                        const observation = item.observation;
+                        if (!observation) return;
+                        yield* CraftRouter.navigate({
+                          to: 'sessions/:sessionId',
+                          params: { sessionId: observation.sessionId },
+                          queryParams: {
+                            event: observation.eventId,
+                            behavior: item.id,
+                            app: item.app,
+                          },
+                        });
+                      },
+                    },
+                    i18n.t('copy.copy203'),
+                  ),
                 ]),
             ),
           ),

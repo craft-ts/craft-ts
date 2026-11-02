@@ -10,7 +10,10 @@ import {
   rawReactiveValue,
   ɵuntracked as untracked,
 } from '@craft-ts/core';
-import { installReplayPlatform, isReplayWorkerMode } from '../util/replay-browser';
+import {
+  installReplayPlatform,
+  isReplayWorkerMode,
+} from '../util/replay-browser';
 import { ReplaySession } from './replay-session';
 import { ReplayPlayback } from './replay-playback';
 import {
@@ -20,7 +23,11 @@ import {
   syncActiveRouteSessionId,
 } from './replay-state';
 import { installReplayWorkerSurface } from '../util/replay-worker';
-import { httpFailureReason, SessionArchive } from '../data-access/session-archive.service';
+import { coverageE2eIntent } from '../util/behavior-coverage';
+import {
+  httpFailureReason,
+  SessionArchive,
+} from '../data-access/session-archive.service';
 import { E2eComparison } from '../data-access/e2e-comparison.service';
 import { BehaviorCoverageArchive } from '../data-access/behavior-coverage.service';
 import { ResumeThread } from '../data-access/resume-thread.service';
@@ -39,11 +46,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
   { name: 'replayRoute', providedIn: 'toProvide' },
   function* () {
     const replayState = yield* ReplayState();
-    const {
-      page,
-      registers,
-      setStates,
-    } = replayState.imperative;
+    const { page, registers, setStates } = replayState.imperative;
     const replaySession = yield* ReplaySession();
     const playback = yield* ReplayPlayback();
     // The engine's clock, ids and hash come from Craft: the temporal runtime
@@ -94,6 +97,9 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     // The recorded event a link asked the replay to open at (`?event=`, from
     // the coverage page): sought once, when the replay of the session is ready.
     let requestedEventId: string | undefined;
+    // And the behaviour whose e2e to write from there: « Reprendre ici »
+    // opens, its intent filled in, once the replay stands at the event.
+    let requestedE2e: Readonly<{ app: string; behavior: string }> | undefined;
     let coverageRequests = 0;
 
     const open = (id: string): void => {
@@ -180,8 +186,8 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
             : coverage
               ? 'coverage'
               : id || importedSession || e2eReplay
-              ? 'detail'
-              : 'sessions',
+                ? 'detail'
+                : 'sessions',
       });
       if (comparison) {
         e2eComparison.comparison.call({
@@ -192,7 +198,13 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       }
       // Read when the page opens: the archive looks through every session.
       if (coverage) behaviorCoverage.coverage.call(++coverageRequests);
-      if (id) requestedEventId = route.queryParams['event'] || undefined;
+      if (id) {
+        requestedEventId = route.queryParams['event'] || undefined;
+        const behavior = route.queryParams['behavior'];
+        const app = route.queryParams['app'];
+        requestedE2e =
+          requestedEventId && behavior && app ? { app, behavior } : undefined;
+      }
       if (id && id !== registers.loadedArchiveSessionId) open(id);
       if (!id) {
         thumbnails.stop();
@@ -220,7 +232,16 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       if (eventId === undefined || !['ready', 'paused'].includes(state)) return;
       if (registers.loadedArchiveSessionId !== routeSessionId()) return;
       requestedEventId = undefined;
-      untracked(() => replaySession.seekReplayToRecordedEvent(eventId));
+      const e2e = requestedE2e;
+      requestedE2e = undefined;
+      untracked(() => {
+        replaySession.seekReplayToRecordedEvent(eventId);
+        if (e2e)
+          setStates({
+            resumeIntent: coverageE2eIntent(e2e.app, e2e.behavior),
+            resumeDialogOpen: true,
+          });
+      });
     });
 
     const retryThumbnails = (): void => {

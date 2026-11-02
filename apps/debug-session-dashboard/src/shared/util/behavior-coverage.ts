@@ -56,7 +56,9 @@ export const behaviorCoverageDecoder = {
     const apps = isRecord(input) ? input['apps'] : undefined;
     if (!Array.isArray(apps)) return [];
     return apps.flatMap((app) =>
-      isRecord(app) && typeof app['app'] === 'string' && Array.isArray(app['behaviors'])
+      isRecord(app) &&
+      typeof app['app'] === 'string' &&
+      Array.isArray(app['behaviors'])
         ? [{ app: app['app'], behaviors: app['behaviors'].filter(isEntry) }]
         : [],
     );
@@ -86,6 +88,8 @@ export const COVERAGE_SECTIONS: readonly CoverageSection[] = [
 
 export type CoverageRow = Readonly<{
   key: string;
+  /** The catalog id. */
+  id: string;
   app: string;
   label: string;
   kind: string;
@@ -130,7 +134,8 @@ export function behaviorLabel(id: string, kind: string): string {
 }
 
 export function sectionOf(entry: BehaviorCoverageEntry): CoverageSection {
-  if (entry.status === 'proven') return entry.mutant === 'survived' ? 'hollow' : 'proven';
+  if (entry.status === 'proven')
+    return entry.mutant === 'survived' ? 'hollow' : 'proven';
   if (entry.status === 'waived') return 'waived';
   if (entry.observations.length > 0) return 'seen';
   return entry.kind === 'http-exception' ? 'unseenException' : 'unseenHappy';
@@ -147,14 +152,18 @@ function testsLabel(tests: readonly string[]): string {
   return tests.length > 2 ? `${shown} · +${tests.length - 2}` : shown;
 }
 
-function metaOf(entry: BehaviorCoverageEntry, section: CoverageSection): string {
+function metaOf(
+  entry: BehaviorCoverageEntry,
+  section: CoverageSection,
+): string {
   const latest = entry.observations[0];
   switch (section) {
     case 'hollow':
     case 'proven':
-      return [testsLabel(entry.provenBy), ...(entry.mutant ? [MUTANT_LABEL[entry.mutant]] : [])].join(
-        ' · ',
-      );
+      return [
+        testsLabel(entry.provenBy),
+        ...(entry.mutant ? [MUTANT_LABEL[entry.mutant]] : []),
+      ].join(' · ');
     case 'waived':
       return entry.waiver ?? '';
     case 'seen':
@@ -171,7 +180,9 @@ export type CoverageView = Readonly<{
   sections: Readonly<Record<CoverageSection, readonly CoverageRow[]>>;
 }>;
 
-export function coverageView(apps: readonly AppBehaviorCoverage[]): CoverageView {
+export function coverageView(
+  apps: readonly AppBehaviorCoverage[],
+): CoverageView {
   const sections: Record<CoverageSection, CoverageRow[]> = {
     hollow: [],
     seen: [],
@@ -182,14 +193,19 @@ export function coverageView(apps: readonly AppBehaviorCoverage[]): CoverageView
   };
   const summaries = apps.map((app) => {
     // Nested route collections all have a `/` page: the collection tells them apart.
-    const labels = app.behaviors.map((entry) => behaviorLabel(entry.id, entry.kind));
-    const repeated = new Set(labels.filter((label, index) => labels.indexOf(label) !== index));
+    const labels = app.behaviors.map((entry) =>
+      behaviorLabel(entry.id, entry.kind),
+    );
+    const repeated = new Set(
+      labels.filter((label, index) => labels.indexOf(label) !== index),
+    );
     app.behaviors.forEach((entry, index) => {
       const section = sectionOf(entry);
       const observation = entry.observations[0];
       const label = labels[index] ?? entry.id;
       sections[section].push({
         key: `${app.app}\u0000${entry.id}`,
+        id: entry.id,
         app: app.app,
         label:
           repeated.has(label) && entry.kind === 'route'
@@ -200,17 +216,43 @@ export function coverageView(apps: readonly AppBehaviorCoverage[]): CoverageView
         ...(section === 'seen' && observation ? { observation } : {}),
       });
     });
-    const proven = app.behaviors.filter((entry) => entry.status === 'proven').length;
-    const hollow = app.behaviors.filter((entry) => sectionOf(entry) === 'hollow').length;
-    const seen = app.behaviors.filter((entry) => sectionOf(entry) === 'seen').length;
+    const proven = app.behaviors.filter(
+      (entry) => entry.status === 'proven',
+    ).length;
+    const hollow = app.behaviors.filter(
+      (entry) => sectionOf(entry) === 'hollow',
+    ).length;
+    const seen = app.behaviors.filter(
+      (entry) => sectionOf(entry) === 'seen',
+    ).length;
     return {
       app: app.app,
       text: [
         `${proven} prouvés sur ${app.behaviors.length}`,
-        ...(hollow > 0 ? [`${hollow} preuve${hollow > 1 ? 's' : ''} creuse${hollow > 1 ? 's' : ''}`] : []),
-        ...(seen > 0 ? [`${seen} vu${seen > 1 ? 's' : ''} en session sans test`] : []),
+        ...(hollow > 0
+          ? [
+              `${hollow} preuve${hollow > 1 ? 's' : ''} creuse${hollow > 1 ? 's' : ''}`,
+            ]
+          : []),
+        ...(seen > 0
+          ? [`${seen} vu${seen > 1 ? 's' : ''} en session sans test`]
+          : []),
       ].join(' · '),
     };
   });
   return { summaries, sections };
+}
+
+/**
+ * What « Reprendre ici » asks the agent when the coverage page sent the
+ * person: a Playwright test that proves this one obligation, written from the
+ * session that showed it. The kind is the id's prefix.
+ */
+export function coverageE2eIntent(app: string, id: string): string {
+  const label = behaviorLabel(id, id.slice(0, id.indexOf(':')));
+  return [
+    `Écrire un test e2e Playwright qui prouve le comportement « ${label} » de ${app} (obligation ${id}), vu dans cette session à ce moment.`,
+    'Reproduis ce que la session a fait jusqu’ici, déclenche ce comportement, puis vérifie son effet visible par une assertion (`expect` des fixtures e2e, rôles et textes, pas de sélecteur CSS).',
+    'Annote le test avec craftSession({ id }) et lance-le : sa référence dans e2e/__sessions__ doit prouver l’obligation dans la suite d’architecture de l’app.',
+  ].join(' ');
 }

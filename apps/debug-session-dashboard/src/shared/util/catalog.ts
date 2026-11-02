@@ -259,7 +259,7 @@ const englishCatalog = defineCatalog({
     copy185: msg`Preuves creuses`,
     copy186: msg`Un test les prouve, mais passe encore quand le comportement est cassé (craft mutants) : son assertion ne regarde pas ce comportement.`,
     copy187: msg`Vus dans une session, sans test`,
-    copy188: msg`Ouvrez la session à cet événement et choisissez « Reprendre ici » : l’agent en tire un test e2e.`,
+    copy188: msg`« Écrire l’e2e » ouvre la session à cet événement et prépare « Reprendre ici » : l’agent écrit le test qui prouve ce comportement.`,
     copy189: msg`Jamais vus · chemin heureux`,
     copy190: msg`Aucun test ni aucune session ne les montre. Atteignez-les par une reprise guidée, ou supprimez-les s’ils ne servent plus.`,
     copy191: msg`Jamais vus · exception`,
@@ -274,6 +274,7 @@ const englishCatalog = defineCatalog({
     copy200: msg`Couverture`,
     copy201: msg`Ce que les tests de chaque app prouvent, et ce qu’il leur reste à prouver.`,
     copy202: msg`Couverture`,
+    copy203: msg`Écrire l’e2e`,
   },
 });
 
