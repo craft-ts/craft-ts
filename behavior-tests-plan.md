@@ -254,8 +254,16 @@ vitest et lecture de l'index).
   → la route de ce chemin ; exception d'une invocation → la
   `http-exception` de ce discriminant. Deux candidats possibles → aucune
   preuve (jamais deviné).
-- [ ] Le runtime n'émet pas encore les identifiants du catalogue ; la
-  correspondance par nom en tient lieu.
+- [x] Le runtime nomme chaque invocation comme le catalogue (2026-11-02) :
+  `ɵbehaviorTarget` de `core` (`service:cart / state:lines / method:add` →
+  `cart.add`) est la seule définition. L'enregistreur des tests et celui des
+  sessions l'écrivent (`detail.behavior`, `payload.behavior`) ;
+  `session-trace` la recopie dans l'étape ; dev-tools et le log-server la
+  lisent telle quelle. Seul repli : `session-trace` la recalcule pour une
+  session enregistrée avant (les références e2e versionnées). Le préfixe de
+  sorte (`method:`, `command:`…) reste au graphe, qui seul la connaît.
+  Vérifié : demo-ecommerce toujours 22/34, et une session réelle porte
+  `cart.add`, `storefrontView.storeQuery`.
 - [x] Tests de service et de template : un `provideFnWrapper` de `core`
   note, pendant chaque test, chaque invocation réglée (adresse de l'hôte,
   issue, exception) une seule fois ; c'est l'empreinte, au même format
@@ -408,8 +416,8 @@ page `apps/debug-session-dashboard/src/features/coverage`.
   que sa référence prouve). La personne garde le dernier clic : l'onglet de
   l'agent doit s'ouvrir dans un vrai clic. Vérifié sur le dashboard 4210 (le
   dialogue fermé sans envoi).
-- [ ] Le runtime et le catalogue ne partagent toujours pas d'identifiants :
-  la recherche dans les sessions est par nom, comme les preuves.
+- [x] La recherche dans les sessions lit le nom écrit par le runtime
+  (`detail.behavior`), comme les preuves (voir P2).
 
 ## Questions ouvertes
 

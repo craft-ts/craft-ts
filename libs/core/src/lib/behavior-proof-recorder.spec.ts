@@ -2,6 +2,7 @@ import { craftException } from './craft-exception';
 import { craftMethod } from './craft-method';
 import { craftService } from './craft-service';
 import {
+  ɵbehaviorTarget,
   ɵprovideBehaviorProofRecording,
   ɵstartBehaviorProofRecording,
   ɵstopBehaviorProofRecording,
@@ -44,7 +45,7 @@ describe('behaviour proof recording', () => {
       {
         key: 'invocation:service:basket / method:add',
         kind: 'invocation',
-        detail: { outcome: 'succeeded' },
+        detail: { outcome: 'succeeded', behavior: 'basket.add' },
       },
     ]);
   });
@@ -59,12 +60,12 @@ describe('behaviour proof recording', () => {
       {
         key: 'invocation:service:basket / method:reserve',
         kind: 'invocation',
-        detail: { outcome: 'failed', exception: 'OutOfStock' },
+        detail: { outcome: 'failed', exception: 'OutOfStock', behavior: 'basket.reserve' },
       },
       {
         key: 'invocation:service:basket / method:crash',
         kind: 'invocation',
-        detail: { outcome: 'failed', exception: 'RangeError' },
+        detail: { outcome: 'failed', exception: 'RangeError', behavior: 'basket.crash' },
       },
     ]);
   });
@@ -97,5 +98,14 @@ describe('behaviour proof recording', () => {
     ɵstartBehaviorProofRecording();
     setupCraftServiceTest(Basket, {}).sut.add('a');
     expect(ɵstopBehaviorProofRecording().steps).toEqual([]);
+  });
+
+  it('names what an invocation runs the way the catalog does', () => {
+    expect(ɵbehaviorTarget(['service:cart#2', 'mutation:addLine'])).toBe('cart.addLine');
+    expect(
+      ɵbehaviorTarget(['route:shop', 'component:CartPage#1', 'method:checkout']),
+    ).toBe('CartPage.checkout');
+    expect(ɵbehaviorTarget(['service:cart'])).toBeUndefined();
+    expect(ɵbehaviorTarget(['method:orphan'])).toBeUndefined();
   });
 });

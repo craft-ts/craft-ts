@@ -141,11 +141,27 @@ function invocationStep(end: Event | undefined, first: Event): Pick<SessionTrace
   const address = typeof invocation['address'] === 'string' ? invocation['address'] : hostTags.length ? hostTags.join(' / ') : String(payload['host'] ?? first['name'] ?? '');
   const failed = end?.['phase'] === 'failed';
   const error = record(end?.['response']);
+  const behavior = typeof payload['behavior'] === 'string' ? payload['behavior'] : recordedBeforeBehavior(cleanAddress(address));
   return {
     key: `invocation:${cleanAddress(address)}`,
     kind: 'invocation',
-    detail: { outcome: !end ? 'pending' : failed ? 'failed' : 'succeeded', ...(failed ? { exception: String(error['_tag'] ?? error['name'] ?? 'unknown') } : {}) },
+    detail: { outcome: !end ? 'pending' : failed ? 'failed' : 'succeeded', ...(failed ? { exception: String(error['_tag'] ?? error['name'] ?? 'unknown') } : {}), ...(behavior ? { behavior } : {}) },
   };
+}
+
+/**
+ * The runtime writes the catalog's name of an invocation (`behavior`,
+ * `cart.add`) into its event; a session recorded before it did is read the
+ * same way here — the primitive is the last tag, its owner the nearest service
+ * or component before it.
+ */
+function recordedBeforeBehavior(address: string): string | undefined {
+  const tags = address.split(' / ');
+  const host = tags[tags.length - 1] ?? '';
+  const owner = tags.slice(0, -1).reverse().find((tag) => tag.startsWith('service:') || tag.startsWith('component:'));
+  const name = host.slice(host.indexOf(':') + 1);
+  if (!name || !owner || /^(service|component|route):/.test(host)) return undefined;
+  return `${owner.slice(owner.indexOf(':') + 1)}.${name}`;
 }
 
 function navigationStep(end: Event | undefined, first: Event): Pick<SessionTraceStep, 'key' | 'kind' | 'detail'> {

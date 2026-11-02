@@ -79,22 +79,6 @@ export function readBehaviorCoverage(appDir: string): Readonly<{
   }
 }
 
-/**
- * `service:cart / method:add` → `cart.add`: the primitive is the last tag, its
- * owner the nearest service or component before it. The same reading as
- * `behaviorProofSteps` in `@craft-ts/dev-tools`, which wrote the matches.
- */
-function invocationTarget(address: string): string | undefined {
-  const tags = address.split(' / ');
-  const host = tags[tags.length - 1];
-  const name = host?.slice(host.indexOf(':') + 1);
-  const owner = [...tags.slice(0, -1)]
-    .reverse()
-    .find((tag) => tag.startsWith('service:') || tag.startsWith('component:'));
-  if (!name || !owner) return undefined;
-  return `${owner.slice(owner.indexOf(':') + 1)}.${name}`;
-}
-
 export function stepShowsBehavior(
   match: BehaviorStepMatch,
   step: SessionSteps['steps'][number],
@@ -102,8 +86,9 @@ export function stepShowsBehavior(
   if (match.step === 'invocation') {
     if (step.kind !== 'invocation' || !step.key.startsWith('invocation:')) return false;
     if (step.detail['outcome'] !== match.outcome) return false;
+    // The runtime names each invocation as the catalog does (`cart.add`).
     return 'target' in match
-      ? invocationTarget(step.key.slice('invocation:'.length)) === match.target
+      ? step.detail['behavior'] === match.target
       : String(step.detail['exception']) === match.exception;
   }
   if (match.step === 'route')

@@ -44,14 +44,14 @@ describe('behaviour coverage', () => {
       ],
       [
         session('older', '2026-11-01T10:00:00.000Z', [
-          { key: 'invocation:service:cart / method:add', kind: 'invocation', detail: { outcome: 'succeeded' }, eventId: 'e1' },
-          { key: 'invocation:service:cart / method:clear', kind: 'invocation', detail: { outcome: 'succeeded' }, eventId: 'e2' },
+          { key: 'invocation:service:cart / method:add', kind: 'invocation', detail: { outcome: 'succeeded', behavior: 'cart.add' }, eventId: 'e1' },
+          { key: 'invocation:service:cart / method:clear', kind: 'invocation', detail: { outcome: 'succeeded', behavior: 'cart.clear' }, eventId: 'e2' },
         ]),
         session('newer', '2026-11-02T10:00:00.000Z', [
           { key: 'route-activation:cart', kind: 'route', detail: { outcome: 'activated' }, eventId: 'e7' },
           // A nested primitive is owned by the nearest service before it.
-          { key: 'invocation:service:cart / state:lines / method:add', kind: 'invocation', detail: { outcome: 'failed', exception: 'OutOfStock' }, eventId: 'e9' },
-          { key: 'invocation:service:cart / method:add', kind: 'invocation', detail: { outcome: 'succeeded' }, eventId: 'e8' },
+          { key: 'invocation:service:cart / state:lines / method:add', kind: 'invocation', detail: { outcome: 'failed', exception: 'OutOfStock', behavior: 'cart.add' }, eventId: 'e9' },
+          { key: 'invocation:service:cart / method:add', kind: 'invocation', detail: { outcome: 'succeeded', behavior: 'cart.add' }, eventId: 'e8' },
         ]),
       ],
     );

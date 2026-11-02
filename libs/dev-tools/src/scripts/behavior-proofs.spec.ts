@@ -46,11 +46,15 @@ describe('behaviorProofsFromTrace', () => {
         trace(
           // The runtime tags it a query; the graph saw a mutation. Owner and
           // name are what identify it.
-          ['invocation', 'invocation:service:session / query:signInProcess', { outcome: 'succeeded' }],
+          [
+            'invocation',
+            'invocation:service:session / query:signInProcess',
+            { outcome: 'succeeded', behavior: 'session.signInProcess' },
+          ],
           [
             'invocation',
             'invocation:component:Shell / route:admin / service:adminView / query:adminStore',
-            { outcome: 'succeeded' },
+            { outcome: 'succeeded', behavior: 'adminView.adminStore' },
           ],
           ['http', 'server-fn:ecommerce.auth.login', { status: 200, outcome: 'ok' }],
           ['route', 'route-activation:admin', { outcome: 'activated' }],
@@ -69,11 +73,13 @@ describe('behaviorProofsFromTrace', () => {
       behaviorProofsFromTrace(
         catalog,
         trace(
-          ['invocation', 'invocation:service:cart / craftMethod:empty', { outcome: 'pending' }],
+          ['invocation', 'invocation:service:cart / craftMethod:empty', { outcome: 'pending', behavior: 'cart.empty' }],
           ['http', 'server-fn:ecommerce.auth.login', { status: 500, outcome: 'error' }],
           ['route', 'route-activation:admin', { outcome: 'failed' }],
           ['checkpoint', 'checkpoint:service:cart / state:lines', { value: 'x' }],
-          ['invocation', 'invocation:service:other / query:missing', { outcome: 'succeeded' }],
+          ['invocation', 'invocation:service:other / query:missing', { outcome: 'succeeded', behavior: 'other.missing' }],
+          // A step without the catalog's name (no owner) proves nothing.
+          ['invocation', 'invocation:method:empty', { outcome: 'succeeded' }],
         ),
       ),
     ).toEqual([]);
@@ -87,9 +93,9 @@ describe('behaviorProofsFromTrace', () => {
           // '' is the path of two routes.
           ['route', 'route-activation:', { outcome: 'activated' }],
           // NotFound is thrown by two endpoints.
-          ['invocation', 'invocation:service:cart / query:lines', { outcome: 'failed', exception: 'NotFound' }],
+          ['invocation', 'invocation:service:cart / query:lines', { outcome: 'failed', exception: 'NotFound', behavior: 'cart.lines' }],
           // Forbidden by one only.
-          ['invocation', 'invocation:service:cart / query:lines', { outcome: 'failed', exception: 'Forbidden' }],
+          ['invocation', 'invocation:service:cart / query:lines', { outcome: 'failed', exception: 'Forbidden', behavior: 'cart.lines' }],
         ),
       ),
     ).toEqual(['http-exception:GET /api/lines#Forbidden']);
@@ -100,7 +106,7 @@ describe('behaviorProofsFromTrace', () => {
       behaviorProofsFromTrace(catalog, {
         ...trace(
           ['route', 'route-activation:admin', { outcome: 'activated' }],
-          ['invocation', 'invocation:service:cart / craftMethod:empty', { outcome: 'succeeded' }],
+          ['invocation', 'invocation:service:cart / craftMethod:empty', { outcome: 'succeeded', behavior: 'cart.empty' }],
         ),
         observedSteps: 1,
       }),

@@ -15,7 +15,12 @@ import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 export type ɵBehaviorProofStep = Readonly<{
   key: string;
   kind: 'invocation';
-  detail: Readonly<{ outcome: 'succeeded' | 'failed'; exception?: string }>;
+  detail: Readonly<{
+    outcome: 'succeeded' | 'failed';
+    exception?: string;
+    /** `ɵbehaviorTarget` of the host tags, when the invocation has an owner. */
+    behavior?: string;
+  }>;
 }>;
 
 export type ɵBehaviorProofRecording = Readonly<{
@@ -80,6 +85,29 @@ export function ɵbehaviorInvocationKey(
   return `invocation:${hostTags.map((tag) => tag.replace(/#\d+$/, '')).join(' / ')}`;
 }
 
+/**
+ * The name the behaviour catalog gives what an invocation runs —
+ * `service:cart / method:add` → `cart.add`: the primitive is the last tag, its
+ * owner the nearest service or component before it. The catalog of
+ * `@craft-ts/dev-tools` builds its ids from the same `<owner>.<name>`, so the
+ * runtime writes it into every step it records (here and in a debug session)
+ * and no reader has to work it out again.
+ */
+export function ɵbehaviorTarget(
+  hostTags: readonly string[],
+): string | undefined {
+  const tags = hostTags.map((tag) => tag.replace(/#\d+$/, ''));
+  const host = tags[tags.length - 1];
+  if (!host || HOST_FACTORY_TAG.test(host)) return undefined;
+  const owner = tags
+    .slice(0, -1)
+    .reverse()
+    .find((tag) => tag.startsWith('service:') || tag.startsWith('component:'));
+  const name = host.slice(host.indexOf(':') + 1);
+  if (!name || !owner) return undefined;
+  return `${owner.slice(owner.indexOf(':') + 1)}.${name}`;
+}
+
 function record(key: string, detail: ɵBehaviorProofStep['detail']): void {
   const step: ɵBehaviorProofStep = {
     key,
@@ -108,13 +136,15 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   }
   const key = ɵbehaviorInvocationKey(hostTags);
   if (!key) return yield* factory.apply(thisArg, args);
+  const target = ɵbehaviorTarget(hostTags);
+  const behavior = target ? { behavior: target } : {};
   try {
     const result = yield* factory.apply(thisArg, args);
     record(
       key,
       isCraftException(result)
-        ? { outcome: 'failed', exception: result._tag }
-        : { outcome: 'succeeded' },
+        ? { outcome: 'failed', exception: result._tag, ...behavior }
+        : { outcome: 'succeeded', ...behavior },
     );
     return result;
   } catch (error) {
@@ -127,6 +157,7 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
           : error instanceof Error
             ? error.name
             : 'unknown',
+      ...behavior,
     });
     throw error;
   }

@@ -54,7 +54,7 @@ describe('normalizeSessionTrace', () => {
   it('reports a failed craft call on its own step', () => {
     const failed = edit(fixture('shop.checkout'), (events) => events.map((event) =>
       event['operationId'] === 'craft-call-5' && event['phase'] === 'succeeded' ? { ...event, phase: 'failed', response: { name: 'CartFullError' } } : event));
-    expect(step(normalizeSessionTrace(failed), ADD).detail).toEqual({ outcome: 'failed', exception: 'CartFullError' });
+    expect(step(normalizeSessionTrace(failed), ADD).detail).toEqual({ outcome: 'failed', exception: 'CartFullError', behavior: 'cart.add' });
   });
 
   it('reports a 500 on the last server function under its id', () => {
@@ -71,6 +71,16 @@ describe('normalizeSessionTrace', () => {
       load(4), call(5, 'started', 'query:adminAction'), call(6, 'succeeded', 'query:adminAction'),
     ]));
     expect(keys(trace)).toEqual(['invocation:service:shop / query:currentUser', 'invocation:service:shop / query:adminAction']);
+  });
+
+  it('carries the catalog name the runtime gave an invocation, and reads it for an older session', () => {
+    const call = (sequence: number, phase: string, payload: Event) => ({ id: `c${sequence}`, sequence, timestamp: sequence, kind: 'craft', phase, operationId: `craft-call-${sequence}`, participantId: 'tab', payload });
+    const trace = normalizeSessionTrace(session([
+      call(1, 'started', { hostTags: ['service:shop', 'query:adminAction'], behavior: 'shop.adminAction' }),
+      call(2, 'started', { hostTags: ['service:cart', 'state:lines', 'method:add'] }),
+      call(3, 'started', { hostTags: ['service:cart'] }),
+    ]));
+    expect(trace.steps.map((item) => item.detail['behavior'])).toEqual(['shop.adminAction', 'cart.add', undefined]);
   });
 
   it('marks an operation without an end as pending', () => {

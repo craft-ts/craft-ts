@@ -39,6 +39,7 @@ import {
   type SendContextSession,
   type SendContextSessionSnapshot,
   ɵcraftValueService,
+  ɵbehaviorTarget,
   isCraftException,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
@@ -1028,6 +1029,7 @@ export function provideCraftDebugSessionCapture(
         const name =
           factoryName && factoryName !== 'current' ? factoryName : actionHost;
         const operationId = `craft-call-${++craftCallSequence}`;
+        const behavior = ɵbehaviorTarget(hostTags);
         const correlationId = getCurrentStartCorrelationId() ?? undefined;
         const invocationStack = correlationId
           ? activeCraftInvocations.get(correlationId)
@@ -1044,6 +1046,9 @@ export function provideCraftDebugSessionCapture(
             comparable: false,
             host: actionHost,
             hostTags: hostTags.map((tag) => tag.replace(/#\d+$/, '')),
+            // The catalog's name for it, written by the runtime so that the
+            // session trace, the proofs and the coverage page read it as is.
+            ...(behavior ? { behavior } : {}),
             ...(options.captureReplayArguments === true &&
             isLoopbackWebSocketUrl(options.webSocketUrl) &&
             actionHost.startsWith('method:')

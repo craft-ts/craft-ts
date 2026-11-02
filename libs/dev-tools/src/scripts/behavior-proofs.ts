@@ -7,10 +7,12 @@
  * `@craft-ts/session-trace`, taken structurally — dev-tools depends on no
  * other package.
  *
- * Matching is by name, like the catalog ids: a runtime address
- * `service:cart / mutation:addLine` proves `mutation:cart.addLine#success`.
- * The primitive kind is not compared, only the owner and the name, so that a
- * primitive the runtime tags differently from the graph is still found. When
+ * Matching is by name, like the catalog ids: the runtime writes into each
+ * invocation step the name the catalog gives it (`detail.behavior`,
+ * `cart.addLine`, from `ɵbehaviorTarget` of `@craft-ts/core`), and that step
+ * proves `mutation:cart.addLine#success`. The primitive kind is not compared,
+ * only the owner and the name, so that a primitive the runtime tags
+ * differently from the graph is still found. When
  * a step could prove more than one obligation (two routes with the same path,
  * two endpoints with the same exception) it proves none: a proof is never
  * guessed.
@@ -92,8 +94,9 @@ export function behaviorProofSteps(
   const observed = trace.steps.slice(0, trace.observedSteps ?? trace.steps.length);
   for (const step of observed) {
     if (step.kind === 'invocation' && step.key.startsWith('invocation:')) {
-      const target = invocationTarget(step.key.slice('invocation:'.length));
-      if (!target) continue;
+      // The runtime names the invocation as the catalog does (`cart.add`).
+      const target = step.detail['behavior'];
+      if (typeof target !== 'string') continue;
       if (step.detail['outcome'] === 'succeeded') {
         for (const id of invoked.get(target) ?? []) prove(id, step.key);
       }
@@ -159,22 +162,6 @@ export function behaviorStepMatches(
       matches.set(entry.id, { step: 'server-fn', id: entry.id.slice('server-function:'.length) });
   }
   return matches;
-}
-
-/**
- * `service:session / query:signInProcess` → `session.signInProcess`: the
- * primitive is the last tag, its owner the nearest service or component
- * before it.
- */
-function invocationTarget(address: string): string | undefined {
-  const tags = address.split(' / ');
-  const host = tags[tags.length - 1];
-  const name = host?.slice(host.indexOf(':') + 1);
-  const owner = [...tags.slice(0, -1)]
-    .reverse()
-    .find((tag) => tag.startsWith('service:') || tag.startsWith('component:'));
-  if (!name || !owner) return undefined;
-  return `${owner.slice(owner.indexOf(':') + 1)}.${name}`;
 }
 
 function push(map: Map<string, string[]>, key: string, value: string): void {

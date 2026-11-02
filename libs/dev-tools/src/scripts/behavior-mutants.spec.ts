@@ -24,22 +24,27 @@ const catalog: BehaviorCatalog = {
   ],
 };
 
-const succeeded = (key: string) => ({ key, kind: 'invocation', detail: { outcome: 'succeeded' } });
-const failed = (key: string, exception: string) => ({
+// As the runtime records them: the address, and the catalog's name for it.
+const succeeded = (key: string, behavior: string) => ({
   key,
   kind: 'invocation',
-  detail: { outcome: 'failed', exception },
+  detail: { outcome: 'succeeded', behavior },
+});
+const failed = (key: string, exception: string, behavior: string) => ({
+  key,
+  kind: 'invocation',
+  detail: { outcome: 'failed', exception, behavior },
 });
 
 const traces = {
-  'src/cart.spec.ts > cart > adds': { steps: [succeeded('invocation:service:cart / method:add')] },
+  'src/cart.spec.ts > cart > adds': { steps: [succeeded('invocation:service:cart / method:add', 'cart.add')] },
   'src/cart.spec.ts > cart > adds twice': {
-    steps: [succeeded('invocation:service:cart / method:add'), succeeded('invocation:service:cart / method:clear')],
+    steps: [succeeded('invocation:service:cart / method:add', 'cart.add'), succeeded('invocation:service:cart / method:clear', 'cart.clear')],
     // The clear came after the last assertion: it proves nothing.
     observedSteps: 1,
   },
   'src/order.spec.ts > refuses an empty stock': {
-    steps: [failed('invocation:service:checkout / mutation:placeOrder', 'OutOfStock')],
+    steps: [failed('invocation:service:checkout / mutation:placeOrder', 'OutOfStock', 'checkout.placeOrder')],
   },
   'src/shop.spec.ts > opens the cart': {
     steps: [{ key: 'route-activation:cart', kind: 'route', detail: { outcome: 'activated' } }],
