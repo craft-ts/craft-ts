@@ -482,15 +482,18 @@ export function behaviorRatchet(options: {
   };
 }
 
-/** Test helpers whose register map installs a service's dependencies. */
+/**
+ * Test helpers whose register map installs a service's dependencies.
+ *
+ * The template helpers (`setupCraftComponentTemplateTest`,
+ * `setupCraftDirectiveTemplateTest`) are left out on purpose: they render a
+ * template from the view they are given, so a hand-made view is what they are
+ * for, not a shortcut around the boundaries.
+ */
 const REGISTER_AS_SECOND_ARGUMENT = new Set([
   'setupCraftServiceTest',
   'setupCraftServiceTestingByRegister',
   'setupTestingService',
-]);
-const REGISTER_IN_OPTIONS = new Set([
-  'setupCraftComponentTemplateTest',
-  'setupCraftDirectiveTemplateTest',
 ]);
 
 export type BehaviorTestMock = {
@@ -557,23 +560,6 @@ function registerMapOf(
     REGISTER_AS_SECOND_ARGUMENT.has(callee.text)
   ) {
     const register = call.arguments[1];
-    return register && ts.isObjectLiteralExpression(register)
-      ? register
-      : undefined;
-  }
-  if (
-    ts.isPropertyAccessExpression(callee) &&
-    callee.name.text === 'byRegister' &&
-    ts.isIdentifier(callee.expression) &&
-    REGISTER_IN_OPTIONS.has(callee.expression.text)
-  ) {
-    const options = call.arguments[1];
-    if (!options || !ts.isObjectLiteralExpression(options)) return undefined;
-    const register = options.properties.find(
-      (property): property is ts.PropertyAssignment =>
-        ts.isPropertyAssignment(property) &&
-        propertyKey(property) === 'register',
-    )?.initializer;
     return register && ts.isObjectLiteralExpression(register)
       ? register
       : undefined;

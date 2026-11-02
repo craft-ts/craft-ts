@@ -187,8 +187,8 @@ Code : `libs/dev-tools/src/scripts/behavior-catalog.ts` (+ spec), exporté par
   `demo-with-server-function` (23), attestation-app (64). Catalogue, cliquet
   et fichier de couverture ; pas encore de preuves (ni index unitaire ni
   références e2e lues), donc tout y est non prouvé jusqu'au premier test.
-  `demo` : 3 waivers `behavior-test-mocks-boundaries` pour les tests de
-  gabarit des exemples (`setupCraftComponentTemplateTest` reçoit sa vue).
+  Les tests de gabarit des exemples de `demo` donnent une vue fabriquée :
+  c'est l'usage du helper, la règle des frontières les accepte (voir P3).
 - Non retenu pour l'instant : les méthodes exposées des `state`
   (`select`, `close`…), trop proches de simples setters ; les transitions
   une par une des machines à états (le graphe ne les expose pas).
@@ -196,10 +196,15 @@ Code : `libs/dev-tools/src/scripts/behavior-catalog.ts` (+ spec), exporté par
 **P3. Tester par les frontières**
 
 - [x] Règle `behavior-test-mocks-boundaries` (suite d'architecture) : dans les
-  maps `register` des helpers craft, un mock n'est accepté que pour un service
+  maps `register` des helpers de service, un mock n'est accepté que pour un service
   frontière (HTTP ou server function, directement ou par une primitive ;
   `browserBoundary` ; code hors de l'app). Une chaîne (`'notReached'`) ou un
   `provideX()` garde le vrai service. Waiver `<spec>:<clé>`.
+  Les helpers de gabarit (`setupCraftComponentTemplateTest`,
+  `setupCraftDirectiveTemplateTest`) ne sont pas contrôlés, choix de
+  l'utilisateur du 2026-11-02 : ils rendent un gabarit à partir de la vue
+  qu'on leur donne, une vue fabriquée y est l'usage, pas un contournement.
+  Contrepartie assumée : un test de gabarit peut mocker sa vue sans waiver.
 - [x] Pas d'accès à un membre `craftPrivate` dans un test : déjà garanti,
   sans règle. Un tel membre vit dans le générateur du service (rien à
   importer), `sut` ne le type pas et ne le porte pas à l'exécution. Figé par

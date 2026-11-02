@@ -452,10 +452,7 @@ describe('mocks only at the boundaries', () => {
         cart: { addLine: vi.fn() },
         token: 'notReached',
       });
-      setupCraftComponentTemplateTest.byRegister(Cart, {
-        inputs: {},
-        register: { cartView, clock: { now: () => 0 } },
-      });
+      setupCraftServiceTest(Cart, { cartView, clock: { now: () => 0 } });
       `,
     );
     expect(behaviorTestMocks(rootDir, [file]).map((mock) => mock.key)).toEqual([
@@ -463,6 +460,19 @@ describe('mocks only at the boundaries', () => {
       'cartView',
       'clock',
     ]);
+  });
+
+  it('lets a template test render the view it is given', () => {
+    const file = spec(
+      'template.spec.ts',
+      `
+      setupCraftComponentTemplateTest.byRegister(Cart, {
+        inputs: {},
+        register: { cartView: { lines: () => [] }, cart: 'notReached' },
+      });
+      `,
+    );
+    expect(behaviorTestMocks(rootDir, [file])).toEqual([]);
   });
 
   it('refuses a mock of the app’s own service, accepts boundaries and unknown keys', () => {
@@ -475,9 +485,7 @@ describe('mocks only at the boundaries', () => {
         StoragePersister: {},
         UserIdPathParams: {},
       });
-      setupCraftComponentTemplateTest.byRegister(Cart, {
-        register: { cartView: { lines: () => [] } },
-      });
+      setupCraftServiceTest(Cart, { cartView: { lines: () => [] } });
       `,
     );
     const report = behaviorObligationsReport(services, {
@@ -496,7 +504,7 @@ describe('mocks only at the boundaries', () => {
         {
           rule: 'behavior-test-mocks-boundaries',
           target: `${file}:cartView`,
-          reason: 'template-only test of the empty state',
+          reason: 'the cart reads a fixed list in this test',
         },
         {
           rule: 'behavior-test-mocks-boundaries',
