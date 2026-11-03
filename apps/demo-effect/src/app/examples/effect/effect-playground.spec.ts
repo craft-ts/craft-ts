@@ -65,6 +65,48 @@ describe('demo: Effect playground', () => {
     injector.destroy();
   });
 
+  it('toggles a todo, then deletes it', async () => {
+    const element = document.createElement('div');
+    document.body.append(element);
+    const injector = CraftTestBed.rootInjector.createChild([
+      provideLayer(TodoStoreLive),
+    ]);
+    const mounted = mountCraftComponent(
+      EffectPlaygroundComponent,
+      element,
+      injector,
+    );
+    CraftTestBed.tick();
+    const control = (label: string) =>
+      vi.waitFor(() => {
+        const found = element.querySelector<HTMLButtonElement>(
+          `button[aria-label="${label}"]:not([disabled])`,
+        );
+        expect(found).not.toBeNull();
+        return found!;
+      });
+    const titleOf = (text: string) =>
+      [...element.querySelectorAll('[data-exampleTodo], span')].find(
+        (node) => node.textContent === text,
+      );
+
+    (await control('Toggle Learn @craft-ts/effect')).click();
+    CraftTestBed.tick();
+    await vi.waitFor(() => {
+      expect(titleOf('Learn @craft-ts/effect')?.getAttribute('data-exampleTodo')).toBe('done');
+    });
+
+    (await control('Delete Learn @craft-ts/effect')).click();
+    CraftTestBed.tick();
+    await vi.waitFor(() => {
+      expect(element.textContent).not.toContain('Learn @craft-ts/effect');
+      expect(element.textContent).toContain('Share it on StackBlitz');
+    });
+
+    mounted.destroy();
+    injector.destroy();
+  });
+
   it('returns TodoNotFound without deleting another todo', async () => {
     const result = await Effect.runPromise(
       Effect.gen(function* () {

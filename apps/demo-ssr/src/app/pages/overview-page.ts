@@ -5,6 +5,7 @@ import {
   h2,
   li,
   p,
+  pendingNode,
   section,
   span,
   ul,
@@ -87,7 +88,14 @@ export const OverviewPage = craftComponent(
               const first = (yield* SsrOverviewPageView.resolvedProducts())[0];
               return `Premier produit : ${first?.name ?? 'aucun'}`;
             },
-          ]),
+          ]).pipe(
+            // Reached by a client navigation, the page has no SSR snapshot:
+            // the list waits for its query here, not in the whole page.
+            pendingNode({
+              ssr: 'block',
+              fallback: () => p({ class: pageStyle.muted }, 'Chargement des produits…'),
+            }),
+          ),
         ]),
       ]),
     ),
