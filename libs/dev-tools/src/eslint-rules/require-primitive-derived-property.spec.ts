@@ -98,6 +98,25 @@ describe('require-primitive-derived-property', () => {
     ]);
   });
 
+  it('reports a directly yielded named craftComputed in a craftService', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftComputed, craftService, query } from '@craft-ts/core';
+
+        const { Archive } = craftService({ name: 'Archive' }, function* () {
+          const coverage = yield* query('coverage', {});
+          yield* craftComputed('coverageLoading', function* () {
+            return yield* coverage.isLoading();
+          });
+        });
+      `,
+    });
+
+    expect(messages).toEqual([
+      "'coverageLoading' only depends on the 'coverage' primitive in the same Craft entity. Define it in that primitive's insertion instead of creating a separate computed.",
+    ]);
+  });
+
   it('also reports values derived in a craft service', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `

@@ -38,7 +38,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Require values derived from one local Craft primitive to be declared as an insertion on that primitive.',
+        'Require values derived from one local Craft primitive, including directly yielded named craftComputed values, to be declared as an insertion on that primitive.',
     },
     fixable: 'code',
     schema: [],
@@ -78,7 +78,7 @@ module.exports = {
         }
 
         const [dependency] = dependencies.values();
-        const declaredName = getDeclaredName(node);
+        const declaredName = getDeclaredName(node, computedCall);
         if (!declaredName) {
           return;
         }
@@ -431,7 +431,7 @@ function isInsidePrimitive(node, sourceCode) {
   return false;
 }
 
-function getDeclaredName(node) {
+function getDeclaredName(node, computedCall) {
   const parent = getDeclarationParent(node);
   if (
     parent &&
@@ -440,6 +440,15 @@ function getDeclaredName(node) {
     parent.id.type === 'Identifier'
   ) {
     return parent.id.name;
+  }
+
+  // A named craftComputed can be yielded directly from a craftService without
+  // a local variable. Its explicit primitive name is still the property's name.
+  if (computedCall === 'craftComputed') {
+    const name = node.arguments[0];
+    if (name?.type === 'Literal' && typeof name.value === 'string') {
+      return name.value;
+    }
   }
   return undefined;
 }

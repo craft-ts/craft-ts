@@ -185,6 +185,47 @@ const { Counter } = craftService(
 There is no autofix: the author must choose the owning service and its scope,
 then expose the state methods and computed values that consumers need.
 
+`craft-ts/no-mutable-craft-service-closure-state` is enabled at `error` in the
+recommended and Effect presets, including generated apps. It rejects a local
+service variable that a `craftExpose(...)` callback assigns, increments, or
+mutates through a property. Those values persist between calls, but ordinary
+JavaScript closures hide their updates from Craft's state graph.
+
+Before — exposed actions mutate closure variables imperatively:
+
+```ts
+let watching: Lookup | undefined;
+let pollRun = 0;
+
+yield* craftExpose('watch', (lookup: Lookup) => {
+  watching = lookup;
+  pollRun += 1;
+});
+```
+
+After — declare the values with `state()` and make updates named insertions:
+
+```ts
+const watcher = yield* state(
+  'watcher',
+  { lookup: undefined as Lookup | undefined, run: 0 },
+  ({ update }) => ({
+    start: (lookup: Lookup) =>
+      update((current) => ({ lookup, run: current.run + 1 })),
+    stop: () =>
+      update((current) => ({ lookup: undefined, run: current.run + 1 })),
+  }),
+);
+
+// The service exposes these insertions as watcher.start and watcher.stop.
+```
+
+Use the state's reactive value when scheduled work needs to read the current
+watch target or generation. The rule has no autofix because the state shape and
+its insertion API depend on the service's behavior. It reports direct writes
+inside exposed callbacks; writes delegated to helper functions are outside its
+static analysis.
+
 ## Imported state and action references
 
 `craft-ts/no-imported-state-actions` is enabled at `error` in the recommended
@@ -394,6 +435,7 @@ export default [
       'craft-ts/require-reactive-template-bindings': 'error',
       'craft-ts/no-craft-use': 'error',
       'craft-ts/no-craft-service-return': 'error',
+      'craft-ts/no-mutable-craft-service-closure-state': 'error',
       'craft-ts/require-craft-service-input-scope': 'error',
       'craft-ts/no-craft-component-return-type': 'error',
       'craft-ts/require-craft-component-for-exported-node-factory': 'error',
@@ -459,6 +501,7 @@ What each rule does:
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values and message-catalog interpolation helpers remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files. Declare primitive dependencies with `yield*` in a service, method, or effect body; component templates are synchronous and consume the resulting view API directly.
 - `craft-ts/no-craft-service-return`: forbids returning a value from a `craftService` factory. Its API is assembled from the named values yielded by its generator; use `yield* craftPrivate(...)` for primitives that should stay internal, and `craftExpose(name, value)` for standalone values that belong in the API. The rule autofixes simple returned objects whose properties already match yielded primitive names.
+- `craft-ts/no-mutable-craft-service-closure-state`: rejects writes to service-local variables from direct `craftExpose(...)` callbacks, including assignments, increments, and property assignments. Declare persistent values with `state(...)` and expose transitions through its insertion; helper-delegated writes are outside this rule's static analysis.
 - `craft-ts/no-duplicate-craft-service-exposure`: requires each public key in a `craftService` to occur once, including keys created by named utilities such as `state(...)` and keys created by `craftExpose(...)`. Remove a duplicate exposure or choose a distinct key for a standalone value; the rule does not autofix because removing an API key can affect consumers.
 - `craft-ts/no-reexposed-craft-service-utility`: forbids passing a locally declared, publicly yielded utility result back to `craftExpose(...)` under a different key. The utility is already available by its declared key; remove the redundant call and keep the existing key. The rule does not autofix.
 - `craft-ts/require-craft-service-input-scope`: keeps global services input-free, limits provider-scoped services to `$provided`, and checks function-scoped inputs. TypeScript also rejects invalid service-helper bindings at call sites.
@@ -812,7 +855,7 @@ An opaque third-party protocol may set `codecExemption` to a specific reason
 and handling location; vague or empty exemptions fail lint.
 
 - `craft-ts/prefer-craft-input-output`: keeps component inputs and outputs in the `Input`/`Output` model used by `craftComponent(...)`
-- `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
+- `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion, including directly yielded named `craftComputed` values; simple cases are autofixed
 - `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file, including unchanged aliases; naming an alias is not a call site, binding it is. Create a context-specific insertion method for each distinct use
 - `craft-ts/prefer-craft-long-press`: reports a local pointer/touch hold implementation that combines a start event, release/cancel events, and a timer. Use [`longPress`](/guide/components/directives#long-press) from `@craft-ts/core`; for a genuinely custom gesture, declare its semantic replay boundary with `runCraftReplayTrigger(...)`. No autofix is offered because replacing a gesture requires choosing its handler and options.
 - `craft-ts/prefer-craft-pointer-gestures`: reports native pointer listeners with coordinate tracking and drag/swipe phases. Use [`drag` or `swipe`](/guide/components/directives#drag-and-swipe) from `@craft-ts/core`; keep high-frequency preview work presentation-only and put semantic work in the terminal callback. No autofix is offered because gesture intent and thresholds need a human choice.

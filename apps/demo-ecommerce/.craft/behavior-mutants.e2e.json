@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "results": {
+    "command:adminView.adminAction#success": {
+      "hash": "7794f22d5d6923faa7c9a41b617e14aca14579a1e669f8a2475d96a11b8ee987",
+      "outcome": "killed"
+    },
+    "command:adminView.adminStore#success": {
+      "hash": "9a645ac06c97ba952d80bfc85cb50a6360fe0ca3d7545f4e872e5bbd54544d4c",
+      "outcome": "killed"
+    },
+    "command:storefrontView.placeOrderProcess#success": {
+      "hash": "64255d80718d1187ae7590341836dafdb3c763c3b47959494cdb42cbeec373ea",
+      "outcome": "killed"
+    },
+    "mutation:cart.syncServerCart#success": {
+      "hash": "3d0c88551d2f70115f3e6db5fd69c8acb4b030c75ce573484c6e96a2fbb26c0d",
+      "outcome": "killed"
+    },
+    "mutation:session.signInProcess#success": {
+      "hash": "2324121d6d9895d767f41fde29d658c4d93ea4de8c73e46b2dc77e134bd62dd5",
+      "outcome": "killed"
+    }
+  }
+}

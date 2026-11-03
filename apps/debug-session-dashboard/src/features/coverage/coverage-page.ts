@@ -53,9 +53,9 @@ const SECTION_TONE: Readonly<Record<CoverageSection, string>> = {
  */
 export const CoveragePage = craftComponent('CoveragePage', {}, function* () {
   const archive = yield* BehaviorCoverageArchive();
-  const apps = rawReactiveValue(archive.coverageApps);
-  const loading = rawReactiveValue(archive.coverageLoading);
-  const unreachable = rawReactiveValue(archive.coverageUnreachable);
+  const apps = rawReactiveValue(archive.coverage.coverageApps);
+  const loading = rawReactiveValue(archive.coverage.coverageLoading);
+  const unreachable = rawReactiveValue(archive.coverage.coverageUnreachable);
 
   const coverageSummaries = yield* craftComputed(
     'coverageSummaries',

@@ -5,6 +5,7 @@ const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
 const craftPrimitiveNameMatch = require('./craft-primitive-name-match.cjs');
 const noCraftServiceReturn = require('./no-craft-service-return.cjs');
 const noDuplicateCraftServiceExposure = require('./no-duplicate-craft-service-exposure.cjs');
+const noMutableCraftServiceClosureState = require('./no-mutable-craft-service-closure-state.cjs');
 const noReexposedCraftServiceUtility = require('./no-reexposed-craft-service-utility.cjs');
 const requireCraftServiceInputScope = require('./require-craft-service-input-scope.cjs');
 const preferDirectCraftServiceExposure = require('./prefer-direct-craft-service-exposure.cjs');
@@ -160,6 +161,7 @@ const plugin = {
     ...craftPrimitiveNameMatch,
     'no-craft-service-return': noCraftServiceReturn,
     'no-duplicate-craft-service-exposure': noDuplicateCraftServiceExposure,
+    'no-mutable-craft-service-closure-state': noMutableCraftServiceClosureState,
     'no-reexposed-craft-service-utility': noReexposedCraftServiceUtility,
     'require-craft-service-input-scope': requireCraftServiceInputScope,
     'prefer-direct-craft-service-exposure': preferDirectCraftServiceExposure,

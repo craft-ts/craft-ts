@@ -1,4 +1,12 @@
-import { CraftHttpClient, craftComputed, craftService, query } from '@craft-ts/core';
+import {
+  CraftHttpClient,
+  craftService,
+  query,
+  rawReactiveValue,
+  // Query insertion helpers return a host computed signal.
+  // eslint-disable-next-line craft-ts/no-direct-craft-reactivity
+  ɵcomputed as computed,
+} from '@craft-ts/core';
 import { behaviorCoverageDecoder } from '../util/behavior-coverage';
 
 const SESSION_ARCHIVE_URL =
@@ -12,7 +20,7 @@ const SESSION_ARCHIVE_URL =
 export const { BehaviorCoverageArchive } = craftService(
   { name: 'behaviorCoverageArchive', providedIn: 'global' },
   function* () {
-    const coverage = yield* query(
+    yield* query(
       'coverage',
       {
         method: (requested: number) => requested,
@@ -23,16 +31,13 @@ export const { BehaviorCoverageArchive } = craftService(
           }));
         },
       },
-      () => ({}),
+      ({ state, resource, hasException }) => ({
+        coverageApps: computed(() => rawReactiveValue(state)() ?? []),
+        coverageLoading: computed(
+          () => rawReactiveValue(resource.isLoading)(),
+        ),
+        coverageUnreachable: computed(() => rawReactiveValue(hasException)()),
+      }),
     );
-    yield* craftComputed('coverageApps', function* () {
-      return (yield* coverage.value()) ?? [];
-    });
-    yield* craftComputed('coverageLoading', function* () {
-      return yield* coverage.isLoading();
-    });
-    yield* craftComputed('coverageUnreachable', function* () {
-      return yield* coverage.hasException();
-    });
   },
 );

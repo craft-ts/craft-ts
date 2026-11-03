@@ -4,6 +4,8 @@ import {
   craftExpose,
   craftService,
   query,
+  rawReactiveValue,
+  state,
 } from '@craft-ts/core';
 import { isRecord } from '../util/replay-model';
 
@@ -83,30 +85,37 @@ export const { ResumeThread } = craftService(
       },
     }, () => ({}));
 
-    let watching: ResumeThreadLookup | undefined;
-    let pollRun = 0;
+    const watcher = yield* state(
+      'watcher',
+      { lookup: undefined as ResumeThreadLookup | undefined, run: 0 },
+      ({ update }) => ({
+        start: (lookup: ResumeThreadLookup) =>
+          update((current) => ({ lookup, run: current.run + 1 })),
+        stop: () =>
+          update((current) => ({ lookup: undefined, run: current.run + 1 })),
+      }),
+    );
+    const watcherValue = rawReactiveValue(watcher);
 
     const poll = (run: number): void => {
-      if (run !== pollRun || watching === undefined) return;
-      thread.call(watching);
+      const current = watcherValue();
+      if (run !== current.run || current.lookup === undefined) return;
+      thread.call(current.lookup);
       temporal.schedule(() => poll(run), POLL_EVERY_MS, {
         owner: 'resume-thread',
       });
     };
 
     yield* craftExpose('watchSession', (sessionId: string) => {
-      watching = { sessionId };
-      pollRun += 1;
-      poll(pollRun);
+      watcher.start({ sessionId });
+      poll(watcherValue().run);
     });
     yield* craftExpose('watchRequest', (requestId: string) => {
-      watching = { requestId };
-      pollRun += 1;
-      poll(pollRun);
+      watcher.start({ requestId });
+      poll(watcherValue().run);
     });
     yield* craftExpose('stop', () => {
-      watching = undefined;
-      pollRun += 1;
+      watcher.stop();
     });
   },
 );
