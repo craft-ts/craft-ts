@@ -4,10 +4,13 @@ import { craftService } from './craft-service';
 import {
   ɵbehaviorTarget,
   ɵprovideBehaviorProofRecording,
+  ɵrecordServerFunctionProof,
   ɵstartBehaviorProofRecording,
   ɵstopBehaviorProofRecording,
 } from './behavior-proof-recorder';
+import { ɵinjectCraftRouteActivationTracker } from './craft-route-activation';
 import { ɵregisterCraftTestProviders } from './craft-test-providers';
+import { CraftTestBed } from './host/craft-test-bed';
 import { setupCraftServiceTest } from './setup-craft-service-test';
 
 const { Basket } = craftService(
@@ -98,6 +101,29 @@ describe('behaviour proof recording', () => {
     ɵstartBehaviorProofRecording();
     setupCraftServiceTest(Basket, {}).sut.add('a');
     expect(ɵstopBehaviorProofRecording().steps).toEqual([]);
+  });
+
+  it('records the routes the router activated, as a session trace keys them', () => {
+    ɵstartBehaviorProofRecording();
+    const tracker = CraftTestBed.runInInjectionContext(() =>
+      ɵinjectCraftRouteActivationTracker(),
+    );
+    tracker.publish({ url: '/cart', routePath: 'cart', outcome: 'activated' });
+    tracker.publish({ url: '/x', routePath: 'admin#2', outcome: 'failed' });
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([
+      { key: 'route-activation:cart', kind: 'route', detail: { outcome: 'activated' } },
+      { key: 'route-activation:admin', kind: 'route', detail: { outcome: 'failed' } },
+    ]);
+  });
+
+  it('records a server function that answered, and one that failed as a value', () => {
+    ɵstartBehaviorProofRecording();
+    ɵrecordServerFunctionProof('users.list', [{ id: 1 }]);
+    ɵrecordServerFunctionProof('users.get', craftException({ _tag: 'NotFound' }));
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([
+      { key: 'server-fn:users.list', kind: 'http', detail: { outcome: 'ok' } },
+      { key: 'server-fn:users.get', kind: 'http', detail: { outcome: 'error' } },
+    ]);
   });
 
   it('names what an invocation runs the way the catalog does', () => {

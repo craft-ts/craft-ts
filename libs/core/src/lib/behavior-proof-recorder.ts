@@ -5,23 +5,37 @@ import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 /**
  * What a test exercised, read the way an e2e session trace reads it: one step
- * per primitive invocation that settled, keyed by its host address. The
+ * per primitive invocation that settled, keyed by its host address; one per
+ * route the router activated; one per server function that answered. The
  * behaviour catalog of `@craft-ts/dev-tools` turns these steps into proofs.
  *
  * Only a fingerprint is kept — each distinct `(address, outcome, exception)`
  * once — so a test that loops a thousand times weighs the same as one that
  * calls once.
  */
-export type ɵBehaviorProofStep = Readonly<{
-  key: string;
-  kind: 'invocation';
-  detail: Readonly<{
-    outcome: 'succeeded' | 'failed';
-    exception?: string;
-    /** `ɵbehaviorTarget` of the host tags, when the invocation has an owner. */
-    behavior?: string;
-  }>;
-}>;
+export type ɵBehaviorProofStep =
+  | Readonly<{
+      key: string;
+      kind: 'invocation';
+      detail: Readonly<{
+        outcome: 'succeeded' | 'failed';
+        exception?: string;
+        /** `ɵbehaviorTarget` of the host tags, when the invocation has an owner. */
+        behavior?: string;
+      }>;
+    }>
+  | Readonly<{
+      /** `route-activation:<route path>`, as a session trace keys it. */
+      key: string;
+      kind: 'route';
+      detail: Readonly<{ outcome: 'activated' | 'failed' }>;
+    }>
+  | Readonly<{
+      /** `server-fn:<id>`, as a session trace keys it. */
+      key: string;
+      kind: 'http';
+      detail: Readonly<{ outcome: 'ok' | 'error' }>;
+    }>;
 
 export type ɵBehaviorProofRecording = Readonly<{
   /** In the order they first settled. */
@@ -108,13 +122,8 @@ export function ɵbehaviorTarget(
   return `${owner.slice(owner.indexOf(':') + 1)}.${name}`;
 }
 
-function record(key: string, detail: ɵBehaviorProofStep['detail']): void {
-  const step: ɵBehaviorProofStep = {
-    key,
-    kind: 'invocation',
-    detail,
-  };
-  const id = JSON.stringify([step.key, detail]);
+function record(step: ɵBehaviorProofStep): void {
+  const id = JSON.stringify([step.key, step.detail]);
   if (!recording || recording.steps.has(id)) return;
   recording.steps.set(id, {
     step,
@@ -140,24 +149,29 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   const behavior = target ? { behavior: target } : {};
   try {
     const result = yield* factory.apply(thisArg, args);
-    record(
+    record({
       key,
-      isCraftException(result)
+      kind: 'invocation',
+      detail: isCraftException(result)
         ? { outcome: 'failed', exception: result._tag, ...behavior }
         : { outcome: 'succeeded', ...behavior },
-    );
+    });
     return result;
   } catch (error) {
     const tag = (error as { _tag?: unknown } | null)?._tag;
-    record(key, {
-      outcome: 'failed',
-      exception:
-        typeof tag === 'string'
-          ? tag
-          : error instanceof Error
-            ? error.name
-            : 'unknown',
-      ...behavior,
+    record({
+      key,
+      kind: 'invocation',
+      detail: {
+        outcome: 'failed',
+        exception:
+          typeof tag === 'string'
+            ? tag
+            : error instanceof Error
+              ? error.name
+              : 'unknown',
+        ...behavior,
+      },
     });
     throw error;
   }
@@ -169,4 +183,28 @@ export function ɵprovideBehaviorProofRecording(): Provider {
     'Warning: dependency injection here is not type-safe and may fail at runtime',
     behaviorProofFnWrapper,
   );
+}
+
+/** Called by the route activation tracker: a page the test opened. */
+export function ɵrecordRouteActivationProof(
+  routePath: string,
+  outcome: 'activated' | 'failed',
+): void {
+  record({
+    key: `route-activation:${routePath.replace(/#\d+/g, '')}`,
+    kind: 'route',
+    detail: { outcome },
+  });
+}
+
+/**
+ * Called by the server-function client once the call settled: a failure that
+ * travels as a Craft exception value is an error, never an answer.
+ */
+export function ɵrecordServerFunctionProof(id: string, result: unknown): void {
+  record({
+    key: `server-fn:${id}`,
+    kind: 'http',
+    detail: { outcome: isCraftException(result) ? 'error' : 'ok' },
+  });
 }

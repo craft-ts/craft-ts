@@ -105,7 +105,8 @@
       "options": {
         "command": "node tools/run-lib-vitest.mjs apps/demo-effect/vitest.config.ts",
         "forwardAllArgs": true
-      }
+      },
+      "outputs": ["{projectRoot}/.craft/behavior-proofs.json"]
     },
     "architecture": {
       "executor": "nx:run-commands",
@@ -117,9 +118,11 @@
         "{projectRoot}/src/**/*.ts",
         "{projectRoot}/architecture/**/*.ts",
         "{projectRoot}/tsconfig.graph.json",
-        "{projectRoot}/tsconfig.architecture.json"
+        "{projectRoot}/tsconfig.architecture.json",
+        "{projectRoot}/.craft/behavior-proofs.json"
       ],
-      "cache": true
+      "cache": true,
+      "dependsOn": ["test"]
     },
     "review-generate": {
       "executor": "nx:run-commands",

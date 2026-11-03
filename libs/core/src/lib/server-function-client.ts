@@ -32,6 +32,7 @@ import {
 import { craftUse } from './craft-use';
 import { craftException, type CraftExceptionResult } from './craft-exception';
 import { ɵexecuteCraftHttpResumeBarrier } from './craft-http-trace';
+import { ɵrecordServerFunctionProof } from './behavior-proof-recorder';
 import {
   CRAFT_PROMISE_AWAIT_REQUEST_MARKER,
   type RuntimePromiseAwaitRequest,
@@ -377,7 +378,12 @@ function invokeServerFunctionRequest(
       },
       next,
     ) ?? next();
-  return result.catch((error) => toServerFunctionHttpError(request, error));
+  return result
+    .catch((error) => toServerFunctionHttpError(request, error))
+    .then((settled) => {
+      ɵrecordServerFunctionProof(request.id, settled);
+      return settled;
+    });
 }
 
 function* awaitServerFunctionResult<Result>(

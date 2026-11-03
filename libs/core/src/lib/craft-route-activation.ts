@@ -1,3 +1,4 @@
+import { ɵrecordRouteActivationProof } from './behavior-proof-recorder';
 import { ɵcraftValueService } from './craft-service';
 
 export type CraftRouteActivationEvent = Readonly<{
@@ -103,6 +104,7 @@ function createCraftRouteActivationTracker(): CraftRouteActivationTracker {
         activationId: waiter?.activationId ?? `route-activation-${++sequence}`,
       };
       lastEvent = published;
+      ɵrecordRouteActivationProof(published.routePath, published.outcome);
       for (const listener of listeners) {
         try {
           listener(published);

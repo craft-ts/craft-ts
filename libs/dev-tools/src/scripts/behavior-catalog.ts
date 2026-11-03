@@ -18,11 +18,11 @@
  *   nothing, renaming changes the id, and that shows in the diff as a change
  *   of contract.
  *
- * The ratchet compares the catalog generated from the working tree with the
- * one committed on the base branch, obligation by obligation: a removed one is
- * always fine, a new one arrives with its proof or a reasoned waiver, and one
- * proven on the base keeps its proof. Proofs come from test traces
- * (`behavior-proofs.ts`).
+ * Every obligation has its proof or a reasoned waiver, the first time an app
+ * is checked as every time after: an app never starts without tests. The
+ * catalog committed on the base branch adds what a coverage rate hides: a
+ * removed obligation is always fine, and one proven on the base keeps its
+ * proof. Proofs come from test traces (`behavior-proofs.ts`).
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -410,10 +410,13 @@ export function defineBehaviorWaivers<const C extends BehaviorCatalog>(
 }
 
 export type BehaviorRatchetReport = {
-  /** No base catalog to compare with: the ratchet did not run. */
+  /** No base catalog to compare with: no proof can be lost. */
   readonly baseline: 'compared' | 'missing';
   readonly diff?: BehaviorCatalogDiff;
-  /** New obligations with neither proof nor waiver. */
+  /**
+   * Obligations with neither proof nor waiver, new or not: an app with no
+   * base yet owes a test for each of them, so none is generated untested.
+   */
   readonly unproven: readonly string[];
   /**
    * Obligations proven on the base, still there, and proven no more: the
@@ -462,22 +465,23 @@ export function behaviorRatchet(options: {
       waived.add(waiver.target);
     }
   }
+  const missing = [...ids]
+    .filter((id) => !waived.has(id) && !options.proven?.has(id))
+    .sort();
   if (!options.base) {
-    return { baseline: 'missing', unproven: [], lost: [], waiverProblems };
+    return { baseline: 'missing', unproven: missing, lost: [], waiverProblems };
   }
   const diff = diffBehaviorCatalogs(options.base, options.next);
+  const kept = new Set(diff.kept);
+  const lost = missing.filter(
+    (id) => kept.has(id) && options.baseProven?.has(id) === true,
+  );
   return {
     baseline: 'compared',
     diff,
-    unproven: diff.added.filter(
-      (id) => !waived.has(id) && !options.proven?.has(id),
-    ),
-    lost: diff.kept.filter(
-      (id) =>
-        options.baseProven?.has(id) === true &&
-        !options.proven?.has(id) &&
-        !waived.has(id),
-    ),
+    // A lost proof is reported as lost, which says what happened.
+    unproven: missing.filter((id) => !lost.includes(id)),
+    lost,
     waiverProblems,
   };
 }
@@ -747,7 +751,7 @@ export function behaviorObligationsReport(
     ...ratchet.waiverProblems,
     ...ratchet.unproven.map(
       (id) =>
-        `New behaviour '${id}' has no proof. Cover it with a test, or add a reasoned { rule: 'behavior-unproven', target: '${id}' } to architecture/behavior-waivers.ts.`,
+        `Behaviour '${id}' has no proof. Cover it with a test, or add a reasoned { rule: 'behavior-unproven', target: '${id}' } to architecture/behavior-waivers.ts.`,
     ),
     ...ratchet.lost.map(
       (id) =>

@@ -310,7 +310,7 @@ describe('behaviorRatchet', () => {
     behaviors: ids.map((id) => ({ id, kind: 'method' as const })),
   });
 
-  it('lets a feature go, and asks a new obligation for its proof', () => {
+  it('lets a feature go, and asks every obligation for its proof, old or new', () => {
     const report = behaviorRatchet({
       base: catalog('method:a.keep', 'method:a.gone'),
       next: catalog('method:a.keep', 'method:a.new'),
@@ -320,7 +320,7 @@ describe('behaviorRatchet', () => {
       removed: ['method:a.gone'],
       kept: ['method:a.keep'],
     });
-    expect(report.unproven).toEqual(['method:a.new']);
+    expect(report.unproven).toEqual(['method:a.keep', 'method:a.new']);
   });
 
   it('accepts a proof or a reasoned waiver for a new obligation', () => {
@@ -357,15 +357,28 @@ describe('behaviorRatchet', () => {
     ]);
   });
 
-  it('does not run without a base catalog, and a waiver stays valid across the merge', () => {
+  it('asks an app checked for the first time for all its proofs', () => {
+    expect(
+      behaviorRatchet({
+        base: undefined,
+        next: catalog('method:a.proven', 'method:a.untested'),
+        proven: new Set(['method:a.proven']),
+      }),
+    ).toEqual({
+      baseline: 'missing',
+      unproven: ['method:a.untested'],
+      lost: [],
+      waiverProblems: [],
+    });
+  });
+
+  it('keeps a waiver valid across the merge', () => {
     const next = catalog('method:a.new');
     const waivers = [
       { rule: 'behavior-unproven' as const, target: 'method:a.new', reason: 'spike' },
     ];
-    expect(behaviorRatchet({ base: undefined, next, waivers })).toEqual({
-      baseline: 'missing',
+    expect(behaviorRatchet({ base: undefined, next, waivers })).toMatchObject({
       unproven: [],
-      lost: [],
       waiverProblems: [],
     });
     // Once merged, the obligation exists on the base: the waiver still names a
@@ -493,7 +506,10 @@ describe('mocks only at the boundaries', () => {
       base: undefined,
       testFiles: [file],
     });
-    expect(report.violations).toEqual([
+    // The fixture proves nothing: only the mock violations matter here.
+    const mocks = (violations: readonly string[]) =>
+      violations.filter((violation) => !violation.includes('has no proof'));
+    expect(mocks(report.violations)).toEqual([
       expect.stringContaining("'cartView' is mocked, but it is the app's own code"),
     ]);
     const waived = behaviorObligationsReport(services, {
@@ -513,7 +529,7 @@ describe('mocks only at the boundaries', () => {
         },
       ],
     });
-    expect(waived.violations).toEqual([expect.stringContaining('is stale')]);
+    expect(mocks(waived.violations)).toEqual([expect.stringContaining('is stale')]);
   });
 
   it('finds the spec files, skipping dependencies and recorded sessions', () => {

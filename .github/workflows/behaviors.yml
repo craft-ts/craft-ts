@@ -1,7 +1,8 @@
 # Behaviour tests (behavior-tests-plan.md).
 #
-# - Every PR and every push to main: the architecture suites hold the
-#   ratchet (no new behaviour without its test, no proof lost since main).
+# - Every PR and every push to main: every app and lib with code has tests,
+#   and the architecture suites ask each behaviour for its proof (no
+#   behaviour without its test, no proof lost since main).
 #   A PR also compares the unit proofs with the index main published, and
 #   mutates what it changed: a hollow proof of new code blocks it.
 # - Every night: every mutant, unit and e2e, without blocking — the e2e
@@ -38,6 +39,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+
+      # No app or lib with code and no test.
+      - run: node --test tools/check-project-tests.test.mjs && npm run tests:check
 
       # The unit proofs stay out of git: main's come from its last green run.
       - name: Unit proofs of main
