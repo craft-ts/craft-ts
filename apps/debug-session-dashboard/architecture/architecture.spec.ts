@@ -8,6 +8,8 @@ import {
   findBehaviorTestFiles,
   readBehaviorCatalogAtBase,
   readBehaviorMutantOutcomes,
+  readBehaviorProofIndex,
+  readBehaviorProofIndexAtBase,
   writeBehaviorCoverage,
 } from '@craft-ts/dev-tools';
 import { behaviorWaiverList } from './behavior-waivers';
@@ -52,6 +54,7 @@ describe('architecture', () => {
 
   it('lists what a user can trigger, and lets no new behaviour arrive without its test', async () => {
     const rootDir = graph.graph.rootDir;
+    const appDir = `${rootDir}/apps/debug-session-dashboard`;
     const report = behaviorObligationsReport(graph.graph, {
       sourceRoots: ['apps/debug-session-dashboard/src'],
       // URLs built at run time: the graph cannot read them, so they are named
@@ -68,9 +71,12 @@ describe('architecture', () => {
       }),
       waivers: behaviorWaiverList,
       testFiles: findBehaviorTestFiles(rootDir, ['apps/debug-session-dashboard/src']),
+      // The unit tests leave their proofs in an index out of git (`nx test`
+      // runs first); at the base, the index main's last CI run published.
+      traces: readBehaviorProofIndex(appDir),
+      baseTraces: readBehaviorProofIndexAtBase(appDir),
     });
     // Read by the log server for this dashboard's own coverage page.
-    const appDir = `${rootDir}/apps/debug-session-dashboard`;
     writeBehaviorCoverage(
       appDir,
       behaviorCoverage(report, {

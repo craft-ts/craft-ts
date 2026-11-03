@@ -47,6 +47,14 @@
         "forwardAllArgs": true
       }
     },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config apps/debug-session-dashboard/vitest.config.ts",
+        "forwardAllArgs": true
+      },
+      "outputs": ["{projectRoot}/.craft/behavior-proofs.json"]
+    },
     "architecture": {
       "executor": "nx:run-commands",
       "options": {
@@ -57,9 +65,11 @@
         "{projectRoot}/src/**/*.ts",
         "{projectRoot}/architecture/**/*.ts",
         "{projectRoot}/tsconfig.graph.json",
-        "{projectRoot}/tsconfig.architecture.json"
+        "{projectRoot}/tsconfig.architecture.json",
+        "{projectRoot}/.craft/behavior-proofs.json"
       ],
-      "cache": true
+      "cache": true,
+      "dependsOn": ["test"]
     },
     "typecheck-architecture": {
       "executor": "nx:run-commands",

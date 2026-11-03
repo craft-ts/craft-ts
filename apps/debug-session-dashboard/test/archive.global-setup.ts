@@ -1,0 +1,172 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { gunzipSync } from 'node:zlib';
+import type { TestProject } from 'vitest/node';
+// The dashboard's tests run against the real archive: the log server is the
+// boundary they prove the pages through, not code they may reach into.
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { createLogHttpServer } from '../../log-server/src/http-server';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { DebugSessionStore } from '../../log-server/src/debug-session-store';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { LogStore } from '../../log-server/src/log-store';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { ResumeCheckpointStore } from '../../log-server/src/resume-checkpoints';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { parseResumeRecipeInput, ResumeRecipeStore } from '../../log-server/src/resume-recipes';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { ThumbnailService } from '../../log-server/src/thumbnails/thumbnail-service';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { ThumbnailStore } from '../../log-server/src/thumbnails/thumbnail-store';
+
+export const ARCHIVED_SESSION_ID = '0b9f2f8e-6c3d-4b1a-9e47-5a0c2d8e1f01';
+/** The same recording again, started elsewhere, for the test that deletes one. */
+export const DISPOSABLE_SESSION_ID = '0b9f2f8e-6c3d-4b1a-9e47-5a0c2d8e1f02';
+/**
+ * Past the retention a few seconds after the archive starts: what « Nettoyer
+ * les anciennes » removes. The store drops what is already expired when it
+ * opens or records, so an old session can only age while the archive runs.
+ */
+const AGING_SESSION_ID = '0b9f2f8e-6c3d-4b1a-9e47-5a0c2d8e1f03';
+const AGES_IN_MS = 3_000;
+/** Recorded for a replay this dashboard does not know: « Supprimer les incompatibles ». */
+const INCOMPATIBLE_SESSION_ID = '0b9f2f8e-6c3d-4b1a-9e47-5a0c2d8e1f04';
+const RETENTION_MS = 24 * 60 * 60 * 1000;
+
+const workspaceRoot = resolve(import.meta.dirname, '../../..');
+/** Vitest's default jsdom URL. */
+const JSDOM_ORIGIN = 'http://localhost:3000';
+
+/**
+ * One archive for the dashboard's page tests, on a directory of its own: the
+ * pilot's recorded checkout as two sessions, a recipe and a resume point on
+ * the first, an app's coverage report and demo-ecommerce's e2e references.
+ * The pages read it over HTTP, as the dashboard reads the developer's.
+ */
+export default async function setup(project: TestProject) {
+  const directory = await mkdtemp(join(tmpdir(), 'craft-dashboard-archive-'));
+  const session = JSON.parse(
+    gunzipSync(
+      readFileSync(join(workspaceRoot, 'packages/session-trace/src/__fixtures__/shop.checkout.session.json.gz')),
+    ).toString('utf8'),
+  );
+  const sessionStore = new DebugSessionStore(join(directory, 'sessions'), {
+    maxAgeMs: RETENTION_MS,
+  });
+  const now = new Date().toISOString();
+  for (const [id, recorded, createdAt] of [
+    [ARCHIVED_SESSION_ID, session, now],
+    [DISPOSABLE_SESSION_ID, { ...session, startUrl: 'http://localhost:4205/panier' }, now],
+    [
+      AGING_SESSION_ID,
+      { ...session, startUrl: 'http://localhost:4205/connexion' },
+      new Date(Date.now() - RETENTION_MS + AGES_IN_MS).toISOString(),
+    ],
+    [
+      INCOMPATIBLE_SESSION_ID,
+      { ...session, startUrl: 'http://localhost:4205/admin', replayVersion: 99 },
+      now,
+    ],
+  ] as const) {
+    sessionStore.begin(id, recorded, createdAt);
+    sessionStore.finish(id, 'completed');
+  }
+
+  const recipes = new ResumeRecipeStore(join(directory, 'sessions', 'recipes'));
+  const recipe = parseResumeRecipeInput({
+    sessionId: ARCHIVED_SESSION_ID,
+    beforeSequence: 12,
+    origin: 'http://localhost:4205',
+    objective: { goal: 'Reprendre le panier avant la commande', exact: ['panier'], approximate: [], mayWrite: false },
+    strategy: 'autonomous',
+    steps: [{ type: 'checkpoint' }],
+    cleanup: [],
+    revisions: [{ at: '2026-11-03T08:00:00.000Z', by: 'ai', reason: 'Recette de test.' }],
+  });
+  if (typeof recipe === 'string') throw new Error(recipe);
+  const savedRecipe = recipes.save(recipe);
+
+  const checkpoints = new ResumeCheckpointStore(join(directory, 'sessions', 'checkpoints'));
+  checkpoints.save({
+    sessionId: ARCHIVED_SESSION_ID,
+    beforeSequence: 20,
+    origin: 'http://localhost:4205',
+    expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+    ttlReason: 'le panier serveur vit une heure',
+    snapshot: { format: 'craft-debug-app-snapshot', version: 1, route: '/panier', primitives: {}, storage: [], warnings: [] },
+    probes: [],
+    created: [],
+    deviations: [],
+    goal: 'revoir le panier',
+  } as never);
+
+  // What an app's architecture suite leaves for the coverage page.
+  const coveredApp = join(directory, 'apps', 'demo-shop');
+  mkdirSync(join(coveredApp, '.craft'), { recursive: true });
+  writeFileSync(
+    join(coveredApp, '.craft', 'behavior-coverage.json'),
+    JSON.stringify({
+      version: 1,
+      app: 'demo-shop',
+      behaviors: [
+        { id: 'mutation:cart.addLine#success', kind: 'mutation', file: 'src/cart.ts', status: 'proven', provenBy: ['src/cart.spec.ts > adds a line'] },
+        { id: 'route:shop:checkout', kind: 'route', file: 'src/app.routes.ts', status: 'unproven', provenBy: [] },
+      ],
+    }),
+  );
+
+  const e2eSessions = join(workspaceRoot, 'apps/demo-ecommerce/e2e/__sessions__');
+  const history = JSON.parse(
+    readFileSync(join(e2eSessions, 'shop.checkout', 'chromium', 'history.json'), 'utf8'),
+  ) as { runs: { file: string }[] };
+  const [reference] = history.runs;
+  if (!reference) throw new Error('shop.checkout has no e2e reference.');
+
+  const server = createLogHttpServer({
+    store: new LogStore({ directory: join(directory, 'logs') }),
+    sessionStore,
+    e2eSessionRoots: [e2eSessions],
+    behaviorApps: [coveredApp],
+    checkpoints,
+    recipes,
+    // jsdom's own origin, which its XMLHttpRequest sends as the dashboard would.
+    allowedOrigins: [JSDOM_ORIGIN],
+    // No browser to capture with: the archive says so, as with
+    // DEBUG_SESSION_THUMBNAILS=0.
+    thumbnails: new ThumbnailService({
+      store: new ThumbnailStore(join(directory, 'sessions', 'thumbnails')),
+      sessions: sessionStore,
+      unavailableReason: 'Aperçus désactivés pour les tests.',
+    }),
+  });
+  await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  // Read by the dashboard's data-access services, as in a dev run.
+  process.env['VITE_CRAFT_SESSION_ARCHIVE_URL'] = url;
+  project.provide('archiveUrl', url);
+  project.provide('archivedSessionId', ARCHIVED_SESSION_ID);
+  project.provide('disposableSessionId', DISPOSABLE_SESSION_ID);
+  project.provide('recipeId', savedRecipe.id);
+  project.provide(
+    'e2eReferenceSource',
+    `/e2e-sessions/shop.checkout/chromium/${reference.file}?root=0&decompress=1`,
+  );
+  return async () => {
+    await new Promise((done) => server.close(done));
+    sessionStore.close();
+    await rm(directory, { recursive: true, force: true });
+  };
+}
+
+declare module 'vitest' {
+  export interface ProvidedContext {
+    archiveUrl: string;
+    archivedSessionId: string;
+    disposableSessionId: string;
+    recipeId: string;
+    e2eReferenceSource: string;
+  }
+}
