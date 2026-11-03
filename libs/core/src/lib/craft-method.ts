@@ -15,6 +15,7 @@ import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
+  markCraftMethod,
   markYieldableMethod,
   markYieldableValue,
   YIELDABLE_METHOD,
@@ -166,7 +167,7 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
     return createNamedPrimitiveGen(
       resolvedName,
       markYieldableValue(
-        markYieldableMethod(callable as TrackedCraftMethod<
+        markYieldableMethod(markCraftMethod(callable) as TrackedCraftMethod<
           CraftMethodWithoutReceiver<Args, Result>,
           Yielded
         >),
@@ -189,7 +190,7 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   return createNamedPrimitiveGen(
     resolvedName,
     markYieldableValue(
-      markYieldableMethod(callable as TrackedCraftMethod<
+      markYieldableMethod(markCraftMethod(callable) as TrackedCraftMethod<
         CraftMethodWithReceiver<This, Args, Result>,
         Yielded
       >),

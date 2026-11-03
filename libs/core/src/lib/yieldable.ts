@@ -29,6 +29,23 @@ export const NON_YIELDABLE_INSERTION_METHOD = Symbol(
   'craft-non-yieldable-insertion-method',
 );
 
+/**
+ * Brand of a `craftMethod`: named like a reader, yet an action, so a shortcut
+ * onto it hands the method back instead of reading (calling) it.
+ */
+const CRAFT_METHOD = Symbol('craft-method');
+
+export function markCraftMethod<Fn extends (...args: any[]) => any>(
+  fn: Fn,
+): Fn {
+  Object.defineProperty(fn, CRAFT_METHOD, { value: true });
+  return fn;
+}
+
+export function isCraftMethod(value: unknown): boolean {
+  return typeof value === 'function' && CRAFT_METHOD in value;
+}
+
 /** A signal whose template projection can be consumed with `yield*`. */
 export type YieldableSignal<Name extends string, Value> = NamedYieldableValue<
   Name,

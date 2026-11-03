@@ -3,6 +3,7 @@ import { CraftTestBed } from './host/craft-test-bed';
 import { craftService } from './craft-service';
 import { craftExpose } from './craft-primitive-gen';
 import { craftUse } from './craft-use';
+import { craftMethod } from './craft-method';
 import { state } from './state';
 import { mutation } from './mutation';
 
@@ -113,6 +114,58 @@ describe('a service shortcut reads a reactive member', () => {
       expectTypeOf(two).toEqualTypeOf<number>();
       const loading = yield* Store.save.selectOrCreate('a').isLoading();
       expectTypeOf(loading).toEqualTypeOf<boolean>();
+    }
+    expect(typeof consumer).toBe('function');
+  });
+});
+
+let closed = 0;
+const { Closing } = craftService(
+  { name: 'Closing', providedIn: 'global' },
+  function* () {
+    yield* craftMethod('close', function* () {
+      closed += 1;
+    });
+  },
+);
+const { ClosingHolder } = craftService(
+  { name: 'ClosingHolder', providedIn: 'global' },
+  function* () {
+    const closing = yield* Closing();
+    yield* craftExpose('closing', closing);
+  },
+);
+const { ClosingModel } = craftService(
+  { name: 'ClosingModel', providedIn: 'global' },
+  function* () {
+    yield* Closing.close();
+  },
+);
+const { DeepClosingModel } = craftService(
+  { name: 'DeepClosingModel', providedIn: 'global' },
+  function* () {
+    yield* ClosingHolder.closing.close();
+  },
+);
+
+describe('a service shortcut onto a craftMethod', () => {
+  it('exposes the method without running it, at any depth', () => {
+    closed = 0;
+    CraftTestBed.runInInjectionContext(() => {
+      const model = craftUse(ClosingModel());
+      const deep = craftUse(DeepClosingModel());
+      expect(closed).toBe(0);
+
+      model.close();
+      deep.close();
+      expect(closed).toBe(2);
+    });
+  });
+
+  it('types the exposure as the method', () => {
+    function* consumer() {
+      const model = yield* ClosingModel();
+      expectTypeOf(model.close).toBeFunction();
     }
     expect(typeof consumer).toBe('function');
   });

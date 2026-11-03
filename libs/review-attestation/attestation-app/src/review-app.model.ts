@@ -1030,11 +1030,7 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
 
     const closeReview = yield* CloseReview.closeReview();
     yield* CloseReview.closeReviewFailed();
-    // Exposed, never called here: `yield* CloseReview.closeReviewSession()`
-    // calls the method, and closed the review the moment it opened.
-    const { closeReviewSession } = yield* CloseReview();
-    // eslint-disable-next-line craft-ts/prefer-direct-craft-service-exposure -- the rule's fix calls the method.
-    yield* craftExpose('closeReviewSession', closeReviewSession);
+    yield* CloseReview.closeReviewSession();
 
     // Infer the query before delegating to it: combining both expressions can
     // exceed TypeScript's union complexity limit when this file is checked first.

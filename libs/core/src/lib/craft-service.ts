@@ -79,6 +79,7 @@ import type {
   ServiceTrackedDepsRequest,
 } from './craft-primitive-gen';
 import {
+  isCraftMethod,
   isYieldableValue,
   markNamedReactiveProperties,
   markYieldableMethod,
@@ -3341,13 +3342,16 @@ function createInjectHelper(
 /**
  * What a yield shortcut hands back for the member it designates: a reactive
  * reader is read, so `yield* View.todos.status()` is the status itself, and a
- * binding gets a plain value. Any other member (object, method) is returned.
+ * binding gets a plain value. Any other member (object, method) is returned:
+ * a `craftMethod` is named like a reader, but reading it would run it, so
+ * `yield* View.save()` in a service exposes `save` instead of saving.
  */
 function* readShortcutMember(
   member: unknown,
 ): Generator<unknown, unknown, unknown> {
   if (
     !isYieldableValue(member) ||
+    isCraftMethod(member) ||
     typeof (member as { type?: unknown }).type === 'string'
   ) {
     return member;
