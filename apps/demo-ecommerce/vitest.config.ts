@@ -18,6 +18,7 @@ export default defineConfig({
     name: 'demo-ecommerce',
     environment: 'node',
     include: ['src/**/*.spec.ts'],
+    globalSetup: ['src/client/pages.global-setup.ts'],
     // Each passing test leaves the fingerprint of what it exercised in
     // .craft/behavior-proofs.json, which the architecture suite reads.
     setupFiles: [path.join(workspaceRoot, 'libs/core/src/behavior-proofs.vitest-setup.ts')],
