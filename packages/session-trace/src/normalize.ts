@@ -90,7 +90,10 @@ export function normalizeSessionTrace(session: PortableSessionForTrace, options:
       const step = kind === 'http' ? httpStep(start, end, serverFunctionPaths) : kind === 'craft' ? invocationStep(end, event) : navigationStep(end, event);
       drafts.push(draft(event, { ...step, ...(durationMs === undefined ? {} : { durationMs }) }));
     } else if (kind === 'route-activation') {
-      drafts.push(draft(event, { key: `route-activation:${cleanAddress(String(payload['routePath'] ?? event['name'] ?? ''))}`, kind: 'route', detail: { outcome: payload['outcome'] ?? event['phase'] ?? null } }));
+      const routePath = cleanAddress(String(payload['routePath'] ?? event['name'] ?? ''));
+      // The catalog's name for the route (`<collection>:<path>`), when the runtime gave its collection.
+      const behavior = typeof payload['routeCollection'] === 'string' ? { behavior: `${payload['routeCollection']}:${routePath}` } : {};
+      drafts.push(draft(event, { key: `route-activation:${routePath}`, kind: 'route', detail: { outcome: payload['outcome'] ?? event['phase'] ?? null, ...behavior } }));
     } else if (kind === 'primitive') {
       const state = record(event['state']);
       for (const address of Object.keys(state).sort()) {

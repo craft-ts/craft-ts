@@ -17,6 +17,7 @@ import {
   untracked,
   WritableSignal,
 } from './host/craft-compat';
+import { ɵoutsideBehaviorProof } from './behavior-proof-recorder';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
@@ -1523,15 +1524,17 @@ function createMutationRef<
       'params' in mutationConfig &&
       !('fromResourceById' in mutationConfig && mutationConfig.fromResourceById)
     ) {
-      const paramsValue = executeGeneratorCompatibleFactory({
-        factory: mutationConfig.params as () => MutationParams,
-        thisArg: undefined,
-        getInjector,
-        args: [],
-        invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-        multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-      });
+      const paramsValue = ɵoutsideBehaviorProof(() =>
+        executeGeneratorCompatibleFactory({
+          factory: mutationConfig.params as () => MutationParams,
+          thisArg: undefined,
+          getInjector,
+          args: [],
+          invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+        }),
+      );
       return isCraftException(paramsValue)
         ? enrichResourceException(paramsValue, { scope: 'params' })
         : undefined;
@@ -1558,18 +1561,20 @@ function createMutationRef<
   const wrappedParamsFn =
     'params' in mutationConfig
       ? (((...args: unknown[]) => {
-          const value = executeGeneratorCompatibleFactory({
-            factory: mutationConfig.params as (
-              ...args: unknown[]
-            ) => MutationParams,
-            thisArg: undefined,
-            getInjector,
-            args,
-            invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-            onAppStartNotSupportedErrorMessage:
-              MUTATION_APP_START_ERROR_MESSAGE,
-          }) as MutationParams;
+          const value = ɵoutsideBehaviorProof(() =>
+            executeGeneratorCompatibleFactory({
+              factory: mutationConfig.params as (
+                ...args: unknown[]
+              ) => MutationParams,
+              thisArg: undefined,
+              getInjector,
+              args,
+              invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                MUTATION_APP_START_ERROR_MESSAGE,
+            }),
+          ) as MutationParams;
           if (!configuredSchemas.params || isCraftException(value)) {
             return sanitizeParamsResult(value);
           }
@@ -1977,20 +1982,22 @@ function createMutationRef<
               }
               const result =
                 'method' in mutationConfig
-                  ? executeGeneratorCompatibleFactory({
-                      factory: mutationConfig.method as (
-                        args: MutationArgsParams,
-                      ) => MutationParams,
-                      thisArg: undefined,
-                      getInjector,
-                      args: [methodArg as MutationArgsParams],
-                      invalidYieldErrorMessage:
-                        MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-                      multipleAppStartErrorMessage:
-                        MUTATION_APP_START_ERROR_MESSAGE,
-                      onAppStartNotSupportedErrorMessage:
-                        MUTATION_APP_START_ERROR_MESSAGE,
-                    })
+                  ? ɵoutsideBehaviorProof(() =>
+                      executeGeneratorCompatibleFactory({
+                        factory: mutationConfig.method as (
+                          args: MutationArgsParams,
+                        ) => MutationParams,
+                        thisArg: undefined,
+                        getInjector,
+                        args: [methodArg as MutationArgsParams],
+                        invalidYieldErrorMessage:
+                          MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+                        multipleAppStartErrorMessage:
+                          MUTATION_APP_START_ERROR_MESSAGE,
+                        onAppStartNotSupportedErrorMessage:
+                          MUTATION_APP_START_ERROR_MESSAGE,
+                      }),
+                    )
                   : undefined;
 
               if (isCraftException(result)) {
@@ -2126,47 +2133,52 @@ function createMutationRef<
     >[]
   )?.reduce(
     (acc, insert) => {
-      const rawResult = executeGeneratorCompatibleFactory({
-        factory: insert as (context: unknown) => Record<string, unknown>,
-        thisArg: undefined,
-        getInjector,
-        args: [
-          {
-            ...(isUsingIdentifier
-              ? {
-                  resourceById: createYieldableReactiveFacade(resourceTarget, {
-                    name: 'resourceById',
-                    primitive: 'mutation',
-                    path: `${name}.resourceById`,
-                  }),
-                  identifier: mutationConfig.identifier,
-                }
-              : { resource: publicMutationContext }),
-            resourceParamsSrc: publicMutationContext.resourceParamsSrc,
-            hasException: publicMutationContext.hasException,
-            exceptions: publicMutationContext.exceptions,
-            insertions: acc as {},
-            state: publicMutationContext.state,
-            settledState: insertionSettledState,
-            set: (nextState: any) =>
-              yieldableInvocation(resourceTarget.set(nextState)),
-            update: (updateFn: (currentState: any) => any) =>
-              yieldableInvocation(resourceTarget.update(updateFn)),
-            patch: (patchFn: (currentState: any) => Partial<any>) =>
-              yieldableInvocation(
-                resourceTarget.update((current: any) => ({
-                  ...current,
-                  ...patchFn(current),
-                })),
-              ),
-            reload: () => yieldableInvocation(rawResourceReload()),
-            __primitiveKind: 'mutation',
-          } as any,
-        ],
-        invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-        multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-      });
+      const rawResult = ɵoutsideBehaviorProof(() =>
+        executeGeneratorCompatibleFactory({
+          factory: insert as (context: unknown) => Record<string, unknown>,
+          thisArg: undefined,
+          getInjector,
+          args: [
+            {
+              ...(isUsingIdentifier
+                ? {
+                    resourceById: createYieldableReactiveFacade(
+                      resourceTarget,
+                      {
+                        name: 'resourceById',
+                        primitive: 'mutation',
+                        path: `${name}.resourceById`,
+                      },
+                    ),
+                    identifier: mutationConfig.identifier,
+                  }
+                : { resource: publicMutationContext }),
+              resourceParamsSrc: publicMutationContext.resourceParamsSrc,
+              hasException: publicMutationContext.hasException,
+              exceptions: publicMutationContext.exceptions,
+              insertions: acc as {},
+              state: publicMutationContext.state,
+              settledState: insertionSettledState,
+              set: (nextState: any) =>
+                yieldableInvocation(resourceTarget.set(nextState)),
+              update: (updateFn: (currentState: any) => any) =>
+                yieldableInvocation(resourceTarget.update(updateFn)),
+              patch: (patchFn: (currentState: any) => Partial<any>) =>
+                yieldableInvocation(
+                  resourceTarget.update((current: any) => ({
+                    ...current,
+                    ...patchFn(current),
+                  })),
+                ),
+              reload: () => yieldableInvocation(rawResourceReload()),
+              __primitiveKind: 'mutation',
+            } as any,
+          ],
+          invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+        }),
+      );
       const wrappedResult = Object.entries(rawResult).reduce(
         (wrappedAcc, [key, value]) => {
           if (

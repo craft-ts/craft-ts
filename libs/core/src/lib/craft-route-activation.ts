@@ -6,6 +6,8 @@ export type CraftRouteActivationEvent = Readonly<{
   navigationId?: number;
   url: string;
   routePath: string;
+  /** The `craftRoutes` collection of the activated route, when it has one. */
+  routeCollection?: string;
   componentName?: string;
   outcome: 'activated' | 'failed';
   error?: string;
@@ -104,7 +106,7 @@ function createCraftRouteActivationTracker(): CraftRouteActivationTracker {
         activationId: waiter?.activationId ?? `route-activation-${++sequence}`,
       };
       lastEvent = published;
-      ɵrecordRouteActivationProof(published.routePath, published.outcome);
+      ɵrecordRouteActivationProof(published);
       for (const listener of listeners) {
         try {
           listener(published);

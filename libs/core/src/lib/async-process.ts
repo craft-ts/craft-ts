@@ -16,6 +16,7 @@ import {
   untracked,
   WritableSignal,
 } from './host/craft-compat';
+import { ɵoutsideBehaviorProof } from './behavior-proof-recorder';
 import { InsertionsResourcesFactory } from './query.core';
 import {
   executeGeneratorCompatibleFactory,
@@ -1196,17 +1197,19 @@ function createAsyncProcessRef<
     }
 
     if (hasParamsFn) {
-      const paramsValue = executeGeneratorCompatibleFactory({
-        factory: (AsyncProcessConfig as { params: () => AsyncProcessParams })
-          .params,
-        thisArg: undefined,
-        getInjector,
-        args: [],
-        invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-        multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage:
-          ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-      });
+      const paramsValue = ɵoutsideBehaviorProof(() =>
+        executeGeneratorCompatibleFactory({
+          factory: (AsyncProcessConfig as { params: () => AsyncProcessParams })
+            .params,
+          thisArg: undefined,
+          getInjector,
+          args: [],
+          invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage:
+            ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+        }),
+      );
       return isCraftException(paramsValue)
         ? enrichResourceException(paramsValue, { scope: 'params' })
         : undefined;
@@ -1262,20 +1265,22 @@ function createAsyncProcessRef<
 
   const wrappedParamsFn = hasParamsFn
     ? ((() => {
-        const value = executeGeneratorCompatibleFactory({
-          factory: (
-            AsyncProcessConfig as {
-              params: () => AsyncProcessParams;
-            }
-          ).params,
-          thisArg: undefined,
-          getInjector,
-          args: [],
-          invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-          multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-          onAppStartNotSupportedErrorMessage:
-            ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-        }) as AsyncProcessParams;
+        const value = ɵoutsideBehaviorProof(() =>
+          executeGeneratorCompatibleFactory({
+            factory: (
+              AsyncProcessConfig as {
+                params: () => AsyncProcessParams;
+              }
+            ).params,
+            thisArg: undefined,
+            getInjector,
+            args: [],
+            invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+          }),
+        ) as AsyncProcessParams;
         if (!configuredSchemas.params || isCraftException(value)) {
           return sanitizeParamsResult(value);
         }
@@ -1663,24 +1668,26 @@ function createAsyncProcessRef<
                     }
                     methodArg = parsedMethod.value;
                   }
-                  const result = executeGeneratorCompatibleFactory({
-                    factory: (
-                      AsyncProcessConfig as {
-                        method: (
-                          args: AsyncProcessArgsParams,
-                        ) => AsyncProcessParams;
-                      }
-                    ).method,
-                    thisArg: undefined,
-                    getInjector,
-                    args: [methodArg as AsyncProcessArgsParams],
-                    invalidYieldErrorMessage:
-                      ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage:
-                      ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-                    onAppStartNotSupportedErrorMessage:
-                      ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-                  });
+                  const result = ɵoutsideBehaviorProof(() =>
+                    executeGeneratorCompatibleFactory({
+                      factory: (
+                        AsyncProcessConfig as {
+                          method: (
+                            args: AsyncProcessArgsParams,
+                          ) => AsyncProcessParams;
+                        }
+                      ).method,
+                      thisArg: undefined,
+                      getInjector,
+                      args: [methodArg as AsyncProcessArgsParams],
+                      invalidYieldErrorMessage:
+                        ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+                      multipleAppStartErrorMessage:
+                        ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+                      onAppStartNotSupportedErrorMessage:
+                        ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+                    }),
+                  );
                   if (isCraftException(result)) {
                     methodParamsException.set(
                       enrichResourceException(result, { scope: 'params' }),
@@ -1802,57 +1809,62 @@ function createAsyncProcessRef<
     >[]
   )?.reduce(
     (acc, insert) => {
-      const rawResult = executeGeneratorCompatibleFactory({
-        factory: insert as (context: unknown) => Record<string, unknown>,
-        thisArg: undefined,
-        getInjector,
-        args: [
-          {
-            ...(isUsingIdentifier
-              ? {
-                  resourceById: createYieldableReactiveFacade(resourceTarget, {
-                    name: 'resourceById',
-                    primitive: 'asyncProcess',
-                    path: `${name}.resourceById`,
-                  }),
-                }
-              : { resource: publicAsyncContext }),
-            resourceParamsSrc: createYieldableReactiveFacade(
-              resourceParamsSrc,
-              {
-                name: 'resourceParamsSrc',
-                primitive: 'asyncProcess',
-                path: `${name}.resourceParamsSrc`,
-              },
-            ),
-            hasException: publicAsyncContext.hasException,
-            exceptions: publicAsyncContext.exceptions,
-            insertions: acc as {},
-            state: createYieldableReactiveFacade(resourceTarget.state, {
-              name: 'state',
-              primitive: 'asyncProcess',
-              path: `${name}.state`,
-            }),
-            settledState: insertionSettledState,
-            set: (nextState: any) =>
-              yieldableInvocation(resourceTarget.set(nextState)),
-            update: (updateFn: (currentState: any) => any) =>
-              yieldableInvocation(resourceTarget.update(updateFn)),
-            patch: (patchFn: (currentState: any) => Partial<any>) =>
-              yieldableInvocation(
-                resourceTarget.update((current: any) => ({
-                  ...current,
-                  ...patchFn(current),
-                })),
+      const rawResult = ɵoutsideBehaviorProof(() =>
+        executeGeneratorCompatibleFactory({
+          factory: insert as (context: unknown) => Record<string, unknown>,
+          thisArg: undefined,
+          getInjector,
+          args: [
+            {
+              ...(isUsingIdentifier
+                ? {
+                    resourceById: createYieldableReactiveFacade(
+                      resourceTarget,
+                      {
+                        name: 'resourceById',
+                        primitive: 'asyncProcess',
+                        path: `${name}.resourceById`,
+                      },
+                    ),
+                  }
+                : { resource: publicAsyncContext }),
+              resourceParamsSrc: createYieldableReactiveFacade(
+                resourceParamsSrc,
+                {
+                  name: 'resourceParamsSrc',
+                  primitive: 'asyncProcess',
+                  path: `${name}.resourceParamsSrc`,
+                },
               ),
-            __primitiveKind: 'asyncProcess',
-          } as any,
-        ],
-        invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-        multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage:
-          ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-      });
+              hasException: publicAsyncContext.hasException,
+              exceptions: publicAsyncContext.exceptions,
+              insertions: acc as {},
+              state: createYieldableReactiveFacade(resourceTarget.state, {
+                name: 'state',
+                primitive: 'asyncProcess',
+                path: `${name}.state`,
+              }),
+              settledState: insertionSettledState,
+              set: (nextState: any) =>
+                yieldableInvocation(resourceTarget.set(nextState)),
+              update: (updateFn: (currentState: any) => any) =>
+                yieldableInvocation(resourceTarget.update(updateFn)),
+              patch: (patchFn: (currentState: any) => Partial<any>) =>
+                yieldableInvocation(
+                  resourceTarget.update((current: any) => ({
+                    ...current,
+                    ...patchFn(current),
+                  })),
+                ),
+              __primitiveKind: 'asyncProcess',
+            } as any,
+          ],
+          invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage:
+            ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+        }),
+      );
       const wrappedResult = Object.entries(rawResult).reduce(
         (wrappedAcc, [key, value]) => {
           if (

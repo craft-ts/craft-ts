@@ -83,6 +83,19 @@ describe('normalizeSessionTrace', () => {
     expect(trace.steps.map((item) => item.detail['behavior'])).toEqual(['shop.adminAction', 'cart.add', undefined]);
   });
 
+  it('names an activated route as the catalog does, when the runtime gave its collection', () => {
+    const route = (sequence: number, payload: Event) => ({ id: `r${sequence}`, sequence, kind: 'route-activation', phase: 'succeeded', name: String(payload['routePath']), payload });
+    const trace = normalizeSessionTrace(session([
+      route(1, { routePath: '', routeCollection: 'coverage', outcome: 'activated' }),
+      // Recorded before the runtime gave it: the path only.
+      route(2, { routePath: 'cart', outcome: 'activated' }),
+    ]));
+    expect(trace.steps.map((item) => [item.key, item.detail])).toEqual([
+      ['route-activation:', { outcome: 'activated', behavior: 'coverage:' }],
+      ['route-activation:cart', { outcome: 'activated' }],
+    ]);
+  });
+
   it('marks an operation without an end as pending', () => {
     const trace = normalizeSessionTrace(session([
       { id: 'a', kind: 'http', phase: 'started', operationId: 'fetch-1', sequence: 1, payload: { method: 'GET', url: 'http://localhost/api/cart?b=1' } },

@@ -3310,6 +3310,7 @@ export function craftRoutes<
 
     return {
       ...hostRoute,
+      collection: routeCollectionName,
       ...(mergedData !== undefined ? { data: mergedData } : {}),
       ...(redirectTo !== undefined ? { redirectTo } : {}),
       loadChildren: wrappedLoadChildren,

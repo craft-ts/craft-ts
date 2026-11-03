@@ -64,7 +64,7 @@ describe('behaviorCoverage', () => {
           status: 'waived',
           provenBy: [],
           waiver: 'Behind a flag.',
-          match: { step: 'route', path: 'wishlist' },
+          match: { step: 'route', path: 'wishlist', behavior: 'shop:wishlist', uniquePath: true },
         },
       ],
     });

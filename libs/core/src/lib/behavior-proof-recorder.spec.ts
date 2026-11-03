@@ -1,6 +1,8 @@
+import { vi } from 'vitest';
 import { craftException } from './craft-exception';
 import { craftMethod } from './craft-method';
 import { craftService } from './craft-service';
+import { query } from './query';
 import {
   ɵbehaviorTarget,
   ɵprovideBehaviorProofRecording,
@@ -25,6 +27,24 @@ const { Basket } = craftService(
     yield* craftMethod('crash', function* () {
       throw new RangeError('boom');
     });
+  },
+);
+
+const loadedProducts: string[] = [];
+const { Catalog } = craftService(
+  { name: 'catalog', providedIn: 'toProvide' },
+  function* () {
+    yield* query(
+      'products',
+      {
+        method: (term: string) => term,
+        loader: async ({ params }) => {
+          loadedProducts.push(params);
+          return [params];
+        },
+      },
+      ({ resource }) => ({ hasProducts: () => resource.hasValue() }),
+    );
   },
 );
 
@@ -93,6 +113,25 @@ describe('behaviour proof recording', () => {
     expect(observedSteps).toBe(2);
   });
 
+  it('proves a query by its loader, never by the code that builds or feeds it', async () => {
+    ɵstartBehaviorProofRecording();
+    const { sut } = setupCraftServiceTest(Catalog, {});
+    // Created, its insertions run: nothing a user triggered yet.
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([]);
+
+    ɵstartBehaviorProofRecording();
+    sut.products.call('tea');
+    await vi.waitFor(() => expect(loadedProducts).toEqual(['tea']));
+    await Promise.resolve();
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([
+      {
+        key: 'invocation:service:catalog / query:products',
+        kind: 'invocation',
+        detail: { outcome: 'succeeded', behavior: 'catalog.products' },
+      },
+    ]);
+  });
+
   it('records nothing outside a recording, nor once its providers are gone', () => {
     setupCraftServiceTest(Basket, {}).sut.add('a');
     expect(ɵstopBehaviorProofRecording().steps).toEqual([]);
@@ -110,9 +149,16 @@ describe('behaviour proof recording', () => {
     );
     tracker.publish({ url: '/cart', routePath: 'cart', outcome: 'activated' });
     tracker.publish({ url: '/x', routePath: 'admin#2', outcome: 'failed' });
+    // A lazy child at '' is told from its siblings by its collection.
+    tracker.publish({ url: '/coverage', routePath: '', routeCollection: 'coverage', outcome: 'activated' });
     expect(ɵstopBehaviorProofRecording().steps).toEqual([
       { key: 'route-activation:cart', kind: 'route', detail: { outcome: 'activated' } },
       { key: 'route-activation:admin', kind: 'route', detail: { outcome: 'failed' } },
+      {
+        key: 'route-activation:',
+        kind: 'route',
+        detail: { outcome: 'activated', behavior: 'coverage:' },
+      },
     ]);
   });
 

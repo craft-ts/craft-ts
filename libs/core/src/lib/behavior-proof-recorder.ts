@@ -28,7 +28,11 @@ export type ɵBehaviorProofStep =
       /** `route-activation:<route path>`, as a session trace keys it. */
       key: string;
       kind: 'route';
-      detail: Readonly<{ outcome: 'activated' | 'failed' }>;
+      detail: Readonly<{
+        outcome: 'activated' | 'failed';
+        /** `<collection>:<path>`, the catalog's name for the route. */
+        behavior?: string;
+      }>;
     }>
   | Readonly<{
       /** `server-fn:<id>`, as a session trace keys it. */
@@ -54,6 +58,28 @@ type Recording = {
 };
 
 let recording: Recording | undefined;
+
+/**
+ * Runs the code a primitive executes to build or feed itself — its insertions
+ * when the host is created, the `params` and `method` functions that compute
+ * what to load: none of it is the behaviour a user triggers. Only the loader
+ * that runs with those params, or the method itself, may prove one; otherwise
+ * creating a service would prove every query it declares.
+ */
+let outsideProof = 0;
+export function ɵoutsideBehaviorProof<T>(run: () => T): T {
+  outsideProof += 1;
+  try {
+    return run();
+  } finally {
+    outsideProof -= 1;
+  }
+}
+
+/** Whether the code running now is a primitive building or feeding itself. */
+export function ɵisOutsideBehaviorProof(): boolean {
+  return outsideProof > 0;
+}
 
 /**
  * Starts a fresh recording; the previous one, if any, is dropped. With an
@@ -136,7 +162,7 @@ function record(step: ɵBehaviorProofStep): void {
  * functions, typed loaders): both count as failed, never as a success.
  */
 const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
-  if (!recording) return yield* factory.apply(thisArg, args);
+  if (!recording || outsideProof > 0) return yield* factory.apply(thisArg, args);
   let hostTags: readonly string[];
   try {
     hostTags = yield* ɵHostTag();
@@ -187,14 +213,31 @@ export function ɵprovideBehaviorProofRecording(): Provider {
 
 /** Called by the route activation tracker: a page the test opened. */
 export function ɵrecordRouteActivationProof(
-  routePath: string,
-  outcome: 'activated' | 'failed',
+  event: Readonly<{
+    routePath: string;
+    routeCollection?: string;
+    outcome: 'activated' | 'failed';
+  }>,
 ): void {
+  const behavior = ɵrouteBehaviorTarget(event);
   record({
-    key: `route-activation:${routePath.replace(/#\d+/g, '')}`,
+    key: `route-activation:${event.routePath.replace(/#\d+/g, '')}`,
     kind: 'route',
-    detail: { outcome },
+    detail: { outcome: event.outcome, ...(behavior ? { behavior } : {}) },
   });
+}
+
+/**
+ * The name the behaviour catalog gives an activated route,
+ * `<collection>:<path>` — `undefined` for a route declared outside
+ * `craftRoutes`.
+ */
+export function ɵrouteBehaviorTarget(
+  event: Readonly<{ routePath: string; routeCollection?: string }>,
+): string | undefined {
+  return event.routeCollection
+    ? `${event.routeCollection}:${event.routePath}`
+    : undefined;
 }
 
 /**

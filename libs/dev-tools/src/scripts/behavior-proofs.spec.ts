@@ -101,6 +101,15 @@ describe('behaviorProofsFromTrace', () => {
     ).toEqual(['http-exception:GET /api/lines#Forbidden']);
   });
 
+  it('tells two routes at the same path apart by the name the runtime gives', () => {
+    expect(
+      behaviorProofsFromTrace(
+        catalog,
+        trace(['route', 'route-activation:', { outcome: 'activated', behavior: 'replay:' }]),
+      ),
+    ).toEqual(['route:replay:']);
+  });
+
   it('proves nothing from a step no assertion came after', () => {
     expect(
       behaviorProofsFromTrace(catalog, {
@@ -201,7 +210,10 @@ describe('behaviorStepMatches', () => {
       'http-exception:GET /api/lines#Forbidden': { step: 'invocation', outcome: 'failed', exception: 'Forbidden' },
       'method:cart.empty': { step: 'invocation', outcome: 'succeeded', target: 'cart.empty' },
       'mutation:session.signInProcess#success': { step: 'invocation', outcome: 'succeeded', target: 'session.signInProcess' },
-      'route:ecommerce:admin': { step: 'route', path: 'admin' },
+      'route:ecommerce:admin': { step: 'route', path: 'admin', behavior: 'ecommerce:admin', uniquePath: true },
+      // Both at '': a session step tells them apart by its name only.
+      'route:replay:': { step: 'route', path: '', behavior: 'replay:', uniquePath: false },
+      'route:sessions:': { step: 'route', path: '', behavior: 'sessions:', uniquePath: false },
       'server-function:ecommerce.auth.login': { step: 'server-fn', id: 'ecommerce.auth.login' },
     });
   });

@@ -15,6 +15,7 @@ import {
   untracked,
   WritableSignal,
 } from './host/craft-compat';
+import { ɵoutsideBehaviorProof } from './behavior-proof-recorder';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
@@ -1677,15 +1678,17 @@ function createQueryRef<
       queryConfig.params &&
       !('fromResourceById' in queryConfig && queryConfig.fromResourceById)
     ) {
-      const paramsValue = executeGeneratorCompatibleFactory({
-        factory: queryConfig.params as () => QueryParams,
-        thisArg: undefined,
-        getInjector,
-        args: [],
-        invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-        multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-      });
+      const paramsValue = ɵoutsideBehaviorProof(() =>
+        executeGeneratorCompatibleFactory({
+          factory: queryConfig.params as () => QueryParams,
+          thisArg: undefined,
+          getInjector,
+          args: [],
+          invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+        }),
+      );
       return isCraftException(paramsValue)
         ? enrichResourceException(paramsValue, { scope: 'params' })
         : undefined;
@@ -1712,15 +1715,19 @@ function createQueryRef<
   const wrappedParamsFn =
     'params' in queryConfig && queryConfig.params
       ? (((...args: unknown[]) => {
-          const value = executeGeneratorCompatibleFactory({
-            factory: queryConfig.params as (...args: unknown[]) => QueryParams,
-            thisArg: undefined,
-            getInjector,
-            args,
-            invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-            onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-          }) as QueryParams;
+          const value = ɵoutsideBehaviorProof(() =>
+            executeGeneratorCompatibleFactory({
+              factory: queryConfig.params as (
+                ...args: unknown[]
+              ) => QueryParams,
+              thisArg: undefined,
+              getInjector,
+              args,
+              invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            }),
+          ) as QueryParams;
           if (!configuredSchemas.params || isCraftException(value)) {
             return sanitizeParamsResult(value);
           }
@@ -2138,17 +2145,20 @@ function createQueryRef<
               }
               methodArg = parsedMethod.value;
             }
-            const result = executeGeneratorCompatibleFactory({
-              factory: queryConfig.method as unknown as (
-                args: QueryArgsParams,
-              ) => QueryParams,
-              thisArg: undefined,
-              getInjector,
-              args: [methodArg as QueryArgsParams],
-              invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-            });
+            const result = ɵoutsideBehaviorProof(() =>
+              executeGeneratorCompatibleFactory({
+                factory: queryConfig.method as unknown as (
+                  args: QueryArgsParams,
+                ) => QueryParams,
+                thisArg: undefined,
+                getInjector,
+                args: [methodArg as QueryArgsParams],
+                invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+                multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+                onAppStartNotSupportedErrorMessage:
+                  QUERY_APP_START_ERROR_MESSAGE,
+              }),
+            );
 
             if (isCraftException(result)) {
               methodParamsException.set(
@@ -2266,47 +2276,52 @@ function createQueryRef<
     >[]
   )?.reduce(
     (acc, insert) => {
-      const rawResult = executeGeneratorCompatibleFactory({
-        factory: insert as (context: unknown) => Record<string, unknown>,
-        thisArg: undefined,
-        getInjector,
-        args: [
-          {
-            ...(isUsingIdentifier
-              ? {
-                  resourceById: createYieldableReactiveFacade(resourceTarget, {
-                    name: 'resourceById',
-                    primitive: 'query',
-                    path: `${name}.resourceById`,
-                  }),
-                  identifier: queryConfig.identifier,
-                }
-              : { resource: publicQueryContext }),
-            resourceParamsSrc: publicQueryContext.resourceParamsSrc,
-            hasException: publicQueryContext.hasException,
-            exceptions: publicQueryContext.exceptions,
-            insertions: acc as {},
-            state: publicQueryContext.state,
-            settledState: insertionSettledState,
-            set: (nextState: any) =>
-              yieldableInvocation(resourceTarget.set(nextState)),
-            update: (updateFn: (currentState: any) => any) =>
-              yieldableInvocation(resourceTarget.update(updateFn)),
-            patch: (patchFn: (currentState: any) => Partial<any>) =>
-              yieldableInvocation(
-                resourceTarget.update((current: any) => ({
-                  ...current,
-                  ...patchFn(current),
-                })),
-              ),
-            reload: () => yieldableInvocation(rawResourceReload()),
-            __primitiveKind: 'query',
-          } as any,
-        ],
-        invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-        multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-      });
+      const rawResult = ɵoutsideBehaviorProof(() =>
+        executeGeneratorCompatibleFactory({
+          factory: insert as (context: unknown) => Record<string, unknown>,
+          thisArg: undefined,
+          getInjector,
+          args: [
+            {
+              ...(isUsingIdentifier
+                ? {
+                    resourceById: createYieldableReactiveFacade(
+                      resourceTarget,
+                      {
+                        name: 'resourceById',
+                        primitive: 'query',
+                        path: `${name}.resourceById`,
+                      },
+                    ),
+                    identifier: queryConfig.identifier,
+                  }
+                : { resource: publicQueryContext }),
+              resourceParamsSrc: publicQueryContext.resourceParamsSrc,
+              hasException: publicQueryContext.hasException,
+              exceptions: publicQueryContext.exceptions,
+              insertions: acc as {},
+              state: publicQueryContext.state,
+              settledState: insertionSettledState,
+              set: (nextState: any) =>
+                yieldableInvocation(resourceTarget.set(nextState)),
+              update: (updateFn: (currentState: any) => any) =>
+                yieldableInvocation(resourceTarget.update(updateFn)),
+              patch: (patchFn: (currentState: any) => Partial<any>) =>
+                yieldableInvocation(
+                  resourceTarget.update((current: any) => ({
+                    ...current,
+                    ...patchFn(current),
+                  })),
+                ),
+              reload: () => yieldableInvocation(rawResourceReload()),
+              __primitiveKind: 'query',
+            } as any,
+          ],
+          invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+        }),
+      );
       const wrappedResult = Object.entries(rawResult).reduce(
         (wrappedAcc, [key, value]) => {
           if (

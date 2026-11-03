@@ -23,6 +23,12 @@ export type CraftQueryParams = Record<string, string>;
 
 export type CraftCompiledRoute = {
   path: string;
+  /**
+   * The `craftRoutes` collection that declared it: with the path, the name the
+   * behaviour catalog gives the route (`route:<collection>:<path>`). Two lazy
+   * children both at `''` differ only by it.
+   */
+  collection?: string;
   pathMatch?: 'full' | 'prefix';
   redirectTo?: string | ((...args: unknown[]) => unknown);
   children?: CraftCompiledRoute[];

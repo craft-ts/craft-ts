@@ -19,7 +19,7 @@ export const BEHAVIOR_COVERAGE_FILE = '.craft/behavior-coverage.json';
 export type BehaviorStepMatch =
   | Readonly<{ step: 'invocation'; outcome: 'succeeded'; target: string }>
   | Readonly<{ step: 'invocation'; outcome: 'failed'; exception: string }>
-  | Readonly<{ step: 'route'; path: string }>
+  | Readonly<{ step: 'route'; path: string; behavior?: string; uniquePath?: boolean }>
   | Readonly<{ step: 'server-fn'; id: string }>;
 
 export type BehaviorCoverageEntry = Readonly<{
@@ -91,12 +91,14 @@ export function stepShowsBehavior(
       ? step.detail['behavior'] === match.target
       : String(step.detail['exception']) === match.exception;
   }
-  if (match.step === 'route')
-    return (
-      step.kind === 'route' &&
-      step.key === `route-activation:${match.path}` &&
-      step.detail['outcome'] === 'activated'
-    );
+  if (match.step === 'route') {
+    if (step.kind !== 'route' || step.detail['outcome'] !== 'activated') return false;
+    // Named as the catalog names it; a session recorded before, by a unique path.
+    const named = step.detail['behavior'];
+    return typeof named === 'string' && match.behavior !== undefined
+      ? named === match.behavior
+      : step.key === `route-activation:${match.path}` && match.uniquePath !== false;
+  }
   return (
     step.kind === 'http' &&
     step.key === `server-fn:${match.id}` &&

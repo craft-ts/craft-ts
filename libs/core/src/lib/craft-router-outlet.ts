@@ -756,6 +756,9 @@ export class CraftRouterOutletController {
         : { navigationId: this._routeNavigationId }),
       url: this.router.url,
       routePath: match.route.path,
+      ...(match.route.collection
+        ? { routeCollection: match.route.collection }
+        : {}),
       ...(component?.name ? { componentName: component.name } : {}),
       outcome,
       ...(error ? { error } : {}),

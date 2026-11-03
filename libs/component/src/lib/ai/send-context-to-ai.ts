@@ -40,6 +40,7 @@ import {
   type SendContextSessionSnapshot,
   ɵcraftValueService,
   ɵbehaviorTarget,
+  ɵisOutsideBehaviorProof,
   isCraftException,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
@@ -1014,7 +1015,12 @@ export function provideCraftDebugSessionCapture(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (factory, thisArg, args) {
         const activeSession = session;
-        if (emittingCraftCapture || !activeSession?.activeClip) {
+        // A primitive building or feeding itself is not a call a user made.
+        if (
+          emittingCraftCapture ||
+          !activeSession?.activeClip ||
+          ɵisOutsideBehaviorProof()
+        ) {
           return yield* factory.apply(thisArg, args);
         }
         let hostTags: readonly string[];

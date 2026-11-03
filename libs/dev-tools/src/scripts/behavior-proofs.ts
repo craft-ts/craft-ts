@@ -117,7 +117,14 @@ export function behaviorProofSteps(
       step.key.startsWith('route-activation:') &&
       step.detail['outcome'] === 'activated'
     ) {
-      prove(unique(routes.get(step.key.slice('route-activation:'.length))), step.key);
+      // Named by the runtime as the catalog names it (`coverage:`); a step
+      // without the name proves a route only when its path is unique.
+      const named = step.detail['behavior'];
+      if (typeof named === 'string') {
+        if (ids.has(`route:${named}`)) prove(`route:${named}`, step.key);
+      } else {
+        prove(unique(routes.get(step.key.slice('route-activation:'.length))), step.key);
+      }
     }
   }
   return proven;
@@ -127,12 +134,19 @@ export function behaviorProofSteps(
  * How a step of a trace names an obligation, as data: what a reader outside
  * dev-tools (the log server, looking through recorded debug sessions) needs to
  * find the obligation the way `behaviorProofSteps` does. An obligation without
- * one (a guard, an ambiguous route or exception) is never matched.
+ * one (a guard, an ambiguous exception) is never matched.
  */
 export type BehaviorStepMatch =
   | Readonly<{ step: 'invocation'; outcome: 'succeeded'; target: string }>
   | Readonly<{ step: 'invocation'; outcome: 'failed'; exception: string }>
-  | Readonly<{ step: 'route'; path: string }>
+  | Readonly<{
+      step: 'route';
+      path: string;
+      /** `<collection>:<path>`, as the runtime names the route it activates. */
+      behavior: string;
+      /** Whether the path alone tells the route, for a step without its name. */
+      uniquePath: boolean;
+    }>
   | Readonly<{ step: 'server-fn'; id: string }>;
 
 export function behaviorStepMatches(
@@ -156,8 +170,13 @@ export function behaviorStepMatches(
       matches.set(entry.id, { step: 'invocation', outcome: 'succeeded', target: ownerAndName(entry.id) });
     if (entry.kind === 'http-exception' && tags.get(tag(entry.id)) === 1)
       matches.set(entry.id, { step: 'invocation', outcome: 'failed', exception: tag(entry.id) });
-    if (entry.kind === 'route' && routes.get(routePath(entry.id)) === 1)
-      matches.set(entry.id, { step: 'route', path: routePath(entry.id) });
+    if (entry.kind === 'route')
+      matches.set(entry.id, {
+        step: 'route',
+        path: routePath(entry.id),
+        behavior: entry.id.slice('route:'.length),
+        uniquePath: routes.get(routePath(entry.id)) === 1,
+      });
     if (entry.kind === 'server-function')
       matches.set(entry.id, { step: 'server-fn', id: entry.id.slice('server-function:'.length) });
   }
