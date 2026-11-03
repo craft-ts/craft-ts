@@ -676,6 +676,39 @@ describe('queryParams codecs', () => {
     });
   });
 
+  it('merges with the other params of the URL, and drops its own once back to the fallback', async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
+      const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+      const filters = craftUse(
+        queryParams(
+          'filters',
+          {
+            state: {
+              text: {
+                fallbackValue: '',
+                codec: {
+                  decode: (value: string) => value,
+                  encode: (value: string) => value,
+                },
+              },
+            },
+            queryParamsHandling: 'merge',
+          },
+          ({ set }) => ({ set }),
+        ),
+      );
+
+      await router.navigateByUrl('/?view=visual');
+      filters.set({ text: 'profile' });
+      await vi.runAllTimersAsync();
+      expect(router.url).toBe('/?view=visual&text=profile');
+
+      filters.set({ text: '' });
+      await vi.runAllTimersAsync();
+      expect(router.url).toBe('/?view=visual');
+    });
+  });
+
   it('skipLocationChange updates url without changing the address bar', async () => {
     await CraftTestBed.runInInjectionContext(async () => {
       const router = CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);

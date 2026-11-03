@@ -14,21 +14,17 @@ import {
   ul,
   type Input,
 } from '@craft-ts/component';
-import {
-  craftComputed,
-  craftMethod,
-  deepYieldable,
-  state,
-  craftUse,
-} from '@craft-ts/core';
+import { craftComputed, deepYieldable } from '@craft-ts/core';
 import type {
   BypassInventoryItem,
   StyleAdoption,
 } from '@craft-ts/dev-tools/attestation-review';
+import {
+  ALL_BYPASS_RULES as ALL_RULES,
+  BypassRuleFilter,
+} from './bypass-rule-filter.service';
 import { bypassesView } from './bypasses-view.style';
 import type { Messages } from './messages';
-
-const ALL_RULES = '*all*';
 
 const locationOf = (item: BypassInventoryItem): string =>
   `${item.filePath}:${item.line}`;
@@ -65,62 +61,44 @@ export const BypassesView = craftComponent(
     readonly adoption: Input<StyleAdoption | undefined>;
     readonly t: Input<Messages>;
   }) {
-    // The filter owns what it filters: the rule list with its counts, and the
-    // rows it lets through. Everything the template shows is derived here,
-    // so the template reads fields and never decides between two texts.
-    const ruleFilter = yield* state(
-      'bypassRuleFilter',
-      ALL_RULES,
-      ({ set, state: current }) => ({
-        choose: (rule: string) => set(rule),
-        rules: craftUse(
-          craftComputed('rules', function* () {
-            const items = yield* bypasses();
-            const active = yield* current();
-            const say = yield* t();
-            const named = [...new Set(items.map((item) => item.rule))].sort(
-              (left, right) => left.localeCompare(right),
-            );
-            return [
-              { rule: ALL_RULES, count: items.length },
-              ...named.map((rule) => ({
-                rule,
-                count: items.filter((item) => item.rule === rule).length,
-              })),
-            ].map(({ rule, count }) => ({
-              rule,
-              text: `${rule === ALL_RULES ? say.bypassAllRules : rule} (${count})`,
-              filterState: rule === active ? 'active' : null,
-              pressed: rule === active ? 'true' : 'false',
-            }));
-          }),
-        ),
-        shown: craftUse(
-          craftComputed('shown', function* () {
-            const rule = yield* current();
-            const say = yield* t();
-            return (yield* bypasses())
-              .filter((item) => rule === ALL_RULES || item.rule === rule)
-              .map((item) => ({
-                subject: item.subject,
-                heading: `${item.kind === 'eslint-disable' ? say.bypassEslintDisable : say.bypassWaiver} · ${item.rule}`,
-                meta: `${locationOf(item)} · ${item.state}${item.target ? ` · ${say.bypassWaivedTarget(item.target)}` : ''}`,
-                reasonState: item.reason ? null : 'missing',
-                reasonText: item.reason ?? say.bypassNoReason,
-                excerpt: excerptText(item),
-              }));
-          }),
-        ),
-      }),
-    );
-    const chooseRule = yield* craftMethod(
-      'chooseRule',
-      function* (rule: string) {
-        yield* ruleFilter.choose(rule);
-      },
-    );
-    const rulesSource = ruleFilter.rules;
-    const shownSource = ruleFilter.shown;
+    // The rule list with its counts, and the rows the chosen rule lets
+    // through. Everything the template shows is derived here, so the template
+    // reads fields and never decides between two texts.
+    const { bypassRule: current, chooseRule } = yield* BypassRuleFilter();
+    const rulesSource = yield* craftComputed('rules', function* () {
+      const items = yield* bypasses();
+      const active = yield* current();
+      const say = yield* t();
+      const named = [...new Set(items.map((item) => item.rule))].sort(
+        (left, right) => left.localeCompare(right),
+      );
+      return [
+        { rule: ALL_RULES, count: items.length },
+        ...named.map((rule) => ({
+          rule,
+          count: items.filter((item) => item.rule === rule).length,
+        })),
+      ].map(({ rule, count }) => ({
+        rule,
+        text: `${rule === ALL_RULES ? say.bypassAllRules : rule} (${count})`,
+        filterState: rule === active ? 'active' : null,
+        pressed: rule === active ? 'true' : 'false',
+      }));
+    });
+    const shownSource = yield* craftComputed('shown', function* () {
+      const rule = yield* current();
+      const say = yield* t();
+      return (yield* bypasses())
+        .filter((item) => rule === ALL_RULES || item.rule === rule)
+        .map((item) => ({
+          subject: item.subject,
+          heading: `${item.kind === 'eslint-disable' ? say.bypassEslintDisable : say.bypassWaiver} · ${item.rule}`,
+          meta: `${locationOf(item)} · ${item.state}${item.target ? ` · ${say.bypassWaivedTarget(item.target)}` : ''}`,
+          reasonState: item.reason ? null : 'missing',
+          reasonText: item.reason ?? say.bypassNoReason,
+          excerpt: excerptText(item),
+        }));
+    });
     const rules = deepYieldable(rulesSource);
     const shown = deepYieldable(shownSource);
     const adoptionKnown = yield* craftComputed('adoptionKnown', function* () {

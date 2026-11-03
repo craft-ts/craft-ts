@@ -69,12 +69,17 @@ type Inputs = {
   selectedVisualTest: Input<VisualTest | undefined>;
   selectVisualTest: Output<(index: number) => unknown>;
   selectedVisualAsset: Input<VisualAsset | undefined>;
-  sourceUrl: Output<(reference: string, line?: number) => unknown>;
+  /** A generator, like every reader of the model: read it with `yield*`. */
+  sourceUrl: Output<
+    (reference: string, line?: number) => Generator<unknown, string | undefined, unknown>
+  >;
   visualReviewCard: Input<ReviewCard | undefined>;
   openVisualReview: Output<() => unknown>;
   templateObligations: Input<ReviewApiQueue['templateObligations']>;
   queueValue: Input<ReviewApiQueue | undefined>;
-  fileUrl: Output<(file: string | undefined, line?: number) => unknown>;
+  fileUrl: Output<
+    (file: string | undefined, line?: number) => Generator<unknown, string | undefined, unknown>
+  >;
   locale: Input<Locale>;
 };
 
@@ -163,12 +168,11 @@ export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
       );
       yield* craftComputed('selectedSourceHref', function* () {
         const subject = (yield* inputs.selectedVisualTest())?.subject ?? '';
-        const url = sourceUrl(subject);
-        return typeof url === 'string' ? url : '';
+        return (yield* sourceUrl(subject)) ?? '';
       });
       yield* craftComputed('selectedSourceHidden', function* () {
         const subject = (yield* inputs.selectedVisualTest())?.subject ?? '';
-        return !sourceUrl(subject);
+        return !(yield* sourceUrl(subject));
       });
       yield* craftComputed('selectedVisualState', function* () {
         const test = yield* inputs.selectedVisualTest();
@@ -500,12 +504,12 @@ export const ReviewInventoryPanels = craftComponent(
                       'data-testid': 'source-link',
                       href: function* () {
                         return safeUrl(
-                          sourceUrl(yield* obligation.subject()) ?? '',
+                          (yield* sourceUrl(yield* obligation.subject())) ?? '',
                         );
                       },
                       hidden: function* () {
                         return (
-                          Boolean(sourceUrl(yield* obligation.subject())) ===
+                          Boolean(yield* sourceUrl(yield* obligation.subject())) ===
                           false
                         );
                       },
@@ -553,16 +557,16 @@ export const ReviewInventoryPanels = craftComponent(
                       'data-testid': 'source-link',
                       href: function* () {
                         return safeUrl(
-                          fileUrl(
+                          (yield* fileUrl(
                             yield* diagnostic.filePath(),
                             yield* diagnostic.line(),
-                          ) ?? '',
+                          )) ?? '',
                         );
                       },
                       hidden: function* () {
                         return (
                           Boolean(
-                            fileUrl(
+                            yield* fileUrl(
                               yield* diagnostic.filePath(),
                               yield* diagnostic.line(),
                             ),

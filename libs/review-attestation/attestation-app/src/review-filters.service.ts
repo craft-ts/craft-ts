@@ -43,6 +43,9 @@ export const { ReviewFilters } = craftService(
           state: {
             text: { fallbackValue: '', codec: stringQueryParamCodec },
           },
+          // The view's own params (`view`, `scenario`) stay in the URL: a
+          // replaced query sent the reviewer back to the review queue.
+          queryParamsHandling: 'merge',
         },
         ({ patch }) => ({
           writeFromInput: function* (value: string) {

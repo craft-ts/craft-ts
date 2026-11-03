@@ -53,7 +53,10 @@ type TemplateSourceDetail = {
 type Inputs = {
   card: Input<ReviewCard>;
   sourceDetail: Input<TemplateSourceDetail | undefined>;
-  fileUrl: Output<(file: string | undefined, line?: number) => unknown>;
+  /** A generator, like every reader of the model: read it with `yield*`. */
+  fileUrl: Output<
+    (file: string | undefined, line?: number) => Generator<unknown, string | undefined, unknown>
+  >;
   t: Input<Messages>;
   locale: Input<Locale>;
 };
@@ -324,18 +327,18 @@ export const ReviewTemplateEvidence = craftComponent(
                             'data-testid': 'source-link',
                             href: function* () {
                               return safeUrl(
-                                fileUrl(
+                                (yield* fileUrl(
                                   yield* site.file(),
                                   yield* site.line(),
-                                ) ?? '',
+                                )) ?? '',
                               );
                             },
                             hidden: function* () {
                               return (
-                                fileUrl(
+                                (yield* fileUrl(
                                   yield* site.file(),
                                   yield* site.line(),
-                                ) === undefined
+                                )) === undefined
                               );
                             },
                           },
@@ -377,11 +380,11 @@ export const ReviewTemplateEvidence = craftComponent(
                     'data-testid': 'source-link',
                     href: function* () {
                       const value = yield* elementSource();
-                      return safeUrl(fileUrl(value?.file, value?.line) ?? '');
+                      return safeUrl((yield* fileUrl(value?.file, value?.line)) ?? '');
                     },
                     hidden: function* () {
                       const value = yield* elementSource();
-                      return fileUrl(value?.file, value?.line) === undefined;
+                      return (yield* fileUrl(value?.file, value?.line)) === undefined;
                     },
                   },
                   function* () {
@@ -414,11 +417,11 @@ export const ReviewTemplateEvidence = craftComponent(
                     'data-testid': 'source-link',
                     href: function* () {
                       const value = yield* methodSource();
-                      return safeUrl(fileUrl(value?.file, value?.line) ?? '');
+                      return safeUrl((yield* fileUrl(value?.file, value?.line)) ?? '');
                     },
                     hidden: function* () {
                       const value = yield* methodSource();
-                      return fileUrl(value?.file, value?.line) === undefined;
+                      return (yield* fileUrl(value?.file, value?.line)) === undefined;
                     },
                   },
                   function* () {

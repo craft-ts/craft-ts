@@ -601,10 +601,11 @@ function createQueryParamsRef<
       if (mergedOptions.queryParamsHandling === 'preserve') {
         nextParams = parseSearchParams(current.search);
       } else if (mergedOptions.queryParamsHandling === 'merge') {
-        nextParams = {
-          ...parseSearchParams(current.search),
-          ...nextParams,
-        };
+        // The other params stay; ours are all rewritten, so one back to its
+        // fallback leaves the URL instead of keeping its previous value.
+        const others = parseSearchParams(current.search);
+        for (const key of Object.keys(queryParamsConfig)) delete others[key];
+        nextParams = { ...others, ...nextParams };
       }
       const search = serializeSearchParams(nextParams);
       const url = `${current.pathname}${search}${
