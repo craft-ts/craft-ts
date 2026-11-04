@@ -126,6 +126,9 @@ const { Closing } = craftService(
     yield* craftMethod('close', function* () {
       closed += 1;
     });
+    yield* craftExpose('reset', () => {
+      closed = 0;
+    });
   },
 );
 const { ClosingHolder } = craftService(
@@ -135,37 +138,58 @@ const { ClosingHolder } = craftService(
     yield* craftExpose('closing', closing);
   },
 );
-const { ClosingModel } = craftService(
-  { name: 'ClosingModel', providedIn: 'global' },
+const { ClosingModel, provideClosingModel } = craftService(
+  { name: 'ClosingModel', providedIn: 'toProvide' },
+  function* () {
+    yield* craftExpose('close', Closing.close);
+    yield* craftExpose('deepClose', ClosingHolder.closing.close);
+    yield* craftExpose('increment', Holder.store.counter.increment);
+  },
+);
+const { CallingModel } = craftService(
+  { name: 'CallingModel', providedIn: 'global' },
   function* () {
     yield* Closing.close();
-  },
-);
-const { DeepClosingModel } = craftService(
-  { name: 'DeepClosingModel', providedIn: 'global' },
-  function* () {
     yield* ClosingHolder.closing.close();
+    yield* Closing.reset();
   },
 );
 
-describe('a service shortcut onto a craftMethod', () => {
-  it('exposes the method without running it, at any depth', () => {
+describe('a service shortcut onto a method', () => {
+  it('runs it when called, wherever it is', () => {
+    closed = 5;
+    CraftTestBed.runInInjectionContext(() => {
+      const model = craftUse(CallingModel());
+      // close() twice, then reset(): the root function ran too.
+      expect(closed).toBe(0);
+      // A call exposes nothing.
+      expect(Object.keys(model)).toEqual([]);
+    });
+  });
+
+  it('is exposed, not run, through craftExpose without the call', () => {
     closed = 0;
+    CraftTestBed.configureTestingModule({
+      providers: [provideStore(), provideHolder(), provideClosingModel()],
+    });
     CraftTestBed.runInInjectionContext(() => {
       const model = craftUse(ClosingModel());
-      const deep = craftUse(DeepClosingModel());
       expect(closed).toBe(0);
+      expect(Object.keys(model)).toEqual(['close', 'deepClose', 'increment']);
 
       model.close();
-      deep.close();
+      model.deepClose();
       expect(closed).toBe(2);
     });
   });
 
-  it('types the exposure as the method', () => {
+  it('types the call as its result and the exposure as the method', () => {
     function* consumer() {
+      const called = yield* Closing.close();
+      expectTypeOf(called).toEqualTypeOf<void>();
       const model = yield* ClosingModel();
       expectTypeOf(model.close).toBeFunction();
+      expectTypeOf(model.increment).toBeFunction();
     }
     expect(typeof consumer).toBe('function');
   });

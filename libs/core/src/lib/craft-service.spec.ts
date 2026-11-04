@@ -1662,7 +1662,11 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { SinglePropertyShortcutConsumer } = craftService(
       { name: 'SinglePropertyShortcutConsumer', providedIn: 'global' },
       function* () {
-        const updateItem = yield* SinglePropertyShortcutApi.updateItem();
+        // Called, the shortcut would run the method: exposing it is craftExpose.
+        const updateItem = yield* craftExpose(
+          'updateItem',
+          SinglePropertyShortcutApi.updateItem,
+        );
 
         expectTypeOf(updateItem).toEqualTypeOf<
           GetServiceOutput<typeof SinglePropertyShortcutApi>['updateItem']
@@ -1803,21 +1807,17 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { InputShortcutCounterConsumer } = craftService(
       { name: 'InputShortcutCounterConsumer', providedIn: 'global' },
       function* () {
-        const increment = yield* InputShortcutCounter.increment({
+        // The bindings pick the instance, and the call runs its method.
+        const count = yield* InputShortcutCounter.increment({
           initialValue: signal(10),
         });
 
-        expectTypeOf(increment).toEqualTypeOf<
-          GetServiceOutput<typeof InputShortcutCounter>['increment']
-        >();
-
+        expectTypeOf(count).toEqualTypeOf<number>();
       },
     );
 
     CraftTestBed.runInInjectionContext(() => {
-      const consumer = craftUse(InputShortcutCounterConsumer());
-
-      consumer.increment();
+      craftUse(InputShortcutCounterConsumer());
 
       expect(calls).toEqual([11]);
     });
@@ -1872,7 +1872,9 @@ describe('injectService/Service should expose an optional parameter that can be 
     }>();
 
     await CraftTestBed.runInInjectionContext(async () => {
-      const updateItem = craftUse(SinglePropertyShortcutInjectApi.updateItem());
+      const updateItem = craftUse(
+        craftExpose('updateItem', SinglePropertyShortcutInjectApi.updateItem),
+      );
 
       expectTypeOf(updateItem).toEqualTypeOf<
         GetServiceOutput<typeof SinglePropertyShortcutInjectApi>['updateItem']
@@ -1958,18 +1960,14 @@ describe('injectService/Service should expose an optional parameter that can be 
     );
 
     CraftTestBed.runInInjectionContext(() => {
-      const increment = craftUse(
+      // The bindings pick the instance, and the call runs its method.
+      const count = craftUse(
         InputShortcutCounterInject.increment({
           initialValue: signal(10),
         }),
       );
 
-      expectTypeOf(increment).toEqualTypeOf<
-        GetServiceOutput<typeof InputShortcutCounterInject>['increment']
-      >();
-
-      increment();
-
+      expectTypeOf(count).toEqualTypeOf<number>();
       expect(calls).toEqual([11]);
     });
   });

@@ -1,4 +1,4 @@
-import { craftService } from '@craft-ts/core';
+import { craftExpose, craftService } from '@craft-ts/core';
 import {
   craftComponent,
   div,
@@ -34,7 +34,7 @@ export const { TypeSafeI18nDemoView, provideTypeSafeI18nDemoView } =
     { name: 'typeSafeI18nDemoView', providedIn: 'toProvide' },
     function* () {
       yield* I18n.language();
-      yield* I18n.translate();
+      yield* craftExpose('translate', I18n.translate);
       yield* ClientCurrency();
     },
   );

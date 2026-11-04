@@ -31,9 +31,9 @@ export const NON_YIELDABLE_INSERTION_METHOD = Symbol(
 
 /**
  * Brand of a `craftMethod`: named like a reader, yet an action, so a shortcut
- * onto it hands the method back instead of reading (calling) it.
+ * call onto it runs it, like any other method.
  */
-const CRAFT_METHOD = Symbol('craft-method');
+export const CRAFT_METHOD = Symbol('craft-method');
 
 export function markCraftMethod<Fn extends (...args: any[]) => any>(
   fn: Fn,

@@ -51,17 +51,19 @@ const { TodoStore } = craftService(
 - `craftExpose(name, value)` exposes a standalone value or gives a value a
   deliberate public name.
 - Yield a service directly to expose it under its lower-camel-case name. Yield
-  one of its members with the property shortcut to expose only that member:
+  the property shortcut of a reader to expose only that member, and pass the
+  shortcut of a method to `craftExpose`, without calling it:
 
   ```typescript
   function* () {
-    yield* I18n.translate();
+    yield* craftExpose('translate', I18n.translate);
     yield* I18n.language();
     yield* ClientCurrency();
   }
   ```
 
-  This exposes `translate`, `language`, and `clientCurrency`. Dependencies
+  This exposes `translate`, `language`, and `clientCurrency`. Calling a
+  method's shortcut, `yield* I18n.translate()`, runs it instead. Dependencies
   consumed inside nested callbacks are tracked without becoming service API
   members.
 - Two exposed primitives cannot share a name: the service throws when it is

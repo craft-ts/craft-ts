@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-1
-import { craftService, craftExpose } from '@craft-ts/core';
+import { craftService, craftExpose, craftMethod } from '@craft-ts/core';
 
 const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global' },
@@ -18,10 +18,10 @@ const { UsersApi } = craftService(
 const { UserUpdater } = craftService(
   { name: 'UserUpdater', providedIn: 'global' },
   function* () {
-    const updateUser = yield* UsersApi.updateUser();
-
-    yield* craftExpose('rename', (user: { id: string; name: string }, name: string) =>
-      updateUser({ ...user, name }));
+    yield* craftMethod('rename', function* (user: { id: string; name: string }, name: string) {
+      // A method's shortcut calls it: only `updateUser` is recorded as used.
+      return yield* UsersApi.updateUser({ ...user, name });
+    });
   },
 );
 // #endregion example-1

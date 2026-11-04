@@ -264,6 +264,30 @@ export function createNamedPrimitiveGen<Name extends string, Ref>(
 }
 
 /**
+ * Carried by a yield shortcut (`View.save`, `Store.counter.increment`): the
+ * generator that resolves its service and returns the member it designates,
+ * neither read nor called. It is what {@link craftExpose} exposes when given
+ * a shortcut.
+ */
+export const SHORTCUT_MEMBER = Symbol('craft-shortcut-member');
+
+/** The type-level side of {@link SHORTCUT_MEMBER}. */
+export type ShortcutMemberCarrier<Request, Member> = {
+  readonly [SHORTCUT_MEMBER]: () => Generator<Request, Member, unknown>;
+};
+
+function shortcutMemberOf(
+  value: unknown,
+): (() => Generator<unknown, unknown, unknown>) | undefined {
+  if (typeof value !== 'function') return undefined;
+  // A shortcut is a Proxy answering `get`, not `has`.
+  const resolve = Reflect.get(value, SHORTCUT_MEMBER) as unknown;
+  return typeof resolve === 'function'
+    ? (resolve as () => Generator<unknown, unknown, unknown>)
+    : undefined;
+}
+
+/**
  * Exposes any value on the enclosing `craftService` under `name` — for what is
  * not a named primitive: a function, a constant, a member of an injected
  * service, a primitive's insertion method.
@@ -274,29 +298,48 @@ export function createNamedPrimitiveGen<Name extends string, Ref>(
  * yield* craftExpose('setLocale', language.setLocale);
  * ```
  *
+ * Given a service shortcut, without the call, it exposes the member the
+ * shortcut designates: that is how a service exposes another service's
+ * method, since calling the shortcut (`yield* View.save()`) runs it.
+ *
+ * ```ts
+ * yield* craftExpose('save', View.save);
+ * yield* craftExpose('increment', Store.counter.increment);
+ * ```
+ *
  * The value is exposed as is (no signal branding, no wrapping) and resolved
  * back, so `const x = yield* craftExpose('x', value)` keeps using it. Like any
  * named primitive, `craftPrivate(craftExpose(...))` hides it again.
  */
+export function craftExpose<const Name extends string, Request, Member>(
+  name: Name,
+  shortcut: ShortcutMemberCarrier<Request, Member>,
+): Generator<Request | CraftExposeRequest<Name, Member>, Member, unknown>;
 export function craftExpose<const Name extends string, Value>(
   name: Name,
   value: Value,
-): Generator<CraftExposeRequest<Name, Value>, Value, unknown> {
+): Generator<CraftExposeRequest<Name, Value>, Value, unknown>;
+export function craftExpose(
+  name: string,
+  value: unknown,
+): Generator<unknown, unknown, unknown> {
   const gen = (function* () {
+    const member = shortcutMemberOf(value);
+    const ref = member ? yield* member() : value;
     yield {
       [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true,
       [CRAFT_EXPOSE_MARKER]: true,
       providedIn: 'global',
       resolve: () => undefined,
       name,
-      ref: value,
+      ref,
     } as never;
-    return value;
+    return ref;
   })();
 
   return Object.assign(gen, {
     [CRAFT_PRIMITIVE_GEN_MARKER]: true,
-  }) as unknown as Generator<CraftExposeRequest<Name, Value>, Value, unknown>;
+  });
 }
 
 const CRAFT_PRIMITIVE_GEN_MARKER = Symbol('craft-primitive-gen-marker');

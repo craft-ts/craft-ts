@@ -30,8 +30,8 @@ describe('prefer-direct-craft-service-exposure', () => {
     `);
 
     expect(result.messages).toEqual([
-      'This craftExpose republishes a member from a yielded service. Yield the member directly with I18n.language().',
-      'This craftExpose republishes a member from a yielded service. Yield the member directly with I18n.translate().',
+      "This craftExpose republishes a member from a yielded service. Expose it from the shortcut with craftExpose('language', I18n.language), or yield I18n.language() if it is a reader: calling the shortcut runs a method.",
+      "This craftExpose republishes a member from a yielded service. Expose it from the shortcut with craftExpose('translate', I18n.translate), or yield I18n.translate() if it is a reader: calling the shortcut runs a method.",
     ]);
   });
 

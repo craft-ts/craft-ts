@@ -15,6 +15,7 @@ import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
+  CRAFT_METHOD,
   markCraftMethod,
   markYieldableMethod,
   markYieldableValue,
@@ -77,6 +78,8 @@ export type TrackedCraftMethod<
   // The name travels with the method: a template binding is how a reader finds
   // out which member of a service it is looking at.
   readonly [YIELDABLE_VALUE]: Name;
+  // Named like a reader, but a shortcut call runs it.
+  readonly [CRAFT_METHOD]: true;
   readonly [YIELDABLE_METHOD]: {
     readonly yielded?: Yielded;
   };

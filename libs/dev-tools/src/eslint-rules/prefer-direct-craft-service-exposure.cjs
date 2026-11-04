@@ -69,7 +69,7 @@ module.exports = {
       directService:
         'This craftExpose only republishes the service under its own name. Yield the service directly instead.',
       propertyShortcut:
-        'This craftExpose republishes a member from a yielded service. Yield the member directly with {{service}}.{{property}}().',
+        "This craftExpose republishes a member from a yielded service. Expose it from the shortcut with craftExpose('{{property}}', {{service}}.{{property}}), or yield {{service}}.{{property}}() if it is a reader: calling the shortcut runs a method.",
       primitiveResult:
         'This craftExpose republishes a named {{primitive}}. The primitive is already exposed by its own name; remove craftExpose.',
       existingPrimitiveMember:

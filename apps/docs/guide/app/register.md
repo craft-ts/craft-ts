@@ -233,10 +233,10 @@ Each derived property becomes a yieldable helper:
 
 ```ts
 const totalCounter = yield* RegisterForCounter.totalCounter();
-const incrementAll = yield* RegisterForCounter.incrementAllCounterChild();
-
 console.log(yield* totalCounter());
-yield* incrementAll();
+
+// A method's shortcut calls it.
+yield* RegisterForCounter.incrementAllCounterChild();
 ```
 
 For a single-target registry, the main call also returns the signal enriched

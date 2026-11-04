@@ -74,11 +74,14 @@ import type {
   Simplify,
   UnionToTuple,
 } from './craft-service.shared';
-import type {
-  ExposedFromYielded,
-  ServiceTrackedDepsRequest,
+import {
+  SHORTCUT_MEMBER,
+  type ExposedFromYielded,
+  type ServiceTrackedDepsRequest,
+  type ShortcutMemberCarrier,
 } from './craft-primitive-gen';
 import {
+  CRAFT_METHOD,
   isCraftMethod,
   isYieldableValue,
   markNamedReactiveProperties,
@@ -1782,34 +1785,64 @@ type YieldPropertyShortcut<
   Key extends OutputDependencyKeys<Output>,
 > = WithTrackedDependencies<
   (keyof ServiceCallInputs<Scope, Inputs> extends never
-    ? {
-        (): SinglePropertyShortcutGenerator<
-          Scope,
-          Inputs,
-          Output,
-          Metadata,
-          undefined,
-          Key
-        >;
-      }
+    ? IsMethodShortcutMember<Output[Key]> extends true
+      ? {}
+      : {
+          (): SinglePropertyShortcutGenerator<
+            Scope,
+            Inputs,
+            Output,
+            Metadata,
+            undefined,
+            Key
+          >;
+        }
     : {}) & {
     <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
       bindings: StrictBindings<
         Partial<PublicInputBindings<Inputs, Scope>>,
         Config
       >,
-    ): SinglePropertyShortcutGenerator<
-      Scope,
-      Inputs,
-      Output,
-      Metadata,
-      Config,
-      Key
-    >;
+    ): IsMethodShortcutMember<Output[Key]> extends true
+      ? // The bindings pick the instance; its method is called, not exposed.
+        Generator<
+          ServiceYieldRequest<
+            Scope,
+            MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, Config, Output>,
+            WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+          >,
+          Output[Key] extends (...args: any[]) => infer Result
+            ? ResolveGeneratorResult<Result>
+            : never,
+          unknown
+        >
+      : SinglePropertyShortcutGenerator<
+          Scope,
+          Inputs,
+          Output,
+          Metadata,
+          Config,
+          Key
+        >;
   } & (keyof ServiceCallInputs<Scope, Inputs> extends never
       ? Output[Key] extends (...args: infer Args) => infer Result
         ? Args extends []
-          ? {}
+          ? IsMethodShortcutMember<Output[Key]> extends true
+            ? // A method is called, even without arguments, and not exposed.
+              () => Generator<
+                ServiceYieldRequest<
+                  Scope,
+                  MaybeErrorOutput<
+                    ServiceCallInputs<Scope, Inputs>,
+                    undefined,
+                    Output
+                  >,
+                  WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+                >,
+                ResolveGeneratorResult<Result>,
+                unknown
+              >
+            : {}
           : (
               ...args: Args
             ) => Generator<
@@ -1821,7 +1854,9 @@ type YieldPropertyShortcut<
                   Output
                 >,
                 WithSinglePropertyDerivedProperties<Metadata, Output, Key>,
-                Key & string,
+                IsMethodShortcutMember<Output[Key]> extends true
+                  ? never
+                  : Key & string,
                 ResolveGeneratorResult<Result>
               >,
               ResolveGeneratorResult<Result>,
@@ -1831,8 +1866,34 @@ type YieldPropertyShortcut<
       : {}) &
     ShortcutName<Output[Key], Key & string> &
     ShortcutSettledBrand<Output[Key]> &
+    ShortcutMember<
+      Scope,
+      Inputs,
+      Output,
+      WithSinglePropertyDerivedProperties<Metadata, Output, Key>,
+      Output[Key]
+    > &
     NestedYieldPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>,
   WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+>;
+
+/**
+ * The member a shortcut designates, neither read nor called: what
+ * `craftExpose('save', View.save)` exposes.
+ */
+type ShortcutMember<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Member,
+> = ShortcutMemberCarrier<
+  ServiceYieldRequest<
+    Scope,
+    MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
+    Metadata
+  >,
+  Member
 >;
 
 type NestedYieldPropertyShortcut<
@@ -1868,7 +1929,11 @@ type NestedYieldPropertyShortcut<
         Scope,
         NestedPropertyValue<Output[Key], NestedKey>,
         WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>,
-        NestedKey & string,
+        IsMethodShortcutMember<
+          NestedPropertyValue<Output[Key], NestedKey>
+        > extends true
+          ? never
+          : NestedKey & string,
         NestedPropertyValue<Output[Key], NestedKey>
       >,
       ShortcutRead<NestedPropertyValue<Output[Key], NestedKey>>,
@@ -1911,6 +1976,13 @@ type NestedYieldPropertyShortcut<
     : {}) &
     ShortcutName<NestedPropertyValue<Output[Key], NestedKey>, NestedKey & string> &
     ShortcutSettledBrand<NestedPropertyValue<Output[Key], NestedKey>> &
+    ShortcutMember<
+      Scope,
+      Inputs,
+      Output,
+      WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>,
+      NestedPropertyValue<Output[Key], NestedKey>
+    > &
     DeepYieldPropertyShortcuts<
       Scope,
       Inputs,
@@ -1925,12 +1997,15 @@ type NestedYieldPropertyShortcut<
 >;
 
 /**
- * A member a yield shortcut calls instead of returning: a function that is not
- * a reactive reader. `View.form.submit()` runs `submit`.
+ * A member a yield shortcut calls instead of returning: a `craftMethod`, or a
+ * function that is not a reactive reader. `View.form.submit()` runs `submit`.
  */
-type IsMethodShortcutMember<Value> = [Value] extends [
-  { readonly [YIELDABLE_VALUE]: string },
-]
+type IsMethodShortcutMember<Value> = 0 extends 1 & Value
+  ? // `any` stays a readable member, as it was before methods were told apart.
+    false
+  : [Value] extends [{ readonly [CRAFT_METHOD]: true }]
+  ? true
+  : [Value] extends [{ readonly [YIELDABLE_VALUE]: string }]
   ? false
   : [Value] extends [Signal<any>]
     ? false
@@ -2058,7 +2133,7 @@ type DeepYieldPropertyShortcut<
         Scope,
         Value,
         WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>,
-        Name,
+        IsMethodShortcutMember<Value> extends true ? never : Name,
         Value
       >,
       ShortcutRead<Value>,
@@ -2097,6 +2172,13 @@ type DeepYieldPropertyShortcut<
     : {}) &
     ShortcutName<Value, Name> &
     ShortcutSettledBrand<Value> &
+    ShortcutMember<
+      Scope,
+      Inputs,
+      Output,
+      WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>,
+      Value
+    > &
     DeepYieldPropertyShortcuts<
       Scope,
       Inputs,
@@ -3343,8 +3425,8 @@ function createInjectHelper(
  * What a yield shortcut hands back for the member it designates: a reactive
  * reader is read, so `yield* View.todos.status()` is the status itself, and a
  * binding gets a plain value. Any other member (object, method) is returned:
- * a `craftMethod` is named like a reader, but reading it would run it, so
- * `yield* View.save()` in a service exposes `save` instead of saving.
+ * a `craftMethod` is named like a reader, but reading it would run it, which
+ * only a call of the shortcut may do.
  */
 function* readShortcutMember(
   member: unknown,
@@ -3363,13 +3445,15 @@ function* readShortcutMember(
 }
 
 /**
- * Whether a member is something to call: a function that is neither a reactive
- * reader nor a raw signal, both of which a shortcut hands back to be read.
+ * Whether a member is something to call: a `craftMethod`, or a function that is
+ * neither a reactive reader nor a raw signal, both of which a shortcut hands
+ * back to be read. A shortcut call runs it, wherever it is yielded: exposing a
+ * method is `craftExpose('save', View.save)`, without the call.
  */
 function isShortcutMethod(member: unknown): boolean {
-  if (typeof member !== 'function' || isYieldableValue(member)) {
-    return false;
-  }
+  if (typeof member !== 'function') return false;
+  if (isCraftMethod(member)) return true;
+  if (isYieldableValue(member)) return false;
   const isSignal =
     isCraftSignal(member) ||
     'set' in member ||
@@ -3533,6 +3617,9 @@ function createYieldPathShortcut(
         const named = [...steps].reverse().find((step) => typeof step === 'string');
         return named ?? key;
       }
+      if (property === SHORTCUT_MEMBER) {
+        return () => driveShortcut(definition, key, steps, undefined, true);
+      }
       if (
         typeof property !== 'string' ||
         isReservedShortcutProperty(property) ||
@@ -3670,14 +3757,16 @@ function createHelper(
           )) as unknown;
           const propertyValue = Reflect.get(Object(serviceValue), property);
 
-          if (!isDirectCall) {
+          // A method is called even without arguments (the bindings, when
+          // given, only pick the instance); any other member is read.
+          if (!isDirectCall && !isShortcutMethod(propertyValue)) {
             return yield* readShortcutMember(propertyValue);
           }
 
           const result = Reflect.apply(
             propertyValue as (...args: unknown[]) => unknown,
             Object(serviceValue),
-            callArgs,
+            isDirectCall ? callArgs : [],
           );
           return isGeneratorFunction(result)
             ? yield* result()
@@ -3691,6 +3780,10 @@ function createHelper(
             // The shortcut is named after its member, which is what lets
             // `ifNode(View.isOpen, …)` take it as a named condition.
             if (nestedProperty === YIELDABLE_VALUE) return property;
+            if (nestedProperty === SHORTCUT_MEMBER) {
+              return () =>
+                driveShortcut(definition, property, [], undefined, true);
+            }
             if (typeof nestedProperty !== 'string') {
               return Reflect.get(fnTarget, nestedProperty, fnReceiver);
             }
@@ -3962,7 +4055,7 @@ function createYieldRequest(
                 service,
               );
               // A method reached through a shortcut is called, not exposed.
-              return path.length > 0 && isShortcutMethod(member)
+              return isShortcutMethod(member)
                 ? NOT_EXPOSED
                 : member;
             },
