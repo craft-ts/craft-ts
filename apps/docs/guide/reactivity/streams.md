@@ -13,6 +13,9 @@ is `state`).
 
 ## Import
 
+Subscriptions use the common [cleanup failure contract](/guide/reactivity/lifecycle):
+every teardown is attempted before failures are rethrown or aggregated.
+
 ```typescript
 import { of, map, filter, catchTag, subscribe } from '@craft-ts/stream';
 ```

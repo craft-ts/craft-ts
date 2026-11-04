@@ -876,3 +876,41 @@ describe('Craft SSR and hydration', () => {
     expect(Object.values(two.snapshot.values)).not.toContain(1);
   });
 });
+
+
+describe('reactive forNode indexes across SSR and hydration', () => {
+  it('renders index readers on the server and moves hydrated rows in place', async () => {
+    const items = craftSignal([1, 2, 3]);
+    const app = craftComponent('SsrReactiveIndexApp', {}, () =>
+      ul(
+        forNode(items, { track: (item) => item }, (item, index) =>
+          li(
+            {
+              'data-key': function* () {
+                return yield* item();
+              },
+            },
+            function* () {
+              return `${(yield* index()) + 1}:${yield* item()}`;
+            },
+          ),
+        ),
+      ),
+    );
+    const config = configFor(app);
+    const rendered = await renderCraft({ config });
+    document.body.innerHTML = rendered.html;
+    const host = document.querySelector('craft-root')!;
+    const rows = [...host.querySelectorAll('li')];
+    expect(rows.map((row) => row.textContent)).toEqual(['1:1', '2:2', '3:3']);
+    const hydrated = hydrateCraft({ config, host });
+    expect(hydrated.mismatches).toHaveLength(0);
+    expect([...host.querySelectorAll('li')]).toEqual(rows);
+    items.set([3, 2, 1]);
+    expect([...host.querySelectorAll('li')]).toEqual([...rows].reverse());
+    expect(
+      [...host.querySelectorAll('li')].map((row) => row.textContent),
+    ).toEqual(['1:3', '2:2', '3:1']);
+    hydrated.destroy();
+  });
+});

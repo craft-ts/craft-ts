@@ -1,3 +1,4 @@
+import { ɵcreateCraftCleanup } from '@craft-ts/core';
 import {
   createEnvironmentInjector,
   ElementRef,
@@ -179,17 +180,14 @@ type TemplateOptions<Inputs, Contract> = CraftTestingOptions & {
   detectChanges?: boolean;
 };
 
-type TemplateOptionsWithProviderOverrides<
-  Component,
-  Inputs,
-  Contract,
-> = Omit<TemplateOptions<Inputs, Contract>, 'register'> & {
+type TemplateOptionsWithProviderOverrides<Component, Inputs, Contract> = Omit<
+  TemplateOptions<Inputs, Contract>,
+  'register'
+> & {
   // Components install these services themselves; the register may still
   // replace one explicitly when a template test needs a focused fake.
   register: RegisterForContract<Contract> &
-    Partial<
-      RegisterForNames<ComponentProvidedServiceNames<Component>>
-    >;
+    Partial<RegisterForNames<ComponentProvidedServiceNames<Component>>>;
 };
 
 type RegisterRuntimeEntry =
@@ -602,11 +600,11 @@ async function setupCraftComponentTemplateTestImpl<
     },
     locator,
     toBeAccessible: () => assertAccessible(host),
-    destroy() {
-      mounted.destroy();
-      host.remove();
-      parent.destroy();
-    },
+    destroy: ɵcreateCraftCleanup([
+      () => mounted.destroy(),
+      () => host.remove(),
+      () => parent.destroy(),
+    ]),
   };
 }
 
@@ -655,12 +653,14 @@ export async function renderCraftComponent<
     injector: parent,
     detectChanges,
     flush,
-    destroy() {
-      destroyed = true;
-      mounted.destroy();
-      host.remove();
-      parent.destroy();
-    },
+    destroy: ɵcreateCraftCleanup([
+      () => {
+        destroyed = true;
+      },
+      () => mounted.destroy(),
+      () => host.remove(),
+      () => parent.destroy(),
+    ]),
   };
 }
 
@@ -716,11 +716,11 @@ async function setupCraftDirectiveTemplateTestImpl<
     updateInputs(inputs: Inputs) {
       mounted.updateContext(inputs);
     },
-    destroy() {
-      mounted.destroy();
-      host.remove();
-      parent.destroy();
-    },
+    destroy: ɵcreateCraftCleanup([
+      () => mounted.destroy(),
+      () => host.remove(),
+      () => parent.destroy(),
+    ]),
   };
 }
 

@@ -1,6 +1,7 @@
 import { type ResourceOptions, type Signal } from './host/craft-compat';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { craftResource } from './craft-resource';
+import { runCraftCleanups } from './lifecycle';
 import {
   CRAFT_SIGNAL,
   craftComputed,
@@ -43,10 +44,15 @@ export function preservedResource<T, R>(
     T | undefined,
     R
   >['hasValue'];
+  let destroyed = false;
   const destroy = () => {
-    original.destroy();
-    publish(config.defaultValue);
-    preserveWatch.destroy();
+    if (destroyed) return;
+    destroyed = true;
+    runCraftCleanups([
+      () => original.destroy(),
+      () => publish(config.defaultValue),
+      () => preserveWatch.destroy(),
+    ]);
   };
   const resourceRef = {
     value,

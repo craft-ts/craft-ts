@@ -1,3 +1,4 @@
+import { destroyCraftOwner, runCraftCleanups } from './lifecycle';
 import {
   DestroyRef,
   EnvironmentInjector,
@@ -142,9 +143,11 @@ const craftRouteChainRunnerService = ɵcraftValueService(
     inject(): typeof runCraftRouteChainAsync;
   };
 };
-export const CraftRouteChainRunner = craftRouteChainRunnerService.CraftRouteChainRunner;
-export const ɵinjectCraftRouteChainRunner = (): typeof runCraftRouteChainAsync =>
-  craftRouteChainRunnerService.CRAFT_ROUTE_CHAIN_RUNNER_META_DATA.inject();
+export const CraftRouteChainRunner =
+  craftRouteChainRunnerService.CraftRouteChainRunner;
+export const ɵinjectCraftRouteChainRunner =
+  (): typeof runCraftRouteChainAsync =>
+    craftRouteChainRunnerService.CRAFT_ROUTE_CHAIN_RUNNER_META_DATA.inject();
 
 const syncTemplateFlushers = new Set<() => void>();
 
@@ -174,7 +177,8 @@ const craftSyncTemplateFlushService = ɵcraftValueService(
   CraftSyncTemplateFlush: () => Generator<never, () => void, unknown>;
   CRAFT_SYNC_TEMPLATE_FLUSH_META_DATA: { inject(): () => void };
 };
-export const CraftSyncTemplateFlush = craftSyncTemplateFlushService.CraftSyncTemplateFlush;
+export const CraftSyncTemplateFlush =
+  craftSyncTemplateFlushService.CraftSyncTemplateFlush;
 export const ɵinjectCraftSyncTemplateFlush = (): (() => void) =>
   craftSyncTemplateFlushService.CRAFT_SYNC_TEMPLATE_FLUSH_META_DATA.inject();
 
@@ -187,8 +191,7 @@ export class CraftRouterOutletController {
   name = 'primary';
 
   private readonly rootInjector = inject(EnvironmentInjector);
-  private readonly router =
-    ɵinjectCraftRouterRuntime() ?? silentRouter();
+  private readonly router = ɵinjectCraftRouterRuntime() ?? silentRouter();
   private readonly history = ɵinjectCraftHistory();
   private readonly destroyRef = inject(DestroyRef);
   private readonly temporalRuntime = ɵinjectCraftTemporalRuntime();
@@ -200,13 +203,16 @@ export class CraftRouterOutletController {
   private readonly defaultPendingMinMs = ɵinjectCraftPendingMinMs();
   private readonly chainRunner = ɵinjectCraftRouteChainRunner();
 
-  private readonly viewTransitionsEnabled = ɵinjectCraftViewTransitionsEnabled();
-  private readonly viewTransitionSkipBlank = ɵinjectCraftViewTransitionSkipBlank();
+  private readonly viewTransitionsEnabled =
+    ɵinjectCraftViewTransitionsEnabled();
+  private readonly viewTransitionSkipBlank =
+    ɵinjectCraftViewTransitionSkipBlank();
   private readonly startViewTransition = ɵinjectCraftStartViewTransition();
   private readonly syncTemplateFlush = ɵinjectCraftSyncTemplateFlush();
-  private readonly viewTransitionSink = ɵinjectCraftViewTransition() as unknown as {
-    set(value: CraftViewTransitionInput): void;
-  };
+  private readonly viewTransitionSink =
+    ɵinjectCraftViewTransition() as unknown as {
+      set(value: CraftViewTransitionInput): void;
+    };
   private readonly a11yNavigationFocus = ɵinjectCraftA11yNavigationFocus();
   private readonly platform = ɵinjectCraftPlatform();
   private readonly hydrationRuntime = ɵinjectCraftHydrationRuntime();
@@ -290,9 +296,14 @@ export class CraftRouterOutletController {
   }
 
   destroy(): void {
-    this._matchWatch?.destroy();
-    this._matchWatch = null;
-    this.teardown();
+    destroyCraftOwner(this, [
+      () => {
+        const watch = this._matchWatch;
+        this._matchWatch = null;
+        watch?.destroy();
+      },
+      () => this.teardown(),
+    ]);
   }
 
   deactivate(): void {
@@ -579,7 +590,10 @@ export class CraftRouterOutletController {
         void this.router.navigateByUrl(String(outcome.target));
         return;
       case 'stay':
-        this.publishRouteActivation('failed', 'Route activation was cancelled.');
+        this.publishRouteActivation(
+          'failed',
+          'Route activation was cancelled.',
+        );
         if (this._previousUrl !== this.router.url) {
           void this.router.navigateByUrl(this._previousUrl);
         }
@@ -901,8 +915,7 @@ export class CraftRouterOutletController {
     return (
       (this._activeRouteInjector
         ? ɵinjectCraftRouteTargetIn(this._activeRouteInjector)
-        : null) ??
-      (component ? craftRouteTarget(component) : null)
+        : null) ?? (component ? craftRouteTarget(component) : null)
     );
   }
 
@@ -927,11 +940,14 @@ export class CraftRouterOutletController {
 
   private teardown(): void {
     this._navId++;
-    this.clearTimers();
-    this._reactiveWatch?.destroy();
+    const watch = this._reactiveWatch;
     this._reactiveWatch = null;
     this._frozen = false;
-    this.clearExceptionSinks(this._meta);
+    runCraftCleanups([
+      () => this.clearTimers(),
+      () => watch?.destroy(),
+      () => this.clearExceptionSinks(this._meta),
+    ]);
   }
 
   private clearExceptionSinks(meta: CraftRouteMeta | null | undefined): void {

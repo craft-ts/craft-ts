@@ -1,4 +1,9 @@
 export * from './lib/after-recomputation';
+export {
+  runCraftCleanups as ɵrunCraftCleanups,
+  destroyCraftOwner as ɵdestroyCraftOwner,
+  createCraftCleanup as ɵcreateCraftCleanup,
+} from './lib/lifecycle';
 export * from './lib/app-checked-di';
 export * from './lib/route-checked-di';
 export * from './lib/async-process';

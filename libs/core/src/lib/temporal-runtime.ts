@@ -1,3 +1,4 @@
+import { runCraftCleanups } from './lifecycle';
 import {
   DestroyRef,
   inject,
@@ -357,8 +358,9 @@ class TemporalTask implements TemporalTaskHandle {
     }
 
     this._status = 'cancelled';
-    this.onCancel();
-    for (const listener of this.cancelListeners) listener();
+    const listeners = [...this.cancelListeners];
+    this.cancelListeners.clear();
+    runCraftCleanups([this.onCancel, ...listeners]);
     return true;
   }
 
@@ -492,11 +494,15 @@ abstract class BaseCraftTemporalRuntime implements CraftTemporalRuntime {
   }
 
   cancelAll(owner?: string): void {
-    for (const task of [...this.tasks.values()]) {
-      if (owner === undefined || task.snapshot().owner === owner) {
-        task.cancel();
-      }
-    }
+    runCraftCleanups(
+      [...this.tasks.values()]
+        .filter(
+          (task) => owner === undefined || task.snapshot().owner === owner,
+        )
+        .map((task) => () => {
+          task.cancel();
+        }),
+    );
   }
 
   protected takeNextDueTask(limit: number): TrackedTask | undefined {
@@ -567,13 +573,15 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
 
     const cancel = task.cancel.bind(task);
     task.cancel = () => {
-      const cancelled = cancel();
-      if (cancelled) {
-        const timer = this.nativeTimers.get(task.id);
-        if (timer !== undefined) clearTimeout(timer);
-        this.nativeTimers.delete(task.id);
+      try {
+        return cancel();
+      } finally {
+        if (task.snapshot().status === 'cancelled') {
+          const timer = this.nativeTimers.get(task.id);
+          if (timer !== undefined) clearTimeout(timer);
+          this.nativeTimers.delete(task.id);
+        }
       }
-      return cancelled;
     };
     return task;
   }
@@ -722,9 +730,7 @@ export class SuspendableCraftTemporalRuntime extends BaseCraftTemporalRuntime {
   }
 
   override cancelAll(owner?: string): void {
-    for (const task of [...this.tasks.values()]) {
-      if (owner === undefined || task.snapshot().owner === owner) task.cancel();
-    }
+    super.cancelAll(owner);
   }
 
   private arm(task: TrackedTask): void {

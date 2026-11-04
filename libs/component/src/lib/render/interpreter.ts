@@ -1,4 +1,9 @@
 import {
+  ɵrunCraftCleanups,
+  ɵdestroyCraftOwner,
+  ɵcreateCraftCleanup,
+} from '@craft-ts/core';
+import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   SERVICE_RUNTIME_OVERRIDES,
   ɵinjectCraftDomEventHooks,
@@ -92,6 +97,7 @@ import {
   CRAFT_DIRECTIVE,
   CONTENT_DECLARATION_CONTEXT,
   type CraftComponent,
+  type InputValue,
 } from '../types';
 import {
   normalizeChildren,
@@ -160,7 +166,6 @@ import {
 import { HydrationMismatchError, type HydrationCursor } from './hydration';
 import { setNodeHydrationKey } from './hydration-metadata';
 import type { CraftSsrCoordinator } from './ssr-coordinator';
-
 
 type NativeNode = Node;
 type NativeParent = Node;
@@ -575,12 +580,14 @@ function createRenderEffect(
   });
 
   return {
-    destroy: () => {
-      context.ssr?.resume(token);
-      context.pendingBoundary?.resume(token);
-      if (shortCircuited) context.exceptionBoundaryResolved?.(token);
-      ref.destroy();
-    },
+    destroy: ɵcreateCraftCleanup([
+      () => context.ssr?.resume(token),
+      () => context.pendingBoundary?.resume(token),
+      () => {
+        if (shortCircuited) context.exceptionBoundaryResolved?.(token);
+      },
+      () => ref.destroy(),
+    ]),
   } as EffectRef;
 }
 
@@ -878,9 +885,17 @@ class CraftNodeDirectiveMount {
   }
 
   destroy(): void {
-    this.registrationRelease();
-    this.cleanup?.();
-    this.environmentInjector.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.registrationRelease();
+      },
+      () => {
+        this.cleanup?.();
+      },
+      () => {
+        this.environmentInjector.destroy();
+      },
+    ]);
   }
 }
 
@@ -1088,13 +1103,18 @@ function patchRenderedChildren(
         current.firstNode(),
         childNodeContext(context, next, index),
       );
-      current.destroy();
       rendered[index] = replacement;
+      current.destroy();
     }
   }
 
-  while (rendered.length > nextNodes.length) {
-    rendered.pop()?.destroy();
+  if (rendered.length > nextNodes.length) {
+    ɵrunCraftCleanups(
+      rendered
+        .splice(nextNodes.length)
+        .reverse()
+        .map((child) => () => child.destroy()),
+    );
   }
 
   for (let index = rendered.length; index < nextNodes.length; index += 1) {
@@ -1144,7 +1164,11 @@ class TextRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    removeNode(this.renderer, this.node);
+    ɵdestroyCraftOwner(this, [
+      () => {
+        removeNode(this.renderer, this.node);
+      },
+    ]);
   }
 }
 
@@ -1185,8 +1209,14 @@ class ReactiveTextRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.effectRef.destroy();
-    removeNode(this.context.renderer, this.node);
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        removeNode(this.context.renderer, this.node);
+      },
+    ]);
   }
 
   private createEffect(): EffectRef {
@@ -1337,10 +1367,20 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.registrationReleases.forEach((release) => release());
-    this.effectRef.destroy();
-    this.view.destroy();
-    this.scopedInjector?.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        ɵrunCraftCleanups(this.registrationReleases.splice(0));
+      },
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        this.view.destroy();
+      },
+      () => {
+        this.scopedInjector?.destroy();
+      },
+    ]);
   }
 }
 
@@ -2038,7 +2078,9 @@ class ElementRenderedNode implements RenderedNode {
         craftNodeDirectives,
       )
     ) {
-      this.craftNodeDirectiveMounts.forEach((mount) => mount.destroy());
+      ɵrunCraftCleanups(
+        this.craftNodeDirectiveMounts.map((mount) => () => mount.destroy()),
+      );
       this.craftNodeDirectiveMounts = craftNodeDirectives.map(
         (descriptor) =>
           new CraftNodeDirectiveMount(descriptor, this.node, this.context),
@@ -2177,16 +2219,49 @@ class ElementRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.unregisterReplayTarget();
-    this.dialogCleanup?.();
-    this.bindings.forEach(({ effectRef }) => effectRef.destroy());
-    this.bindings.clear();
-    this.listeners.forEach((dispose) => dispose());
-    this.listeners.clear();
-    this.craftNodeDirectiveMounts.forEach((mount) => mount.destroy());
-    this.craftNodeDirectiveMounts = [];
-    this.children.forEach((child) => child.destroy());
-    removeNode(this.context.renderer, this.node);
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.unregisterReplayTarget();
+      },
+      () => {
+        this.dialogCleanup?.();
+      },
+      () => {
+        ɵrunCraftCleanups(
+          Array.from(
+            this.bindings.values(),
+            ({ effectRef }) =>
+              () =>
+                effectRef.destroy(),
+          ),
+        );
+      },
+      () => {
+        this.bindings.clear();
+      },
+      () => {
+        ɵrunCraftCleanups(this.listeners.values());
+      },
+      () => {
+        this.listeners.clear();
+      },
+      () => {
+        ɵrunCraftCleanups(
+          this.craftNodeDirectiveMounts.map((mount) => () => mount.destroy()),
+        );
+      },
+      () => {
+        this.craftNodeDirectiveMounts = [];
+      },
+      () => {
+        ɵrunCraftCleanups(
+          this.children.splice(0).map((child) => () => child.destroy()),
+        );
+      },
+      () => {
+        removeNode(this.context.renderer, this.node);
+      },
+    ]);
   }
 }
 
@@ -2296,9 +2371,19 @@ class FragmentRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.children.forEach((child) => child.destroy());
-    removeNode(this.context.renderer, this.start);
-    removeNode(this.context.renderer, this.end);
+    ɵdestroyCraftOwner(this, [
+      () => {
+        ɵrunCraftCleanups(
+          this.children.splice(0).map((child) => () => child.destroy()),
+        );
+      },
+      () => {
+        removeNode(this.context.renderer, this.start);
+      },
+      () => {
+        removeNode(this.context.renderer, this.end);
+      },
+    ]);
   }
 }
 
@@ -2393,8 +2478,14 @@ class ProjectionRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.effectRef.destroy();
-    this.view.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        this.view.destroy();
+      },
+    ]);
   }
 }
 
@@ -2457,8 +2548,14 @@ class TemplateRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.effectRef.destroy();
-    this.view.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        this.view.destroy();
+      },
+    ]);
   }
 }
 
@@ -2474,10 +2571,20 @@ function createFragment(
   return new FragmentRenderedNode(parent, start, end, context, children);
 }
 
+// Keep the reader's closure outside reconciliation: a surviving sibling must
+// not retain the previous/next entry maps and the removed rows they contained.
+function createForIndexReader(read: () => number): InputValue<number> {
+  return function* () {
+    return read();
+  };
+}
+
 interface ForRenderedEntry {
   readonly key: unknown;
   item: unknown;
   index: number;
+  readonly indexSignal: ReturnType<typeof signal<number>>;
+  readonly indexReader: InputValue<number>;
   readonly view: FragmentRenderedNode;
   readonly traceState: TemplateTraceState;
   renderEffect?: EffectRef;
@@ -2527,7 +2634,10 @@ class ForRenderedNode implements RenderedNode {
       const previousItemTemplate = this.node.itemTemplate;
       this.node = this.descriptor();
       this.configureScheduler(this.node.schedule);
-      this.reconcile(this.node.itemTemplate !== previousItemTemplate);
+      // Publish positions and commit DOM order before dependent effects flush.
+      ɵcraftBatch(() =>
+        this.reconcile(this.node.itemTemplate !== previousItemTemplate),
+      );
     });
   }
 
@@ -2615,15 +2725,19 @@ class ForRenderedNode implements RenderedNode {
         if (
           itemTemplateChanged ||
           !Object.is(entry.item, item) ||
-          entry.index !== index ||
           !entry.rendered
         ) {
           entry.item = item;
-          entry.index = index;
           entriesToRender.push(entry);
+        }
+        if (entry.index !== index) {
+          entry.index = index;
+          entry.indexSignal.set(index);
         }
       } else {
         const traceState = { renderCount: 0 };
+        const indexSignal = signal(index);
+        const indexReader = createForIndexReader(indexSignal);
         const entryContext = childContext(this.context, {
           identity: childCraftRenderIdentity(
             this.context.identity,
@@ -2637,6 +2751,8 @@ class ForRenderedNode implements RenderedNode {
           key,
           item,
           index,
+          indexSignal,
+          indexReader,
           traceState,
           rendered: false,
           view: createFragment(
@@ -2702,6 +2818,13 @@ class ForRenderedNode implements RenderedNode {
   }
 
   private scheduleEntryRender(entry: ForRenderedEntry): void {
+    // Cancelled pending updates must be scheduled again on the next reconcile.
+    entry.rendered = false;
+    // Retire its template subscription before publishing a moved index can
+    // flush it, otherwise a deferred item update could render once now and
+    // once again when its scheduled task runs. Descendant bindings stay live.
+    entry.renderEffect?.destroy();
+    entry.renderEffect = undefined;
     const version = this.reconcileVersion;
     const scheduled = {
       completed: false,
@@ -2713,10 +2836,14 @@ class ForRenderedNode implements RenderedNode {
       if (version !== this.reconcileVersion || !this.entries.has(entry.key)) {
         return;
       }
-      entry.renderEffect?.destroy();
       entry.renderEffect = createRenderEffect(this.context, 'for-item', () =>
         entry.view.patchChildren(
-          this.renderItem(entry.traceState, entry.item, entry.index, entry.key),
+          this.renderItem(
+            entry.traceState,
+            entry.item,
+            entry.indexReader,
+            entry.key,
+          ),
         ),
       );
       entry.rendered = true;
@@ -2726,14 +2853,19 @@ class ForRenderedNode implements RenderedNode {
   }
 
   private cancelPendingTasks(): void {
-    this.pendingTasks.forEach((handle) => handle.cancel());
+    const pending = [...this.pendingTasks];
     this.pendingTasks.clear();
+    ɵrunCraftCleanups(
+      pending.map((handle) => () => {
+        handle.cancel();
+      }),
+    );
   }
 
   private renderItem(
     traceState: TemplateTraceState,
     item: unknown,
-    index: number,
+    index: InputValue<number>,
     key: unknown,
   ): CraftNodeChildren {
     traceState.renderCount += 1;
@@ -2764,17 +2896,37 @@ class ForRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.effectRef.destroy();
-    this.reconcileVersion += 1;
-    this.cancelPendingTasks();
-    if (this.ownsScheduler) this.scheduler.destroy?.();
-    this.entries.forEach((entry) => {
-      entry.renderEffect?.destroy();
-      entry.view.destroy();
-    });
-    this.emptyView?.destroy();
-    removeNode(this.context.renderer, this.start);
-    removeNode(this.context.renderer, this.end);
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        this.reconcileVersion += 1;
+      },
+      () => {
+        this.cancelPendingTasks();
+      },
+      () => {
+        if (this.ownsScheduler) this.scheduler.destroy?.();
+      },
+      () => {
+        ɵrunCraftCleanups(
+          Array.from(this.entries.values(), (entry) => [
+            () => entry.renderEffect?.destroy(),
+            () => entry.view.destroy(),
+          ]).flat(),
+        );
+      },
+      () => {
+        this.emptyView?.destroy();
+      },
+      () => {
+        removeNode(this.context.renderer, this.start);
+      },
+      () => {
+        removeNode(this.context.renderer, this.end);
+      },
+    ]);
   }
 }
 
@@ -2848,8 +3000,14 @@ class IfRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.effectRef.destroy();
-    this.view.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        this.view.destroy();
+      },
+    ]);
   }
 }
 
@@ -2930,13 +3088,21 @@ class MatchRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.effectRef.destroy();
-    if (this.handledExceptionCode) {
-      this.context.handledResourceExceptionCodes?.delete(
-        this.handledExceptionCode,
-      );
-    }
-    this.view.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        if (this.handledExceptionCode) {
+          this.context.handledResourceExceptionCodes?.delete(
+            this.handledExceptionCode,
+          );
+        }
+      },
+      () => {
+        this.view.destroy();
+      },
+    ]);
   }
 }
 
@@ -3185,11 +3351,23 @@ class CatchRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.restoreSource();
-    this.fallbackView.destroy();
-    this.sourceView.destroy();
-    removeNode(this.context.renderer, this.start);
-    removeNode(this.context.renderer, this.end);
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.restoreSource();
+      },
+      () => {
+        this.fallbackView.destroy();
+      },
+      () => {
+        this.sourceView.destroy();
+      },
+      () => {
+        removeNode(this.context.renderer, this.start);
+      },
+      () => {
+        removeNode(this.context.renderer, this.end);
+      },
+    ]);
   }
 }
 
@@ -3477,13 +3655,29 @@ class PendingRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.reloadWatch?.destroy();
-    this.closePendingOperationOnDestroy();
-    this.restoreSource();
-    this.fallbackView.destroy();
-    this.sourceView.destroy();
-    removeNode(this.context.renderer, this.start);
-    removeNode(this.context.renderer, this.end);
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.reloadWatch?.destroy();
+      },
+      () => {
+        this.closePendingOperationOnDestroy();
+      },
+      () => {
+        this.restoreSource();
+      },
+      () => {
+        this.fallbackView.destroy();
+      },
+      () => {
+        this.sourceView.destroy();
+      },
+      () => {
+        removeNode(this.context.renderer, this.start);
+      },
+      () => {
+        removeNode(this.context.renderer, this.end);
+      },
+    ]);
   }
 
   private boundaryContext(): RenderContext {
@@ -3661,8 +3855,9 @@ class PendingRenderedNode implements RenderedNode {
       ɵinjectSendContextSession(),
     );
     if (!session?.activeClip) return;
-    const correlationId = runInInjectionContext(this.context.injector, () =>
-      ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined,
+    const correlationId = runInInjectionContext(
+      this.context.injector,
+      () => ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined,
     );
 
     if (previous) {
@@ -4067,11 +4262,28 @@ class FieldErrorRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.effectRef.destroy();
-    this.componentSourceCleanups.forEach((cleanup) => cleanup());
-    this.view.destroy();
-    this.sources.forEach((source) => this.releaseAccessibility(source));
-    this.sources.clear();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        ɵrunCraftCleanups(this.componentSourceCleanups.splice(0));
+      },
+      () => {
+        this.view.destroy();
+      },
+      () => {
+        ɵrunCraftCleanups(
+          Array.from(
+            this.sources,
+            (source) => () => this.releaseAccessibility(source),
+          ),
+        );
+      },
+      () => {
+        this.sources.clear();
+      },
+    ]);
   }
 }
 
@@ -4492,25 +4704,57 @@ class ComponentRenderedNode implements RenderedNode {
     const environmentInjector = this.environmentInjector;
     let renderInjector = environmentInjector;
     onCleanup(() => {
-      this.registrationReleases.forEach((release) => release());
-      this.registrationReleases = [];
-      this.composedTemplateEffect?.destroy();
-      this.composedTemplateEffect = undefined;
-      this.syncTemplateFlushRelease?.();
-      this.syncTemplateFlushRelease = undefined;
-      this.componentExceptionEffect?.destroy();
-      this.componentExceptionEffect = undefined;
-      this.componentFallbackVisible = false;
-      this.componentFallbackException = undefined;
-      this.view.patchChildren([]);
-      renderInjector.destroy();
-      if (renderInjector !== environmentInjector) {
-        environmentInjector.destroy();
-      }
-      this.providerTrackers = [];
-      if (this.environmentInjector === renderInjector) {
-        this.environmentInjector = undefined;
-      }
+      ɵrunCraftCleanups([
+        () => {
+          ɵrunCraftCleanups(this.registrationReleases.splice(0));
+        },
+        () => {
+          this.registrationReleases = [];
+        },
+        () => {
+          this.composedTemplateEffect?.destroy();
+        },
+        () => {
+          this.composedTemplateEffect = undefined;
+        },
+        () => {
+          this.syncTemplateFlushRelease?.();
+        },
+        () => {
+          this.syncTemplateFlushRelease = undefined;
+        },
+        () => {
+          this.componentExceptionEffect?.destroy();
+        },
+        () => {
+          this.componentExceptionEffect = undefined;
+        },
+        () => {
+          this.componentFallbackVisible = false;
+        },
+        () => {
+          this.componentFallbackException = undefined;
+        },
+        () => {
+          this.view.patchChildren([]);
+        },
+        () => {
+          renderInjector.destroy();
+        },
+        () => {
+          if (renderInjector !== environmentInjector) {
+            environmentInjector.destroy();
+          }
+        },
+        () => {
+          this.providerTrackers = [];
+        },
+        () => {
+          if (this.environmentInjector === renderInjector) {
+            this.environmentInjector = undefined;
+          }
+        },
+      ]);
     });
 
     let renderContext: RenderContext;
@@ -4728,7 +4972,7 @@ class ComponentRenderedNode implements RenderedNode {
     factoryContext: unknown,
     injector: EnvironmentInjector,
   ): void {
-    this.registrationReleases.forEach((release) => release());
+    ɵrunCraftCleanups(this.registrationReleases.splice(0));
     this.registrationReleases = [
       ɵregisterCraftTarget(
         injector,
@@ -5009,19 +5253,31 @@ class ComponentRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    if (this.traceCreated) {
-      traceComponentLifecycle(
-        this.environmentInjector ?? this.context.injector,
-        'destroy',
-        this.componentRenderContext.componentName ?? 'unknown',
-        this.traceState.renderCount,
-      );
-      this.traceCreated = false;
-    }
-    this.effectRef.destroy();
-    this.hostBindings?.destroy();
-    this.view.destroy();
-    this.environmentInjector?.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        if (this.traceCreated) {
+          traceComponentLifecycle(
+            this.environmentInjector ?? this.context.injector,
+            'destroy',
+            this.componentRenderContext.componentName ?? 'unknown',
+            this.traceState.renderCount,
+          );
+          this.traceCreated = false;
+        }
+      },
+      () => {
+        this.effectRef.destroy();
+      },
+      () => {
+        this.hostBindings?.destroy();
+      },
+      () => {
+        this.view.destroy();
+      },
+      () => {
+        this.environmentInjector?.destroy();
+      },
+    ]);
   }
 }
 
@@ -5409,10 +5665,20 @@ class DeferRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.destroyed = true;
-    this.unregisterReplayTarget();
-    this.triggerCleanup?.();
-    this.view.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.destroyed = true;
+      },
+      () => {
+        this.unregisterReplayTarget();
+      },
+      () => {
+        this.triggerCleanup?.();
+      },
+      () => {
+        this.view.destroy();
+      },
+    ]);
   }
 }
 
@@ -5451,7 +5717,11 @@ class HeadingSectionRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.view.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.view.destroy();
+      },
+    ]);
   }
 }
 
@@ -5501,7 +5771,11 @@ class HeadingRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
-    this.elementView.destroy();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.elementView.destroy();
+      },
+    ]);
   }
 }
 
@@ -5737,8 +6011,21 @@ class HostPropertyBindings {
   }
 
   destroy(): void {
-    this.bindings.forEach(({ effectRef }) => effectRef.destroy());
-    this.bindings.clear();
+    ɵdestroyCraftOwner(this, [
+      () => {
+        ɵrunCraftCleanups(
+          Array.from(
+            this.bindings.values(),
+            ({ effectRef }) =>
+              () =>
+                effectRef.destroy(),
+          ),
+        );
+      },
+      () => {
+        this.bindings.clear();
+      },
+    ]);
   }
 
   private updateBinding(
@@ -5853,7 +6140,11 @@ export function mountInterpretedComponentWithOptions<Props extends object>(
       instance.updateProps(nextProps);
     },
     destroy() {
-      instance.destroy();
+      ɵdestroyCraftOwner(this, [
+        () => {
+          instance.destroy();
+        },
+      ]);
     },
   };
 }
@@ -5902,7 +6193,11 @@ export function mountInterpretedComponentTemplate<Context>(
       return instance.locator(host, tag, criteria);
     },
     destroy() {
-      instance.destroy();
+      ɵdestroyCraftOwner(this, [
+        () => {
+          instance.destroy();
+        },
+      ]);
     },
   };
 }

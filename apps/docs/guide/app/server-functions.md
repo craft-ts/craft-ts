@@ -94,6 +94,38 @@ server test beside the function so the middleware wiring remains visible.
 The demo maps the two session failures to explicit 401 responses and maps a
 non-admin session to a 403 response.
 
+## HTTP entry guards
+
+When mounting application routes with `createHttpServer`, entry guards run
+before the `user` and `services` resolvers and before application middleware:
+
+- `maxBodyBytes` limits the actual body bytes, including chunked uploads and
+  bodies without `Content-Length`. An oversized body returns `413` before the
+  handler runs. The accepted body is buffered during this check and remains
+  readable by downstream middleware and handlers. The limit counts encoded
+  bytes, not string characters; the default is 1 MiB.
+- `csrf: 'strict'` is the default for mutation methods. It rejects foreign
+  origins unless they appear in `allowedOrigins`. Without `Origin`, a request
+  carrying cookies needs `Sec-Fetch-Site: same-origin` or `none`; a client
+  without cookies or foreign fetch metadata can omit `Origin`. Requests marked
+  `cross-site` or `same-site` need an explicitly allowed origin. Route-level
+  `csrf: true` and `createCsrfMiddleware` use the same decision; pass the same
+  `allowedOrigins` when installing that middleware explicitly.
+- `csrf: 'off'` opts out of the default CSRF guard. A route with `csrf: true`
+  still performs its own check. Authentication and authorization remain the
+  responsibility of the configured identity resolver and application policy.
+- `timeoutMs` includes reading the request body. Timed-out uploads are
+  cancelled before identity resolution. A handler receives cancellation through
+  `context.signal` and should pass it to external work.
+- `maxConcurrentRequests` counts unfinished middleware/handler work. A timeout
+  returns `504`, but work ignoring cancellation keeps its slot until it settles;
+  further requests at capacity receive `503` with `Retry-After`. The streamed
+  body of a returned `Response` is outside this concurrency budget.
+
+The server-function protocol created by `createServer` also bounds its actual
+request body and requires JSON under its default security policy. Its protocol
+options are separate from the HTTP router options above.
+
 ## Find the pieces
 
 - [`serverFunction`](/learn-effect/09-server-functions)

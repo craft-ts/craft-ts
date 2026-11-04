@@ -54,6 +54,17 @@ service context. Use `global` only for an app-wide singleton.
 
 ## Recommendations For Choosing a Scope
 
+A component or route injector owns its child scopes. Destroying a scope also
+destroys its live descendants and releases its cached providers and lifecycle
+callbacks. A child destroyed earlier is detached from its parent, so repeated
+mounts and navigations do not accumulate destroyed scopes in the app injector.
+Destruction is idempotent; creating a child of a destroyed injector is an error.
+
+If a child scope fails during cleanup, the injector still destroys its other
+children and runs its own lifecycle callbacks before rethrowing the failure.
+See the shared [destruction contract](/guide/reactivity/lifecycle) for ordering,
+idempotence and aggregation of multiple failures.
+
 `provideX()` registers a provider; it does not eagerly run the service factory.
 The instance is created and cached in that injector the first time `X()` is
 resolved. `appStart: true` makes the service eager during app initialization.

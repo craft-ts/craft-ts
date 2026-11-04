@@ -332,7 +332,7 @@ export const ReviewInventoryPanels = craftComponent(
                           );
                         },
                         *click() {
-                          selectVisualTest(index);
+                          selectVisualTest(yield* index());
                         },
                       },
                       [

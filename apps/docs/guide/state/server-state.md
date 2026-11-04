@@ -306,6 +306,14 @@ don't send a request you already know will fail.
 
 ## Pitfalls
 
+**Return `undefined` from `params` to disable the query.** This cancels the
+current load, stops observing an active streaming result, and moves the query
+to `idle`. Late results from the cancelled run cannot publish a new value or
+change its status. Supplying defined params again starts a new run. Destroying
+the owning scope also stops the query and its stream observation. A custom
+stream producer must still use its `abortSignal` to close its own external
+connections or timers.
+
 **No value is available yet.** Check `hasValue()` or handle the `undefined`
 result while the query is loading or in exception.
 

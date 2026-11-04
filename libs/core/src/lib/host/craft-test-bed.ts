@@ -1,7 +1,4 @@
-import {
-  createCraftInjector,
-  type CraftInjector,
-} from './craft-injector';
+import { createCraftInjector, type CraftInjector } from './craft-injector';
 import {
   createEnvironmentInjector,
   getCraftRootDefaultProviders,
@@ -11,6 +8,7 @@ import {
   type ProviderToken,
 } from './craft-compat';
 import { ɵcraftTestProviders } from '../craft-test-providers';
+import { createCraftCleanup, runCraftCleanups } from '../lifecycle';
 
 export type CraftComponentFixture<T = unknown> = {
   readonly nativeElement: HTMLElement;
@@ -100,9 +98,8 @@ class CraftTestBedRuntime {
   inject<T>(token: ProviderToken<T>, notFoundValue: T | null): T | null;
   inject<T>(token: ProviderToken<T>, notFoundValue?: T | null): T | null {
     return arguments.length > 1
-      ? ((this.rootInjector.get(token as object, notFoundValue) ?? null) as
-          | T
-          | null)
+      ? ((this.rootInjector.get(token as object, notFoundValue) ??
+          null) as T | null)
       : (this.rootInjector.get(token as object) as T);
   }
 
@@ -142,10 +139,10 @@ class CraftTestBedRuntime {
       detectChanges() {
         // rendering is synchronous
       },
-      destroy() {
-        mounted.destroy();
-        host.remove();
-      },
+      destroy: createCraftCleanup([
+        () => mounted.destroy(),
+        () => host.remove(),
+      ]),
     };
   }
 
@@ -160,10 +157,12 @@ class CraftTestBedRuntime {
     this.injector = undefined;
     if (!current) return;
     const destroyRef = (current as { ɵdestroyRef?: DestroyRef }).ɵdestroyRef;
-    if (destroyRef) {
-      ɵdestroyCraftDestroyRef(destroyRef);
-    }
-    current.destroy?.();
+    runCraftCleanups([
+      () => {
+        if (destroyRef) ɵdestroyCraftDestroyRef(destroyRef);
+      },
+      () => current.destroy?.(),
+    ]);
   }
 }
 

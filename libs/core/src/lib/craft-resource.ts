@@ -18,7 +18,8 @@ import {
 } from './host/craft-signal';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { ɵisCraftRestoringState } from './craft-replay';
-import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
+import { ɵinjectCraftPlatform } from './craft-platform';
+import { runCraftCleanups } from './lifecycle';
 
 type CraftResourceOptions<Value, Params> = Omit<
   ResourceOptions<Value, Params>,
@@ -132,11 +133,24 @@ export function craftResource<Value, Params>(
           }
           const streamEffect = effect(
             () => {
+              if (
+                destroyed ||
+                controller.signal.aborted ||
+                version !== requestVersion
+              ) {
+                return;
+              }
               const item =
                 typeof stream === 'function'
                   ? stream()
                   : { value: undefined as Value };
-              if (!item) {
+              // Reading a user-provided stream can itself change params.
+              if (
+                !item ||
+                destroyed ||
+                controller.signal.aborted ||
+                version !== requestVersion
+              ) {
                 return;
               }
               if ('error' in item) {
@@ -168,6 +182,8 @@ export function craftResource<Value, Params>(
     // not reload over it" — and it is the same statement here.
     if (ɵisCraftRestoringState()) return;
     if (params === undefined) {
+      stopStream?.();
+      stopStream = undefined;
       abortController?.abort();
       ++requestVersion;
       craftBatch(() => {
@@ -243,16 +259,22 @@ export function craftResource<Value, Params>(
   const destroy = (): void => {
     if (destroyed) return;
     destroyed = true;
-    abortController?.abort();
-    stopStream?.();
     ++requestVersion;
-    craftBatch(() => {
-      valueState.set(options.defaultValue);
-      errorState.set(undefined);
-      statusState.set('idle');
-    });
-    paramsWatch?.destroy();
-    platform?.requestSignal?.removeEventListener('abort', abortForRequest);
+    const releaseStream = stopStream;
+    stopStream = undefined;
+    runCraftCleanups([
+      () => abortController?.abort(),
+      () => releaseStream?.(),
+      () =>
+        craftBatch(() => {
+          valueState.set(options.defaultValue);
+          errorState.set(undefined);
+          statusState.set('idle');
+        }),
+      () => paramsWatch?.destroy(),
+      () =>
+        platform?.requestSignal?.removeEventListener('abort', abortForRequest),
+    ]);
   };
   const publish = (next: Value | undefined, status: ResourceStatus): void => {
     abortController?.abort();

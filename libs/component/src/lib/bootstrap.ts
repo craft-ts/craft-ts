@@ -1,4 +1,5 @@
 import {
+  ɵcreateCraftCleanup,
   APP_INITIALIZER,
   provideComponentRegister,
   provideCraftPlatform,
@@ -106,11 +107,11 @@ export function bootstrapCraft(options: BootstrapCraftOptions): CraftAppRef {
 
   return {
     injector,
-    destroy() {
-      mounted.destroy();
-      platform.history.dispose();
-      (injector as { destroy?(): void }).destroy?.();
-    },
+    destroy: ɵcreateCraftCleanup([
+      () => mounted.destroy(),
+      () => platform.history.dispose(),
+      () => (injector as { destroy?(): void }).destroy?.(),
+    ]),
   };
 }
 

@@ -1,0 +1,24 @@
+{
+  "name": "performance-smoke",
+  "projectType": "application",
+  "sourceRoot": "apps/performance-smoke/src",
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite --config apps/performance-smoke/vite.config.ts"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite build --config apps/performance-smoke/vite.config.ts"
+      }
+    },
+    "smoke": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node apps/performance-smoke/smoke.test.mjs" }
+    }
+  }
+}

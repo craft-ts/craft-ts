@@ -72,7 +72,7 @@ export function forNode<
   Options extends ForOptions<NoInfer<ForItem<Source>>, Key>,
   ItemTemplate extends (
     item: NoInfer<ForItemInput<Source>>,
-    index: number,
+    index: InputValue<number>,
   ) => CraftNodeChildren,
 >(
   source: Source & { readonly [YIELDABLE_VALUE]: Name },
@@ -95,7 +95,7 @@ export function forNode<
   Options extends ForOptions<NoInfer<ForItem<Source>>, Key>,
   ItemTemplate extends (
     item: NoInfer<ForItemInput<Source>>,
-    index: number,
+    index: InputValue<number>,
   ) => CraftNodeChildren,
 >(
   source: Source & ForSource,
@@ -118,7 +118,7 @@ export function forNode<
   Options extends ForOptions<ForItem<Source>, Key>,
   ItemTemplate extends (
     item: ForItemInput<Source>,
-    index: number,
+    index: InputValue<number>,
   ) => CraftNodeChildren,
 >(
   source: Source & ForSource,
@@ -158,7 +158,7 @@ export function forNode<
       | undefined,
     itemTemplate: itemTemplate as unknown as (
       item: ForItemInput<Source>,
-      index: number,
+      index: InputValue<number>,
     ) => ReturnType<ItemTemplate>,
   };
   Object.defineProperty(node, 'pipe', {

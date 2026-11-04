@@ -1,3 +1,5 @@
+import { runCraftCleanups } from '../lifecycle';
+
 export type CraftProvider<T = unknown> =
   | { token: object; useValue: T; multi?: boolean; collection?: boolean }
   | {
@@ -142,10 +144,11 @@ function lookupDefaultFactory(token: object): unknown | typeof ɵNOT_FOUND {
 function createNativeCraftInjector(
   providers: readonly CraftProvider[],
   parent: CraftInjector | null,
+  detachFromParent?: () => void,
 ): CraftInjector {
   const records = new Map<object, ProviderRecord>();
   const defaultValues = new Map<object, unknown>();
-  const children: CraftInjector[] = [];
+  const children = new Set<CraftInjector>();
   let destroyed = false;
   const resolveDefault = (token: object): unknown | typeof ɵNOT_FOUND => {
     if (defaultValues.has(token)) return defaultValues.get(token);
@@ -196,7 +199,8 @@ function createNativeCraftInjector(
           }
           // The miss the parent raised is the miss of this lookup: rethrown, not built again
           // at every level of the chain, where each Error costs a stack trace.
-          throw error instanceof Error && error.message === missingProviderMessage(token)
+          throw error instanceof Error &&
+            error.message === missingProviderMessage(token)
             ? error
             : missingProviderError(token);
         }
@@ -253,8 +257,17 @@ function createNativeCraftInjector(
       }
     },
     createChild(childProviders: readonly CraftProvider[]): CraftInjector {
-      const child = createNativeCraftInjector(childProviders, craftInjector);
-      children.push(child);
+      if (destroyed) {
+        throw new Error('Cannot create a child of a destroyed Craft injector.');
+      }
+      const child = createNativeCraftInjector(
+        childProviders,
+        craftInjector,
+        () => {
+          children.delete(child);
+        },
+      );
+      children.add(child);
       return child;
     },
     destroy(): void {
@@ -262,11 +275,18 @@ function createNativeCraftInjector(
         return;
       }
       destroyed = true;
-      for (const child of children) {
-        child.destroy();
-      }
-      for (const callback of destroyCallbacks) {
-        callback();
+      const cleanups = [
+        ...Array.from(children, (child) => () => child.destroy()),
+        ...destroyCallbacks.splice(0),
+      ];
+      try {
+        runCraftCleanups(cleanups);
+      } finally {
+        // A long-lived application must not retain every view it once owned.
+        detachFromParent?.();
+        children.clear();
+        records.clear();
+        defaultValues.clear();
       }
     },
     get destroyed() {
@@ -287,7 +307,8 @@ function createNativeCraftInjector(
     addProviderRecord(records, provider, craftInjector);
   }
 
-  if (parent === null && providers.length === 0) bareInjectors.add(craftInjector);
+  if (parent === null && providers.length === 0)
+    bareInjectors.add(craftInjector);
   return craftInjector;
 }
 
@@ -301,9 +322,7 @@ function addProviderRecord(
     const existing = records.get(token);
     const nextValue = createProviderRecord(provider, injector).resolve;
     const readNext = () =>
-      provider.collection
-        ? ((nextValue() as unknown[]) ?? [])
-        : [nextValue()];
+      provider.collection ? ((nextValue() as unknown[]) ?? []) : [nextValue()];
     if (existing?.collection) {
       const previous = existing.resolve as () => unknown[];
       records.set(token, {

@@ -63,7 +63,7 @@ import { catchNode } from '../catch-node';
 import { a, button, div, h2, input, li, p, section, span, ul } from '../hyperscript';
 import { craftTemplate, renderTemplate } from '../template';
 import type { ContentSlot, RequiredContent } from '../types';
-import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
+import type { HostRequiredLogic, HostTemplate, Input, InputValue, Output } from '../types';
 import { renderCraftComponent } from '../testing';
 import { mountInterpretedComponent } from './interpreter';
 
@@ -402,7 +402,7 @@ describe('functional component interpreter', () => {
     const first = { id: 1, label: 'one' };
     const second = { id: 2, label: 'two' };
     const items = signal([first, second]);
-    const itemTemplate = vi.fn((item, index: number) =>
+    const itemTemplate = vi.fn((item: InputValue<{ id: number; label: string }>, index: InputValue<number>) =>
       li(
         {
           'data-id': function* () {
@@ -410,7 +410,7 @@ describe('functional component interpreter', () => {
           },
         },
         function* () {
-          return `${index}:${(yield* item()).label}`;
+          return `${yield* index()}:${(yield* item()).label}`;
         },
       ),
     );
@@ -446,7 +446,7 @@ describe('functional component interpreter', () => {
     expect(itemTemplate).toHaveBeenCalledOnce();
     expect(itemTemplate).toHaveBeenCalledOnce();
     expect(craftUse(itemTemplate.mock.calls[0][0]())).toEqual(updatedFirst);
-    expect(itemTemplate.mock.calls[0][1]).toBe(0);
+    expect(craftUse(itemTemplate.mock.calls[0][1]())).toBe(0);
     expect(element.textContent).toBe('0:updated1:two');
     expect(element.querySelectorAll('li')[0]).toBe(nodes[0]);
     expect(element.querySelectorAll('li')[1]).toBe(nodes[1]);
@@ -3479,4 +3479,344 @@ describe('binding isolation under the application provider set', () => {
 
     destroy();
   });
+});
+
+describe('reactive forNode indexes', () => {
+  it('moves keyed children without rerendering rows or their item bindings', async () => {
+    const original = [
+      { id: 1, name: 'Ada' },
+      { id: 2, name: 'Lin' },
+    ];
+    const items = signal(original);
+    const templates = vi.fn();
+    const children = vi.fn();
+    const itemBindings = vi.fn();
+    const indexBindings = vi.fn();
+    const child = craftComponent(
+      'reactiveIndexChild',
+      {},
+      (inputs: {
+        item: Input<{ id: number; name: string }>;
+        position: Input<number>;
+      }) => {
+        children();
+        return p([
+          span({ class: 'position' }, function* () {
+            indexBindings();
+            return String((yield* inputs.position()) + 1);
+          }),
+          span({ class: 'name' }, function* () {
+            itemBindings();
+            return (yield* inputs.item()).name;
+          }),
+        ]);
+      },
+    );
+    const list = craftComponent('reactiveIndexList', {}, () =>
+      forNode(items, { track: (item) => item.id }, (item, index) => {
+        templates();
+        return child({ item, position: index });
+      }),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    const before = [...nativeElement.querySelectorAll('p')];
+    expect(templates).toHaveBeenCalledTimes(2);
+    expect(children).toHaveBeenCalledTimes(2);
+    expect(itemBindings).toHaveBeenCalledTimes(2);
+    items.set([...original].reverse());
+    await flush();
+    expect([...nativeElement.querySelectorAll('p')]).toEqual(
+      [...before].reverse(),
+    );
+    expect(nativeElement.textContent).toBe('1Lin2Ada');
+    expect(templates).toHaveBeenCalledTimes(2);
+    expect(children).toHaveBeenCalledTimes(2);
+    expect(itemBindings).toHaveBeenCalledTimes(2);
+    expect(indexBindings).toHaveBeenCalledTimes(4);
+    // Move twice more, then change the item at its current position.
+    items.set(original);
+    items.set([...original].reverse());
+    items.set([{ id: 2, name: 'Lin updated' }, original[0]]);
+    await flush();
+    expect(nativeElement.textContent).toBe('1Lin updated2Ada');
+    expect(nativeElement.querySelectorAll('p')[0]).toBe(before[1]);
+    destroy();
+  });
+
+  it('keeps stable readers through reversal, insertion, deletion and filter restoration', async () => {
+    const items = signal([1, 2, 3]);
+    const readers = new Map<number, InputValue<number>>();
+    const list = craftComponent('reactiveIndexOperations', {}, () =>
+      forNode(items, { track: (item) => item }, (item, index) => {
+        const id = craftUse(item());
+        if (readers.has(id)) expect(index).toBe(readers.get(id));
+        readers.set(id, index);
+        return p(function* () {
+          return `${yield* index()}:${yield* item()}`;
+        });
+      }),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    for (const values of [
+      [3, 2, 1],
+      [4, 3, 2, 1],
+      [4, 2, 1],
+      [4, 1],
+      [4, 2, 1],
+      [],
+    ]) {
+      // A deleted key starts a new lifetime on restoration.
+      for (const key of readers.keys())
+        if (!values.includes(key)) readers.delete(key);
+      items.set(values);
+      await flush();
+      expect(
+        [...nativeElement.querySelectorAll('p')].map((row) => row.textContent),
+      ).toEqual(values.map((value, index) => `${index}:${value}`));
+    }
+    destroy();
+  });
+
+  it('reruns a template that consumes its index and preserves its reader', async () => {
+    const items = signal([1, 2]);
+    const renders = vi.fn();
+    const readers = new Map<number, InputValue<number>>();
+    const list = craftComponent('reactiveIndexTemplate', {}, () =>
+      forNode(items, { track: (item) => item }, (item, index) => {
+        const id = craftUse(item());
+        if (readers.has(id)) expect(index).toBe(readers.get(id));
+        readers.set(id, index);
+        renders();
+        return p(`${craftUse(index())}:${id}`);
+      }),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    items.set([2, 1]);
+    await flush();
+    expect(nativeElement.textContent).toBe('0:21:1');
+    expect(renders).toHaveBeenCalledTimes(4);
+    destroy();
+  });
+
+  it('keeps nested index scopes independent', async () => {
+    const items = signal([1, 2]);
+    const nested = signal(['a', 'b']);
+    const renders = vi.fn();
+    const list = craftComponent('reactiveIndexNested', {}, () =>
+      forNode(items, { track: (item) => item }, (_item, outer) => {
+        renders();
+        return div(
+          forNode(nested, { track: (item) => item }, (item, inner) =>
+            p(function* () {
+              return `${yield* outer()}:${yield* inner()}:${yield* item()}`;
+            }),
+          ),
+        );
+      }),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    items.set([2, 1]);
+    nested.set(['b', 'a']);
+    await flush();
+    expect(
+      [...nativeElement.querySelectorAll('p')].map((row) => row.textContent),
+    ).toEqual(['0:0:b', '0:1:a', '1:0:b', '1:1:a']);
+    expect(renders).toHaveBeenCalledTimes(2);
+    destroy();
+  });
+
+  it('destroys index bindings on removal and on destruction', async () => {
+    const items = signal([1, 2, 3]);
+    const pulse = signal(0);
+    const bindings = new Map<number, number>();
+    const list = craftComponent('reactiveIndexCleanup', {}, () =>
+      forNode(items, { track: (item) => item }, (item, index) =>
+        p(function* () {
+          pulse();
+          const id = yield* item();
+          bindings.set(id, (bindings.get(id) ?? 0) + 1);
+          return String(yield* index());
+        }),
+      ),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    items.set([3, 1]);
+    await flush();
+    const removedCalls = bindings.get(2);
+    items.set([1, 3]);
+    pulse.set(1);
+    await flush();
+    expect(bindings.get(2)).toBe(removedCalls);
+    expect(nativeElement.textContent).toBe('01');
+    destroy();
+    const calls = [...bindings];
+    items.set([3, 1]);
+    pulse.set(2);
+    expect([...bindings]).toEqual(calls);
+  });
+
+  it('uses the latest index for scheduled entries and cancels obsolete work', async () => {
+    const items = signal([1, 2, 3]);
+    const scheduler = new VirtualForScheduler();
+    const renders = vi.fn();
+    const list = craftComponent('reactiveIndexScheduled', {}, () =>
+      forNode(items, { track: (item) => item }, (item, index) => {
+        renders();
+        return p(function* () {
+          return `${yield* index()}:${yield* item()}`;
+        });
+      }).pipe(scheduleFor({ strategy: 'frame' })),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list, {
+      providers: [provideForScheduler(scheduler)],
+    });
+    scheduler.flush(1);
+    items.set([3, 2, 1]);
+    items.set([2, 1, 4]);
+    await flush();
+    scheduler.flush();
+    await flush();
+    expect(nativeElement.textContent).toBe('0:21:12:4');
+    expect(renders).toHaveBeenCalledTimes(3);
+    expect(scheduler.pendingCount).toBe(0);
+    items.set([5, 6]);
+    destroy();
+    scheduler.flush();
+    expect(scheduler.pendingCount).toBe(0);
+    expect(renders).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('reactive forNode descriptor changes', () => {
+  it('rerenders changed templates, retains readers and handles empty lists and duplicate keys', async () => {
+    const items = signal([1, 2]);
+    const revision = signal('a');
+    const readers = new Map<number, InputValue<number>>();
+    const renders = vi.fn();
+    const list = craftComponent('reactiveIndexDescriptors', {}, () => {
+      const prefix = revision();
+      return forNode(
+        items,
+        { track: (item) => item, empty: () => p('empty') },
+        (item, index) => {
+          const id = craftUse(item());
+          if (readers.has(id)) expect(index).toBe(readers.get(id));
+          readers.set(id, index);
+          renders();
+          return p(function* () {
+            return `${prefix}:${yield* index()}:${id}`;
+          });
+        },
+      );
+    });
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    const rows = [...nativeElement.querySelectorAll('p')];
+    revision.set('b');
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(4);
+    expect([...nativeElement.querySelectorAll('p')]).toEqual(rows);
+    expect(nativeElement.textContent).toBe('b:0:1b:1:2');
+    expect(() => items.set([1, 1])).toThrow('duplicate key');
+    items.set([2, 1]);
+    await flush();
+    expect(nativeElement.textContent).toBe('b:0:2b:1:1');
+    items.set([]);
+    await flush();
+    expect(nativeElement.textContent).toBe('empty');
+    destroy();
+  });
+
+  it('reschedules an item change when another collection change cancels its task', async () => {
+    const a = { id: 1, name: 'a' };
+    const b = { id: 2, name: 'b' };
+    const items = signal([a, b]);
+    const scheduler = new VirtualForScheduler();
+    const renders = vi.fn();
+    const list = craftComponent('reactiveIndexPendingUpdate', {}, () =>
+      forNode(items, { track: (item) => item.id }, (item, index) => {
+        renders();
+        return p(function* () {
+          return `${yield* index()}:${(yield* item()).name}`;
+        });
+      }).pipe(scheduleFor({ strategy: 'frame' })),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list, {
+      providers: [provideForScheduler(scheduler)],
+    });
+    scheduler.flush();
+    const updated = { id: 1, name: 'updated' };
+    items.set([updated, b]);
+    items.set([b, updated]);
+    await flush();
+    scheduler.flush();
+    await flush();
+    expect(nativeElement.textContent).toBe('0:b1:updated');
+    expect(renders).toHaveBeenCalledTimes(3);
+    destroy();
+  });
+});
+
+it('does not render an index-dependent scheduled template twice on a simultaneous item change and move', async () => {
+  const a = { id: 1, name: 'a' };
+  const b = { id: 2, name: 'b' };
+  const items = signal([a, b]);
+  const scheduler = new VirtualForScheduler();
+  const calls = new Map<number, number>();
+  const list = craftComponent('scheduledIndexDependentTemplate', {}, () =>
+    forNode(items, { track: (item) => item.id }, (item, index) => {
+      const value = craftUse(item());
+      calls.set(value.id, (calls.get(value.id) ?? 0) + 1);
+      return p(`${craftUse(index())}:${value.name}`);
+    }).pipe(scheduleFor({ strategy: 'frame' })),
+  );
+  const { nativeElement, flush, destroy } = await renderCraftComponent(list, {
+    providers: [provideForScheduler(scheduler)],
+  });
+  scheduler.flush();
+  items.set([b, { id: 1, name: 'updated' }]);
+  await flush();
+  expect(calls.get(1)).toBe(1);
+  scheduler.flush();
+  await flush();
+  expect(calls.get(1)).toBe(2);
+  expect(calls.get(2)).toBe(2);
+  expect(nativeElement.textContent).toBe('0:b1:updated');
+  destroy();
+});
+
+it('publishes all indexes and commits DOM order before index consumers observe a move', async () => {
+  const items = signal([1, 2]);
+  const readers = new Map<number, InputValue<number>>();
+  const observations: { order: string[]; positions: number[] }[] = [];
+  let observing = false;
+  const list = craftComponent('atomicIndexPublication', {}, () =>
+    forNode(items, { track: (item) => item }, (item, index) => {
+      const id = craftUse(item());
+      readers.set(id, index);
+      return p({ 'data-atomic-key': id }, function* () {
+        const position = yield* index();
+        if (observing)
+          observations.push({
+            order: [...document.querySelectorAll('[data-atomic-key]')].map(
+              (node) => node.getAttribute('data-atomic-key')!,
+            ),
+            positions: [...readers.values()].map((reader) =>
+              craftUse(reader()),
+            ),
+          });
+        return String(position);
+      });
+    }),
+  );
+  const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+  document.body.append(nativeElement);
+  observing = true;
+  items.set([2, 1]);
+  await flush();
+  expect(observations).toHaveLength(2);
+  expect(observations).toEqual([
+    { order: ['2', '1'], positions: [1, 0] },
+    { order: ['2', '1'], positions: [1, 0] },
+  ]);
+  destroy();
 });

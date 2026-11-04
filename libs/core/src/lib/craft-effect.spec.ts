@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import {
   createEnvironmentInjector,
+  DestroyRef,
   EnvironmentInjector,
   inject,
   runInInjectionContext as runInHostInjectionContext,
@@ -22,7 +23,7 @@ import {
   AppSnapshotRegistry,
   type ActiveEffectReport,
 } from './take-app-snapshot';
-import { craftSignal } from './host/craft-signal';
+import { craftBatch, craftSignal } from './host/craft-signal';
 import {
   flushCraftTest,
   setupCraftServiceTest,
@@ -330,4 +331,73 @@ describe('craftEffect', () => {
 
     runInInjectionContext(() => new Component());
   });
+});
+
+
+it('flushes 5000 independent batched Craft effects without recursively invalidating the bridge', () => {
+  const { injector } = setupCraftServiceTest();
+  const sources = Array.from({ length: 5000 }, () => craftSignal(0));
+  const values = Array.from({ length: 5000 }, () => -1);
+  let runs = 0;
+  injector.run(() =>
+    sources.forEach((source, index) => {
+      craftUse(
+        craftEffect(`batched-${index}`, () => {
+          values[index] = source();
+          runs++;
+        }),
+      );
+    }),
+  );
+  expect(runs).toBe(5000);
+  expect(() =>
+    craftBatch(() => sources.forEach((source) => source.set(1))),
+  ).not.toThrow();
+  expect(values.every((value) => value === 1)).toBe(true);
+  expect(runs).toBe(10000);
+  injector.destroy();
+  craftBatch(() => sources.forEach((source) => source.set(2)));
+  expect(runs).toBe(10000);
+});
+
+it('removes a manually destroyed effect from the active registry before its owner is destroyed', () => {
+  const { injector } = setupCraftServiceTest();
+  const registry = injector.run(() => craftUse(AppSnapshotRegistry()));
+  const ref = injector.run(() =>
+    craftUse(
+      craftEffect('short-lived', () => undefined, { manualCleanup: true }),
+    ),
+  );
+  expect(registry.activeEffects()).toHaveLength(1);
+  ref.destroy();
+  expect(registry.activeEffects()).toEqual([]);
+  injector.destroy();
+});
+
+it('releases its tagged scope and active report even when a run cleanup throws', () => {
+  const { injector } = setupCraftServiceTest();
+  const registry = injector.run(() => craftUse(AppSnapshotRegistry()));
+  const calls: string[] = [];
+  const failure = new Error('run cleanup');
+  const ref = injector.run(() =>
+    craftUse(
+      craftEffect(
+        'owned-scope',
+        function* () {
+          inject(DestroyRef).onDestroy(() => calls.push('scope'));
+          return (onCleanup) =>
+            onCleanup(() => {
+              calls.push('run');
+              throw failure;
+            });
+        },
+        { manualCleanup: true },
+      ),
+    ),
+  );
+  expect(() => ref.destroy()).toThrow(failure);
+  expect(calls).toEqual(['run', 'scope']);
+  expect(registry.activeEffects()).toEqual([]);
+  expect(() => injector.destroy()).not.toThrow();
+  expect(calls).toEqual(['run', 'scope']);
 });

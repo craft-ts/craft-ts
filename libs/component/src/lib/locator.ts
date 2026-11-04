@@ -721,7 +721,7 @@ function runtimeTemplateMatches(
       case 'for':
         matches.push(
           ...runtimeTemplateMatches(
-            node.itemTemplate(undefined as never, 0),
+            node.itemTemplate(undefined as never, function* () { return 0; }),
             tag,
             criteria,
             true,

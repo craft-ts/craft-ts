@@ -67,3 +67,13 @@ forNode(INDEXES, { track: (index) => index }, renderCell).pipe(
 The production benchmark can compare the synchronous baseline and frame mode
 with 256, 1,000, and 10,000 cells. Its commands and metrics are documented in
 `docs/benchmarks/schedule-for-pixel-art.md` in the repository.
+
+
+### Current positions during progressive rendering
+
+The render callback receives `index: InputValue<number>`, just like a synchronous
+`forNode`. Pass that reader directly to child inputs, or consume it with
+`yield* index()` in a binding. Entries moved before their scheduled first render
+receive their current position. New collection deliveries cancel obsolete work
+and retain pending item updates. Once a row is mounted, a position change alone
+does not schedule its template again; its index bindings update reactively.

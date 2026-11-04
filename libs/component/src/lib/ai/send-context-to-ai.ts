@@ -1,3 +1,4 @@
+import { ɵdestroyCraftOwner, ɵrunCraftCleanups } from '@craft-ts/core';
 import {
   DestroyRef,
   ElementRef,
@@ -212,9 +213,11 @@ function openOverlay(
 
 function closeOverlay(overlay: Overlay | null): null {
   if (overlay) {
-    overlay.cleanup();
-    overlay.mount.destroy();
-    overlay.host.remove();
+    ɵdestroyCraftOwner(overlay, [
+      () => overlay.cleanup(),
+      () => overlay.mount.destroy(),
+      () => overlay.host.remove(),
+    ]);
   }
   return null;
 }
@@ -584,7 +587,11 @@ export function createAiContextMenuController({
       value: document.documentElement.style.getPropertyValue('cursor'),
       priority: document.documentElement.style.getPropertyPriority('cursor'),
     };
-    document.documentElement.style.setProperty('cursor', 'crosshair', 'important');
+    document.documentElement.style.setProperty(
+      'cursor',
+      'crosshair',
+      'important',
+    );
     selectingTarget.set(true);
     document.addEventListener('pointerdown', blockTargetPress, true);
     document.addEventListener('click', selectPageTarget, true);
@@ -593,11 +600,17 @@ export function createAiContextMenuController({
 
   mountLauncher();
   destroyRef.onDestroy(() => {
-    cancelTargetSelection();
-    stopAiPerformance();
-    closeMenu();
-    dialog = closeOverlay(dialog);
-    closeLauncher();
+    ɵrunCraftCleanups([
+      cancelTargetSelection,
+      stopAiPerformance,
+      closeMenu,
+      () => {
+        const current = dialog;
+        dialog = null;
+        closeOverlay(current);
+      },
+      closeLauncher,
+    ]);
   });
 
   return {

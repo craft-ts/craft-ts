@@ -1,4 +1,6 @@
 import {
+  ɵcreateCraftCleanup,
+  ɵrunCraftCleanups,
   ɵinjectCraftPrimitiveRegistry,
   provideCraftHydrationRuntime,
   provideCraftPlatform,
@@ -67,7 +69,8 @@ export function hydrateCraft(
       primeCraftTransferSnapshot(
         ɵrunInInjectionContext(injector, () => ɵinjectCraftPrimitiveRegistry()),
         snapshot,
-        ɵrunInInjectionContext(injector, () => ɵinjectCraftSecurityPolicy()).transfer,
+        ɵrunInInjectionContext(injector, () => ɵinjectCraftSecurityPolicy())
+          .transfer,
       );
     }
     ɵrunCraftAppInitializers(injector);
@@ -114,19 +117,24 @@ export function hydrateCraft(
       finishHydration();
     }
   } catch (error) {
-    platform.history.dispose();
-    (injector as { destroy?(): void }).destroy?.();
+    ɵrunCraftCleanups([
+      () => {
+        throw error;
+      },
+      () => platform.history.dispose(),
+      () => (injector as { destroy?(): void }).destroy?.(),
+    ]);
     throw error;
   }
 
   return {
     injector,
     mismatches,
-    destroy() {
-      mounted.destroy();
-      platform.history.dispose();
-      (injector as { destroy?(): void }).destroy?.();
-    },
+    destroy: ɵcreateCraftCleanup([
+      () => mounted.destroy(),
+      () => platform.history.dispose(),
+      () => (injector as { destroy?(): void }).destroy?.(),
+    ]),
   };
 }
 

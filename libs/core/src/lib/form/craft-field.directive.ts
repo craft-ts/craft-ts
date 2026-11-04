@@ -1,3 +1,4 @@
+import { runCraftCleanups } from '../lifecycle';
 import {
   effect,
   Injector,
@@ -16,7 +17,11 @@ import {
   type CraftNodeDirective,
   type CraftNodeEffectFactory,
 } from '../craft-node-directive';
-import { abstract, craftService, type CraftServiceProvider } from '../craft-service';
+import {
+  abstract,
+  craftService,
+  type CraftServiceProvider,
+} from '../craft-service';
 import type { CraftDomAdapter } from '../host/craft-dom';
 import {
   ControlSyncer,
@@ -61,7 +66,8 @@ const craftFieldValueControlService = craftService(
     inject(): CraftValueControl<unknown>;
   };
 };
-export const CraftFieldValueControl = craftFieldValueControlService.CraftFieldValueControl;
+export const CraftFieldValueControl =
+  craftFieldValueControlService.CraftFieldValueControl;
 export const CraftFieldValueControlRequirement =
   craftFieldValueControlService.CraftFieldValueControlRequirement;
 export const provideCraftFieldValueControl = (
@@ -214,8 +220,7 @@ export class CraftFieldBinding<T> {
   }
 
   destroy(): void {
-    for (const fn of this.cleanupFns) fn();
-    this.cleanupFns = [];
+    runCraftCleanups(this.cleanupFns.splice(0));
   }
 
   // ---------------------- Strategy detection ----------------------

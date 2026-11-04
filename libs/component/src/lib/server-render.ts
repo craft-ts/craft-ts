@@ -1,4 +1,5 @@
 import {
+  ɵrunCraftCleanups,
   ɵinjectCraftPrimitiveRegistry,
   provideCraftPlatform,
   provideCraftSecurityPolicy,
@@ -92,9 +93,8 @@ export async function renderCraft(
   );
   let mounted: MountedCraftComponent<object> | undefined;
   try {
-    const securityPolicy = ɵrunInInjectionContext(
-      injector,
-      () => ɵinjectCraftSecurityPolicy(),
+    const securityPolicy = ɵrunInInjectionContext(injector, () =>
+      ɵinjectCraftSecurityPolicy(),
     );
     await Promise.all(ɵrunCraftAppInitializers(injector));
     const root = ɵrunInInjectionContext(
@@ -125,11 +125,12 @@ export async function renderCraft(
 
     await coordinator.untilSettled(timeoutMs, controller.signal);
 
-    const registry = ɵrunInInjectionContext(injector, () => ɵinjectCraftPrimitiveRegistry());
-    const snapshot = captureCraftTransferSnapshot(
-      registry,
-      { policy: securityPolicy.transfer },
+    const registry = ɵrunInInjectionContext(injector, () =>
+      ɵinjectCraftPrimitiveRegistry(),
     );
+    const snapshot = captureCraftTransferSnapshot(registry, {
+      policy: securityPolicy.transfer,
+    });
     const rootHtml = dom.serialize(host);
     const htmlSize = byteLength(rootHtml);
     if (htmlSize > securityPolicy.ssr.maxHtmlBytes) {
@@ -147,12 +148,14 @@ export async function renderCraft(
       snapshot,
     };
   } finally {
-    clearTimeout(timeout);
-    removeExternalAbort();
-    coordinator.dispose();
-    mounted?.destroy();
-    platform.history.dispose();
-    (injector as { destroy?(): void }).destroy?.();
+    ɵrunCraftCleanups([
+      () => clearTimeout(timeout),
+      removeExternalAbort,
+      () => coordinator.dispose(),
+      () => mounted?.destroy(),
+      () => platform.history.dispose(),
+      () => (injector as { destroy?(): void }).destroy?.(),
+    ]);
   }
 }
 

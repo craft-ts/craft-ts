@@ -1,4 +1,5 @@
 import {
+  ɵrunCraftCleanups,
   DestroyRef,
   ɵInjector as Injector,
   ɵinject as inject,
@@ -134,7 +135,7 @@ export class Teardown implements Unsubscribable {
     this.done = true;
     const cleanups = this.cleanups;
     this.cleanups = [];
-    for (const cleanup of cleanups.reverse()) cleanup();
+    ɵrunCraftCleanups(cleanups.reverse());
   }
 }
 
@@ -157,11 +158,7 @@ export function createCraftStream<A, Y = never>(
     const finish = (notify: () => void) => {
       if (finished) return;
       finished = true;
-      try {
-        notify();
-      } finally {
-        teardown.unsubscribe();
-      }
+      ɵrunCraftCleanups([notify, () => teardown.unsubscribe()]);
     };
 
     const sink: StreamSink<A> = {
@@ -179,6 +176,9 @@ export function createCraftStream<A, Y = never>(
     try {
       teardown.add(setup(context, sink, teardown));
     } catch (error) {
+      // A terminal callback/cleanup failure must not disappear into a sink
+      // which is already closed.
+      if (finished) throw error;
       sink.error(error);
     }
 

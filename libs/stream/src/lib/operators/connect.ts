@@ -1,3 +1,4 @@
+import { ɵrunCraftCleanups } from '@craft-ts/core';
 import {
   behaviorSubject,
   replaySubject,
@@ -99,9 +100,13 @@ export function connectable<A, Y>(
       return {
         unsubscribe: () => {
           if (connection !== active) return;
-          connection.unsubscribe();
           connection = undefined;
-          if (reset) hub = makeHub();
+          ɵrunCraftCleanups([
+            () => active.unsubscribe(),
+            () => {
+              if (reset) hub = makeHub();
+            },
+          ]);
         },
       };
     },

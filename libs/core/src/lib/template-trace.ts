@@ -1,9 +1,14 @@
 import {
+  inject,
+  Injector,
   runInInjectionContext,
-  type Injector,
   type Provider,
 } from './host/craft-compat';
-import { ɵcraftValueService } from './craft-service';
+import {
+  ɵcraftValueService,
+  ɵresolveOptionalService,
+  ɵSERVICE_NOT_FOUND,
+} from './craft-service';
 import { isCraftDevelopment } from './craft-runtime-mode';
 
 /** Metadata attached to one effective Craft template render. */
@@ -41,23 +46,19 @@ const templateTraceService = ɵcraftValueService(
     inputs.$provided ? [inputs.$provided] : [],
 ) as unknown as {
   provideTemplateTraces: (value?: TemplateTraceWrapper) => unknown;
-  TEMPLATE_TRACES_META_DATA: {
-    inject(): readonly TemplateTraceWrapper<unknown>[];
-  };
+  TEMPLATE_TRACES_META_DATA: unknown;
 };
 
 export const ɵinjectTemplateTraces = (
   injector?: Injector,
 ): readonly TemplateTraceWrapper<unknown>[] => {
-  try {
-    return injector
-      ? runInInjectionContext(injector, () =>
-          templateTraceService.TEMPLATE_TRACES_META_DATA.inject(),
-        )
-      : templateTraceService.TEMPLATE_TRACES_META_DATA.inject();
-  } catch {
-    return [];
-  }
+  const traces = ɵresolveOptionalService(
+    templateTraceService.TEMPLATE_TRACES_META_DATA,
+    injector ?? inject(Injector),
+  );
+  return traces === ɵSERVICE_NOT_FOUND
+    ? []
+    : (traces as readonly TemplateTraceWrapper<unknown>[]);
 };
 
 /** Register one composable synchronous template trace wrapper. */

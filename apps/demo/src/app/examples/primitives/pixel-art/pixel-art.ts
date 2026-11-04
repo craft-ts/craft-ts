@@ -190,14 +190,14 @@ const PixelArt = craftComponent(
                   pixelVars.fill,
                   pixelColor(
                     cellColor(
-                      yield* PixelArtView.cells.selectCell(currentIndex),
+                      yield* PixelArtView.cells.selectCell(yield* currentIndex()),
                     ),
                   ),
                 );
               },
-              title: `Cell ${currentIndex + 1}`,
+              title: function* () { return `Cell ${(yield* currentIndex()) + 1}`; },
               *click() {
-                yield* PixelArtView.paintCell(currentIndex);
+                yield* PixelArtView.paintCell(yield* currentIndex());
               },
             }),
         ).pipe(

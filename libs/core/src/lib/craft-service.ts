@@ -4074,10 +4074,28 @@ function uncapitalizeFirst(value: string): string {
   return value.length === 0 ? value : value[0].toLowerCase() + value.slice(1);
 }
 
+/** Internal absence marker; provided null and undefined remain service values. */
+export const ɵSERVICE_NOT_FOUND = Symbol('CraftService.notFound');
+
+/** Resolve an internal DI slot without throwing when only that slot is absent. */
+export function ɵresolveOptionalService(
+  reference: unknown,
+  injector: Injector = inject(Injector),
+): unknown {
+  const metadata = getServiceMetaData(reference) as InternalServiceMetaData;
+  return resolveConcreteService(
+    metadata[SERVICE_RUNTIME_DEFINITION],
+    injector,
+    undefined,
+    ɵSERVICE_NOT_FOUND,
+  );
+}
+
 function resolveConcreteService(
   definition: ConcreteRuntimeDefinition,
   injector: Injector,
   bindings?: ConcreteServiceBindings,
+  notFoundValue?: typeof ɵSERVICE_NOT_FOUND,
 ): unknown {
   const serviceOverride = getServiceRuntimeOverride(injector, definition.name);
 
@@ -4137,25 +4155,24 @@ function resolveConcreteService(
     definition.initialBindings = bindings;
   }
 
-  // The instance is built by the provider, which knows nothing of this call
-  // site. Hand it this call's inputs for the length of the resolution: two
-  // scopes that provide the same service each get their own inputs, instead of
-  // every one of them inheriting whichever scope resolved it first.
+  // Hand this call's inputs to the provider for the duration of resolution.
+  // Supplying a fallback avoids constructing an error for an absent token;
+  // provider and dependency failures still propagate through injector.get.
+  const value = withPendingServiceBindings(
+    definition.name,
+    bindings === OMIT_INPUTS_BINDINGS
+      ? undefined
+      : (bindings as Record<string, unknown> | undefined),
+    () =>
+      notFoundValue === undefined
+        ? injector.get(definition.token as object)
+        : injector.get(definition.token as object, notFoundValue),
+  );
+  if (value === ɵSERVICE_NOT_FOUND) return value;
   return trackResolvedService(
     definition,
     injector,
-    markNamedReactiveProperties(
-      withPendingServiceBindings(
-        definition.name,
-        bindings === OMIT_INPUTS_BINDINGS
-          ? undefined
-          : (bindings as Record<string, unknown> | undefined),
-        () =>
-          injector.get(
-            definition.token as object,
-          ),
-      ),
-    ),
+    markNamedReactiveProperties(value),
   );
 }
 
@@ -4993,11 +5010,14 @@ export function ɵcreateHostTaggedInjector(
     `HostTag(${hostName})`,
   );
 
-  parentDestroyRef?.onDestroy(() => {
+  const detachFromParent = parentDestroyRef?.onDestroy(() => {
     if (!envInjector.destroyed) {
       envInjector.destroy();
     }
   });
+  // Short-lived effects/hosts can end before the surrounding component. Do
+  // not keep their already destroyed tagged injector in its destroy callbacks.
+  envInjector.get(DestroyRef).onDestroy(() => detachFromParent?.());
 
   return envInjector;
 }

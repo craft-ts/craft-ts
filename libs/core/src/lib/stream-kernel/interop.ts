@@ -1,3 +1,4 @@
+import { createCraftCleanup, runCraftCleanups } from '../lifecycle';
 import {
   DestroyRef,
   inject,
@@ -132,20 +133,26 @@ export function signalChanges<T>(
         try {
           const destroyRef = inject(DestroyRef, { optional: true });
           release = destroyRef?.onDestroy(() => {
-            watch.destroy();
-            if (!closed) {
-              closed = true;
-              observer.complete?.();
-            }
+            runCraftCleanups([
+              () => watch.destroy(),
+              () => {
+                if (!closed) {
+                  closed = true;
+                  observer.complete?.();
+                }
+              },
+            ]);
           });
         } catch {
           release = undefined;
         }
-        return () => {
-          closed = true;
-          release?.();
-          watch.destroy();
-        };
+        return createCraftCleanup([
+          () => {
+            closed = true;
+          },
+          () => release?.(),
+          () => watch.destroy(),
+        ]);
       };
 
       const stop = options?.injector ? options.injector.run(start) : start();
@@ -209,10 +216,10 @@ export function untilDestroyed<T>(
       const subscription = source.subscribe(observer);
       const release = ref?.onDestroy(() => subscription.unsubscribe());
       return {
-        unsubscribe() {
-          release?.();
-          subscription.unsubscribe();
-        },
+        unsubscribe: createCraftCleanup([
+          () => release?.(),
+          () => subscription.unsubscribe(),
+        ]),
       };
     },
   };

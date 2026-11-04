@@ -1,11 +1,55 @@
-import { InjectionToken } from './craft-compat';
-import { describe, expect, it } from 'vitest';
 import {
-  createCraftInjector,
-  getCurrentCraftInjector,
-} from './craft-injector';
+  createEnvironmentInjector,
+  DestroyRef,
+  InjectionToken,
+} from './craft-compat';
+import { describe, expect, it, vi } from 'vitest';
+import { createCraftInjector, getCurrentCraftInjector } from './craft-injector';
 
 describe('CraftInjector', () => {
+  it('detaches destroyed children while still destroying live descendants', () => {
+    const parent = createCraftInjector([]);
+    const removed = parent.createChild([]);
+    const removedDestroy = vi.spyOn(removed, 'destroy');
+    removed.destroy();
+    removedDestroy.mockClear();
+    const live = parent.createChild([]);
+    const descendant = live.createChild([]);
+
+    parent.destroy();
+    parent.destroy();
+
+    expect(removedDestroy).not.toHaveBeenCalled();
+    expect(live.destroyed).toBe(true);
+    expect(descendant.destroyed).toBe(true);
+  });
+
+  it('does not let a destroyed injector create new children', () => {
+    const parent = createCraftInjector([]);
+    parent.destroy();
+
+    expect(() => parent.createChild([])).toThrow('destroyed');
+  });
+
+  it('releases sibling scopes and its own scope when a child cleanup throws', () => {
+    const parent = createEnvironmentInjector([], createCraftInjector([]));
+    const failed = createEnvironmentInjector([], parent);
+    const sibling = createEnvironmentInjector([], parent);
+    const released = vi.fn();
+    const failure = new Error('child cleanup failed');
+    failed.get(DestroyRef).onDestroy(() => {
+      throw failure;
+    });
+    sibling.get(DestroyRef).onDestroy(released);
+    parent.get(DestroyRef).onDestroy(released);
+
+    expect(() => parent.destroy()).toThrow(failure);
+    expect(failed.destroyed).toBe(true);
+    expect(sibling.destroyed).toBe(true);
+    expect(released).toHaveBeenCalledTimes(2);
+    expect(() => parent.destroy()).not.toThrow();
+  });
+
   it('resolves a factory provider from the same injector', () => {
     const Name = { debugName: 'Name' };
     const Greeting = { debugName: 'Greeting' };
@@ -51,7 +95,9 @@ describe('CraftInjector', () => {
       }
     } as ErrorConstructor;
     try {
-      expect(() => leaf.get(Missing)).toThrowError('No provider for Craft token "Missing".');
+      expect(() => leaf.get(Missing)).toThrowError(
+        'No provider for Craft token "Missing".',
+      );
     } finally {
       globalThis.Error = Native;
     }

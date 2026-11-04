@@ -1,3 +1,4 @@
+import { ɵcreateCraftCleanup } from '@craft-ts/core';
 import {
   getCurrentStartCorrelationId,
   isCraftControlFlow,
@@ -232,12 +233,14 @@ export function traceStreamRoot<A>(
   emit({ kind: 'subscribe' });
   const subscription = start(traced, tracedContext);
   return {
-    unsubscribe: () => {
-      if (!settled) {
-        settled = true;
-        emit({ kind: 'unsubscribe' });
-      }
-      subscription.unsubscribe();
-    },
+    unsubscribe: ɵcreateCraftCleanup([
+      () => {
+        if (!settled) {
+          settled = true;
+          emit({ kind: 'unsubscribe' });
+        }
+      },
+      () => subscription.unsubscribe(),
+    ]),
   };
 }

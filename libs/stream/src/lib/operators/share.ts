@@ -1,4 +1,5 @@
 import {
+  ɵrunCraftCleanups,
   replaySubject,
   subject,
   type Subject,
@@ -60,9 +61,14 @@ function multicast(
     let destroyed = false;
 
     const reset = () => {
-      connection?.unsubscribe();
+      const previous = connection;
       connection = undefined;
-      hub = makeSubject();
+      ɵrunCraftCleanups([
+        () => previous?.unsubscribe(),
+        () => {
+          hub = makeSubject();
+        },
+      ]);
     };
 
     const connect = () => {
@@ -96,8 +102,9 @@ function multicast(
 
     context.destroyRef?.onDestroy(() => {
       destroyed = true;
-      connection?.unsubscribe();
+      const previous = connection;
       connection = undefined;
+      previous?.unsubscribe();
     });
 
     return createCraftStream((_context, sink, teardown) => {
@@ -110,15 +117,18 @@ function multicast(
         complete: () => sink.complete(),
       });
       teardown.add(() => {
-        subscription.unsubscribe();
         subscribers -= 1;
-        if (
-          subscribers === 0 &&
-          config.resetOnRefCountZero &&
-          hub === current
-        ) {
-          reset();
-        }
+        ɵrunCraftCleanups([
+          () => subscription.unsubscribe(),
+          () => {
+            if (
+              subscribers === 0 &&
+              config.resetOnRefCountZero &&
+              hub === current
+            )
+              reset();
+          },
+        ]);
       });
 
       if (!connection && !current.closed && !destroyed) connect();

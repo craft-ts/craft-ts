@@ -119,16 +119,20 @@ export type HttpServerOptions<User = unknown, Services = unknown> = Readonly<{
    */
   trustedHosts?: readonly string[];
   /**
-   * `'strict'` (défaut) refuse toute mutation dont l'origine est étrangère.
+   * `'strict'` (défaut) refuse les mutations étrangères non autorisées et les
+   * mutations avec cookie sans origine ni métadonnées same-origin fiables.
    * `'off'` réserve la décision aux middlewares de l'application.
    */
   csrf?: 'strict' | 'off';
+  /** Octets réellement reçus, contrôlés avant la résolution d'identité. */
   maxBodyBytes?: number;
   timeoutMs?: number;
   /**
    * Requêtes traitées simultanément. Au-delà, le serveur répond 503 plutôt
    * que d'accepter une charge qu'il ne peut pas rendre : un rendu SSR ou une
-   * server function réserve de la mémoire pour toute sa durée.
+   * server function réserve de la mémoire pour toute sa durée. Un handler
+   * qui ignore l'annulation conserve son quota après le timeout, jusqu'à sa
+   * terminaison. Le corps d'une réponse streaming n'est pas comptabilisé.
    */
   maxConcurrentRequests?: number;
   logger?: RequestLogger;
@@ -173,7 +177,8 @@ export function createHttpServer<User = unknown, Services = unknown>(
     ...(options.middleware ?? []),
   ];
   const routeHandler =
-    options.handler ?? createRouteHandler<User, Services>(routes);
+    options.handler ??
+    createRouteHandler<User, Services>(routes, options.allowedOrigins);
   const metrics = options.metrics ?? createHttpMetrics();
   const maxConcurrent = options.maxConcurrentRequests ?? 0;
   let inFlight = 0;
@@ -196,7 +201,10 @@ export function createHttpServer<User = unknown, Services = unknown>(
       }
       inFlight += 1;
       const requestId = requestIdFrom(request);
-      const timeout = timeoutSignal(request.signal, options.timeoutMs ?? 15_000);
+      const timeout = timeoutSignal(
+        request.signal,
+        options.timeoutMs ?? 15_000,
+      );
       const signal = timeout.signal;
       const logger =
         options.logger ?? createJsonLogger(requestId, options.loggerSink);
@@ -209,14 +217,33 @@ export function createHttpServer<User = unknown, Services = unknown>(
         logger,
       };
 
+      // A timeout ends the response wait, not necessarily the application work.
+      // Keep the slot until that work actually settles, including late failures.
+      const work = Promise.resolve()
+        .then(() => {
+          if (signal.aborted) {
+            throw new HttpRequestError(
+              'HTTP_REQUEST_TIMEOUT',
+              504,
+              'Request timed out.',
+            );
+          }
+          return composeServerMiddleware(middleware, () =>
+            routeHandler(request, context),
+          )(request, context);
+        })
+        .then((response) => {
+          if (signal.aborted)
+            void response.body?.cancel().catch(() => undefined);
+          return response;
+        })
+        .finally(() => {
+          inFlight -= 1;
+          timeout.dispose();
+        });
       let response: Response;
       try {
-        response = await withAbort(
-          composeServerMiddleware(middleware, () =>
-            routeHandler(request, context),
-          )(request, context),
-          signal,
-        );
+        response = await withAbort(work, signal);
       } catch (error) {
         response = errorResponse(error);
         logger.error('http.request.failed', {
@@ -227,8 +254,6 @@ export function createHttpServer<User = unknown, Services = unknown>(
         });
       }
 
-      inFlight -= 1;
-      timeout.dispose();
       const responseWithHeaders = withResponseHeaders(response, {
         'x-request-id': requestId,
       });
@@ -408,7 +433,7 @@ export function createRequestGuardMiddleware<User, Services>(
   const allowedOrigins = new Set(options.allowedOrigins ?? []);
   const trustedHosts = new Set(options.trustedHosts ?? []);
 
-  return (request, context, next) => {
+  return async (request, context, next) => {
     let url: URL;
     try {
       url = new URL(request.url);
@@ -441,7 +466,8 @@ export function createRequestGuardMiddleware<User, Services>(
 
     const origin = request.headers.get('origin');
     const sameOrigin = origin === url.origin;
-    const allowed = origin !== null && (sameOrigin || allowedOrigins.has(origin));
+    const allowed =
+      origin !== null && (sameOrigin || allowedOrigins.has(origin));
     // Une origine étrangère sur une méthode mutante est refusée par défaut :
     // c'est le seul réglage qui protège une application montée sur cookie
     // avant qu'elle n'ait configuré quoi que ce soit.
@@ -455,7 +481,11 @@ export function createRequestGuardMiddleware<User, Services>(
         method: request.method,
         origin,
       });
-      return jsonError(403, 'HTTP_ORIGIN_NOT_ALLOWED', 'Origin is not allowed.');
+      return jsonError(
+        403,
+        'HTTP_ORIGIN_NOT_ALLOWED',
+        'Origin is not allowed.',
+      );
     }
     if (origin && !allowed && allowedOrigins.size > 0) {
       return jsonError(
@@ -464,6 +494,14 @@ export function createRequestGuardMiddleware<User, Services>(
         'Origin is not allowed.',
       );
     }
+    if (
+      options.csrf !== 'off' &&
+      !isSameSiteMutation(request, options.allowedOrigins)
+    ) {
+      context.logger.warn('http.csrf.rejected', { method: request.method });
+      return jsonError(403, 'HTTP_CSRF_REJECTED', 'CSRF validation failed.');
+    }
+    await assertRequestBodySize(request, maxBodyBytes, context.signal);
     if (allowed) {
       return withCorsHeaders(request, next(), allowedOrigins, origin);
     }
@@ -642,9 +680,9 @@ export function createCsrfMiddleware(
 }
 
 /**
- * Une mutation est acceptée quand elle ne vient pas d'un autre site. Une
- * origine absente est refusée sur une requête porteuse de cookie : c'est le
- * cas d'un POST de formulaire cross-site, et un client légitime en envoie une.
+ * Les origines supplémentaires sont explicites. Sans Origin, une mutation
+ * porteuse de cookie exige des métadonnées same-origin/none ; un client sans
+ * cookie ni métadonnées étrangères peut appeler le serveur sans Origin.
  */
 export function isSameSiteMutation(
   request: Request,
@@ -652,21 +690,24 @@ export function isSameSiteMutation(
 ): boolean {
   const method = request.method.toUpperCase() as HttpMethod;
   if (!MUTATION_METHODS.has(method)) return true;
-  const site = request.headers.get('sec-fetch-site');
-  if (site) return site === 'same-origin' || site === 'none';
   const origin = request.headers.get('origin');
-  if (!origin) return request.headers.get('cookie') === null;
-  let requestOrigin: string;
-  try {
-    requestOrigin = new URL(request.url).origin;
-  } catch {
-    return false;
+  const site = request.headers.get('sec-fetch-site');
+  if (origin) {
+    if (allowedOrigins.includes(origin)) return true;
+    try {
+      if (origin !== new URL(request.url).origin) return false;
+    } catch {
+      return false;
+    }
+    return !site || site === 'same-origin' || site === 'none';
   }
-  return origin === requestOrigin || allowedOrigins.includes(origin);
+  if (site) return site === 'same-origin' || site === 'none';
+  return request.headers.get('cookie') === null;
 }
 
 function createRouteHandler<User, Services>(
   routes: readonly ServerRoute<User, Services>[],
+  allowedOrigins: readonly string[] = [],
 ): (
   request: Request,
   context: RequestContext<User, Services>,
@@ -693,7 +734,7 @@ function createRouteHandler<User, Services>(
         'Authentication is required.',
       );
     }
-    if (match.route.csrf && !isSameSiteMutation(request)) {
+    if (match.route.csrf && !isSameSiteMutation(request, allowedOrigins)) {
       context.logger.warn('http.csrf.rejected', {
         method: request.method,
         path: new URL(request.url).pathname,
@@ -762,7 +803,10 @@ function requestIdFrom(request: Request): string {
   );
 }
 
-type ScopedSignal = { readonly signal: AbortSignal; readonly dispose: () => void };
+type ScopedSignal = {
+  readonly signal: AbortSignal;
+  readonly dispose: () => void;
+};
 
 /**
  * Combine l'annulation du client et le délai maximal de la requête. Le repli
@@ -773,7 +817,8 @@ function timeoutSignal(signal: AbortSignal, timeoutMs: number): ScopedSignal {
   if (timeoutMs <= 0) return { signal, dispose: () => undefined };
   const controller = new AbortController();
   const timer = setTimeout(
-    () => controller.abort(new DOMException('Request timed out', 'TimeoutError')),
+    () =>
+      controller.abort(new DOMException('Request timed out', 'TimeoutError')),
     timeoutMs,
   );
   const forward = () => controller.abort(signal.reason);
@@ -788,24 +833,56 @@ function timeoutSignal(signal: AbortSignal, timeoutMs: number): ScopedSignal {
   };
 }
 
-async function withAbort(
-  response: Promise<Response>,
+/**
+ * The clone leaves the original Request readable by all downstream consumers.
+ * Its tee buffers at most the accepted body (plus the chunk crossing the limit).
+ * Cancel both branches on rejection; awaiting one tee's cancel alone can hang
+ * until the other branch is consumed.
+ */
+async function assertRequestBodySize(
+  request: Request,
+  maxBodyBytes: number,
   signal: AbortSignal,
-): Promise<Response> {
-  if (signal.aborted) {
-    throw new HttpRequestError(
-      'HTTP_REQUEST_TIMEOUT',
-      504,
-      'Request timed out.',
-    );
+): Promise<void> {
+  if (!request.body) return;
+  const body = request.clone().body;
+  if (!body) return;
+  const reader = body.getReader();
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await withAbort(reader.read(), signal);
+      if (done) return;
+      total += value.byteLength;
+      if (total > maxBodyBytes) {
+        throw new HttpRequestError(
+          'HTTP_BODY_TOO_LARGE',
+          413,
+          'Request body is too large.',
+        );
+      }
+    }
+  } catch (error) {
+    void request.body.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    void reader.cancel().catch(() => undefined);
+    reader.releaseLock();
   }
+}
+
+async function withAbort<Value>(
+  response: Promise<Value>,
+  signal: AbortSignal,
+): Promise<Value> {
   let onAbort: (() => void) | undefined;
-  const aborted = new Promise<Response>((_resolve, reject) => {
+  const aborted = new Promise<Value>((_resolve, reject) => {
     onAbort = () =>
       reject(
         new HttpRequestError('HTTP_REQUEST_TIMEOUT', 504, 'Request timed out.'),
       );
-    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
   });
   try {
     return await Promise.race([response, aborted]);

@@ -64,6 +64,8 @@ const user = yield* query('user', {
 
 ## See Also
 
+- [Destruction and cleanup failures](/guide/reactivity/lifecycle) — all cleanups run before errors are reported
+
 - [craftComputed](/guide/reactivity/craft-computed)
 - [craftMethod](/guide/reactivity/craft-method)
 - [Local state](/guide/state/local-state) — deriving instead of writing from an effect

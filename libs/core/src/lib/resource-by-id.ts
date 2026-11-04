@@ -1,3 +1,4 @@
+import { runCraftCleanups } from './lifecycle';
 import {
   batch,
   inject,
@@ -197,8 +198,9 @@ export function resourceById<
     linkedParamsByGroup.delete(group);
   };
   const destroyAllLinkedParams = (): void => {
-    linkedParamsByGroup.forEach((linked) => linked.destroy());
+    const linked = [...linkedParamsByGroup.values()];
     linkedParamsByGroup.clear();
+    runCraftCleanups(linked.map((entry) => () => entry.destroy()));
   };
 
   const resourceEqualParams =
@@ -302,11 +304,14 @@ export function resourceById<
     // made of some ids already replaced and some not yet.
     reset: () =>
       batch(() => {
-        destroyAllLinkedParams();
-        Object.values(resourceByGroup()).forEach((resource) =>
-          (resource as CraftResourceRef<State, ResourceParams>).destroy(),
-        );
-        resourceByGroup.set({});
+        runCraftCleanups([
+          destroyAllLinkedParams,
+          ...Object.values(resourceByGroup()).map(
+            (resource) => () =>
+              (resource as CraftResourceRef<State, ResourceParams>).destroy(),
+          ),
+          () => resourceByGroup.set({}),
+        ]);
       }),
     resetResource: (id: GroupIdentifier) =>
       batch(() => {

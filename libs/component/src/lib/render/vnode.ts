@@ -964,7 +964,7 @@ export interface ForNode<
   readonly schedule?: Schedule;
   readonly itemTemplate: (
     item: InputValue<Item>,
-    index: number,
+    index: InputValue<number>,
   ) => ItemChildren;
   readonly pipe: ForNodePipe<
     Dependencies,

@@ -3,6 +3,7 @@ import { type Signal } from './host/craft-compat';
 import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { behaviorSubject, type Subscribable } from './stream-kernel';
 import { provideCraftDomEventHook } from './dom-event-hook';
+import { destroyCraftOwner } from './lifecycle';
 import {
   provideCraftHttpTrace,
   ɵinvokeCraftHttpTransport,
@@ -917,11 +918,16 @@ export function createSendContextSession(
         .join('\n');
     },
     destroy() {
-      restoreRandomRuntime?.();
-      restoreRandomRuntime = undefined;
-      for (const cleanup of cleanups.splice(0)) cleanup();
-      eventsSubject.complete();
-      snapshotSubject.complete();
+      destroyCraftOwner(session, [
+        () => {
+          const restore = restoreRandomRuntime;
+          restoreRandomRuntime = undefined;
+          restore?.();
+        },
+        ...cleanups.splice(0),
+        () => eventsSubject.complete(),
+        () => snapshotSubject.complete(),
+      ]);
     },
   };
   (session as SendContextSessionWithInternals).addCleanup = (cleanup) => {

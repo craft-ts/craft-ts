@@ -1404,3 +1404,43 @@ file before doing the full refactor.
 - [CLI automation](/guide/routing/automation) — the codemods they complement
 - [Architecture rules](/guide/testing/architecture) — graph-wide constraints ESLint cannot see
 - [Activating the style system](/guide/style/setup) — what the four style rules are guarding
+
+
+### Reactive `forNode` indexes
+
+`craft-ts/no-raw-for-index` is an error in both `recommended` and `effect`,
+including generated apps. The render callback receives a reader; calling it
+returns a generator. Neither is a scalar position.
+
+```ts
+// Rejected: these stringify a function or a generator.
+forNode(users, { track: user => user.id }, (user, index) =>
+  p(`${index}: ${String(index())}`),
+);
+
+// Accepted: the binding subscribes to the current position.
+forNode(users, { track: user => user.id }, (user, index) =>
+  p(function* () {
+    return `${(yield* index()) + 1}: ${(yield* user()).name}`;
+  }),
+);
+
+// Accepted: forward the reader to an Input<number>.
+forNode(users, { track: user => user.id }, (_user, index) =>
+  Row({ position: index }),
+);
+```
+
+The rule detects interpolation, explicit string/boolean/number coercion,
+boolean tests, scalar operators and `toString`/`valueOf` calls on the reader
+or its unconsumed generator. It follows actual Craft imports (including aliases
+and namespaces), local named callbacks and immutable local aliases, respecting
+shadowed variables and nested lists. Direct bindings, storing or forwarding the
+reader, and `yield* index()` remain valid. The numeric index of `track` is
+unaffected.
+
+This is local scope analysis without TypeScript services. It does not follow
+relative re-exports or imported callbacks, mutable aliases, values transported through object fields,
+or helper return values. TypeScript still checks incompatible scalar props and
+callback annotations. There is no autofix: choose the generator binding or
+action that should subscribe, then read `yield* index()` there.

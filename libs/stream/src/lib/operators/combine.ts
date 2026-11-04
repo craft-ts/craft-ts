@@ -1,4 +1,4 @@
-import type { Unsubscribable } from '@craft-ts/core';
+import { ɵrunCraftCleanups, type Unsubscribable } from '@craft-ts/core';
 import {
   createCraftStream,
   createSink,
@@ -35,7 +35,11 @@ export function subscribeAll(
   return {
     unsubscribe() {
       stopped = true;
-      for (const subscription of subscriptions) subscription.unsubscribe();
+      ɵrunCraftCleanups(
+        subscriptions
+          .splice(0)
+          .map((subscription) => () => subscription.unsubscribe()),
+      );
     },
   };
 }
@@ -220,9 +224,11 @@ export function race<const S extends readonly AnyCraftStream[]>(
     const claim = (position: number): boolean => {
       if (winner === -1) {
         winner = position;
-        subscriptions.forEach((subscription, i) => {
-          if (i !== position) subscription.unsubscribe();
-        });
+        ɵrunCraftCleanups(
+          subscriptions
+            .filter((_subscription, i) => i !== position)
+            .map((subscription) => () => subscription.unsubscribe()),
+        );
       }
       return winner === position;
     };
@@ -252,7 +258,11 @@ export function race<const S extends readonly AnyCraftStream[]>(
 
     return {
       unsubscribe() {
-        for (const subscription of subscriptions) subscription.unsubscribe();
+        ɵrunCraftCleanups(
+          subscriptions
+            .splice(0)
+            .map((subscription) => () => subscription.unsubscribe()),
+        );
       },
     };
   }) as never;

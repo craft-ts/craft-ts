@@ -1,3 +1,4 @@
+import { createCraftCleanup, runCraftCleanups } from './lifecycle';
 import {
   craftNodeDirective,
   type CraftNodeDirective,
@@ -163,12 +164,17 @@ export function drag(
     ];
     context.element.addEventListener('click', onClick, true);
 
-    return () => {
-      if (active) clearPointer(context.element, active.pointerId);
-      active = undefined;
-      unlisten.forEach((cleanup) => cleanup());
-      context.element.removeEventListener('click', onClick, true);
-    };
+    return createCraftCleanup([
+      () => {
+        try {
+          if (active) clearPointer(context.element, active.pointerId);
+        } finally {
+          active = undefined;
+        }
+      },
+      () => runCraftCleanups(unlisten.splice(0)),
+      () => context.element.removeEventListener('click', onClick, true),
+    ]);
   });
 }
 
@@ -266,12 +272,17 @@ export function swipe(
     ];
     context.element.addEventListener('click', onClick, true);
 
-    return () => {
-      if (active) clearPointer(context.element, active.pointerId);
-      active = undefined;
-      unlisten.forEach((cleanup) => cleanup());
-      context.element.removeEventListener('click', onClick, true);
-    };
+    return createCraftCleanup([
+      () => {
+        try {
+          if (active) clearPointer(context.element, active.pointerId);
+        } finally {
+          active = undefined;
+        }
+      },
+      () => runCraftCleanups(unlisten.splice(0)),
+      () => context.element.removeEventListener('click', onClick, true),
+    ]);
   });
 }
 

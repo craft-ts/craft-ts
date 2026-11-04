@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CraftTS performance smoke</title>
+    <style>
+      body {
+        font: 16px system-ui;
+        max-width: 960px;
+        margin: 32px auto;
+        padding: 0 16px;
+      }
+      button {
+        margin: 8px;
+        padding: 8px;
+      }
+      [data-row] {
+        padding: 2px 8px;
+        border-bottom: 1px solid #ddd;
+      }
+    </style>
+    <script>
+      window.__smoke = {
+        renders: 0,
+        rowTemplates: 0,
+        itemBindings: 0,
+        indexBindings: 0,
+        longTasks: [],
+      };
+      new PerformanceObserver((list) => {
+        window.__smoke.longTasks.push(
+          ...list
+            .getEntries()
+            .map((e) => ({ start: e.startTime, duration: e.duration })),
+        );
+      }).observe({ type: 'longtask', buffered: true });
+    </script>
+  </head>
+  <body>
+    <craft-root></craft-root>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

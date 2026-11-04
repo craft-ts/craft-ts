@@ -62,9 +62,17 @@ it('exposes scheduleFor only on each nodes and preserves item/index types', () =
     [{ id: 1 }],
     { track: (item) => item.id },
     (item, index) => {
-      expectTypeOf(index).toEqualTypeOf<number>();
+      expectTypeOf(index).toEqualTypeOf<InputValue<number>>();
+      if (false) {
+        // @ts-expect-error The index reader is not a scalar.
+        const _incremented = index + 1;
+        // @ts-expect-error A scalar prop cannot receive the reader.
+        const _position: number = index;
+      }
       return span(function* () {
-        return String((yield* item()).id);
+        const position = yield* index();
+        expectTypeOf(position).toEqualTypeOf<number>();
+        return `${position}:${(yield* item()).id}`;
       });
     },
   ).pipe(scheduleFor({ enabled: true, strategy: 'frame' }));
@@ -83,6 +91,7 @@ import type {
   HostRequiredLogic,
   HostTemplate,
   Input,
+  InputValue,
   Output,
   ProjectionContractOf,
   ProjectionOf,
@@ -2020,10 +2029,13 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
         span(
           'itemLabel',
           {
-            'aria-label': items.selectItem(index)?.translatedLabel,
+            'aria-label': function* () {
+              const label = items.selectItem(yield* index())?.translatedLabel;
+              return label ? yield* label() : '';
+            },
           },
           function* () {
-            const label = items.selectItem(index)?.translatedLabel;
+            const label = items.selectItem(yield* index())?.translatedLabel;
             return label ? yield* label() : '';
           },
         ),
@@ -2146,4 +2158,19 @@ it('accepts nullable each sources', () => {
       return (yield* item()).key;
     }),
   );
+});
+
+it('rejects numeric render callbacks and accepts reactive component inputs', () => {
+  const Row = craftComponent('indexTypeContractRow', {}, (inputs: { position: Input<number> }) =>
+    p(function* () { return String(yield* inputs.position()); }),
+  );
+  forNode([1], { track: (value, index) => {
+    expectTypeOf(index).toEqualTypeOf<number>();
+    return value;
+  } }, (_item, index) => Row({ position: index }));
+  forNode([1], { track: value => value }, () => p('ignored'));
+  if (false) {
+    // @ts-expect-error The render callback receives a reader, never a number.
+    forNode([1], { track: value => value }, (_item, index: number) => p(String(index)));
+  }
 });

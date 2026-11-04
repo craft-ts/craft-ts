@@ -250,3 +250,17 @@ the DOM they served.
 Continue with [Components](/guide/components/) for the complete
 `craftComponent` model or [Observability](/guide/advanced/observability) to
 inspect rendering and correlated interactions.
+
+
+### List index dependencies
+
+`forNode` passes two readers to its render callback: the item and its numeric
+position. Read the position with `yield* index()` inside the exact text,
+attribute or event generator that consumes it. On a keyed move, only those
+bindings update; item-only bindings and child instances stay in place.
+Passing `index` to an `Input<number>` preserves that reactive dependency in a
+child. If the row callback itself reads the position, that callback depends on
+the index and reruns when it changes. Keep reads inside bindings when only a
+small part of the row uses the position.
+
+<<< @/tests/snippets/guide/components/index/reactive-index.spec.ts#reactive-index-input

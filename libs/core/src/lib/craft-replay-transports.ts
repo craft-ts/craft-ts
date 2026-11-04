@@ -1,3 +1,4 @@
+import { runCraftCleanups } from './lifecycle';
 import {
   Injector,
   runInInjectionContext,
@@ -330,7 +331,7 @@ export function connectCraftReplayTransportCapture(
   }
   installCoverageCapture(session, definitions, cleanups);
   return () => {
-    for (const cleanup of cleanups.reverse()) cleanup();
+    runCraftCleanups(cleanups.splice(0).reverse());
   };
 }
 

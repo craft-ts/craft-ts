@@ -1,4 +1,5 @@
 import { subject, type Subject } from '@craft-ts/core';
+import { ɵrunCraftCleanups } from '@craft-ts/core';
 import {
   createCraftStream,
   createSink,
@@ -96,7 +97,9 @@ export function groupBy<A, K>(
     createCraftStream<unknown, unknown>((context, sink) => {
       const groups = new Map<K, Subject<A, unknown>>();
       const each = (fn: (group: Subject<A, unknown>) => void) => {
-        for (const group of [...groups.values()]) fn(group);
+        ɵrunCraftCleanups(
+          Array.from(groups.values(), (group) => () => fn(group)),
+        );
       };
 
       return source[STREAM_RUN](
@@ -123,16 +126,22 @@ export function groupBy<A, K>(
             group.next(value as A);
           },
           exception: (exception) => {
-            each((group) => group.exception(exception));
-            sink.exception(exception);
+            ɵrunCraftCleanups([
+              () => each((group) => group.exception(exception)),
+              () => sink.exception(exception),
+            ]);
           },
           error: (error) => {
-            each((group) => group.error(error));
-            sink.error(error);
+            ɵrunCraftCleanups([
+              () => each((group) => group.error(error)),
+              () => sink.error(error),
+            ]);
           },
           complete: () => {
-            each((group) => group.complete());
-            sink.complete();
+            ɵrunCraftCleanups([
+              () => each((group) => group.complete()),
+              () => sink.complete(),
+            ]);
           },
         }),
       );

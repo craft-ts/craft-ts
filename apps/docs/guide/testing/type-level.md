@@ -355,8 +355,14 @@ const ItemList = craftComponent('ItemList', {}, function* () {
   return forNode(items, { track: (item) => item.key }, (_item, index) =>
     span(
       'itemLabel',
-      { 'aria-label': items.selectItem(index)?.translatedLabel },
-      () => items.selectItem(index)?.translatedLabel() ?? '',
+      { 'aria-label': function* () {
+        const label = items.selectItem(yield* index())?.translatedLabel;
+        return label ? yield* label() : '';
+      } },
+      function* () {
+        const label = items.selectItem(yield* index())?.translatedLabel;
+        return label ? yield* label() : '';
+      },
     ),
   );
 });

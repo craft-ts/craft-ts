@@ -1,5 +1,6 @@
 import { runInInjectionContext, type Injector } from './host-runtime';
 import {
+  ɵdestroyCraftOwner,
   type CraftServiceProvider,
   type CraftTemporalRuntime,
   type TemporalTaskHandle,
@@ -93,9 +94,12 @@ const forSchedulerService = ɵcraftValueService(
   FOR_SCHEDULER_META_DATA: { inject(): ForScheduler };
 };
 export const ForScheduler = forSchedulerService.ForScheduler;
-export const provideForScheduler = (value: ForScheduler): CraftServiceProvider =>
-  forSchedulerService.provideForScheduler(value);
-export const ɵinjectForSchedulerIn = (injector: Injector): ForScheduler | null => {
+export const provideForScheduler = (
+  value: ForScheduler,
+): CraftServiceProvider => forSchedulerService.provideForScheduler(value);
+export const ɵinjectForSchedulerIn = (
+  injector: Injector,
+): ForScheduler | null => {
   try {
     return runInInjectionContext(injector, () =>
       forSchedulerService.FOR_SCHEDULER_META_DATA.inject(),
@@ -144,11 +148,16 @@ export class FrameForScheduler implements ForScheduler {
 
   destroy(): void {
     this.destroyed = true;
-    this.queue.length = 0;
-    if (this.frame !== undefined) {
-      this.cancelFrame(this.frame);
-      this.frame = undefined;
-    }
+    ɵdestroyCraftOwner(this, [
+      () => {
+        this.queue.length = 0;
+      },
+      () => {
+        const frame = this.frame;
+        this.frame = undefined;
+        if (frame !== undefined) this.cancelFrame(frame);
+      },
+    ]);
   }
 
   private requestFrame(): void {
@@ -207,7 +216,9 @@ export function createForScheduler(
   return temporalRuntime
     ? new TemporalForScheduler(
         policy.frameBudgetMs,
-        typeof temporalRuntime === 'function' ? temporalRuntime : () => temporalRuntime,
+        typeof temporalRuntime === 'function'
+          ? temporalRuntime
+          : () => temporalRuntime,
       )
     : new FrameForScheduler(policy.frameBudgetMs);
 }
@@ -236,30 +247,45 @@ class TemporalForScheduler implements ForScheduler {
     const queued: QueuedTask = { task, cancelled: false };
     this.queue.push(queued);
     this.requestSlice();
-    return { cancel: () => { queued.cancelled = true; } };
+    return {
+      cancel: () => {
+        queued.cancelled = true;
+      },
+    };
   }
 
   destroy(): void {
     this.destroyed = true;
-    this.removeOverrideListener();
-    this.queue.length = 0;
-    this.timer?.cancel();
-    this.timer = undefined;
+    ɵdestroyCraftOwner(this, [
+      () => this.removeOverrideListener(),
+      () => {
+        this.queue.length = 0;
+      },
+      () => {
+        const timer = this.timer;
+        this.timer = undefined;
+        timer?.cancel();
+      },
+    ]);
   }
 
   private requestSlice(): void {
     if (this.timer || this.destroyed || !this.queue.length) return;
     const clock = this.getClock();
-    this.timer = clock.schedule(() => {
-      this.timer = undefined;
-      const started = clock.now();
-      while (this.queue.length) {
-        const queued = this.queue.shift();
-        if (queued && !queued.cancelled) queued.task();
-        if (clock.now() - started >= this.frameBudgetMs) break;
-      }
-      this.requestSlice();
-    }, 16, { kind: 'scheduleFor-frame', owner: 'scheduleFor' });
+    this.timer = clock.schedule(
+      () => {
+        this.timer = undefined;
+        const started = clock.now();
+        while (this.queue.length) {
+          const queued = this.queue.shift();
+          if (queued && !queued.cancelled) queued.task();
+          if (clock.now() - started >= this.frameBudgetMs) break;
+        }
+        this.requestSlice();
+      },
+      16,
+      { kind: 'scheduleFor-frame', owner: 'scheduleFor' },
+    );
   }
 }
 

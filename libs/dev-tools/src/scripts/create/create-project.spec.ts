@@ -1440,3 +1440,20 @@ describe('parseCreateAgents', () => {
     expect(parseCreateAgents('none')).toEqual([]);
   });
 });
+
+it.each(['plain', 'effect'] as const)(
+  'enables reactive forNode index checks in generated %s apps',
+  async (mode) => {
+    const result = await createFixture(mode);
+    const config = await readFile(
+      join(result.directory, 'eslint.config.mjs'),
+      'utf8',
+    );
+    const preset = mode === 'effect' ? 'effect' : 'recommended';
+    expect(config).toContain(`craftRules.configs.${preset}.rules`);
+    const rules = require('../../eslint-rules/index.cjs');
+    expect(rules.configs[preset].rules['craft-ts/no-raw-for-index']).toBe(
+      'error',
+    );
+  },
+);

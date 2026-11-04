@@ -399,10 +399,10 @@ export const ReviewQueuePanel = craftComponent(
                   type: 'button',
                   class: shell.queueItem,
                   'aria-current': function* () {
-                    return String(index === (yield* activeIndex()));
+                    return String((yield* index()) === (yield* activeIndex()));
                   },
                   *click() {
-                    selectCard(index);
+                    selectCard(yield* index());
                   },
                 },
                 [
@@ -450,7 +450,7 @@ export const ReviewQueuePanel = craftComponent(
                       },
                       [
                         strong({ class: shell.historyTitle }, function* () {
-                          return `${index + 1}. ${scenarioOf(yield* entry.cardSubject())}`;
+                          return `${(yield* index()) + 1}. ${scenarioOf(yield* entry.cardSubject())}`;
                         }),
                         small({ class: shell.historyVerdict }, function* () {
                           return (yield* t()).previousVerdict(

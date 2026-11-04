@@ -1,5 +1,11 @@
 import { inject, InjectionToken, Injector } from './host/craft-compat';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  getRegisteredServices,
+  getServiceMetaData,
+  SERVICE_RUNTIME_OVERRIDES,
+  ɵgetServiceInjectionToken,
+} from './craft-service';
 import {
   executeTemplateTrace,
   provideTemplateTrace,
@@ -15,6 +21,174 @@ describe('template trace', () => {
     name: 'template',
     renderCount: 1,
   };
+
+  it('renders without constructing missing-provider errors when no traces are provided', () => {
+    const injector = Injector.create({ providers: [] }).createChild([]);
+    const missingErrors: string[] = [];
+    const NativeError = Error;
+    vi.stubGlobal(
+      'Error',
+      new Proxy(NativeError, {
+        construct(target, args) {
+          if (
+            String(args[0]).includes(
+              'No provider for Craft token "TemplateTracesServiceToken"',
+            )
+          ) {
+            missingErrors.push(String(args[0]));
+          }
+          return Reflect.construct(target, args);
+        },
+      }),
+    );
+    try {
+      expect(
+        executeTemplateTrace(injector, context, () => ['rendered']),
+      ).toEqual(['rendered']);
+      expect(missingErrors).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+      injector.destroy();
+    }
+  });
+
+  it('inherits application wrappers and runs every wrapper in the render context', () => {
+    const marker = new InjectionToken<string>('trace-inherited-marker');
+    const events: string[] = [];
+    const application = Injector.create({
+      providers: [
+        { provide: marker, useValue: 'application' },
+        provideTemplateTrace((_trace, next) => {
+          events.push(`application:before:${inject(marker)}`);
+          const result = next();
+          events.push(`application:after:${inject(marker)}`);
+          return result;
+        }),
+      ],
+    });
+    const component = Injector.create({
+      parent: application,
+      providers: [
+        { provide: marker, useValue: 'component' },
+        provideTemplateTrace((_trace, next) => {
+          events.push(`component:before:${inject(marker)}`);
+          const result = next();
+          events.push(`component:after:${inject(marker)}`);
+          return result;
+        }),
+      ],
+    });
+    expect(
+      executeTemplateTrace(component, context, () => ['rendered']),
+    ).toEqual(['rendered']);
+    expect(events).toEqual([
+      'application:before:component',
+      'component:before:component',
+      'component:after:component',
+      'application:after:component',
+    ]);
+    application.destroy();
+  });
+
+  it('uses current service overrides even after an absent lookup', () => {
+    const overrides = new Map();
+    const injector = Injector.create({
+      providers: [{ provide: SERVICE_RUNTIME_OVERRIDES, useValue: overrides }],
+    });
+    const events: string[] = [];
+    expect(executeTemplateTrace(injector, context, () => ['rendered'])).toEqual(
+      ['rendered'],
+    );
+    overrides.set('TemplateTraces', {
+      kind: 'useValue',
+      value: [
+        (_trace: TemplateTraceContext, next: () => unknown) => {
+          events.push('override');
+          return next();
+        },
+      ],
+    });
+    executeTemplateTrace(injector, context, () => []);
+    expect(events).toEqual(['override']);
+    overrides.delete('TemplateTraces');
+    executeTemplateTrace(injector, context, () => []);
+    expect(events).toEqual(['override']);
+    injector.destroy();
+  });
+
+  it('propagates a forbidden trace override instead of treating it as absent', () => {
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: SERVICE_RUNTIME_OVERRIDES,
+          useValue: new Map([['TemplateTraces', { kind: 'notReached' }]]),
+        },
+      ],
+    });
+    expect(() => executeTemplateTrace(injector, context, () => [])).toThrow(
+      'Craft service "TemplateTraces" was registered as notReached but was resolved.',
+    );
+    injector.destroy();
+  });
+
+  it('preserves the original trace provider error through inherited resolution', () => {
+    const reference = getRegisteredServices().find(
+      (service) => getServiceMetaData(service).name === 'TemplateTraces',
+    )!;
+    const token = ɵgetServiceInjectionToken(reference)!;
+    const failure = new Error('trace provider failed');
+    const application = Injector.create({
+      providers: [
+        {
+          provide: token,
+          useFactory: () => {
+            throw failure;
+          },
+        },
+      ],
+    });
+    const component = application.createChild([]);
+    expect(() => executeTemplateTrace(component, context, () => [])).toThrow(
+      failure,
+    );
+    application.destroy();
+  });
+
+  it('does not resolve traces at all in production', () => {
+    const reference = getRegisteredServices().find(
+      (service) => getServiceMetaData(service).name === 'TemplateTraces',
+    )!;
+    const token = ɵgetServiceInjectionToken(reference)!;
+    const resolveTraces = vi.fn(() => {
+      throw new Error('must not resolve trace providers');
+    });
+    const injector = Injector.create({
+      providers: [
+        provideCraftProduction(),
+        { provide: token, useFactory: resolveTraces },
+      ],
+    });
+    expect(
+      executeTemplateTrace(injector, context, () => ['production']),
+    ).toEqual(['production']);
+    expect(resolveTraces).not.toHaveBeenCalled();
+    injector.destroy();
+  });
+
+  it('propagates the original wrapper error', () => {
+    const failure = new Error('wrapper failed');
+    const injector = Injector.create({
+      providers: [
+        provideTemplateTrace(() => {
+          throw failure;
+        }),
+      ],
+    });
+    expect(() => executeTemplateTrace(injector, context, () => [])).toThrow(
+      failure,
+    );
+    injector.destroy();
+  });
 
   it('composes wrappers in registration order and preserves their injector', () => {
     const marker = new InjectionToken<string>('template-trace-marker');

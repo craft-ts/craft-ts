@@ -1,4 +1,5 @@
 import {
+  ɵrunCraftCleanups,
   DestroyRef,
   craftSignal,
   ɵHOST_TAG_LIST as HOST_TAG_LIST,
@@ -112,8 +113,9 @@ export function streamSignal<const Name extends string, A, Y>(
   let subscription: { unsubscribe(): void } | undefined;
 
   const stop = () => {
-    subscription?.unsubscribe();
+    const current = subscription;
     subscription = undefined;
+    current?.unsubscribe();
   };
 
   const start = () => {
@@ -171,8 +173,7 @@ export function streamSignal<const Name extends string, A, Y>(
     error: error.asReadonly() as Signal<unknown>,
     start,
     stop: () => {
-      stop();
-      status.set('idle');
+      ɵrunCraftCleanups([stop, () => status.set('idle')]);
     },
   };
 

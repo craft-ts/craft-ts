@@ -5,13 +5,11 @@ import {
   inject,
   Injector,
   runInInjectionContext,
-  signal,
-  untracked,
   type CreateEffectOptions,
   type EffectCleanupRegisterFn,
   type EffectRef,
 } from './host/craft-compat';
-import { craftWatch } from './host/craft-signal';
+import { runCraftCleanups } from './lifecycle';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -86,7 +84,8 @@ export function craftEffect(
     | ((this: unknown, onCleanup: EffectCleanupRegisterFn) => void)
     | CraftEffectGenerator<unknown, unknown>;
   const options = (hasHost ? maybeOptions : fnOrOptions) as
-    CreateEffectOptions | undefined;
+    | CreateEffectOptions
+    | undefined;
 
   assertInInjectionContext(craftEffect);
   const parentInjector = inject(Injector);
@@ -126,57 +125,43 @@ export function craftEffect(
       : (plainFn as CraftEffectFn);
   }
 
-  const craftInvalidation = signal(0);
-  let craftRef: { destroy(): void } | undefined;
   let destroyed = false;
-  const effectRef = effect(
-    () => {
-      craftInvalidation();
-      craftRef?.destroy();
-      let initialRun = true;
-      craftRef = craftWatch(() => {
-        if (initialRun) {
-          const cleanups: (() => void)[] = [];
-          effectBody((cleanup) => cleanups.push(cleanup));
-          return cleanups.length === 0
-            ? undefined
-            : () => {
-                for (const cleanup of cleanups) cleanup();
-              };
-        }
-        untracked(() => craftInvalidation.update((revision) => revision + 1));
-        return undefined;
-      });
-      initialRun = false;
-    },
-    {
-      ...options,
-      injector: ownerInjector,
-      manualCleanup: true,
-    },
-  );
+  let unregisterOwner: (() => void) | undefined;
+  let unregisterReport: (() => void) | undefined;
+  // Host and Craft signals share the same reactive kernel. A second watch
+  // relaying through an invalidation signal recursively flushes the remaining
+  // queue for every batched consumer (and overflows on large keyed lists).
+  // The host effect already owns dependency retracking and all run cleanups.
+  const effectRef = effect(effectBody, {
+    ...options,
+    injector: ownerInjector,
+    manualCleanup: true,
+  });
   const ref = {
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
-      effectRef.destroy();
-      craftRef?.destroy();
+      runCraftCleanups([
+        () => unregisterOwner?.(),
+        () => unregisterReport?.(),
+        () => effectRef.destroy(),
+        () => {
+          if (effectInjector !== ownerInjector) effectInjector.destroy();
+        },
+      ]);
     },
   } as EffectRef;
   if (!options?.manualCleanup) {
-    ownerDestroyRef.onDestroy(() => ref.destroy());
+    unregisterOwner = ownerDestroyRef.onDestroy(() => ref.destroy());
   }
 
   const registry = ɵinjectAppSnapshotRegistryIn(ownerInjector);
   if (registry) {
     const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    registry.registerActiveEffectReader(
-      () => ({
-        source: `effect:${name}`,
-        from,
-      }),
-      ownerDestroyRef,
-    );
+    unregisterReport = registry.registerActiveEffectReader(() => ({
+      source: `effect:${name}`,
+      from,
+    }));
   }
 
   return createNamedPrimitiveGen(name, ref, { markMembers: false });

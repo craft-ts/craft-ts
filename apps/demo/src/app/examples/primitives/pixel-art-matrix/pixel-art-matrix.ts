@@ -159,18 +159,18 @@ const PixelArtMatrix = craftComponent(
                     return assign(pixelVars.fill, pixelColor((yield* cell()).color));
                   },
                   'aria-label': function* () {
-                    return `Cell ${rowIndex + 1}, ${columnIndex + 1}`;
+                    return `Cell ${(yield* rowIndex()) + 1}, ${(yield* columnIndex()) + 1}`;
                   },
                   longPressDuration: LONG_PRESS_DURATION_MS,
                   *onLongPress() {
-                    yield* PixelArtMatrixView.grid.paintColumn(columnIndex, (yield* cell()).color);
+                    yield* PixelArtMatrixView.grid.paintColumn(yield* columnIndex(), (yield* cell()).color);
                   },
                   *click() {
-                    yield* PixelArtMatrixView.grid.paint(rowIndex, columnIndex);
+                    yield* PixelArtMatrixView.grid.paint(yield* rowIndex(), yield* columnIndex());
                   },
                   *contextmenu(event: MouseEvent) {
                     event.preventDefault();
-                    yield* PixelArtMatrixView.grid.paintRow(rowIndex, (yield* cell()).color);
+                    yield* PixelArtMatrixView.grid.paintRow(yield* rowIndex(), (yield* cell()).color);
                   },
                 }).pipe(longPress),
               ),
@@ -178,7 +178,7 @@ const PixelArtMatrix = craftComponent(
                 { type: 'button',
                   class: pixel.addCell,
                   *click() {
-                    yield* PixelArtMatrixView.grid.addCell(rowIndex);
+                    yield* PixelArtMatrixView.grid.addCell(yield* rowIndex());
                   },
                 },
                 '+',

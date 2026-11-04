@@ -205,3 +205,27 @@ with `.pipe(catchNode.exhaustive(...))` — see
 - [Directives and `.pipe(...)`](/guide/components/directives)
 - [Accessibility](/guide/components/accessibility)
 - [Testing components](/guide/testing/components)
+
+
+### Reactive list positions
+
+The render callback's second argument is a read-only `InputValue<number>`.
+Read it in the binding or action that needs the current position:
+
+<<< @/tests/snippets/guide/components/index/reactive-index.spec.ts#reactive-index
+
+Pass the reader directly to a child input, for example `Row({ position: index })`
+when `Row` declares `position: Input<number>`. Its identity stays stable for the
+lifetime of the key. `renderTemplate(row, { index })` also accepts the reader;
+it resolves that context field reactively before calling the template.
+
+Reordering moves existing DOM and updates index consumers. A row template that
+does not read its index does not rerun solely because its position changed.
+An item replacement or a changed render callback still updates the row.
+
+The `track(item, index)` callback continues to receive a plain numeric index.
+Use a stable item key such as `user.id` for reorderable lists. There is no
+numeric render-callback overload: replace `index + 1` with
+`(yield* index()) + 1` inside a generator binding. Interpolation of the reader
+(`String(index)` or `` `${index}` ``) is rejected by
+[`craft-ts/no-raw-for-index`](/guide/routing/eslint-rules#reactive-fornode-indexes).

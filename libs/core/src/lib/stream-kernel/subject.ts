@@ -1,4 +1,5 @@
 import { craftSignal, type CraftSignal } from '../host/craft-signal';
+import { runCraftCleanups } from '../lifecycle';
 import {
   notifyException,
   type Observer,
@@ -132,9 +133,11 @@ class SubjectImpl<T, E> implements Subject<T, E> {
     this.terminal = terminal;
     const observers = this.observers;
     this.observers = [];
-    for (const observer of observers) {
-      this.deliverTerminal(observer, terminal);
-    }
+    runCraftCleanups(
+      observers.map(
+        (observer) => () => this.deliverTerminal(observer, terminal),
+      ),
+    );
   }
 
   private deliverTerminal(

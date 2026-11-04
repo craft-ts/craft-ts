@@ -47,3 +47,12 @@ describe('template dependency carriers', () => {
     expect(true).toBe(true);
   });
 });
+
+import type { ForNode } from './vnode';
+import type { InputValue } from '../types';
+type _ForRenderIndexIsReader = Expect<
+  Equal<Parameters<ForNode['itemTemplate']>[1], InputValue<number>>
+>;
+type _ForTrackIndexIsNumber = Expect<
+  Equal<Parameters<ForNode['track']>[1], number>
+>;

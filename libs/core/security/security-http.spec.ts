@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createHttpServer,
   createSecurityMiddleware,
@@ -28,6 +28,202 @@ function mutation(
 }
 
 describe('HTTP security guards', () => {
+  it.each<Record<string, string>>([
+    { cookie: 'sid=1' },
+    { cookie: 'sid=1', 'sec-fetch-site': 'cross-site' },
+    { cookie: 'sid=1', 'sec-fetch-site': 'same-site' },
+  ])(
+    'rejects unsafe cookie mutations before resolving identity: %j',
+    async (headers) => {
+      const user = vi.fn(() => ({ id: 'ada' }));
+      const handler = vi.fn(() => new Response('mutated'));
+      const server = createHttpServer({ logger: silentLogger, user, handler });
+
+      const response = await server.handle(mutation('/plain', headers));
+
+      expect(response.status).toBe(403);
+      expect(user).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each<Record<string, string>>([
+    {},
+    { origin: 'https://app.test', cookie: 'sid=1' },
+    { 'sec-fetch-site': 'same-origin', cookie: 'sid=1' },
+  ])(
+    'accepts a trusted mutation or a client without cookies: %j',
+    async (headers) => {
+      const server = createHttpServer({
+        logger: silentLogger,
+        handler: () => new Response('ok'),
+      });
+      const response = await server.handle(
+        new Request('https://app.test/plain', {
+          method: 'POST',
+          headers,
+        }),
+      );
+      expect(response.status).toBe(200);
+    },
+  );
+
+  it('accepts an explicitly allowed cross-origin mutation on a csrf route', async () => {
+    const server = createHttpServer({
+      logger: silentLogger,
+      allowedOrigins: ['https://client.test'],
+      routes: [
+        {
+          method: 'POST',
+          path: '/transfer',
+          csrf: true,
+          handler: () => new Response('ok'),
+        },
+      ],
+    });
+    const response = await server.handle(
+      mutation('/transfer', {
+        origin: 'https://client.test',
+        'sec-fetch-site': 'cross-site',
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('access-control-allow-origin')).toBe(
+      'https://client.test',
+    );
+  });
+
+  it('keeps csrf off as an explicit opt-out', async () => {
+    const server = createHttpServer({
+      logger: silentLogger,
+      csrf: 'off',
+      handler: () => new Response('ok'),
+    });
+    expect(
+      (
+        await server.handle(
+          mutation('/plain', { 'sec-fetch-site': 'cross-site' }),
+        )
+      ).status,
+    ).toBe(200);
+  });
+
+  it.each([undefined, '1'])(
+    'bounds the actual streaming body despite Content-Length: %s',
+    async (contentLength) => {
+      const user = vi.fn(() => ({ id: 'ada' }));
+      const handler = vi.fn(() => new Response('ok'));
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          controller.enqueue(new TextEncoder().encode('abc'));
+        },
+        cancel,
+      });
+      const server = createHttpServer({
+        logger: silentLogger,
+        maxBodyBytes: 4,
+        user,
+        handler,
+      });
+      const response = await server.handle(
+        new Request('https://app.test/upload', {
+          method: 'POST',
+          body,
+          ...(contentLength === undefined
+            ? {}
+            : { headers: { 'content-length': contentLength } }),
+          duplex: 'half',
+        } as RequestInit),
+      );
+
+      expect(response.status).toBe(413);
+      expect(user).not.toHaveBeenCalled();
+      expect(handler).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(cancel).toHaveBeenCalled());
+    },
+  );
+
+  it('counts UTF-8 bytes and preserves an accepted body for downstream readers', async () => {
+    const handler = vi.fn(
+      async (request: Request) => new Response(await request.text()),
+    );
+    const server = createHttpServer({
+      logger: silentLogger,
+      maxBodyBytes: 4,
+      handler,
+    });
+    const accepted = await server.handle(
+      new Request('https://app.test/upload', { method: 'POST', body: 'éé' }),
+    );
+    expect(accepted.status).toBe(200);
+    expect(await accepted.text()).toBe('éé');
+    const rejected = await server.handle(
+      new Request('https://app.test/upload', { method: 'POST', body: 'ééé' }),
+    );
+    expect(rejected.status).toBe(413);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('times out a stalled upload and cancels it before resolving identity', async () => {
+    const user = vi.fn(() => ({ id: 'ada' }));
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ cancel });
+    const server = createHttpServer({
+      logger: silentLogger,
+      timeoutMs: 5,
+      user,
+      handler: () => new Response('ok'),
+    });
+    const response = await server.handle(
+      new Request('https://app.test/upload', {
+        method: 'POST',
+        body,
+        duplex: 'half',
+      } as RequestInit),
+    );
+    expect(response.status).toBe(504);
+    expect(user).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalled());
+  });
+
+  it.each(['resolve', 'reject'])(
+    'keeps timed-out work in its concurrency slot until it settles: %s',
+    async (settlement) => {
+      let release!: () => void;
+      const pending = new Promise<void>((resolve, reject) => {
+        release = () =>
+          settlement === 'resolve'
+            ? resolve()
+            : reject(new Error('late failure'));
+      });
+      const server = createHttpServer({
+        logger: silentLogger,
+        timeoutMs: 5,
+        maxConcurrentRequests: 1,
+        handler: async () => {
+          await pending;
+          return new Response('late');
+        },
+      });
+      try {
+        expect(
+          (await server.handle(new Request('https://app.test/slow'))).status,
+        ).toBe(504);
+        expect(
+          (await server.handle(new Request('https://app.test/slow'))).status,
+        ).toBe(503);
+      } finally {
+        release();
+      }
+      await vi.waitFor(async () => {
+        expect(
+          (await server.handle(new Request('https://app.test/slow'))).status,
+        ).toBe(settlement === 'resolve' ? 200 : 500);
+      });
+    },
+  );
+
   it('rejects a cross-origin mutation on a csrf route', async () => {
     let called = false;
     const server = createHttpServer({
@@ -80,9 +276,7 @@ describe('HTTP security guards', () => {
     const server = createHttpServer({
       logger: silentLogger,
       trustedHosts: ['app.test'],
-      routes: [
-        { method: 'GET', path: '/', handler: () => new Response('ok') },
-      ],
+      routes: [{ method: 'GET', path: '/', handler: () => new Response('ok') }],
     });
     const spoofed = await server.handle(new Request('https://evil.test/'));
     expect(spoofed.status).toBe(400);
@@ -132,10 +326,16 @@ describe('HTTP security guards', () => {
     const server = createHttpServer({
       logger: silentLogger,
       routes: [
-        { method: 'GET', path: '/files/:name', handler: () => new Response('ok') },
+        {
+          method: 'GET',
+          path: '/files/:name',
+          handler: () => new Response('ok'),
+        },
       ],
     });
-    const response = await server.handle(new Request('https://app.test/files/%zz'));
+    const response = await server.handle(
+      new Request('https://app.test/files/%zz'),
+    );
     expect(response.status).toBe(400);
   });
 
@@ -150,11 +350,15 @@ describe('HTTP security guards', () => {
     expect(policy).toMatch(/style-src 'self' 'nonce-[A-Za-z0-9+/_-]+'/);
     expect(policy).not.toContain('unsafe-inline');
     expect(policy).toContain("form-action 'self'");
-    expect(response.headers.get('cross-origin-opener-policy')).toBe('same-origin');
+    expect(response.headers.get('cross-origin-opener-policy')).toBe(
+      'same-origin',
+    );
   });
 
   it('keeps unsafe-inline only when no nonce is used', () => {
-    expect(contentSecurityPolicy()).toContain("style-src 'self' 'unsafe-inline'");
+    expect(contentSecurityPolicy()).toContain(
+      "style-src 'self' 'unsafe-inline'",
+    );
     expect(contentSecurityPolicy('abc')).toContain("'nonce-abc'");
   });
 

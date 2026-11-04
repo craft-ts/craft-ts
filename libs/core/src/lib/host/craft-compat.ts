@@ -3,6 +3,7 @@ import {
   isObservableLike,
   type Subscribable,
 } from '../stream-kernel/subscribable';
+import { runCraftCleanups } from '../lifecycle';
 import {
   createCraftInjector,
   getCurrentCraftInjector,
@@ -225,10 +226,7 @@ export function ɵdestroyCraftDestroyRef(ref: DestroyRef): void {
     return;
   }
   state.closed = true;
-  for (const callback of [...state.callbacks]) {
-    callback();
-  }
-  state.callbacks.length = 0;
+  runCraftCleanups(state.callbacks.splice(0));
 }
 
 const INJECTOR_TOKEN = new InjectionToken<CraftInjector>('Injector');
@@ -540,9 +538,9 @@ export function toCraftProviders(
     const factory = provider.useFactory ?? (() => undefined);
     const deps = provider.deps ?? [];
     return {
-        token,
-        multi,
-        collection,
+      token,
+      multi,
+      collection,
       useFactory: (injector) =>
         injector.run(() =>
           factory(...deps.map((dep) => injector.get(dep as object))),
@@ -691,9 +689,7 @@ export function effect(
         cleanups.push(cleanup);
       });
       return () => {
-        for (const cleanup of cleanups) {
-          cleanup();
-        }
+        runCraftCleanups(cleanups.splice(0));
       };
     }, options);
     bindWatchToDestroyRef(watch, options);
