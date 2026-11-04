@@ -30,6 +30,16 @@ const TEXT_HELPERS = new Set([
 ]);
 
 const TEXT_ATTRIBUTES = new Set(['placeholder', 'aria-label', 'title']);
+// Shared view models often prepare copy before a component renders it. These
+// keys mark the small set of object fields that carry presentation text.
+const DISPLAY_TEXT_PROPERTIES = new Set([
+  'label',
+  'kind',
+  'hint',
+  'text',
+  'meta',
+  'description',
+]);
 
 // Copy has letters. A separator (`' '`, `' — '`, `':'`) is glue between values,
 // not something a translator would ever be handed, and reporting it would only
@@ -38,6 +48,25 @@ const CARRIES_COPY = /\p{L}/u;
 
 function carriesCopy(text) {
   return typeof text === 'string' && CARRIES_COPY.test(text);
+}
+
+function isInsideTranslationCall(node) {
+  let current = node.parent;
+  while (current) {
+    if (
+      current.type === 'CallExpression' &&
+      current.callee.type === 'MemberExpression' &&
+      !current.callee.computed &&
+      current.callee.object.type === 'Identifier' &&
+      current.callee.object.name === 'i18n' &&
+      current.callee.property.type === 'Identifier' &&
+      current.callee.property.name === 't'
+    ) {
+      return true;
+    }
+    current = current.parent;
+  }
+  return false;
 }
 
 /**
@@ -50,7 +79,7 @@ function carriesCopy(text) {
  * mistaken for copy; a function child stays the application's business too.
  */
 function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) {
-  if (!node || depth > 8) return;
+  if (!node || depth > 16) return;
   switch (node.type) {
     case 'Literal':
       if (carriesCopy(node.value)) report(node);
@@ -77,6 +106,20 @@ function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) 
       for (const element of node.elements)
         reportCopyLiterals(element, report, depth + 1, resolve);
       return;
+    case 'SpreadElement':
+      reportCopyLiterals(node.argument, report, depth + 1, resolve);
+      return;
+    case 'ObjectExpression':
+      for (const entry of node.properties) {
+        if (entry.type === 'Property')
+          reportCopyLiterals(entry.value, report, depth + 1, resolve);
+      }
+      return;
+    case 'MemberExpression':
+      // A presentation field may come from a local label table, such as
+      // `KIND_LABEL[entry.kind]`. Follow the table, not the business value.
+      reportCopyLiterals(node.object, report, depth + 1, resolve);
+      return;
     case 'ArrowFunctionExpression':
     case 'FunctionExpression':
       // Craft accepts generator children which render a value. Inspect only
@@ -93,12 +136,35 @@ function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) 
       return;
     case 'Identifier':
     case 'CallExpression': {
+      // Text summaries are often built as `[...].join(' · ')`; inspect the
+      // parts while leaving the separator alone.
+      if (
+        node.type === 'CallExpression' &&
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.property.type === 'Identifier' &&
+        node.callee.property.name === 'join'
+      ) {
+        reportCopyLiterals(node.callee.object, report, depth + 1, resolve);
+        return;
+      }
       const target = resolve(node);
       if (!target) {
         // Imported text-producing helpers cannot be followed into their
         // module by this syntax-only rule. Flag the opaque boundary when its
         // name declares that it returns user-facing copy.
         if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && /(?:label|text|summary|describe)/i.test(node.callee.name)) report(node);
+        return;
+      }
+      if (
+        ![
+          'CallExpression',
+          'FunctionDeclaration',
+          'FunctionExpression',
+          'ArrowFunctionExpression',
+        ].includes(target.type)
+      ) {
+        reportCopyLiterals(target, report, depth + 1, resolve);
         return;
       }
       const returned = [];
@@ -158,6 +224,12 @@ module.exports = {
     // `context.getFilename()` was removed in ESLint 10; `context.filename` is
     // the supported reader and already exists in 9.
     if (isIgnoredFile(context.filename ?? context.getFilename())) return {};
+    const reported = new Set();
+    const reportLiteral = (node, messageId = 'literal', data) => {
+      if (reported.has(node)) return;
+      reported.add(node);
+      context.report({ node, messageId, ...(data ? { data } : {}) });
+    };
 
     const resolve = (node) => {
       if (node.type === 'CallExpression') {
@@ -185,7 +257,7 @@ module.exports = {
         const def = variable && variable.defs[0];
         if (def) {
           const target = def.node.type === 'FunctionDeclaration' ? def.node : def.node.init;
-          return target && ['CallExpression', 'FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'].includes(target.type) ? target : undefined;
+          return target;
         }
         current = current.upper;
       }
@@ -195,7 +267,7 @@ module.exports = {
       CallExpression(node) {
         if (node.callee.type === 'Identifier' && node.callee.name === 'craftComputed') {
           const compute = node.arguments.find((argument) => argument.type === 'ArrowFunctionExpression' || argument.type === 'FunctionExpression');
-          if (compute) reportCopyLiterals(compute, (literal) => context.report({ node: literal, messageId: 'literal' }), 0, resolve);
+          if (compute) reportCopyLiterals(compute, reportLiteral, 0, resolve);
         }
         const call = parseHyperscriptCall(node);
         if (!call || !call.tag || !TEXT_HELPERS.has(call.tag)) return;
@@ -204,18 +276,30 @@ module.exports = {
           const entry = property(call.props, attribute);
           if (!entry) continue;
           reportCopyLiterals(entry.value, (node) =>
-            context.report({
-              node,
-              messageId: 'attribute',
-              data: { attribute },
-            }),
+            reportLiteral(node, 'attribute', { attribute }),
           );
         }
 
         // A function, identifier, member expression or translation call is a
         // value supplied by the application. It is intentionally accepted.
-        reportCopyLiterals(call.children, (node) =>
-          context.report({ node, messageId: 'literal' }),
+        reportCopyLiterals(call.children, reportLiteral, 0, resolve);
+      },
+      Property(node) {
+        if (
+          node.computed ||
+          isInsideTranslationCall(node) ||
+          !((node.key.type === 'Identifier' &&
+            DISPLAY_TEXT_PROPERTIES.has(node.key.name)) ||
+            (node.key.type === 'Literal' &&
+              DISPLAY_TEXT_PROPERTIES.has(String(node.key.value))))
+        ) {
+          return;
+        }
+        // The i18n rule also applies when a feature prepares visible copy in a
+        // plain view-model object before the component template consumes it.
+        reportCopyLiterals(
+          node.value,
+          reportLiteral,
           0,
           resolve,
         );

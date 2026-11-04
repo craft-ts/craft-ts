@@ -77,7 +77,10 @@ paragraphs, labels, buttons, links and options, plus visible `placeholder`,
 `aria-label` and `title` attributes — and it looks *inside* the visible
 position, so `p('Total: ' + t('cart.total'))`, `` span(`Total: ${amount}`) ``,
 `label(isNew ? 'New' : 'Returning')`, `p(name || 'Anonymous')` and a literal in
-a children array are reported too. Only what carries letters counts: `first + ' ' + last`
+a children array are reported too. It also follows local helpers and label
+tables when their results feed presentation fields such as `label`, `kind`,
+`text`, `meta` or `hint`; this catches copy prepared in a view model before the
+component renders it. Only what carries letters counts: `first + ' ' + last`
 is glue between values, not copy. Dynamic business values, `i18n.t(...)`, its
 key and parameters, a generator child and catalogue files are accepted. Server files and tests are excluded so
 technical messages and assertions can remain literal. The rule stays separate
