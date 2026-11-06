@@ -72,6 +72,8 @@ import {
   ɵrunInInjectionContext,
   ɵisCraftDevMode,
   ɵcraftBatch,
+  ɵcraftPrivateCell,
+  type ɵCraftPrivateCell,
 } from '@craft-ts/core';
 import {
   executeCraftComponentFactory,
@@ -2582,7 +2584,8 @@ interface ForRenderedEntry {
   readonly key: unknown;
   item: unknown;
   index: number;
-  readonly indexSignal: ReturnType<typeof signal<number>>;
+  // Read only through `indexReader`: a renderer-private cell.
+  readonly indexSignal: ɵCraftPrivateCell<number>;
   readonly indexReader: InputValue<number>;
   readonly view: FragmentRenderedNode;
   readonly traceState: TemplateTraceState;
@@ -2735,7 +2738,7 @@ class ForRenderedNode implements RenderedNode {
         }
       } else {
         const traceState = { renderCount: 0 };
-        const indexSignal = signal(index);
+        const indexSignal = ɵcraftPrivateCell(index);
         const indexReader = createForIndexReader(indexSignal);
         const entryContext = childContext(this.context, {
           identity: childCraftRenderIdentity(
@@ -4308,8 +4311,12 @@ class ComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
   private environmentInjector: EnvironmentInjector | undefined;
   private readonly propKeys: string[];
-  private readonly propSources: ReturnType<typeof signal<unknown>>[];
-  private readonly hostPropsSource;
+  // Renderer-private cells: application code receives the values they hold
+  // through the input shells, never the cells themselves.
+  private readonly propSources: ɵCraftPrivateCell<unknown>[];
+  private readonly hostPropsSource: ɵCraftPrivateCell<
+    ReturnType<typeof hostPropsFromComponentProps>
+  >;
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
   private composedTemplateEffect: EffectRef | undefined;
@@ -4412,9 +4419,9 @@ class ComponentRenderedNode implements RenderedNode {
       ? []
       : Object.keys(props).filter((key) => !isHostProperty(key));
     this.propSources = this.propKeys.map((key) =>
-      signal((props as Record<string, unknown>)[key]),
+      ɵcraftPrivateCell((props as Record<string, unknown>)[key]),
     );
-    this.hostPropsSource = signal(
+    this.hostPropsSource = ɵcraftPrivateCell(
       hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
     );
 

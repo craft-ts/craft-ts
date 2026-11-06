@@ -91,6 +91,34 @@ export function craftSignal<T>(
 }
 
 /**
+ * A renderer-private reactive cell: read, `set`, `update` — nothing else.
+ *
+ * Same kernel and same write semantics as {@link craftSignal} with its default
+ * equality: `Object.is` decides, the value travels in a fresh box on every
+ * accepted write, the comparison read inside `set`/`update` is untracked, and
+ * writes join the ambient `craftBatch`. What it leaves out is what only a
+ * value handed to application code needs: the Craft signal brand, the raw
+ * reactive marker, the extra read wrapper and `asReadonly`.
+ *
+ * Never hand one to application code or store one where a public signal is
+ * expected: it is not recognized as a signal (`isSignal` is false).
+ */
+export type ɵCraftPrivateCell<T> = (() => T) & {
+  set(value: T): void;
+  update(fn: (value: T) => T): void;
+};
+
+export function ɵcraftPrivateCell<T>(initial: T): ɵCraftPrivateCell<T> {
+  const raw = signal<{ value: T }>({ value: initial });
+  const cell = (() => raw().value) as ɵCraftPrivateCell<T>;
+  cell.set = (next) => {
+    if (!Object.is(untracked(cell), next)) raw({ value: next });
+  };
+  cell.update = (update) => cell.set(update(untracked(cell)));
+  return cell;
+}
+
+/**
  * A computation's outcome, value or throw. Craft signals suspension
  * (`CraftNotSettled`) and business exceptions (`CraftGenShortCircuit`) by
  * throwing out of a computation, and alien-signals leaves a getter that threw
