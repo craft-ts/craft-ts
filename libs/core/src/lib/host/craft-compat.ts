@@ -549,6 +549,21 @@ export function toCraftProviders(
   });
 }
 
+// Declarations every environment injector carries. Each factory builds its
+// value from the injector that resolves it, and records, results and caches
+// stay per injector, so the declarations themselves can be shared.
+const STANDARD_ENVIRONMENT_PROVIDERS: readonly CraftProvider[] = [
+  { token: INJECTOR_TOKEN, useFactory: (injector) => injector },
+  { token: ENVIRONMENT_INJECTOR_TOKEN, useFactory: (injector) => injector },
+  {
+    token: ApplicationInitStatus,
+    useFactory: (injector) =>
+      new ApplicationInitStatus(injector.get(APP_INITIALIZER, []), (fn) =>
+        injector.run(fn),
+      ),
+  },
+];
+
 export function createEnvironmentInjector(
   providers: readonly unknown[],
   parent: CraftInjector,
@@ -557,15 +572,7 @@ export function createEnvironmentInjector(
   const destroyRef = new DestroyRef();
   const child = parent.createChild([
     { token: DestroyRef, useValue: destroyRef },
-    { token: INJECTOR_TOKEN, useFactory: (injector) => injector },
-    { token: ENVIRONMENT_INJECTOR_TOKEN, useFactory: (injector) => injector },
-    {
-      token: ApplicationInitStatus,
-      useFactory: (injector) =>
-        new ApplicationInitStatus(injector.get(APP_INITIALIZER, []), (fn) =>
-          injector.run(fn),
-        ),
-    },
+    ...STANDARD_ENVIRONMENT_PROVIDERS,
     ...toCraftProviders(providers),
   ]);
   Object.assign(child, { ɵdestroyRef: destroyRef });
