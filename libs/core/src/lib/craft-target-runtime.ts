@@ -53,6 +53,14 @@ export function ɵrunCraftTargetWrappers(
     CRAFT_TARGET_WRAPPER as never,
     [] as readonly CraftTargetWrapper[],
   );
+  // Without a wrapper the chain is one empty generator that returns
+  // EMPTY_RELEASE: skip driving it, keep the same release and its inscription.
+  if (wrappers.length === 0) {
+    if (autoCleanup) {
+      injector.get(DestroyRef, null)?.onDestroy(EMPTY_RELEASE);
+    }
+    return EMPTY_RELEASE;
+  }
   let next: CraftTargetWrapperRunner = function* () {
     return EMPTY_RELEASE;
   };
