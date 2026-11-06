@@ -223,6 +223,7 @@ export interface BrowserWindowServiceApi {
   scrollTo(...args: [options: ScrollToOptions] | [x: number, y: number]): void;
   alert(message?: string): void;
   confirm(message?: string): boolean;
+  onFocus(callback: () => void): () => void;
 }
 
 function createBoundaryCall<
@@ -954,6 +955,13 @@ const browserWindowService: BrowserBoundaryService<
     },
     alert: (message) => getBrowserWindow().alert(message),
     confirm: (message) => getBrowserWindow().confirm(message),
+    onFocus: (callback) => {
+      const browserWindow = getActivePlatform()?.window ?? globalThis.window;
+      if (!browserWindow) return () => undefined;
+
+      browserWindow.addEventListener('focus', callback);
+      return () => browserWindow.removeEventListener('focus', callback);
+    },
   }),
 );
 export const BrowserWindowService: BrowserBoundaryService<
@@ -1160,4 +1168,5 @@ export const BrowserWindow: BrowserBoundaryDsl<
   scrollTo: callBrowserWindow('scrollTo'),
   alert: callBrowserWindow('alert'),
   confirm: callBrowserWindow('confirm'),
+  onFocus: callBrowserWindow('onFocus'),
 };

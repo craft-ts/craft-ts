@@ -90,6 +90,8 @@ export * from './lib/util/source.type';
 export * from './lib/util/util';
 export * from './lib/util/util.type';
 export * from './lib/insert-react-on-mutation';
+export * from './lib/insert-reload-on-focus';
+export * from './lib/insert-react-on-query';
 export * from './lib/craft-pipe';
 export * from './lib/insert-typed-pipes';
 export * from './lib/insert-pagination-placeholder-data';
