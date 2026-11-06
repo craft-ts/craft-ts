@@ -12,7 +12,7 @@ import { craftUse } from './craft-use';
 import { describe, expect, it } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
-import { craftEffect } from './craft-effect';
+import { craftEffect, ɵcraftEffectRef } from './craft-effect';
 import {
   craftService,
   onAppStart,
@@ -511,5 +511,74 @@ describe('craftEffect tags without a dedicated scope', () => {
     expect(() => ref.destroy()).toThrow(failure);
     expect(registry.activeEffects()).toEqual([]);
     expect(() => injector.destroy()).not.toThrow();
+  });
+});
+
+describe('ɵcraftEffectRef (renderer entry)', () => {
+  it('returns the EffectRef directly, with the report and lifecycle of craftEffect', () => {
+    const { injector } = setupCraftServiceTest();
+    const registry = injector.run(() => craftUse(AppSnapshotRegistry()));
+    const source = craftSignal(0);
+    const seen: number[] = [];
+    const cleanups: number[] = [];
+    const ref = injector.run(() =>
+      ɵcraftEffectRef(
+        'direct',
+        (onCleanup) => {
+          const value = source();
+          seen.push(value);
+          onCleanup(() => cleanups.push(value));
+        },
+        { manualCleanup: true },
+      ),
+    );
+    const viaPublic = injector.run(() =>
+      craftUse(craftEffect('direct', () => undefined, { manualCleanup: true })),
+    );
+
+    expect(typeof ref.destroy).toBe('function');
+    expect(Symbol.iterator in ref).toBe(false);
+    const [direct, publicReport] = registry.activeEffects();
+    expect(direct).toEqual(publicReport);
+    expect(direct.source).toBe('effect:direct');
+
+    source.set(1);
+    expect(seen).toEqual([0, 1]);
+    expect(cleanups).toEqual([0]);
+
+    ref.destroy();
+    ref.destroy();
+    expect(cleanups).toEqual([0, 1]);
+    source.set(2);
+    expect(seen).toEqual([0, 1]);
+    expect(registry.activeEffects()).toHaveLength(1);
+    viaPublic.destroy();
+    expect(registry.activeEffects()).toEqual([]);
+  });
+
+  it('requires an injection context like craftEffect', () => {
+    expect(() => ɵcraftEffectRef('outside', () => undefined)).toThrow();
+  });
+
+  it('is owned by the injector option unless manualCleanup is set', () => {
+    const { injector } = setupCraftServiceTest();
+    const owner = createEnvironmentInjector([], injector);
+    const source = craftSignal(0);
+    let runs = 0;
+    injector.run(() =>
+      ɵcraftEffectRef(
+        'owned',
+        () => {
+          source();
+          runs++;
+        },
+        { injector: owner },
+      ),
+    );
+    source.set(1);
+    expect(runs).toBe(2);
+    owner.destroy();
+    source.set(2);
+    expect(runs).toBe(2);
   });
 });

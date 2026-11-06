@@ -80,6 +80,30 @@ export function craftEffect(
   fnOrOptions?: unknown,
   maybeOptions?: CreateEffectOptions,
 ): NamedCraftPrimitiveGen<string, EffectRef> {
+  const ref = createCraftEffect(name, hostOrFn, fnOrOptions, maybeOptions);
+  return createNamedPrimitiveGen(name, ref, { markMembers: false });
+}
+
+/**
+ * Internal entry of {@link craftEffect} for the renderer: the same effect
+ * (owner, tags, report, cleanups, scope of a generator factory), returned as
+ * its `EffectRef` instead of a named primitive generator that the caller
+ * would only drive to get that ref back.
+ */
+export function ɵcraftEffectRef(
+  name: string,
+  effectFn: CraftEffectFn,
+  options?: CreateEffectOptions,
+): EffectRef {
+  return createCraftEffect(name, effectFn, options);
+}
+
+function createCraftEffect(
+  name: string,
+  hostOrFn: unknown,
+  fnOrOptions?: unknown,
+  maybeOptions?: CreateEffectOptions,
+): EffectRef {
   // The host form is recognized by its 3rd argument being the factory —
   // `options` is never a function.
   const hasHost = typeof fnOrOptions === 'function';
@@ -178,5 +202,5 @@ export function craftEffect(
     }));
   }
 
-  return createNamedPrimitiveGen(name, ref, { markMembers: false });
+  return ref;
 }
