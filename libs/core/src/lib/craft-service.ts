@@ -4949,6 +4949,42 @@ export function* ɵTrackTags(): Generator<
   }) as readonly TrackTag[];
 }
 
+/**
+ * The tag list a host named under `injector` carries: the node chain's tags,
+ * the tags only its environment chain knows (route-level providers shadowed by
+ * a parent component providing the same token) inserted before the current
+ * component's tag, then the host's own tag. Semantic order is kept: parent
+ * components → route → current component → host.
+ *
+ * `resolveHostTag` runs after the parent tags are read, so an ordinal it draws
+ * keeps the order a tagged injector would have produced. Shared by
+ * `ɵcreateHostTaggedInjector` and the hosts that report tags without needing
+ * a scope of their own (plain `craftEffect` bodies).
+ */
+export function ɵmergeHostTags(
+  injector: Injector,
+  resolveHostTag: () => string,
+): readonly string[] {
+  const nodeTags = injector.get(ɵHOST_TAG_LIST, []);
+
+  let envOnlyTags: readonly string[] = [];
+  const associatedEnvInjector = injector.get(EnvironmentInjector, null);
+  if (associatedEnvInjector) {
+    const envTags = associatedEnvInjector.get(ɵHOST_TAG_LIST, null) ?? [];
+    envOnlyTags = envTags.filter((t) => !nodeTags.includes(t));
+  }
+
+  const hostTag = resolveHostTag();
+  return nodeTags.length > 0
+    ? [
+        ...nodeTags.slice(0, -1),
+        ...envOnlyTags,
+        nodeTags[nodeTags.length - 1],
+        hostTag,
+      ]
+    : [...envOnlyTags, hostTag];
+}
+
 export function ɵcreateHostTaggedInjector(
   injector: Injector,
   hostName: string,
@@ -4966,39 +5002,17 @@ export function ɵcreateHostTaggedInjector(
     // not in an injection context
   }
 
-  // Collect tags from the node injector chain
-  const nodeTags = injector.get(ɵHOST_TAG_LIST, []);
-
-  // Collect tags exclusive to the env injector chain (e.g. route-level providers
-  // that are shadowed by a parent component's node injector providing the same token)
-  let envOnlyTags: readonly string[] = [];
-  const associatedEnvInjector = injector.get(EnvironmentInjector, null);
-  if (associatedEnvInjector) {
-    const envTags = associatedEnvInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    envOnlyTags = envTags.filter((t) => !nodeTags.includes(t));
-  }
-
-  // Insert env-only tags before the last element of nodeTags (the current component's tag)
-  // to preserve semantic order: parent components → route → current component → method
   // EXPERIMENT (option A): stamp the instance ordinal that provideHostName's
   // factory would have produced, which this useValue would otherwise discard.
   // A host that can exist several times at once carries which one it is, the
   // way a component tag already does. A singleton does not: a number on a host
   // there is exactly one of reads as noise, and would change every log line and
   // snapshot for nothing.
-  const taggedHostName = options.instanced
-    ? `${hostName}#${(ɵinjectComponentRegister() ?? ɵfallbackComponentRegister).next()}`
-    : hostName;
-
-  const mergedTags: readonly string[] =
-    nodeTags.length > 0
-      ? [
-          ...nodeTags.slice(0, -1),
-          ...envOnlyTags,
-          nodeTags[nodeTags.length - 1],
-          taggedHostName,
-        ]
-      : [...envOnlyTags, taggedHostName];
+  const mergedTags = ɵmergeHostTags(injector, () =>
+    options.instanced
+      ? `${hostName}#${(ɵinjectComponentRegister() ?? ɵfallbackComponentRegister).next()}`
+      : hostName,
+  );
 
   const envInjector = createEnvironmentInjector(
     [

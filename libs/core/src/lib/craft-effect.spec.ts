@@ -16,6 +16,9 @@ import { craftEffect } from './craft-effect';
 import {
   craftService,
   onAppStart,
+  ɵcreateHostTaggedInjector,
+  ɵHOST_TAG_LIST,
+  ɵprovideHostName,
   type GetServiceDependencies,
 } from './craft-service';
 import { query } from './query';
@@ -400,4 +403,113 @@ it('releases its tagged scope and active report even when a run cleanup throws',
   expect(registry.activeEffects()).toEqual([]);
   expect(() => injector.destroy()).not.toThrow();
   expect(calls).toEqual(['run', 'scope']);
+});
+
+describe('craftEffect tags without a dedicated scope', () => {
+  function routedComponentOwner() {
+    const { injector: root } = setupCraftServiceTest();
+    const routeEnv = createEnvironmentInjector(
+      [ɵprovideHostName('route:/items')],
+      root,
+    );
+    // A component node under the route: its tag list comes from the
+    // component chain and does not contain the route's tag.
+    const owner = routeEnv.createChild([
+      { token: ɵHOST_TAG_LIST, useValue: ['App#1', 'Row#2'] },
+    ]);
+    const registry = owner.run(() => craftUse(AppSnapshotRegistry()));
+    const routeTag = routeEnv.get(ɵHOST_TAG_LIST).at(-1)!;
+    return { root, owner, registry, routeTag };
+  }
+
+  it('reports the same merged tags for a plain body as a tagged scope would', () => {
+    const { root, owner, registry, routeTag } = routedComponentOwner();
+    owner.run(() => {
+      craftUse(craftEffect('plain', () => undefined));
+      craftUse(
+        craftEffect('factory', function* () {
+          return () => undefined;
+        }),
+      );
+    });
+
+    const bySource = new Map(
+      registry.activeEffects().map((report) => [report.source, report.from]),
+    );
+    expect(bySource.get('effect:plain')).toEqual([
+      'App#1',
+      routeTag,
+      'Row#2',
+      'effect:plain',
+    ]);
+    expect(bySource.get('effect:factory')).toEqual([
+      'App#1',
+      routeTag,
+      'Row#2',
+      'effect:factory',
+    ]);
+    expect(bySource.get('effect:plain')).toEqual(
+      ɵcreateHostTaggedInjector(owner, 'effect:plain').get(ɵHOST_TAG_LIST),
+    );
+    root.destroy();
+    expect(registry.activeEffects()).toEqual([]);
+  });
+
+  it('keeps several reports with the same name, in creation order', () => {
+    const { root, owner, registry } = routedComponentOwner();
+    owner.run(() => {
+      craftUse(craftEffect('twice', () => undefined));
+      craftUse(
+        craftEffect('twice', (onCleanup: EffectCleanupRegisterFn) =>
+          onCleanup(() => undefined),
+        ),
+      );
+    });
+    const reports = registry.activeEffects();
+    expect(reports.map((report) => report.source)).toEqual([
+      'effect:twice',
+      'effect:twice',
+    ]);
+    expect(reports[0].from).toEqual(reports[1].from);
+    root.destroy();
+  });
+
+  it('runs a plain body in its owner injection context and leaves no scope behind', () => {
+    const { injector } = setupCraftServiceTest();
+    const ownerDestroyRef = injector.get(DestroyRef);
+    let seen: DestroyRef | undefined;
+    let hostTags: readonly string[] | undefined;
+    const ref = injector.run(() =>
+      craftUse(
+        craftEffect('in-owner', () => {
+          seen ??= inject(DestroyRef);
+          hostTags ??= inject(ɵHOST_TAG_LIST);
+        }),
+      ),
+    );
+    expect(seen).toBe(ownerDestroyRef);
+    expect(hostTags).toEqual(injector.get(ɵHOST_TAG_LIST));
+    ref.destroy();
+    ref.destroy();
+    expect(() => injector.destroy()).not.toThrow();
+  });
+
+  it('releases a plain effect report even when a run cleanup throws', () => {
+    const { injector } = setupCraftServiceTest();
+    const registry = injector.run(() => craftUse(AppSnapshotRegistry()));
+    const failure = new Error('plain cleanup');
+    const ref = injector.run(() =>
+      craftUse(
+        craftEffect('plain-throws', (onCleanup: EffectCleanupRegisterFn) =>
+          onCleanup(() => {
+            throw failure;
+          }),
+        ),
+      ),
+    );
+    expect(registry.activeEffects()).toHaveLength(1);
+    expect(() => ref.destroy()).toThrow(failure);
+    expect(registry.activeEffects()).toEqual([]);
+    expect(() => injector.destroy()).not.toThrow();
+  });
 });

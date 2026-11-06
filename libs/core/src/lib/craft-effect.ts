@@ -14,7 +14,11 @@ import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
-import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
+import {
+  ɵcreateHostTaggedInjector,
+  ɵHOST_TAG_LIST,
+  ɵmergeHostTags,
+} from './craft-service';
 import {
   isGeneratorFunction,
   runCraftGenerator,
@@ -91,14 +95,24 @@ export function craftEffect(
   const parentInjector = inject(Injector);
   const ownerInjector = options?.injector ?? parentInjector;
   const ownerDestroyRef = ownerInjector.get(DestroyRef);
-  const effectInjector = ɵcreateHostTaggedInjector(
-    ownerInjector,
-    `effect:${name}`,
-  );
+  const source = `effect:${name}`;
+  // Only a generator factory needs a scope of its own: it resolves its
+  // dependencies there and the scope is destroyed with the effect. A plain
+  // body already runs in its owner's injection context, so a tagged injector
+  // would only carry the report's tags. Those are merged directly, at the
+  // same point, so the owner's tags (and any ordinal they draw) resolve in
+  // the same order as with a scope.
+  const generatorFactory = isGeneratorFunction(fnOrFactory);
+  const effectInjector = generatorFactory
+    ? ɵcreateHostTaggedInjector(ownerInjector, source)
+    : ownerInjector;
+  const plainTags = generatorFactory
+    ? undefined
+    : ɵmergeHostTags(ownerInjector, () => source);
 
   let effectBody: CraftEffectFn;
 
-  if (isGeneratorFunction(fnOrFactory)) {
+  if (generatorFactory) {
     effectBody = runInInjectionContext(effectInjector, () => {
       const iterator = (
         fnOrFactory as CraftEffectGenerator<unknown, unknown>
@@ -157,9 +171,9 @@ export function craftEffect(
 
   const registry = ɵinjectAppSnapshotRegistryIn(ownerInjector);
   if (registry) {
-    const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
+    const from = plainTags ?? effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     unregisterReport = registry.registerActiveEffectReader(() => ({
-      source: `effect:${name}`,
+      source,
       from,
     }));
   }
