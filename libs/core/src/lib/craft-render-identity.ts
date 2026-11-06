@@ -31,21 +31,45 @@ export const provideCraftRenderIdentity =
 export const ɵinjectCraftRenderIdentity =
   craftRenderIdentityService.CRAFT_RENDER_IDENTITY_META_DATA.inject;
 
+// Identities this module built: their hydration key is known to encode their
+// path, so a child can extend it instead of encoding every ancestor again.
+// A structural identity supplied by a caller takes the full path below.
+const runtimeIdentities = new WeakSet<CraftRenderIdentity>();
+
 export function createCraftRenderIdentity(
   path: readonly (string | number)[],
 ): CraftRenderIdentity {
   const normalized = path.map(String);
-  return {
+  const identity: CraftRenderIdentity = {
     path: normalized,
     hydrationKey: normalized.map(encodeHydrationSegment).join('/'),
   };
+  runtimeIdentities.add(identity);
+  return identity;
 }
 
 export function childCraftRenderIdentity(
   parent: CraftRenderIdentity,
   ...segments: readonly (string | number)[]
 ): CraftRenderIdentity {
-  return createCraftRenderIdentity([...parent.path, ...segments]);
+  if (!runtimeIdentities.has(parent)) {
+    return createCraftRenderIdentity([...parent.path, ...segments]);
+  }
+  // Same conversions, same order, and the new segments are encoded now: an
+  // invalid one still throws at creation.
+  const tail = segments.map(String);
+  const suffix = tail.map(encodeHydrationSegment).join('/');
+  const identity: CraftRenderIdentity = {
+    path: [...parent.path, ...tail],
+    hydrationKey:
+      tail.length === 0
+        ? parent.hydrationKey
+        : parent.path.length === 0
+          ? suffix
+          : `${parent.hydrationKey}/${suffix}`,
+  };
+  runtimeIdentities.add(identity);
+  return identity;
 }
 
 function encodeHydrationSegment(segment: string): string {
