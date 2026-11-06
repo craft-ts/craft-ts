@@ -92,9 +92,7 @@ describe('CraftInjector records', () => {
 
   it('keeps factory results per injector when the same declarations are reused', () => {
     const token = new InjectionToken<object>('instance');
-    const declarations: CraftProvider[] = [
-      { token, useFactory: () => ({}) },
-    ];
+    const declarations: CraftProvider[] = [{ token, useFactory: () => ({}) }];
     const first = createCraftInjector(declarations);
     const second = createCraftInjector(declarations);
     expect(first.get(token)).toBe(first.get(token));
