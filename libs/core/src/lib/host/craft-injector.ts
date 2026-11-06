@@ -37,7 +37,16 @@ export interface CraftInjector {
 type ProviderRecord = {
   resolve(): unknown;
   readonly collection: boolean;
+  /** Set on a `useValue` record, whose `resolve` is the shared reader below. */
+  readonly provider?: CraftProvider;
 };
+
+// One method shared by every `useValue` record instead of one closure per
+// record. It reads the provider at each call, like the closure did.
+function readProvidedValue(this: ProviderRecord): unknown {
+  return (this.provider as Extract<CraftProvider, { useValue: unknown }>)
+    .useValue;
+}
 
 type TokenWithFactory = {
   readonly debugName?: string;
@@ -320,11 +329,12 @@ function addProviderRecord(
   const token = provider.token;
   if (provider.multi || provider.collection) {
     const existing = records.get(token);
-    const nextValue = createProviderRecord(provider, injector).resolve;
+    const nextRecord = createProviderRecord(provider, injector);
+    const nextValue = () => nextRecord.resolve();
     const readNext = () =>
       provider.collection ? ((nextValue() as unknown[]) ?? []) : [nextValue()];
     if (existing?.collection) {
-      const previous = existing.resolve as () => unknown[];
+      const previous = () => existing.resolve() as unknown[];
       records.set(token, {
         collection: true,
         resolve: () => [...previous(), ...readNext()],
@@ -347,7 +357,8 @@ function createProviderRecord(
   if ('useValue' in provider) {
     return {
       collection: provider.multi === true || provider.collection === true,
-      resolve: () => provider.useValue,
+      provider,
+      resolve: readProvidedValue,
     };
   }
 
