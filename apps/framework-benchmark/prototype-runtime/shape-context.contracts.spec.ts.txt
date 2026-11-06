@@ -1,0 +1,16 @@
+import {describe,it,expect} from 'vitest';
+import {childContext} from './interpreter';
+describe('render context shape prototype',()=>{
+  it('retains every declared value, boundary callback and lexical reference',()=>{
+    const callbacks=()=>true,identity={path:['A'],hydrationKey:'A'},shared={};
+    const values:any={renderer:shared,injector:shared,componentContext:[],componentName:'A',ownerScope:'o',rootScope:'r',
+      exceptionBoundary:callbacks,exceptionBoundaryResolved:callbacks,pendingBoundary:shared,settledReadObserver:callbacks,
+      handledResourceExceptionCodes:new Set(['E']),fieldExceptionBoundary:shared,declarationContext:shared,headingLevel:2,
+      directiveNames:['d'],traceState:{renderCount:1},mode:'create',identity,replayTargetStable:false,hydration:shared,emitHydrationKeys:false,ssr:shared};
+    const overrides={componentName:'B',ownerScope:undefined,headingLevel:3};
+    const result=childContext(values,overrides);
+    for(const [key,value] of Object.entries({...values,...overrides})) expect((result as any)[key]).toBe(value);
+    expect(result).not.toBe(values);expect(values.componentName).toBe('A');
+    expect(childContext(result,{rootScope:undefined}).rootScope).toBeUndefined();
+  });
+});

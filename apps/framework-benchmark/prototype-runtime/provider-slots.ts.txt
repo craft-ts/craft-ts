@@ -1,0 +1,17 @@
+// PROTOTYPE: fixed table with methods shared by all instances.
+class PrototypeIndexedRecords {
+  private readonly values: Array<ProviderRecord|undefined> = [];
+  private overflow: Map<object,ProviderRecord>|undefined;
+  private readonly indices: ReadonlyMap<object,number>;
+  constructor(indices: ReadonlyMap<object,number>) {this.indices=indices;}
+  get(token: object): ProviderRecord|undefined {
+    const index=this.indices.get(token);
+    return index===undefined ? this.overflow?.get(token) : this.values[index];
+  }
+  set(token: object,value: ProviderRecord): this {
+    const index=this.indices.get(token);
+    if(index===undefined) (this.overflow??=new Map()).set(token,value); else this.values[index]=value;
+    return this;
+  }
+  clear(): void {this.values.length=0;this.overflow?.clear();}
+}

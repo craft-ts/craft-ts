@@ -1,0 +1,74 @@
+import {afterEach,describe,it,expect} from 'vitest';
+import {createCraftInjector,craftSignal,craftUse,ɵcaptureCraftReplayTarget,ɵresolveCraftReplayTarget} from '@craft-ts/core';
+import {craftComponent,div,span,forNode,scheduleFor} from '../../index';
+import {renderCraftComponent} from '../testing';
+import {prototypeReadForInput,prototypeInputReads} from './interpreter';
+const borrowed = PROTOTYPE_HAS_BORROWED_RANGES;
+let serial = 0;
+afterEach(()=>{document.body.replaceChildren();delete (globalThis as any).__prototypeInspectOwner;});
+function comments(parent:Node):number {
+  const walker=document.createTreeWalker(parent,NodeFilter.SHOW_COMMENT);let n=0;while(walker.nextNode())n++;return n;
+}
+async function setup(options:{local?:boolean;schedule?:boolean}={}) {
+  const instance = serial++;
+  const rows=craftSignal([101,202,303].map(id=>({id,label:`Row ${id}`}))),mode=craftSignal(0),owners:Element[]=[];
+  (globalThis as any).__prototypeInspectOwner=(element:Element)=>owners.push(element);
+  const Local={};
+  const Row=craftComponent('FrameworkBenchRow'+instance,{providers:options.local?[{provide:Local,useValue:1}]:[]},(inputs:any)=>{
+    const row:any=craftUse(inputs.row()),position:any=craftUse(inputs.position());
+    return div({'data-row':row.id},[span({'data-position':position},`${position+1}. `),row.label]);
+  });
+  Object.defineProperty(Row,'__prototypePlannedComponent',{value:{indexes:true}});
+  const App=craftComponent('MoreContracts'+instance,{},()=>{
+    const branch=mode();
+    const template=Object.assign((row:any,position:any)=>branch===2?null:branch===1?[Row({row,position}),span('extra')]:Row({row,position}),{
+      __craftPureItemPrototype:true,__prototypeRawInputs:true,
+      __prototypeBorrowFor:Row,__prototypeStageFor:options.local?undefined:true,
+    });
+    const list=forNode(rows,{track:row=>row.id,empty:()=>span({'data-empty':true},'empty')},template);
+    return div({id:'contract-rows'},[span('before'),options.schedule?list.pipe(scheduleFor({enabled:true,strategy:'sync'})):list,span('after')]);
+  });
+  const fixture=await renderCraftComponent(App as never);
+  const update=async(fn:()=>void)=>{fixture.injector.run(fn);await fixture.flush();};
+  return {rows,mode,fixture,owners,update};
+}
+describe('more prototype component contracts',()=>{
+  it('keeps DOM, replay and logical ElementRef through empty lists and reinsertions',async()=>{
+    const {rows,fixture,owners,update}=await setup();
+    const parent=fixture.element.querySelector('#contract-rows')!;
+    expect(owners).toHaveLength(3);expect(owners.every(owner=>owner===parent)).toBe(true);
+    if(borrowed) expect(comments(fixture.element)).toBe(4);
+    const target=ɵcaptureCraftReplayTarget(fixture.element.querySelector('[data-row="202"]')!)!;
+    const kept=fixture.element.querySelector('[data-row="202"]');
+    await update(()=>rows.update(value=>[...value].reverse()));
+    expect(fixture.element.querySelector('[data-row="202"]')).toBe(kept);
+    expect([...fixture.element.querySelectorAll('[data-position]')].map(e=>e.textContent)).toEqual(['1. ','2. ','3. ']);
+    await update(()=>rows.set([]));expect(fixture.element.querySelector('[data-empty]')?.textContent).toBe('empty');
+    expect(ɵresolveCraftReplayTarget(target).status).toBe('missing');
+    await update(()=>rows.set([{id:202,label:'returned'}]));
+    expect(fixture.element.querySelector('[data-row="202"]')?.textContent).toBe('1. returned');
+    expect(ɵresolveCraftReplayTarget(target).status).toBe('resolved');
+    fixture.destroy();expect(ɵresolveCraftReplayTarget(target).status).toBe('missing');
+  });
+  it('promotes borrowed entries when a callback becomes multiple or empty',async()=>{
+    const {mode,fixture,update}=await setup();
+    await update(()=>mode.set(1));expect(fixture.element.textContent).toContain('extra');
+    expect(fixture.element.querySelectorAll('[data-row]')).toHaveLength(3);
+    await update(()=>mode.set(2));expect(fixture.element.querySelectorAll('[data-row]')).toHaveLength(0);
+    await update(()=>mode.set(0));expect(fixture.element.querySelectorAll('[data-row]')).toHaveLength(3);fixture.destroy();
+  });
+  it('keeps the generic component path for local providers',async()=>{
+    const {fixture,owners}=await setup({local:true});
+    expect(fixture.element.querySelectorAll('[data-row]')).toHaveLength(3);expect(owners).toHaveLength(0);fixture.destroy();
+  });
+  it('keeps anchored entries when scheduling is enabled',async()=>{
+    const {fixture,rows,update}=await setup({schedule:true});expect(comments(fixture.element)).toBeGreaterThanOrEqual(10);
+    await update(()=>rows.update(value=>value.slice(1)));expect(fixture.element.querySelectorAll('[data-row]')).toHaveLength(2);fixture.destroy();
+  });
+  it('reads registered cells directly and preserves the protocol fallback',()=>{
+    const reader=function*(){return 7;};const owner=createCraftInjector([]);
+    expect(owner.run(()=>prototypeReadForInput(reader))).toBe(7);owner.destroy();
+    const privateReader=()=>{throw new Error('protocol must not be invoked');};
+    prototypeInputReads.set(privateReader,()=>42);expect(prototypeReadForInput(privateReader)).toBe(42);
+  });
+});

@@ -1,0 +1,140 @@
+// PROTOTYPE — appended to an isolated copy of alien-signals 3.2.1.
+// Keep one graph consumer per binding, but share the dispatcher and disposer.
+// `records` keeps the native scheduling order; `manager` batches into one queue.
+let prototypeBindingLive = 0;
+let prototypeManagerScheduled = false;
+const prototypeBindingQueue = [];
+const prototypeOrderedManager = {};
+const prototypeOrderedGroups = [];
+let prototypeOrderedHead = 0;
+const prototypeManager = {
+    fn: prototypeDrainBindings, cleanup: undefined,
+    deps: undefined, depsTail: undefined, subs: undefined, subsTail: undefined,
+    flags: 2,
+};
+class PrototypeBindingRecord {
+    constructor(fn, managed) {
+        this.fn = fn;
+        this.cleanup = undefined;
+        this.deps = undefined;
+        this.depsTail = undefined;
+        this.subs = undefined;
+        this.subsTail = undefined;
+        this.flags = 2 | 4;
+        this.prototypeManaged = managed;
+        this.prototypeQueued = false;
+        this.onDispose = undefined;
+    }
+    destroy() {
+        if (!this.fn) return;
+        effectOper.call(this);
+        this.fn = undefined;
+        --prototypeBindingLive;
+        const release = this.onDispose;
+        this.onDispose = undefined;
+        release?.();
+    }
+}
+function prototypeNotifyBinding(binding) {
+    binding.flags &= ~2;
+    if (binding.prototypeManaged === 'ordered') {
+        if (!binding.prototypeQueued) {
+            binding.prototypeQueued = true;
+            if (queued[queuedLength - 1] !== prototypeOrderedManager) {
+                prototypeOrderedGroups.push([]);
+                queued[queuedLength++] = prototypeOrderedManager;
+            }
+            prototypeOrderedGroups[prototypeOrderedGroups.length - 1].push(binding);
+        }
+        return;
+    }
+    if (!binding.prototypeQueued) {
+        binding.prototypeQueued = true;
+        prototypeBindingQueue.push(binding);
+    }
+    if (!prototypeManagerScheduled) {
+        prototypeManagerScheduled = true;
+        prototypeManager.flags = 2 | 16;
+        queued[queuedLength++] = prototypeManager;
+    }
+}
+function prototypeCancelGroup(group, from = 0) {
+    for (let index = from; index < group.length; index++) {
+        const binding = group[index];
+        binding.prototypeQueued = false;
+        if (binding.fn) binding.flags |= 2 | 8;
+    }
+}
+function prototypeDrainOrdered() {
+    const group = prototypeOrderedGroups[prototypeOrderedHead++];
+    let index = 0;
+    try {
+        while (index < group.length) {
+            const binding = group[index++];
+            binding.prototypeQueued = false;
+            if (binding.fn) run(binding);
+        }
+    } finally {
+        prototypeCancelGroup(group, index);
+        if (prototypeOrderedHead === prototypeOrderedGroups.length) {
+            prototypeOrderedGroups.length = 0;
+            prototypeOrderedHead = 0;
+        }
+    }
+}
+function prototypeCancelOrdered() {
+    const group = prototypeOrderedGroups[prototypeOrderedHead++];
+    prototypeCancelGroup(group);
+    if (prototypeOrderedHead === prototypeOrderedGroups.length) {
+        prototypeOrderedGroups.length = 0;
+        prototypeOrderedHead = 0;
+    }
+}
+function prototypeCancelCoalesced() {
+    prototypeCancelGroup(prototypeBindingQueue);
+    prototypeBindingQueue.length = 0;
+    prototypeManagerScheduled = false;
+}
+function prototypeDrainBindings() {
+    let index = 0;
+    try {
+        while (index < prototypeBindingQueue.length) {
+            const binding = prototypeBindingQueue[index++];
+            binding.prototypeQueued = false;
+            if (binding.fn) run(binding);
+        }
+    } finally {
+        // Match the native flush's recovery for work skipped by an exception.
+        for (; index < prototypeBindingQueue.length; index++) {
+            const binding = prototypeBindingQueue[index];
+            binding.prototypeQueued = false;
+            if (binding.fn) binding.flags |= 2 | 8;
+        }
+        prototypeBindingQueue.length = 0;
+        prototypeManagerScheduled = false;
+    }
+}
+export function prototypeManagedBinding(fn, managed = true) {
+    const binding = new PrototypeBindingRecord(fn, managed);
+    ++prototypeBindingLive;
+    const previous = setActiveSub(binding);
+    try {
+        ++runDepth;
+        // Renderer callbacks have a void contract: incidental return values
+        // are ignored, just as by the ordinary Craft effect wrapper.
+        binding.fn();
+    } catch (error) {
+        binding.destroy();
+        throw error;
+    } finally {
+        --runDepth;
+        activeSub = previous;
+        binding.flags &= ~4;
+    }
+    return binding;
+}
+export function prototypeBindingManagerSnapshot() {
+    return { live: prototypeBindingLive,
+        queued: prototypeBindingQueue.length + prototypeOrderedGroups.slice(prototypeOrderedHead).reduce((n, group) => n + group.length, 0),
+        scheduled: prototypeManagerScheduled || prototypeOrderedHead < prototypeOrderedGroups.length };
+}

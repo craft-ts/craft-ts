@@ -1,0 +1,90 @@
+// PROTOTYPE: bounded component provider table. Complex provider sets fall back.
+function prototypeCompactEligible(providers: readonly CraftProvider[]): boolean {
+  return providers.length <= 12 && !providers.some(p => p.multi || p.collection)
+    && new Set(providers.map(p => p.token)).size === providers.length;
+}
+
+function createPrototypeCompactOwner(
+  providers: readonly CraftProvider[], parent: CraftInjector, detach: () => void,
+): CraftInjector {
+  let table = providers;
+  const values: unknown[] = [];
+  const ready: boolean[] = [];
+  const resolving: number[] = [];
+  let defaults: Map<object, unknown> | undefined;
+  let children: Set<CraftInjector> | undefined;
+  const callbacks: Array<() => void> = [];
+  let destroyed = false;
+  const resolve = (index: number): unknown => {
+    const provider = table[index];
+    if ('useValue' in provider) return provider.useValue;
+    if (ready[index]) return values[index];
+    if (resolving.includes(index)) {
+      const error = new CraftCircularDependencyError([
+        ...resolving.slice(resolving.indexOf(index)).map(i => tokenName(table[i].token)), tokenName(provider.token),
+      ]);
+      globalThis.console?.error(error);
+      throw error;
+    }
+    resolving.push(index);
+    try { values[index] = provider.useFactory(owner); ready[index] = true; }
+    finally { resolving.pop(); }
+    return values[index];
+  };
+  const localIndex = (token: object) => table.findIndex(p => p.token === token);
+  const fallback = (token: object) => {
+    if (defaults?.has(token)) return defaults.get(token);
+    const value = owner.run(() => lookupDefaultFactory(token));
+    if (value !== ɵNOT_FOUND) (defaults ??= new Map()).set(token, value);
+    return value;
+  };
+  const owner: CraftInjector = {
+    get<T>(token: object, notFound?: T): T {
+      if (token === owner) return owner as T;
+      const index = localIndex(token);
+      if (index >= 0) return resolve(index) as T;
+      if (arguments.length >= 2) return parent.get(token, notFound as T);
+      try { return parent.get(token); }
+      catch (error) {
+        const value = fallback(token);
+        if (value !== ɵNOT_FOUND) return value as T;
+        throw error instanceof Error && error.message === missingProviderMessage(token) ? error : missingProviderError(token);
+      }
+    },
+    getOptional<T>(token: object): T | null {
+      if (token === owner) return owner as T;
+      const index = localIndex(token);
+      if (index >= 0) return resolve(index) as T;
+      const inherited = parent.getOptional(token);
+      if (inherited !== null) return inherited as T;
+      const value = fallback(token);
+      return value === ɵNOT_FOUND ? null : value as T;
+    },
+    run<T>(fn: () => T): T {
+      if (injectorStorage) return injectorStorage.run(owner, fn);
+      browserInjectorStack.push(owner);
+      try { return fn(); } finally { browserInjectorStack.pop(); }
+    },
+    createChild(childProviders: readonly CraftProvider[], compact = false): CraftInjector {
+      if (destroyed) throw new Error('Cannot create a child of a destroyed Craft injector.');
+      const release = () => children?.delete(child);
+      const child = compact && prototypeCompactEligible(childProviders)
+        ? createPrototypeCompactOwner(childProviders, owner, release)
+        : createNativeCraftInjector(childProviders, owner, release);
+      (children ??= new Set()).add(child);
+      return child;
+    },
+    destroy(): void {
+      if (destroyed) return;
+      destroyed = true;
+      try { runCraftCleanups([
+        ...Array.from(children ?? [], child => () => child.destroy()), ...callbacks.splice(0),
+      ]); }
+      finally { detach(); children?.clear(); defaults?.clear(); table = []; values.length = ready.length = 0; }
+    },
+    get destroyed() { return destroyed; },
+    get ɵparent() { return parent; },
+  };
+  Object.defineProperty(owner, 'ɵonDestroy', { value: (callback: () => void) => callbacks.push(callback) });
+  return owner;
+}
