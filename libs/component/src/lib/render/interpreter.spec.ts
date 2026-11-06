@@ -889,6 +889,42 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
+  it('gives each instance of a component its own host tag ordinal and owner chain', async () => {
+    const { RowHostTags, provideRowHostTags } = craftService(
+      { name: 'rowHostTags', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('hostTags', inject(HOST_TAG_LIST));
+      },
+    );
+    const row = craftComponent(
+      'TaggedRow',
+      { providers: [provideRowHostTags()] },
+      function* () {
+        const { hostTags } = yield* RowHostTags();
+        return li(hostTags.join('|'));
+      },
+    );
+    const list = craftComponent('TaggedList', {}, () =>
+      ul([row(), row(), row()]),
+    );
+    const { nativeElement: element, destroy } =
+      await renderCraftComponent(list);
+
+    const tags = [...element.querySelectorAll('li')].map((item) =>
+      item.textContent!.split('|'),
+    );
+    expect(tags).toHaveLength(3);
+    const listTag = tags[0][0];
+    expect(listTag).toMatch(/^component:TaggedList#\d+$/);
+    for (const [owner, own, service] of tags) {
+      expect(owner).toBe(listTag);
+      expect(own).toMatch(/^component:TaggedRow#\d+$/);
+      expect(service).toMatch(/^service:rowHostTags#\d+$/);
+    }
+    expect(new Set(tags.map(([, own]) => own)).size).toBe(3);
+    destroy();
+  });
+
   it('projects named slots without a wrapper and keeps the declarative injector', async () => {
     const label = { debugName: 'projection-label' };
     type CardInput = {

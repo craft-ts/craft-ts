@@ -4307,6 +4307,29 @@ function allocateCraftHostName(
   return `${kind}:${name}#${register.next()}`;
 }
 
+// The HostName/HostTagList declarations of a component, reused for the same
+// definition and name. They hold no instance state: the tag factory reads the
+// parent's tags and draws the instance ordinal when each injector resolves it,
+// and every injector keeps its own records and values. A new name rebuilds
+// the declarations.
+const componentHostDeclarations = new WeakMap<
+  object,
+  { readonly name: string; readonly providers: Provider[] }
+>();
+
+function componentHostProviders(definition: {
+  readonly name: string;
+}): Provider[] {
+  const cached = componentHostDeclarations.get(definition);
+  if (cached?.name === definition.name) return cached.providers;
+  const providers = provideHostName(`component:${definition.name}`);
+  componentHostDeclarations.set(definition, {
+    name: definition.name,
+    providers,
+  });
+  return providers;
+}
+
 class ComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
   private environmentInjector: EnvironmentInjector | undefined;
@@ -4386,7 +4409,7 @@ class ComponentRenderedNode implements RenderedNode {
     if (!composition) {
       const scopeInjector = createEnvironmentInjector(
         [
-          ...provideHostName(`component:${definition.name}`),
+          ...componentHostProviders(definition),
           provideCraftRenderIdentity(componentRenderContext.identity),
           ...(definition.meta.providers ?? []),
           {
@@ -4677,7 +4700,7 @@ class ComponentRenderedNode implements RenderedNode {
     this.view.patchChildren([]);
     this.environmentInjector = createEnvironmentInjector(
       [
-        ...provideHostName(`component:${definition.name}`),
+        ...componentHostProviders(definition),
         provideCraftRenderIdentity(componentRenderContext.identity),
         ...(definition.meta.providers ?? []),
         ...(this.componentProviders ?? composition.providers ?? []),
