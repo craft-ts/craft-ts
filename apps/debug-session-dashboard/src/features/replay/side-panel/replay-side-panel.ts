@@ -40,10 +40,10 @@ import { derivedSessionsOf } from '../../../shared/util/session-lineage';
 import { lit } from '../../../shared/util/view-helpers';
 
 const TAB_TITLES: Readonly<Record<SideTab, string>> = {
-  journal: 'Journal de l’enregistrement',
-  review: 'Écarts avec l’enregistrement',
-  resumes: 'Reprises de cette session',
-  details: 'Détails et réglages du replay',
+  journal: i18n.t('tabJournalTitle'),
+  review: i18n.t('tabReviewTitle'),
+  resumes: i18n.t('tabResumesTitle'),
+  details: i18n.t('tabDetailsTitle'),
 };
 
 /** What the « Reprises » view lists for a session: points, recipes, derived sessions. */
@@ -130,9 +130,9 @@ export const ReplaySidePanel = craftComponent(
  */
 export const ReplayRail = craftComponent('ReplayRail', {}, function* () {
   const archive = yield* SessionArchive();
-  const savedSessions = rawReactiveValue(archive.savedSessions);
-  const savedRecipes = rawReactiveValue(archive.resumeRecipeList);
-  const checkpoints = rawReactiveValue(archive.resumeCheckpointList);
+  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
+  const savedRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
+  const checkpoints = rawReactiveValue(archive.resumeCheckpoints.resumeCheckpointList);
 
   const reviewCount = yield* craftComputed(
     'reviewCount',

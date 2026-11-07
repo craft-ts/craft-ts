@@ -13,6 +13,7 @@ import {
 import {
   craftService,
   craftMethod,
+  insertQueryPipe,
   insertStoragePersister,
   craftUnique,
   query,
@@ -32,7 +33,7 @@ export const { GlobalQueryView, provideGlobalQueryView } = craftService(
   }) {
     const { userId } = inputs.$provided;
 
-    const userQuery = yield* query(
+    yield* query(
       'userQuery',
       {
         params: userId,
@@ -41,18 +42,24 @@ export const { GlobalQueryView, provideGlobalQueryView } = craftService(
           return yield* ApiService.getItemById(params);
         },
       },
-      insertStoragePersister(
-        craftUnique({
-          storeName: 'demo-app',
-          key: 'user-query',
-        }),
-        { enabled: !isCraftDebugReplayLaunch() },
+      insertQueryPipe(
+        insertStoragePersister(
+          craftUnique({
+            storeName: 'demo-app',
+            key: 'user-query',
+          }),
+          { enabled: !isCraftDebugReplayLaunch() },
+        ),
+        function* ({ resource }) {
+          return {
+            hasUser: yield* craftComputed('hasUser', () => resource.hasValue()),
+            userValueJson: yield* craftComputed('userValueJson', function* () {
+              return JSON.stringify(yield* resource.value(), null, 2);
+            }),
+          };
+        },
       ),
     );
-    yield* craftComputed('hasUser', () => userQuery.hasValue());
-    yield* craftComputed('userValueJson', function* () {
-      return JSON.stringify(yield* userQuery.value(), null, 2);
-    });
     const userIdPathParams = yield* UserIdPathParams();
     yield* craftMethod('navigateNext', function* () {
       return yield* userIdPathParams.nextUser();
@@ -80,13 +87,13 @@ const GlobalQuery = craftComponent(
         ifNode(
           'hasUser',
           function* () {
-            const { hasUser } = yield* GlobalQueryView();
-            return yield* hasUser();
+            const { userQuery } = yield* GlobalQueryView();
+            return yield* userQuery.hasUser();
           },
           () =>
             pre('QueryValue', { class: example.code }, function* () {
-              const { userValueJson } = yield* GlobalQueryView();
-              return yield* userValueJson();
+              const { userQuery } = yield* GlobalQueryView();
+              return yield* userQuery.userValueJson();
             }),
         ),
       ]),

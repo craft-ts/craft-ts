@@ -44,20 +44,19 @@ const DEMO_CLIENTS: Record<
 export const { ClientCurrency, provideClientCurrency } = craftService(
   { name: 'ClientCurrency', providedIn: 'toProvide' },
   function* () {
-    const client = yield* state(
+    yield* state(
       'client',
       initialClient(),
-      ({ set }) => ({
-        changeClient: (next: DemoClientId) => set(next),
-      }),
+      function* ({ set, state: currentClient }) {
+        return {
+          changeClient: (next: DemoClientId) => set(next),
+          currency: yield* craftComputed('currency', function* () {
+            const clientDetails = DEMO_CLIENTS[yield* currentClient()];
+            return { code: clientDetails.currency, name: clientDetails.name };
+          }),
+        };
+      },
     );
-
-    // Keep the generator-backed derived value in the service body; the state
-    // insertion callback is synchronous and must not unwrap it with craftUse.
-    yield* craftComputed('currency', function* () {
-      const clientDetails = DEMO_CLIENTS[yield* client()];
-      return { code: clientDetails.currency, name: clientDetails.name };
-    });
 
   },
 );
@@ -70,9 +69,8 @@ export const { ClientCurrency, provideClientCurrency } = craftService(
 export const { ClientUnits, provideClientUnits } = craftService(
   { name: 'ClientUnits', providedIn: 'toProvide' },
   function* () {
-    const clientCurrency = yield* ClientCurrency();
     yield* craftComputed('system', function* () {
-      return DEMO_CLIENTS[yield* clientCurrency.client()].units;
+      return DEMO_CLIENTS[yield* ClientCurrency.client()].units;
     });
   },
 );
@@ -175,7 +173,7 @@ const orderStatus = defineToken({
 
 export const orderAmount = money('amount', function* () {
   const clientCurrency = yield* ClientCurrency();
-  const currency = yield* clientCurrency.currency();
+  const currency = yield* clientCurrency.client.currency();
 
   return {
     currency: currency.code,

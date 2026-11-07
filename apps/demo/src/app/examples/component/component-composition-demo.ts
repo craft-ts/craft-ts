@@ -49,16 +49,18 @@ export const {
 } = craftService(
   { name: 'componentCompositionDemoView', providedIn: 'toProvide' },
   function* () {
-    const canReadRestrictedData = yield* state(
+    yield* state(
       'canReadRestrictedData',
       false,
-      ({ update }) => ({
-        toggle: () => update((v) => !v),
-      }),
+      function* ({ update, state: canRead }) {
+        return {
+          toggle: () => update((v) => !v),
+          restriction: yield* craftComputed('restriction', function* () {
+            return (yield* canRead()) ? 'accessible' : noAccess;
+          }),
+        };
+      },
     );
-    yield* craftComputed('restriction', function* () {
-      return (yield* canReadRestrictedData()) ? 'accessible' : noAccess;
-    });
 
     yield* state('lastHandledException', '', ({ set }) => ({
       showNoAccessText: () =>
@@ -93,7 +95,7 @@ export const componentCompositionDemo = craftComponent(
       p(ComponentCompositionDemoView.lastHandledException),
       restrictedContent.pipe(
         withProviders([
-          provideRestrictedData(ComponentCompositionDemoView.restriction),
+          provideRestrictedData(ComponentCompositionDemoView.canReadRestrictedData.restriction),
         ]),
         catchTag.exhaustive({
           NO_ACCESS: function* () {

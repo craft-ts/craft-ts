@@ -89,8 +89,10 @@ export const { ResumeThread } = craftService(
       'watcher',
       { lookup: undefined as ResumeThreadLookup | undefined, run: 0 },
       ({ update }) => ({
-        start: (lookup: ResumeThreadLookup) =>
-          update((current) => ({ lookup, run: current.run + 1 })),
+        startForSession: (sessionId: string) =>
+          update((current) => ({ lookup: { sessionId }, run: current.run + 1 })),
+        startForRequest: (requestId: string) =>
+          update((current) => ({ lookup: { requestId }, run: current.run + 1 })),
         stop: () =>
           update((current) => ({ lookup: undefined, run: current.run + 1 })),
       }),
@@ -107,11 +109,11 @@ export const { ResumeThread } = craftService(
     };
 
     yield* craftExpose('watchSession', (sessionId: string) => {
-      watcher.start({ sessionId });
+      watcher.startForSession(sessionId);
       poll(watcherValue().run);
     });
     yield* craftExpose('watchRequest', (requestId: string) => {
-      watcher.start({ requestId });
+      watcher.startForRequest(requestId);
       poll(watcherValue().run);
     });
     yield* craftExpose('stop', () => {

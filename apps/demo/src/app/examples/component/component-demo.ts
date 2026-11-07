@@ -13,7 +13,6 @@ import {
 } from '@craft-ts/component';
 import {
   craftService,
-  craftComputed,
   isGenerator,
   state,
 } from '@craft-ts/core';
@@ -72,7 +71,7 @@ const userCard = craftComponent(
 export const { ComponentDemoView, provideComponentDemoView } = craftService(
   { name: 'componentDemoView', providedIn: 'toProvide' },
   function* () {
-    const users = yield* state(
+    yield* state(
       'users',
       [
         { id: 1, name: 'Ada Lovelace' },
@@ -88,9 +87,6 @@ export const { ComponentDemoView, provideComponentDemoView } = craftService(
           update((current) => current.filter((user) => user.id !== removed.id)),
       }),
     );
-    yield* craftComputed('items', function* () {
-      return yield* users();
-    });
   },
 );
 
@@ -119,7 +115,7 @@ export const componentDemo = craftComponent(
       div(
         { class: componentUi.list },
         forNode(
-          ComponentDemoView.items,
+          ComponentDemoView.users,
           {
             track: (user) => user.id,
             empty: () => p({ class: componentUi.error }, 'No users'),

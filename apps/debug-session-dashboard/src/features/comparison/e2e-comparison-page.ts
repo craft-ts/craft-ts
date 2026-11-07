@@ -48,12 +48,13 @@ function comparisonSummary(
     return (i18n.t("copy.copy006") + (typeof exception === 'string' ? exception : httpFailureReason(exception)) + i18n.t("copy.copy007"));
   if (!result) return i18n.t("copy.copy008");
   const references =
-    result.baselineCount > 1
-      ? `${result.baselineCount} références vertes`
-      : `${result.baselineCount} référence verte`;
+    i18n.t(
+      result.baselineCount > 1 ? 'greenReferencesMany' : 'greenReferencesOne',
+      { count: result.baselineCount },
+    );
   const single =
     result.baselineCount === 1
-      ? ' · une seule référence : les variations normales ne sont pas connues'
+      ? i18n.t('singleReferenceNote')
       : '';
   return (i18n.t("copy.copy009") + (result.comparison.findings.length) + i18n.t("copy.copy010") + (references) + i18n.t("copy.copy011") + (single) + ".");
 }
@@ -79,13 +80,13 @@ function replayFramesOf(
   return [
     {
       side: 'baseline',
-      label: 'Référence verte',
+      label: i18n.t('greenReferenceFrame'),
       src: replayUrl(result.baselineSource),
       origin: dashboard.origin,
     },
     {
       side: 'observed',
-      label: 'Run observé',
+      label: i18n.t('observedRunFrame'),
       src: replayUrl(result.observedSource),
       origin: dashboard.origin,
     },
@@ -166,7 +167,9 @@ export const E2eComparisonPage = craftComponent(
       );
       return (current?.findings ?? []).map((finding, index) => ({
         finding,
-        label: sessionTraceFindingLabel(finding),
+        label: i18n.t('findingLabelText', {
+          findingLabel: sessionTraceFindingLabel(finding),
+        }),
         text: ` · ${describeSessionTraceFinding(finding)}`,
         first: index === firstIndex ? 'true' : 'false',
       }));

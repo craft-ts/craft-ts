@@ -263,4 +263,4 @@ child. If the row callback itself reads the position, that callback depends on
 the index and reruns when it changes. Keep reads inside bindings when only a
 small part of the row uses the position.
 
-<<< @/tests/snippets/guide/components/index/reactive-index.spec.ts#reactive-index-input
+<<< @/tests/snippets/guide/components/index/reactive-index-input.spec.ts#reactive-index-input

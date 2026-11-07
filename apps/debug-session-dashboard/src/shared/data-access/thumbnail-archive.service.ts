@@ -7,6 +7,7 @@ import {
   mutation,
   query,
   rawReactiveValue,
+  state,
 } from '@craft-ts/core';
 import { isRecord } from '../util/replay-model';
 
@@ -150,10 +151,21 @@ export const { ThumbnailArchive } = craftService(
 
 
     const manifestValue = rawReactiveValue(thumbnailManifest.value);
-    let watching: string | undefined;
-    let pollRun = 0;
+    // The recording followed, and a run number that retires older polls.
+    const watcher = yield* state(
+      'thumbnailWatcher',
+      { id: undefined as string | undefined, run: 0 },
+      ({ update }) => ({
+        start: (id: string) =>
+          update((current) => ({ id, run: current.run + 1 })),
+        stop: () =>
+          update((current) => ({ id: undefined, run: current.run + 1 })),
+      }),
+    );
+    const watcherValue = rawReactiveValue(watcher);
 
     const poll = (run: number): void => {
+      const { id: watching, run: pollRun } = watcherValue();
       if (run !== pollRun || watching === undefined) return;
       const current = manifestValue();
       const settled =
@@ -171,9 +183,8 @@ export const { ThumbnailArchive } = craftService(
     };
 
     const startPolling = (id: string): void => {
-      watching = id;
-      pollRun += 1;
-      poll(pollRun);
+      watcher.start(id);
+      poll(watcherValue().run);
     };
 
     yield* craftExpose('watch', (id: string, force = false) => {
@@ -181,8 +192,7 @@ export const { ThumbnailArchive } = craftService(
       startPolling(id);
     });
     yield* craftExpose('stop', () => {
-      watching = undefined;
-      pollRun += 1;
+      watcher.stop();
     });
   },
 );

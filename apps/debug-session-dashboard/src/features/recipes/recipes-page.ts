@@ -40,14 +40,20 @@ function recipeFacts(
   const latest = recipe.runs[0];
   return [
     source
-      ? `Session du ${sessionDate.format(new Date(source.createdAt))}`
-      : 'Session supprimée',
+      ? i18n.t('recipeSessionOf', {
+          date: sessionDate.format(new Date(source.createdAt)),
+        })
+      : i18n.t('recipeSessionDeleted'),
     ...(recipe.beforeSequence === undefined
       ? []
-      : [`avant l’événement ${recipe.beforeSequence}`]),
+      : [i18n.t('momentBeforeEvent', { count: recipe.beforeSequence })]),
     plural(recipe.runs.length, 'exécution'),
     ...(latest
-      ? [`dernière ${RECIPE_RUN_STATUS[latest.status] ?? latest.status}`]
+      ? [
+          i18n.t('recipeLatestRun', {
+            detail: RECIPE_RUN_STATUS[latest.status] ?? latest.status,
+          }),
+        ]
       : []),
   ].join(' · ');
 }
@@ -55,8 +61,8 @@ function recipeFacts(
 /** Every recipe the local archive knows, newest first. */
 export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
   const archive = yield* SessionArchive();
-  const savedRecipes = rawReactiveValue(archive.resumeRecipeList);
-  const savedSessions = rawReactiveValue(archive.savedSessions);
+  const savedRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
+  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
 
   const rows = ul(
     { class: ui.sessions, 'data-lab': 'recipe-catalog' },

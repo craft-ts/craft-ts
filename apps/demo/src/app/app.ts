@@ -216,10 +216,15 @@ export const { AppView, provideAppView } = craftService(
     const navOpen = yield* state(
       'navOpen',
       false,
-      ({ set, update }) => ({
-        toggle: () => update((open) => !open),
-        close: () => set(false),
-      }),
+      function* ({ set, update, state: open }) {
+        return {
+          toggle: () => update((isOpen) => !isOpen),
+          close: () => set(false),
+          navToggleLabel: yield* craftComputed('navToggleLabel', function* () {
+            return (yield* open()) ? 'Close examples' : 'Browse examples';
+          }),
+        };
+      },
     );
     if (typeof document !== 'undefined') {
       fromEventToSource$<PointerEvent>(document, 'pointerdown').subscribe(
@@ -235,9 +240,6 @@ export const { AppView, provideAppView } = craftService(
         },
       );
     }
-    yield* craftComputed('navToggleLabel', function* () {
-      return (yield* navOpen()) ? 'Close examples' : 'Browse examples';
-    });
     yield* craftMethod('clearCache', function* () {
       yield* GlobalPersisterHandlerService.clearAllCache();
       // This button is an explicit development reset action; reload so every
@@ -305,7 +307,7 @@ export const App = craftComponent(
             'aria-expanded': AppView.navOpen,
             keydown: handleNavToggleKeydown,
           },
-          AppView.navToggleLabel,
+          AppView.navOpen.navToggleLabel,
         ).pipe(
           eventAction({
             click: { action: AppView.navOpen.toggle, stopPropagation: true },

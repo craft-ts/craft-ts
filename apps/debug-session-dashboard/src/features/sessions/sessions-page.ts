@@ -69,11 +69,11 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const archive = yield* SessionArchive();
   const listView = yield* SessionResumeFilter();
   const actions = yield* SessionPageActions();
-  const savedSessions = rawReactiveValue(archive.savedSessions);
-  const savedRecipes = rawReactiveValue(archive.resumeRecipeList);
-  const retentionDays = rawReactiveValue(archive.retentionDays);
-  const storageBytes = rawReactiveValue(archive.storageBytes);
-  const reachable = rawReactiveValue(archive.reachable);
+  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
+  const savedRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
+  const retentionDays = rawReactiveValue(archive.sessions.retentionDays);
+  const storageBytes = rawReactiveValue(archive.sessions.storageBytes);
+  const reachable = rawReactiveValue(archive.sessions.reachable);
   const view = rawReactiveValue(listView.filter.view);
 
   const recordingCount = yield* craftComputed(
@@ -200,12 +200,17 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
         return [
           ...(incompatibleCount() > 0
             ? [
-                `${plural(incompatibleCount(), 'session')} au format non rejouable par ce dashboard`,
+                i18n.t('sessionsIncompatible', {
+                  count: plural(incompatibleCount(), 'session'),
+                }),
               ]
             : []),
           ...(expiredCount() > 0
             ? [
-                `${plural(expiredCount(), 'session')} de plus de ${retentionDays()} jours`,
+                i18n.t('sessionsOlderThan', {
+                  count: plural(expiredCount(), 'session'),
+                  total: retentionDays(),
+                }),
               ]
             : []),
         ].join(' · ');

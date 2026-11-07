@@ -15,6 +15,9 @@ export default [
   },
   {
     files: ['**/src/**/*.ts'],
+    // The app's specs drive it as the other apps' specs do (asynchronously,
+    // through its real server); the Craft recommendations are for its code.
+    ignores: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
     languageOptions: {
       parserOptions: {
         project: ['./tsconfig.app.json'],
@@ -56,6 +59,12 @@ export default [
     rules: {
       'craft-ts/require-primitive-derived-property': 'off',
     },
+  },
+  {
+    // The test harness starts the library's review server: that server is the
+    // boundary the specs prove the app through.
+    files: ['vitest.config.ts', 'test/**/*.ts'],
+    rules: { '@nx/enforce-module-boundaries': 'off' },
   },
   {
     // The review e2e (this app's and the library's, linted with this config)

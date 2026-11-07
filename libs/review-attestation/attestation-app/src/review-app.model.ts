@@ -1029,7 +1029,10 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
     });
 
     const closeReview = yield* CloseReview.closeReview();
-    yield* CloseReview.closeReviewFailed();
+    yield* craftExpose(
+      'closeReviewFailed',
+      CloseReview.closeReview.closeReviewFailed,
+    );
     yield* craftExpose('closeReviewSession', CloseReview.closeReviewSession);
 
     // Infer the query before delegating to it: combining both expressions can

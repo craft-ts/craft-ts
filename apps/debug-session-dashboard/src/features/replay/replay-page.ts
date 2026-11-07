@@ -24,7 +24,7 @@ import { ResumeDialog } from './resume-dialog';
 export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
   const route = yield* ReplayRoute();
   const archive = yield* SessionArchive();
-  const savedSessions = rawReactiveValue(archive.savedSessions);
+  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
   const titleText = yield* craftComputed('titleText', () =>
     replaySessionTitle(
       savedSessions().find((item) => item.id === routeSessionId()),

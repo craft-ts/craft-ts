@@ -1,5 +1,6 @@
 import { isRecord } from './replay-model';
 import { sessionDate } from './replay-labels';
+import { i18n } from './catalog';
 
 /**
  * The coverage page reads what each app's architecture suite computed — the
@@ -105,16 +106,16 @@ export type CoverageSummary = Readonly<{
 }>;
 
 const KIND_LABEL: Readonly<Record<string, string>> = {
-  route: 'page',
-  guard: 'garde',
-  method: 'méthode',
-  mutation: 'mutation',
-  command: 'commande',
-  'async-process': 'processus',
-  'state-machine': 'machine à états',
-  'server-function': 'fonction serveur',
-  'http-exception': 'exception HTTP',
-  declared: 'déclaré',
+  route: i18n.t('coverageKindRoute'),
+  guard: i18n.t('coverageKindGuard'),
+  method: i18n.t('coverageKindMethod'),
+  mutation: i18n.t('coverageKindMutation'),
+  command: i18n.t('coverageKindCommand'),
+  'async-process': i18n.t('coverageKindAsyncProcess'),
+  'state-machine': i18n.t('coverageKindStateMachine'),
+  'server-function': i18n.t('coverageKindServerFunction'),
+  'http-exception': i18n.t('coverageKindHttpException'),
+  declared: i18n.t('coverageKindDeclared'),
 };
 
 /**
@@ -142,9 +143,9 @@ export function sectionOf(entry: BehaviorCoverageEntry): CoverageSection {
 }
 
 const MUTANT_LABEL: Readonly<Record<string, string>> = {
-  killed: 'mutant tué',
-  survived: 'mutant survivant',
-  'not-reached': 'mutant non atteint',
+  killed: i18n.t('mutantKilled'),
+  survived: i18n.t('mutantSurvived'),
+  'not-reached': i18n.t('mutantNotReached'),
 };
 
 function testsLabel(tests: readonly string[]): string {
@@ -168,7 +169,14 @@ function metaOf(
       return entry.waiver ?? '';
     case 'seen':
       return latest
-        ? `Vu le ${sessionDate.format(new Date(latest.createdAt))}${entry.observations.length > 1 ? ` · dans ${entry.observations.length} sessions` : ''}`
+        ? i18n.t('coverageSeenOn', {
+            date: sessionDate.format(new Date(latest.createdAt)),
+          }) +
+          (entry.observations.length > 1
+            ? i18n.t('coverageSeenInSessions', {
+                count: entry.observations.length,
+              })
+            : '')
         : '';
     default:
       return entry.file ?? '';
@@ -228,14 +236,23 @@ export function coverageView(
     return {
       app: app.app,
       text: [
-        `${proven} prouvés sur ${app.behaviors.length}`,
+        i18n.t('coverageProvenOf', {
+          count: proven,
+          total: app.behaviors.length,
+        }),
         ...(hollow > 0
           ? [
-              `${hollow} preuve${hollow > 1 ? 's' : ''} creuse${hollow > 1 ? 's' : ''}`,
+              i18n.t(hollow > 1 ? 'coverageHollowMany' : 'coverageHollowOne', {
+                count: hollow,
+              }),
             ]
           : []),
         ...(seen > 0
-          ? [`${seen} vu${seen > 1 ? 's' : ''} en session sans test`]
+          ? [
+              i18n.t(seen > 1 ? 'coverageSeenMany' : 'coverageSeenOne', {
+                count: seen,
+              }),
+            ]
           : []),
       ].join(' · '),
     };

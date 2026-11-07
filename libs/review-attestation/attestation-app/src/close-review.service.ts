@@ -22,7 +22,7 @@ export const { CloseReview } = craftService(
     let closeReviewRequest = 0;
     const closeReviewRequested$ = source$<number>('closeReviewRequested$');
 
-    const closeReview = yield* mutation(
+    yield* mutation(
       'closeReview',
       {
         method: closeReviewRequested$.value,
@@ -34,11 +34,14 @@ export const { CloseReview } = craftService(
           }));
         },
       },
+      function* ({ hasException }) {
+        return {
+          closeReviewFailed: yield* craftComputed('closeReviewFailed', function* () {
+            return yield* hasException();
+          }),
+        };
+      },
     );
-
-    yield* craftComputed('closeReviewFailed', function* () {
-      return yield* closeReview.hasException();
-    });
 
     yield* craftMethod('closeReviewSession', function* () {
       closeReviewRequested$.emit(++closeReviewRequest);

@@ -166,12 +166,16 @@ export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
           }),
         ),
       );
+      // sourceUrl is the model's reader, handed down as an output: reading it
+      // writes nothing, which the computed rule cannot see from an output.
       yield* craftComputed('selectedSourceHref', function* () {
         const subject = (yield* inputs.selectedVisualTest())?.subject ?? '';
+        // eslint-disable-next-line craft-ts/no-craft-computed-side-effects -- a reader passed as an output
         return (yield* sourceUrl(subject)) ?? '';
       });
       yield* craftComputed('selectedSourceHidden', function* () {
         const subject = (yield* inputs.selectedVisualTest())?.subject ?? '';
+        // eslint-disable-next-line craft-ts/no-craft-computed-side-effects -- a reader passed as an output
         return !(yield* sourceUrl(subject));
       });
       yield* craftComputed('selectedVisualState', function* () {

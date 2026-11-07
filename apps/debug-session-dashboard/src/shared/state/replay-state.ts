@@ -331,25 +331,26 @@ function hasStateUpdate<Key extends keyof ReplayStateValues>(
   return Object.prototype.hasOwnProperty.call(updates, key);
 }
 
-function createStateWriter<T>(
-  name: keyof ReplayStateValues,
-  bridge: ReadBridge<T>,
+function createStateWriter<Key extends keyof ReplayStateValues>(
+  name: Key,
+  bridge: ReadBridge<ReplayStateValues[Key]>,
   batch$: ReplayStateBatch$,
 ) {
   return {
     insertion: ({
       set,
       update,
-    }: InsertionStateFactoryContext<T, Record<never, never>>) => ({
+    }: InsertionStateFactoryContext<ReplayStateValues[Key], Record<never, never>>) => ({
       set,
       update,
       setFromBatch: on$(batch$, (updates) => {
         if (hasStateUpdate(updates, name)) {
-          set(updates[name]);
+          const written: Record<Key, ReplayStateValues[Key]> = updates;
+          set(written[name]);
         }
       }),
     }),
-    bind<StateValue extends YieldableReactiveValue<T>>(stateValue: StateValue) {
+    bind<StateValue extends YieldableReactiveValue<ReplayStateValues[Key]>>(stateValue: StateValue) {
       bridge.bind(rawReactiveValue(stateValue));
       return stateValue;
     },

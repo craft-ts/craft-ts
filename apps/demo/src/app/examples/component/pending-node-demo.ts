@@ -16,7 +16,6 @@ import {
   craftMethod,
   craftSleep,
   query,
-  settled,
 } from '@craft-ts/core';
 import { pendingDemo } from './component-demos.style';
 import { buttonUi } from '@craft-ts/ui/style';
@@ -36,7 +35,7 @@ const USERS: readonly DemoUser[] = [
 /**
  * `settledValue` + `pendingNode` — type-safe suspension.
  *
- * The template never sees `undefined`: `settled(...)` hands back a resolved
+ * The template never sees `undefined`: `settledState()` hands back a resolved
  * value, and the loading state belongs to the `pendingNode`. Removing the
  * boundary below is a **compile error**, not an `undefined` leaking into the
  * render.
@@ -57,19 +56,22 @@ export const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
           return { items: USERS };
         },
       },
-      () => ({}),
+      function* ({ settledState }) {
+        return {
+          teams: yield* craftComputed('teams', function* () {
+            const list = yield* settledState();
+            return [...new Set(list.items.map((user) => user.team))]
+              .sort()
+              .join(' · ');
+          }),
+          total: yield* craftComputed('total', function* () {
+            const list = yield* settledState();
+            return `${list.items.length} people`;
+          }),
+        };
+      },
     );
 
-    yield* craftComputed('teams', function* () {
-      const list = yield* settled(users);
-      return [...new Set(list.items.map((user) => user.team))]
-        .sort()
-        .join(' · ');
-    });
-    yield* craftComputed('total', function* () {
-      const list = yield* settled(users);
-      return `${list.items.length} people`;
-    });
     yield* craftMethod('reload', function* () {
       yield* users.call(undefined);
     });
@@ -100,8 +102,8 @@ export const pendingNodeDemo = craftComponent(
       ),
       div([
         ul({ class: pendingDemo.list }, [
-          li(['Teams: ', span(PendingNodeDemoView.teams)]),
-          li({ class: pendingDemo.count }, PendingNodeDemoView.total),
+          li(['Teams: ', span(PendingNodeDemoView.usersComponentPendingNodeDemo.teams)]),
+          li({ class: pendingDemo.count }, PendingNodeDemoView.usersComponentPendingNodeDemo.total),
         ]),
       ]).pipe(
         // One boundary covers both computeds. Remove this line and

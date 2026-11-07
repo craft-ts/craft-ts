@@ -47,7 +47,7 @@ export const {
       }),
     );
     yield* usersQuery.call({ filter: '', simulateError: 'none' });
-    const hasUsers = yield* craftComputed('hasUsersClientEffectServerMiddlewareDemo', () =>
+    yield* craftComputed('hasUsersClientEffectServerMiddlewareDemo', () =>
       usersQuery.hasValue(),
     );
     yield* craftComputed(
@@ -61,14 +61,14 @@ export const {
         return `${String(tag)} · ${JSON.stringify(payload)}`;
       },
     );
-    const hasServerError = yield* craftComputed('hasServerError', () =>
-      Boolean(usersQuery.serverError()),
-    );
+    yield* craftComputed('hasServerError', function* () {
+      return Boolean(yield* usersQuery.serverError());
+    });
     yield* craftComputed('isEmptyClientEffectServerMiddlewareDemo', function* () {
       return (
-        !usersQuery.isLoading &&
-        !(yield* hasUsers()) &&
-        !(yield* hasServerError())
+        !(yield* usersQuery.isLoading()) &&
+        !usersQuery.hasValue() &&
+        !(yield* usersQuery.serverError())
       );
     });
     function* runScenario(simulateError: 'none' | 'middleware' | 'handler') {

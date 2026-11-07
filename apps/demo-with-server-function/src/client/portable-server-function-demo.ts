@@ -54,14 +54,17 @@ export const {
     yield* usersQuery.call('');
     // Le payload remonté par la chaîne : chaque clé a été produite par une
     // couche différente du `.pipe(...)` côté serveur.
-    const portableUsers = yield* craftComputed('portableUsers', function* () {
+    yield* craftComputed('portableUsers', function* () {
       return (yield* usersQuery.value())?.users ?? [];
     });
-    const hasUsers = yield* craftComputed('hasUsersClientPortableServerFunctionDemo', function* () {
-      return (yield* portableUsers()).length > 0;
+    yield* craftComputed('hasUsersClientPortableServerFunctionDemo', function* () {
+      return ((yield* usersQuery.value())?.users ?? []).length > 0;
     });
     yield* craftComputed('isEmptyClientPortableServerFunctionDemo', function* () {
-      return !usersQuery.isLoading && !(yield* hasUsers());
+      return (
+        !(yield* usersQuery.isLoading()) &&
+        ((yield* usersQuery.value())?.users ?? []).length === 0
+      );
     });
     yield* craftComputed('auditId', function* () {
       return (yield* usersQuery.value())?.auditId ?? '—';

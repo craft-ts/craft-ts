@@ -51,9 +51,9 @@ const dateTime = new Intl.DateTimeFormat('fr-FR', {
 function conditionText(condition: unknown): string {
   if (!isRecord(condition)) return JSON.stringify(condition);
   if (typeof condition['visibleText'] === 'string')
-    return `le texte « ${condition['visibleText']} » est visible`;
+    return i18n.t('conditionVisibleText', { detail: condition['visibleText'] });
   if (typeof condition['route'] === 'string')
-    return `la page est ${condition['route']}`;
+    return i18n.t('conditionRoute', { detail: condition['route'] });
   return JSON.stringify(condition);
 }
 
@@ -62,15 +62,25 @@ function stepText(step: Readonly<Record<string, unknown>>): string {
   const type = step['type'];
   if (type === 'network')
     return step['mode'] === 'mocked'
-      ? 'Réseau simulé : aucune écriture sur le serveur.'
-      : 'Réseau réel.';
+      ? i18n.t('recipeStepMockedNetwork')
+      : i18n.t('recipeStepRealNetwork');
   if (type === 'goto' && typeof step['route'] === 'string')
-    return `Aller sur ${step['route']}.`;
+    return i18n.t('recipeStepGoto', { detail: step['route'] });
   if (type === 'handoff')
-    return `À vous : ${typeof step['message'] === 'string' ? step['message'] : 'une action manuelle.'}`;
+    return i18n.t('recipeStepHandoff', {
+      detail:
+        typeof step['message'] === 'string'
+          ? step['message']
+          : i18n.t('recipeStepHandoffDefault'),
+    });
   if (type === 'expect')
-    return `Vérifier que ${conditionText(step['condition'])}${step['level'] === 'essential' ? ' (indispensable)' : ''}.`;
-  if (type === 'checkpoint') return 'Figer un point de reprise à cet état.';
+    return i18n.t(
+      step['level'] === 'essential'
+        ? 'recipeStepExpectEssential'
+        : 'recipeStepExpect',
+      { detail: conditionText(step['condition']) },
+    );
+  if (type === 'checkpoint') return i18n.t('recipeStepCheckpoint');
   const { type: _type, ...rest } = step;
   return `${String(type)} ${JSON.stringify(rest)}`;
 }
@@ -79,7 +89,9 @@ function runText(run: ResumeRecipeRunSummary): string {
   return [
     dateTime.format(new Date(run.startedAt)),
     RECIPE_RUN_STATUS[run.status] ?? run.status,
-    ...(run.currentStep === undefined ? [] : [`étape ${run.currentStep + 1}`]),
+    ...(run.currentStep === undefined
+      ? []
+      : [i18n.t('recipeRunStep', { count: run.currentStep + 1 })]),
     ...(run.failure ? [run.failure.detail] : []),
   ].join(' · ');
 }
@@ -90,7 +102,10 @@ function validationIssues(item: ResumeRecipeDetail | undefined): string {
   const failure = item.runs[0]?.failure;
   if (failure) {
     // The archive often repeats the failure as an issue: name its step instead.
-    const step = `Étape ${(failure.step ?? 0) + 1} : ${failure.detail}`;
+    const step = i18n.t('recipeFailureStep', {
+      count: (failure.step ?? 0) + 1,
+      detail: failure.detail,
+    });
     const repeated = issues.indexOf(failure.detail);
     if (repeated >= 0) issues[repeated] = step;
     else if (!issues.includes(step)) issues.push(step);
@@ -103,11 +118,11 @@ function recipeBoundaries(item: ResumeRecipeDetail | undefined): string {
   if (!item) return '';
   return [
     item.objective.mayWrite
-      ? 'Peut écrire sur le serveur'
-      : 'N’écrit jamais sur le serveur',
+      ? i18n.t('recipeMayWrite')
+      : i18n.t('recipeNeverWrites'),
     item.strategy === 'autonomous'
-      ? 'recrée ses données elle-même'
-      : 'part de données existantes',
+      ? i18n.t('recipeAutonomous')
+      : i18n.t('recipeExistingData'),
   ].join(' · ');
 }
 
@@ -119,8 +134,8 @@ function recipeOrigin(
   if (!item) return '';
   const moment =
     item.beforeSequence === undefined
-      ? 'à la fin de l’enregistrement'
-      : `juste avant l’événement ${item.beforeSequence}`;
+      ? i18n.t('recipeMomentEnd')
+      : i18n.t('recipeMomentBefore', { count: item.beforeSequence });
   return source
     ? (i18n.t("copy.copy027") + (sessionDate.format(new Date(source.createdAt))) + i18n.t("copy.copy028") + (moment) + ".")
     : (i18n.t("copy.copy029") + (moment) + ".");
@@ -137,9 +152,9 @@ export const RecipeDetailPage = craftComponent(
     const recipeId = route.snapshot.params['recipeId'];
     archive.recipeDetail.call(recipeId);
 
-    const detailValue = rawReactiveValue(archive.resumeRecipeDetail);
+    const detailValue = rawReactiveValue(archive.recipeDetail.resumeRecipeDetail);
     const detailFailure = rawReactiveValue(archive.recipeDetail.exception);
-    const savedSessions = rawReactiveValue(archive.savedSessions);
+    const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
     const recipe = yield* craftComputed('recipe', () =>
       detailValue()?.id === recipeId ? detailValue() : undefined,
     );
@@ -501,7 +516,7 @@ export const RecipeDetailPage = craftComponent(
                     return [
                       plural(saved.eventCount, 'événement'),
                       ...(saved.status === 'interrupted'
-                        ? ['interrompue']
+                        ? [i18n.t('resumeInterrupted')]
                         : []),
                     ].join(' · ');
                   }),

@@ -23,30 +23,34 @@ export const { provideInteractionReplayDemoView, InteractionReplayDemoView } =
   craftService(
     { name: 'interactionReplayDemoView', providedIn: 'toProvide' },
     function* () {
-      const expanded = yield* state('expanded', false, ({ update }) => ({
-        toggle: () => update((value) => !value),
-      }));
-      const animationRunning = yield* state(
+      yield* state('expanded', false, function* ({ update, state: isExpanded }) {
+        return {
+          toggle: () => update((value) => !value),
+          expandedReplayState: yield* craftComputed('expandedReplayState', function* () {
+            return (yield* isExpanded()) ? 'open' : 'closed';
+          }),
+          expandedButtonText: yield* craftComputed('expandedButtonText', function* () {
+            return (yield* isExpanded())
+              ? 'Close the expanded content'
+              : 'Open the expanded content';
+          }),
+        };
+      });
+      yield* state(
         'animationRunning',
         false,
-        ({ update }) => ({
-          toggle: () => update((value) => !value),
-        }),
+        function* ({ update, state: isRunning }) {
+          return {
+            toggle: () => update((value) => !value),
+            animationButtonText: yield* craftComputed('animationButtonText', function* () {
+              return (yield* isRunning()) ? 'Stop animation' : 'Start animation';
+            }),
+            replayAnimationState: yield* craftComputed('replayAnimationState', function* () {
+              return (yield* isRunning()) ? 'running' : 'idle';
+            }),
+          };
+        },
       );
-      yield* craftComputed('expandedReplayState', function* () {
-        return (yield* expanded()) ? 'open' : 'closed';
-      });
-      yield* craftComputed('expandedButtonText', function* () {
-        return (yield* expanded())
-          ? 'Close the expanded content'
-          : 'Open the expanded content';
-      });
-      yield* craftComputed('animationButtonText', function* () {
-        return (yield* animationRunning()) ? 'Stop animation' : 'Start animation';
-      });
-      yield* craftComputed('replayAnimationState', function* () {
-        return (yield* animationRunning()) ? 'running' : 'idle';
-      });
     },
   );
 
@@ -127,7 +131,7 @@ export const InteractionReplayDemo = craftComponent(
         div(
           {
             class: [demo.details, demo.detailsOpen],
-            'data-replayExpanded': InteractionReplayDemoView.expandedReplayState,
+            'data-replayExpanded': InteractionReplayDemoView.expanded.expandedReplayState,
           },
           [
             button(
@@ -140,7 +144,7 @@ export const InteractionReplayDemo = craftComponent(
                 click: InteractionReplayDemoView.expanded.toggle,
                 'data-testid': 'expanded-toggle',
               },
-              InteractionReplayDemoView.expandedButtonText,
+              InteractionReplayDemoView.expanded.expandedButtonText,
             ),
             ifNode(InteractionReplayDemoView.expanded, () =>
               p(
@@ -187,12 +191,12 @@ export const InteractionReplayDemo = craftComponent(
               'data-testid': 'animation-toggle',
               click: InteractionReplayDemoView.animationRunning.toggle,
             },
-            InteractionReplayDemoView.animationButtonText,
+            InteractionReplayDemoView.animationRunning.animationButtonText,
           ),
           div(
             {
               class: demo.animationBox,
-              'data-replayAnimation': InteractionReplayDemoView.replayAnimationState,
+              'data-replayAnimation': InteractionReplayDemoView.animationRunning.replayAnimationState,
               'data-testid': 'animation-box',
             },
             'Keyframe pulse',

@@ -15,8 +15,8 @@ export const { MyGlobalErrorScreenView, provideMyGlobalErrorScreenView } =
   craftService(
     { name: 'myGlobalErrorScreenView', providedIn: 'toProvide' },
     function* () {
-      const error = yield* CraftGlobalError();
-      yield* craftComputed('disabled', () => {
+      yield* craftComputed('disabled', function* () {
+        const error = yield* CraftGlobalError();
         return isDisabledError(error());
       });
     },

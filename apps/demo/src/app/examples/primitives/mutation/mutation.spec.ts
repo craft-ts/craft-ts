@@ -183,6 +183,12 @@ function createTemplateContext(
       }),
       'hasUser',
     ),
+    userValueJson: markYieldableValue(
+      vi.fn(function* () {
+        return JSON.stringify(user, null, 2);
+      }),
+      'userValueJson',
+    ),
     value: markYieldableValue(
       vi.fn(function* () {
         return user;
@@ -211,18 +217,6 @@ function createTemplateContext(
       updateUserName,
       update,
       goTo,
-      hasUser: markYieldableValue(
-        vi.fn(function* () {
-          return user !== undefined;
-        }),
-        'hasUser',
-      ),
-      userValueJson: markYieldableValue(
-        vi.fn(function* () {
-          return JSON.stringify(user, null, 2);
-        }),
-        'userValueJson',
-      ),
       // A service member is read with `yield*`, so the fake is a reader too.
       nameInput,
       setName,

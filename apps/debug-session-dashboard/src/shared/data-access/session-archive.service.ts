@@ -466,9 +466,24 @@ export const { SessionArchive } = craftService(
           success: response(resumeRequestDecoder),
         }));
       },
+    }, function* ({ resource, hasException }) {
+      return {
+        resumeRequestSending: yield* craftComputed(
+          'resumeRequestSending',
+          function* () {
+            return yield* resource.isLoading();
+          },
+        ),
+        resumeRequestFailed: yield* craftComputed(
+          'resumeRequestFailed',
+          function* () {
+            return yield* hasException();
+          },
+        ),
+      };
     });
 
-    const sessions = yield* query(
+    yield* query(
       'sessions',
       {
         method: refreshRequested$.value,
@@ -480,6 +495,22 @@ export const { SessionArchive } = craftService(
         },
       },
       insertQueryPipe(
+        function* ({ resource, hasException }) {
+          return {
+            savedSessions: yield* craftComputed('savedSessions', function* () {
+              return (yield* resource.value())?.sessions ?? [];
+            }),
+            retentionDays: yield* craftComputed('retentionDays', function* () {
+              return (yield* resource.value())?.retentionDays ?? 30;
+            }),
+            storageBytes: yield* craftComputed('storageBytes', function* () {
+              return (yield* resource.value())?.storageBytes ?? 0;
+            }),
+            reachable: yield* craftComputed('reachable', function* () {
+              return !(yield* hasException());
+            }),
+          };
+        },
         insertReactOnMutation(deleteSession, {
           reload: { onMutationResolved: true },
         }),
@@ -513,7 +544,7 @@ export const { SessionArchive } = craftService(
 
     // The points of one session, read when it opens: "Reprendre ici" reopens
     // a valid one directly, without the AI.
-    const resumeCheckpoints = yield* query(
+    yield* query(
       'resumeCheckpoints',
       {
         method: (sessionId: string) => sessionId,
@@ -524,9 +555,18 @@ export const { SessionArchive } = craftService(
           }));
         },
       },
-      () => ({}),
+      function* ({ resource }) {
+        return {
+          resumeCheckpointList: yield* craftComputed(
+            'resumeCheckpointList',
+            function* () {
+              return (yield* resource.value()) ?? [];
+            },
+          ),
+        };
+      },
     );
-    const recipeCatalog = yield* query(
+    yield* query(
       'recipeCatalog',
       {
         method: refreshRequested$.value,
@@ -537,9 +577,15 @@ export const { SessionArchive } = craftService(
           }));
         },
       },
-      () => ({}),
+      function* ({ resource }) {
+        return {
+          resumeRecipeList: yield* craftComputed('resumeRecipeList', function* () {
+            return (yield* resource.value()) ?? [];
+          }),
+        };
+      },
     );
-    const recipeDetail = yield* query(
+    yield* query(
       'recipeDetail',
       {
         method: (id: string) => id,
@@ -550,36 +596,17 @@ export const { SessionArchive } = craftService(
           }));
         },
       },
-      () => ({}),
+      function* ({ resource }) {
+        return {
+          resumeRecipeDetail: yield* craftComputed(
+            'resumeRecipeDetail',
+            function* () {
+              return (yield* resource.value()) ?? undefined;
+            },
+          ),
+        };
+      },
     );
-    yield* craftComputed('resumeCheckpointList', function* () {
-      return (yield* resumeCheckpoints.value()) ?? [];
-    });
-    yield* craftComputed('resumeRecipeList', function* () {
-      return (yield* recipeCatalog.value()) ?? [];
-    });
-    yield* craftComputed('resumeRecipeDetail', function* () {
-      return (yield* recipeDetail.value()) ?? undefined;
-    });
-
-    yield* craftComputed('savedSessions', function* () {
-      return (yield* sessions.value())?.sessions ?? [];
-    });
-    yield* craftComputed('retentionDays', function* () {
-      return (yield* sessions.value())?.retentionDays ?? 30;
-    });
-    yield* craftComputed('storageBytes', function* () {
-      return (yield* sessions.value())?.storageBytes ?? 0;
-    });
-    yield* craftComputed('resumeRequestSending', function* () {
-      return yield* resumeRequest.isLoading();
-    });
-    yield* craftComputed('resumeRequestFailed', function* () {
-      return yield* resumeRequest.hasException();
-    });
-    yield* craftComputed('reachable', function* () {
-      return !(yield* sessions.hasException());
-    });
 
     const refreshAgain = () => {
       refreshRequested$.emit(++refreshCount);

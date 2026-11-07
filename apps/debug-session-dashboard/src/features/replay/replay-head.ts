@@ -97,8 +97,8 @@ export const ReplayHead = craftComponent(
     const replaySession = yield* ReplaySession();
     const { setStates } = (yield* ReplayState()).imperative;
     const archive = yield* SessionArchive();
-    const savedSessions = rawReactiveValue(archive.savedSessions);
-    const recipes = rawReactiveValue(archive.resumeRecipeList);
+    const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
+    const recipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
     const summary = yield* craftComputed('summary', () =>
       savedSessions().find((item) => item.id === routeSessionId()),
     );

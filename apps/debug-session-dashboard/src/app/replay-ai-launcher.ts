@@ -1,3 +1,4 @@
+import { i18n } from '../shared/util/catalog';
 import {
   AiSendContextLauncher,
   craftComponent,
@@ -22,6 +23,6 @@ export const AiChatLauncherBridge = craftComponent(
     yield* ReplayState();
     const chat = yield* AiChatBridge();
     yield* chat.register(() => inputs.onOpen());
-    return AiSendContextLauncher({ onOpen: inputs.onOpen, label: 'Report' });
+    return AiSendContextLauncher({ onOpen: inputs.onOpen, label: i18n.t('aiLauncherLabel') });
   },
 );

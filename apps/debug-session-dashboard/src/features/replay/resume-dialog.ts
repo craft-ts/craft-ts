@@ -100,10 +100,10 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
   const { closeResumeDialog } = replayState;
   const archive = yield* SessionArchive();
   const request = yield* ResumeRequest();
-  const resumeRecipes = rawReactiveValue(archive.resumeRecipeList);
-  const resumeCheckpoints = rawReactiveValue(archive.resumeCheckpointList);
-  const sending = rawReactiveValue(archive.resumeRequestSending);
-  const failed = rawReactiveValue(archive.resumeRequestFailed);
+  const resumeRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
+  const resumeCheckpoints = rawReactiveValue(archive.resumeCheckpoints.resumeCheckpointList);
+  const sending = rawReactiveValue(archive.resumeRequest.resumeRequestSending);
+  const failed = rawReactiveValue(archive.resumeRequest.resumeRequestFailed);
 
   const momentText = yield* craftComputed('momentText', () => {
     const point = replayDebug.replayPoint();

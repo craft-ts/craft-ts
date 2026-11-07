@@ -54,8 +54,8 @@ function differenceMessageFor(
             : api;
     const networkAction =
       api === 'websocket'
-        ? 'la connexion WebSocket demandée'
-        : `la requête réseau (${transportName})`;
+        ? i18n.t('networkActionWebSocket')
+        : i18n.t('networkActionRequest', { detail: transportName });
     return (i18n.t("copy.copy068") + (networkAction) + i18n.t("copy.copy069"));
   }
   return i18n.t("copy.copy070");

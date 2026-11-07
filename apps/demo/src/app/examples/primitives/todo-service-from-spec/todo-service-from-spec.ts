@@ -28,6 +28,8 @@ export type Todo = {
   readonly completed: boolean;
 };
 
+const noTodos: readonly Todo[] = [];
+
 /**
  * Service draft translated from the supplied pseudocode.
  * Assumption: PUT /api/todos accepts and returns the complete todo list.
@@ -50,6 +52,7 @@ export const { TodoService, provideTodoService } = craftService(
     const todoServerState = yield* query(
       'todoServerState',
       {
+        params: () => 'all',
         loader: function* () {
           return yield* CraftHttpClient.get(({ response }) => ({
             url: '/api/todos',
@@ -72,22 +75,22 @@ export const { TodoService, provideTodoService } = craftService(
 
     yield* state(
       'clientTodoForms',
-      [] as readonly Todo[],
+      noTodos,
       insertStatePipe(
         insertForm(
-          insertFormAttributes(() => ({
+          insertFormAttributes(({ field }) => ({
             validators: [
               cValidate({
                 name: 'todoListNotEmpty',
-                validWhen: (todos) => todos.length > 0,
+                validWhen: () => field.value().length > 0,
                 exception: 'Add at least one todo.',
               }),
               cValidate({
                 name: 'todoTitlesUnique',
-                validWhen: (todos) => {
-                  const titles = todos.map((todo) =>
-                    todo.title.trim().toLocaleLowerCase(),
-                  );
+                validWhen: () => {
+                  const titles = field
+                    .value()
+                    .map((todo) => todo.title.trim().toLocaleLowerCase());
                   return new Set(titles).size === titles.length;
                 },
                 exception: 'Todo titles must be unique.',

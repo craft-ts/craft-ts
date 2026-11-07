@@ -65,8 +65,8 @@ function messageMeta(message: ResumeMessage): string {
 
 function momentLabel(beforeSequence: number | undefined): string {
   return beforeSequence === undefined
-    ? 'fin de l’enregistrement'
-    : `avant l’événement ${beforeSequence}`;
+    ? i18n.t('momentEndOfRecording')
+    : i18n.t('momentBeforeEvent', { count: beforeSequence });
 }
 
 function checkpointMeta(checkpoint: ResumeCheckpointSummary): string {
@@ -74,8 +74,10 @@ function checkpointMeta(checkpoint: ResumeCheckpointSummary): string {
     momentLabel(checkpoint.beforeSequence),
     ...(checkpoint.route ? [checkpoint.route.split('?')[0] ?? ''] : []),
     checkpoint.expired
-      ? 'expiré'
-      : `valable jusqu’au ${dayLabel.format(new Date(checkpoint.expiresAt))}`,
+      ? i18n.t('checkpointExpired')
+      : i18n.t('checkpointValidUntil', {
+          date: dayLabel.format(new Date(checkpoint.expiresAt)),
+        }),
   ].join(' · ');
 }
 
@@ -85,7 +87,11 @@ function recipeRunSummary(recipe: ResumeRecipeSummary): string {
     momentLabel(recipe.beforeSequence),
     plural(recipe.runs.length, 'exécution'),
     ...(latest
-      ? [`dernière ${RECIPE_RUN_STATUS[latest.status] ?? latest.status}`]
+      ? [
+          i18n.t('recipeLatestRun', {
+            detail: RECIPE_RUN_STATUS[latest.status] ?? latest.status,
+          }),
+        ]
       : []),
   ].join(' · ');
 }
@@ -101,9 +107,9 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
   const resume = yield* ResumeThread();
   const threadValue = rawReactiveValue(resume.thread.value);
   const resumeNotice = rawReactiveValue(archive.resumeNotice);
-  const savedSessions = rawReactiveValue(archive.savedSessions);
-  const savedRecipes = rawReactiveValue(archive.resumeRecipeList);
-  const savedCheckpoints = rawReactiveValue(archive.resumeCheckpointList);
+  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
+  const savedRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
+  const savedCheckpoints = rawReactiveValue(archive.resumeCheckpoints.resumeCheckpointList);
 
   const checkpoints = yield* craftComputed('checkpoints', () =>
     savedCheckpoints().filter((checkpoint) => !checkpoint.expired),
@@ -446,16 +452,18 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
                       : undefined;
                   return [
                     saved.resume?.kind === 'guided-resume'
-                      ? 'Reprise guidée'
-                      : `Recette « ${recipe ? recipeName(recipe) : '?'} »`,
+                      ? i18n.t('resumeGuided')
+                      : i18n.t('resumeRecipe', {
+                          name: recipe ? recipeName(recipe) : '?',
+                        }),
                     ...(saved.resume?.beforeSequence === undefined
                       ? []
                       : [momentLabel(saved.resume.beforeSequence)]),
                     plural(saved.eventCount, 'événement'),
                     ...(saved.status === 'interrupted'
-                      ? ['interrompue']
+                      ? [i18n.t('resumeInterrupted')]
                       : saved.status === 'recording'
-                        ? ['en cours']
+                        ? [i18n.t('resumeRecording')]
                         : []),
                   ].join(' · ');
                 }),

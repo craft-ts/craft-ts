@@ -21,24 +21,28 @@ export const { QuickstartTaskPageView, provideQuickstartTaskPageView } = craftSe
         method: (taskId: string) => taskId,
         loader: ({ params }) => loadTask(params),
       },
+      function* ({ resource, exceptions }) {
+        return {
+          hasTask: yield* craftComputed('hasTask', () => resource.hasValue()),
+          hasTaskException: yield* craftComputed('hasTaskException', function* () {
+            return Boolean((yield* exceptions()).loader);
+          }),
+          title: yield* craftComputed('title', function* () {
+            return (yield* resource.value())?.title ?? 'Loading…';
+          }),
+          exception: yield* craftComputed('exception', function* () {
+            return (yield* exceptions()).loader;
+          }),
+          exceptionTag: yield* craftComputed('exceptionTag', function* () {
+            return (yield* exceptions()).loader?._tag ?? 'Unknown';
+          }),
+          taskStatus: yield* craftComputed('taskStatus', function* () {
+            return yield* resource.status();
+          }),
+        };
+      },
     );
 
-    yield* craftComputed('hasTask', () => taskQuery.resource.hasValue());
-    yield* craftComputed('hasTaskException', function* () {
-      return Boolean((yield* taskQuery.exceptions()).loader);
-    });
-    yield* craftComputed('title', function* () {
-      return (yield* taskQuery.resource.value())?.title ?? 'Loading…';
-    });
-    yield* craftComputed('exception', function* () {
-      return (yield* taskQuery.exceptions()).loader;
-    });
-    yield* craftComputed('exceptionTag', function* () {
-      return (yield* taskQuery.exceptions()).loader?._tag ?? 'Unknown';
-    });
-    yield* craftComputed('taskStatus', function* () {
-      return yield* taskQuery.status();
-    });
     yield* taskQuery.call('task-1');
   },
 );
@@ -50,7 +54,7 @@ const QuickstartTaskPage = craftComponent(
     div([
       heading([
         'EffectTS + CraftTS (',
-        QuickstartTaskPageView.taskStatus,
+        QuickstartTaskPageView.taskQuery.taskStatus,
         ')',
       ]),
       p('One Effect domain operation, one Layer, one Craft query.'),
@@ -61,19 +65,19 @@ const QuickstartTaskPage = craftComponent(
       ),
       ifNode(
         'quickstart-has-task',
-        QuickstartTaskPageView.hasTask,
+        QuickstartTaskPageView.taskQuery.hasTask,
         () =>
           p(function* () {
-            return `Task: ${yield* QuickstartTaskPageView.title()}`;
+            return `Task: ${yield* QuickstartTaskPageView.taskQuery.title()}`;
           }),
       ),
       ifNode(
         'quickstart-task-exception',
-        QuickstartTaskPageView.hasTaskException,
+        QuickstartTaskPageView.taskQuery.hasTaskException,
         () =>
           p([
             'Business error: ',
-            span({ class: taskPage.error }, QuickstartTaskPageView.exceptionTag),
+            span({ class: taskPage.error }, QuickstartTaskPageView.taskQuery.exceptionTag),
           ]),
       ),
       button(

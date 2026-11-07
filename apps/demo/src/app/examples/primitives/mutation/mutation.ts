@@ -67,6 +67,14 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
             key: 'mutation',
           }),
         ),
+        function* ({ resource }) {
+          return {
+            hasUser: yield* craftComputed('hasUser', () => resource.hasValue()),
+            userValueJson: yield* craftComputed('userValueJson', function* () {
+              return JSON.stringify(yield* resource.value(), null, 2);
+            }),
+          };
+        },
         insertReactOnMutation(updateUserName, {
           optimisticPatch: {
             name: ({ mutationParams }: { mutationParams: { name: string } }) =>
@@ -75,10 +83,6 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
         }),
       ),
     );
-    yield* craftComputed('hasUser', () => userQuery.hasValue());
-    yield* craftComputed('userValueJson', function* () {
-      return JSON.stringify(yield* userQuery.value(), null, 2);
-    });
     const userIdPathParams = yield* UserIdPathParams();
     yield* craftMethod('goTo', function* (offset: number) {
       return yield* userIdPathParams.shiftUser(offset);
@@ -117,13 +121,13 @@ const MutationDemoComponent = craftComponent(
         ifNode(
           'hasUser',
           function* () {
-            const { hasUser } = yield* MutationDemoView();
-            return yield* hasUser();
+            const { userQuery } = yield* MutationDemoView();
+            return yield* userQuery.hasUser();
           },
           () =>
             pre('UserValue', { class: example.code }, function* () {
-              const { userValueJson } = yield* MutationDemoView();
-              return yield* userValueJson();
+              const { userQuery } = yield* MutationDemoView();
+              return yield* userQuery.userValueJson();
             }),
         ),
       ]),
