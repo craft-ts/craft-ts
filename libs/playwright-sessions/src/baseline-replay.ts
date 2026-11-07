@@ -1,18 +1,6 @@
-import type { Browser, BrowserContext, Page } from '@playwright/test';
+import type { Browser, BrowserContext } from '@playwright/test';
 import type { BaselineReplay } from './finalize.js';
-
-/** What the dashboard's worker surface answers; see its `replay-worker.ts`. */
-type WorkerSnapshot = Readonly<{
-  ready: boolean;
-  failed: string | undefined;
-  state: string;
-  replayIndex: number;
-  total: number;
-  seeking: boolean;
-  difference: boolean;
-  differenceDetail?: unknown;
-}>;
-type WorkerWindow = { __craftReplayWorker?: { snapshot(): WorkerSnapshot; advanceTo(index: number): void } };
+import { advanceWorker, remaining, waitForAdvance, waitForWorker, workerUrl } from './suite/worker-driver.js';
 
 export const BASELINE_REPLAY_TIMEOUT_MS = 60_000;
 /** No action completed for this long: the replayed page stopped answering. */
@@ -43,46 +31,29 @@ export async function replayBaselineInDashboard(input: Readonly<{
     const history = sessions.find((item) => item.id === input.testId && item.project === input.project);
     if (!history) return { status: 'unavailable', message: 'le log-server ne sert pas l’historique de ce test' };
     const source = `${base}/e2e-sessions/${encodeURIComponent(input.testId)}/${encodeURIComponent(input.project)}/${encodeURIComponent(input.baselineFile)}?root=${history.root}&decompress=1`;
-    const url = new URL(input.dashboardUrl);
-    url.searchParams.set('replay-worker', '1');
-    // A method that no longer changes the state must show as a gap, not be
-    // hidden by restoring the recorded state.
-    url.searchParams.set('replay-verify-state', '1');
-    url.hash = `#/e2e-replay?${new URLSearchParams({ source })}`;
     context = await input.browser.newContext();
     const page = await context.newPage();
-    await page.goto(url.href, { waitUntil: 'domcontentloaded', timeout: remaining(deadline) });
-    const ready = await waitForSnapshot(page, (snapshot) => snapshot.ready || snapshot.failed !== undefined, deadline);
+    // A method that no longer changes the state must show as a gap, not be
+    // hidden by restoring the recorded state.
+    const url = workerUrl(input.dashboardUrl, { hash: `#/e2e-replay?${new URLSearchParams({ source })}`, verifyState: true });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: remaining(deadline) });
+    const ready = await waitForWorker(page, (snapshot) => snapshot.ready || snapshot.failed !== undefined, deadline);
     if (!ready) return { status: 'timeout', message: `référence non prête après ${timeoutMs / 1000} s` };
     if (ready.failed !== undefined) return { status: 'error', message: ready.failed };
-    await page.evaluate((index) => (window as unknown as WorkerWindow).__craftReplayWorker!.advanceTo(index), ready.total);
-    let progress = { index: ready.replayIndex, at: Date.now() };
-    let last = ready;
-    const end = await waitForSnapshot(page, (snapshot) => {
-      last = snapshot;
-      if (snapshot.replayIndex !== progress.index) progress = { index: snapshot.replayIndex, at: Date.now() };
-      return snapshot.difference || snapshot.failed !== undefined || (!snapshot.seeking && snapshot.replayIndex >= snapshot.total) || Date.now() - progress.at > STALL_MS;
-    }, deadline);
-    if (!end) return { status: 'timeout', message: `référence arrêtée à l’étape ${last.replayIndex} sur ${last.total} après ${timeoutMs / 1000} s` };
-    if (!end.difference && end.failed === undefined && end.replayIndex < end.total)
-      return { status: 'timeout', message: `la page rejouée ne répond plus depuis ${STALL_MS / 1000} s à l’étape ${end.replayIndex} sur ${end.total}` };
-    if (end.difference) return { status: 'diverged', difference: end.differenceDetail ?? null };
-    if (end.failed !== undefined) return { status: 'error', message: end.failed };
-    return { status: 'completed' };
+    await advanceWorker(page, ready.total);
+    const end = await waitForAdvance(page, ready.total, { stallMs: STALL_MS, deadline });
+    switch (end.kind) {
+      case 'reached': return { status: 'completed' };
+      case 'difference': return { status: 'diverged', difference: end.snapshot.differenceDetail ?? null };
+      case 'failed': return { status: 'error', message: end.snapshot.failed ?? 'échec du replay' };
+      case 'stalled':
+        return { status: 'timeout', message: `la page rejouée ne répond plus depuis ${STALL_MS / 1000} s à l’étape ${end.snapshot?.replayIndex ?? 0} sur ${end.snapshot?.total ?? ready.total}` };
+      default:
+        return { status: 'timeout', message: `référence arrêtée à l’étape ${end.snapshot?.replayIndex ?? 0} sur ${end.snapshot?.total ?? ready.total} après ${timeoutMs / 1000} s` };
+    }
   } catch (error) {
     return { status: 'error', message: error instanceof Error ? error.message : String(error) };
   } finally {
     await context?.close().catch(() => undefined);
   }
 }
-
-async function waitForSnapshot(page: Page, done: (snapshot: WorkerSnapshot) => boolean, deadline: number): Promise<WorkerSnapshot | undefined> {
-  for (;;) {
-    const snapshot = await page.evaluate(() => (window as unknown as WorkerWindow).__craftReplayWorker?.snapshot()).catch(() => undefined);
-    if (snapshot && done(snapshot)) return snapshot;
-    if (Date.now() >= deadline) return undefined;
-    await page.waitForTimeout(Math.min(250, remaining(deadline)));
-  }
-}
-
-function remaining(deadline: number): number { return Math.max(1, deadline - Date.now()); }
