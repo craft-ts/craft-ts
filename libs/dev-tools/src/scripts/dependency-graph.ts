@@ -4064,8 +4064,11 @@ function addExposedPrimitiveMethodUsageEdges(
     ) {
       continue;
     }
+    // An unbound primitive is reached from another file only through a path
+    // that names it (`View.clientCurrency.client.changeClient`).
     if (
       !variableDeclaration &&
+      !isNamedNestedMethod &&
       access.getSourceFile().getFilePath() !== primitive.filePath
     ) {
       continue;

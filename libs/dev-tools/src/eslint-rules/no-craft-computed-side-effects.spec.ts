@@ -95,6 +95,20 @@ describe('no-craft-computed-side-effects', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it('allows acquiring CraftGlobalError to read it inside a computed', async () => {
+    const result = await lintFixture(`
+      declare function CraftGlobalError(): Generator<never, () => unknown, unknown>;
+      declare function craftComputed(name: string, factory: Function): unknown;
+
+      craftComputed('disabled', function* () {
+        const error = yield* CraftGlobalError();
+        return error() !== undefined;
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('reports yieldable writes, async generators, and promise-returning calls', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;

@@ -128,4 +128,26 @@ describe('require-i18n-text', () => {
       'error',
     );
   });
+
+  it('reads a token-like kind as a discriminant, and catalog definitions as no copy', async () => {
+    const messages = await lint(`
+      const events = [{ kind: 'transport', phase: 'failed' }];
+      const sequence = defineToken({ name: 'sequence', kind: 'text', format: String });
+    `);
+    expect(messages).toEqual([]);
+  });
+
+  it('still reports copy in a kind field', async () => {
+    const messages = await lint("const row = { kind: 'Exception HTTP' };");
+    expect(messages).toHaveLength(1);
+  });
+
+  it('follows only the copy fields of a view-model row', async () => {
+    const messages = await lint(`const row = {
+  side: 'baseline',
+  label: 'Green reference',
+};
+const other = { label: i18n.t('row'), side: 'observed' };`);
+    expect(messages.map((message) => message.line)).toEqual([3]);
+  });
 });

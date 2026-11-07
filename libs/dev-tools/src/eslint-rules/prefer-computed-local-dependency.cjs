@@ -62,11 +62,28 @@ module.exports = {
         // A query is a named service resource. Its loading/value reader may
         // be consumed by one computed in this file while its call/mutate API
         // remains part of the owning service for other consumers.
-        const dependency = node.init.argument;
+        // craftPrivate(query(...)) is the same resource, kept out of the API.
+        const yielded = node.init.argument;
+        const dependency =
+          yielded?.type === 'CallExpression' &&
+          yielded.callee.type === 'Identifier' &&
+          yielded.callee.name === 'craftPrivate' &&
+          yielded.arguments[0]?.type === 'CallExpression'
+            ? yielded.arguments[0]
+            : yielded;
         if (
           dependency?.type === 'CallExpression' &&
           dependency.callee.type === 'Identifier' &&
           queryFactoryNames.has(dependency.callee.name)
+        ) return;
+        // Any named primitive (`state('x', …)`, `mutation('x', …)`,
+        // `craftComputed('x', …)`…) is declared by this entity, not resolved
+        // from elsewhere: moved into a computed it would be recreated on every
+        // recomputation. Only resolved dependencies belong to the computed.
+        if (
+          dependency?.type === 'CallExpression' &&
+          dependency.arguments[0]?.type === 'Literal' &&
+          typeof dependency.arguments[0].value === 'string'
         ) return;
         const variable = context.sourceCode.getDeclaredVariables(node)[0];
         if (!variable) return;

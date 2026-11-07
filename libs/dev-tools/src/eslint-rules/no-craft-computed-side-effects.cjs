@@ -29,6 +29,8 @@ const WRITE_METHODS = new Set([
 // inside `create()` past its `return` would be initialised.
 const ALLOWED_COMPUTED_CALLS = new Set(['settled', 'syncEffect']);
 
+const SYNC_CAPABILITIES = new Set(['CraftRouter', 'CraftGlobalError']);
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -144,12 +146,12 @@ module.exports = {
       // ReactiveReadRequest. It is a safe dependency inside craftComputed,
       // even though the callable is not projected with the template brands.
       return (
-        // CraftRouter is a synchronous routing capability. Acquiring it is
-        // safe in a computed; navigation methods remain checked separately
-        // and are still rejected as writes/generator calls.
+        // CraftRouter and CraftGlobalError are synchronous capabilities.
+        // Acquiring them is safe in a computed; navigation methods remain
+        // checked separately and are still rejected as writes/generator calls.
         (node.callee.type === 'Identifier' &&
-          (node.callee.name === 'CraftRouter' ||
-            importedNames.get(node.callee.name) === 'CraftRouter')) ||
+          (SYNC_CAPABILITIES.has(node.callee.name) ||
+            SYNC_CAPABILITIES.has(importedNames.get(node.callee.name)))) ||
         hasBrand(type, REACTIVE_READ_BRAND) ||
         hasBrand(type, INPUT_BRAND) ||
         hasAlias(type, 'CraftServiceInput')

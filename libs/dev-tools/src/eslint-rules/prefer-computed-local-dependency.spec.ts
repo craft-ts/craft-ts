@@ -54,4 +54,27 @@ describe('prefer-computed-local-dependency', () => {
       }
     `)).toEqual([]);
   });
+
+  it('allows a private query only read by one computed', async () => {
+    expect(await lint(`
+      import { craftComputed, craftPrivate, query } from '@craft-ts/core';
+      function* Page() {
+        const currentUserQuery = yield* craftPrivate(query('currentUserQuery', {}));
+        return yield* craftComputed('currentUser', function* () {
+          return yield* currentUserQuery.value();
+        });
+      }
+    `)).toEqual([]);
+  });
+
+  it('allows a named state only read by one computed', async () => {
+    expect(await lint(`
+      function* Page() {
+        const category = yield* state('category', 'all', ({ set }) => ({ choose: set }));
+        return yield* craftComputed('visible', function* () {
+          return yield* category();
+        });
+      }
+    `)).toEqual([]);
+  });
 });

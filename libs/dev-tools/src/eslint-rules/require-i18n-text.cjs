@@ -50,6 +50,48 @@ function carriesCopy(text) {
   return typeof text === 'string' && CARRIES_COPY.test(text);
 }
 
+function isDisplayTextProperty(property) {
+  if (property.computed) return false;
+  const key =
+    property.key.type === 'Identifier'
+      ? property.key.name
+      : property.key.type === 'Literal'
+        ? String(property.key.value)
+        : undefined;
+  return key !== undefined && DISPLAY_TEXT_PROPERTIES.has(key);
+}
+
+// `kind: 'transport'` tags data; copy has spaces or capitals. A label table
+// read through `kind` is still followed: only a bare token literal is skipped.
+function isDiscriminantKind(property) {
+  const key =
+    property.key.type === 'Identifier'
+      ? property.key.name
+      : String(property.key.value);
+  return (
+    key === 'kind' &&
+    property.value.type === 'Literal' &&
+    typeof property.value.value === 'string' &&
+    /^[a-z][a-z0-9-]*$/.test(property.value.value)
+  );
+}
+
+// The catalog's own definitions (`defineToken({ kind: 'text' })`) describe
+// messages; they are not copy waiting to be translated.
+const I18N_DEFINITIONS = new Set(['defineToken', 'defineCatalog', 'defineLocale']);
+function isInsideI18nDefinition(node) {
+  for (let current = node.parent; current; current = current.parent) {
+    if (
+      current.type === 'CallExpression' &&
+      current.callee.type === 'Identifier' &&
+      I18N_DEFINITIONS.has(current.callee.name)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isInsideTranslationCall(node) {
   let current = node.parent;
   while (current) {
@@ -109,12 +151,16 @@ function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) 
     case 'SpreadElement':
       reportCopyLiterals(node.argument, report, depth + 1, resolve);
       return;
-    case 'ObjectExpression':
-      for (const entry of node.properties) {
-        if (entry.type === 'Property')
-          reportCopyLiterals(entry.value, report, depth + 1, resolve);
-      }
+    case 'ObjectExpression': {
+      // A view-model row names its copy (`label`, `text`…); its other fields
+      // are data (`side: 'baseline'`). A label table has no such field: every
+      // value is copy.
+      const entries = node.properties.filter((entry) => entry.type === 'Property');
+      const displayEntries = entries.filter(isDisplayTextProperty);
+      for (const entry of displayEntries.length > 0 ? displayEntries : entries)
+        reportCopyLiterals(entry.value, report, depth + 1, resolve);
       return;
+    }
     case 'MemberExpression':
       // A presentation field may come from a local label table, such as
       // `KIND_LABEL[entry.kind]`. Follow the table, not the business value.
@@ -295,6 +341,7 @@ module.exports = {
         ) {
           return;
         }
+        if (isDiscriminantKind(node) || isInsideI18nDefinition(node)) return;
         // The i18n rule also applies when a feature prepares visible copy in a
         // plain view-model object before the component template consumes it.
         reportCopyLiterals(

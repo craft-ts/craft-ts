@@ -23,6 +23,7 @@ import {
   assertNoDependencyCycles,
   assertNoEventOnlyCraftMethods,
   architectureViolations,
+  unusedPrimitiveMethodViolations,
   assertNoAppConfigRouteCycles,
   assertPathBoundaries,
   assertPersistedPrimitiveHasUnique,
@@ -212,6 +213,33 @@ declare const CraftHttpClient: {
   post(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
 };
 `;
+
+describe('unused primitive methods', () => {
+  it('counts a call from another file through a path that names the primitive', async () => {
+    const graph = await graphOf({
+      'currency.ts': `
+        ${STUBS}
+        export const { ClientCurrency } = craftService({ name: 'ClientCurrency' }, function* () {
+          yield* state('client', 'acme', function* ({ set }: { set: (value: string) => unknown }) {
+            return { changeClient: (next: string) => set(next) };
+          });
+        });
+      `,
+      'view.ts': `
+        ${STUBS}
+        declare const View: { clientCurrency: { client: { changeClient(next: string): unknown } } };
+        const view = button('pickClient', {
+          *click() {
+            yield* View.clientCurrency.client.changeClient('globex');
+          },
+        }, 'Globex');
+      `,
+    });
+    expect(
+      unusedPrimitiveMethodViolations(graph.graph).map((violation) => violation.method),
+    ).not.toContain('changeClient');
+  });
+});
 
 describe('event-only craftMethod architecture', () => {
   it('rejects a wrapper declared in a different file from its button', async () => {
