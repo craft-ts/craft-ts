@@ -37,6 +37,7 @@ import {
 } from '@craft-ts/session-trace';
 import { goldenSetCandidates } from './golden-set-candidates.js';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
+import type { SuiteReplayer } from './suite-replay.js';
 import {
   parseResumeCheckpointInput,
   summarizeCheckpoint,
@@ -68,6 +69,8 @@ export type LogHttpServerOptions = {
   readonly behaviorApps?: readonly string[];
   /** Prepares and serves the thumbnails of archived sessions. */
   readonly thumbnails?: ThumbnailService;
+  /** Replays an archived session as the regression suite does (`POST /sessions/:id/suite-replay`). */
+  readonly suiteReplay?: SuiteReplayer;
   /** Where the dashboard leaves "resume here" for the AI; one per server by default. */
   readonly resumeRequests?: ResumeRequestBoard;
   /** Frozen resume points, on disk next to the sessions. */
@@ -763,6 +766,24 @@ async function handleRequest(
     const deleted = options.sessionStore.deleteMany(ids);
     options.thumbnails?.prune();
     sendJson(response, 200, { deleted }, headers);
+    return;
+  }
+
+  const suiteReplayMatch = /^\/sessions\/([0-9a-f-]{36})\/suite-replay$/i.exec(url.pathname);
+  if (suiteReplayMatch && request.method === 'POST') {
+    const id = suiteReplayMatch[1]!;
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.suiteReplay) {
+      sendJson(response, 503, { sessionId: id, status: 'unavailable', message: 'Rejeu de suite désactivé sur ce serveur.' }, headers);
+      return;
+    }
+    if (!options.sessionStore?.get(id)) {
+      sendJson(response, 404, { error: 'Session not found.' }, headers);
+      return;
+    }
+    // Answers once the replay ends: a session takes seconds, the caller waits.
+    const result = await options.suiteReplay(id);
+    sendJson(response, result.status === 'unavailable' ? 503 : 200, result, headers);
     return;
   }
 

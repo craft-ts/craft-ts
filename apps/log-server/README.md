@@ -24,6 +24,7 @@ npm run logs:server
 | `POST`   | `/sessions/:id/thumbnails` | Prepare them (`?force=1` to start over).        |
 | `GET`    | `/sessions/:id/thumbnails/:file` | One thumbnail, WebP.                      |
 | `DELETE` | `/sessions/:id/thumbnails` | Cancel the preparation, drop the pictures.      |
+| `POST`   | `/sessions/:id/suite-replay` | Replay as the regression suite does (actions dispatched, state recomputed); answers when it ends. |
 | `WS`     | `/sessions/ws`  | Stream session start, events, and finish.       |
 | `POST`   | `/sessions/golden-set` | Propose an app's golden set (`{ origin, app?, maxSessions?, previous?, priorityUnits? }`); read-only. |
 | `GET`    | `/e2e-sessions` | List histories under explicitly configured roots (`?root=0` selects one). |
@@ -64,6 +65,7 @@ anything past `LOG_SERVER_MAX_FILES` is dropped.
 | `DEBUG_SESSION_THUMBNAILS`     | enabled                      | Set to `0` to disable the thumbnail worker.         |
 | `DEBUG_SESSION_THUMBNAIL_MAX`  | `20`                         | Most thumbnails kept per session.                   |
 | `DEBUG_SESSION_THUMBNAIL_WIDTH`| `480`                        | Thumbnail width, in pixels.                         |
+| `DEBUG_SESSION_SUITE_REPLAY`   | enabled                      | Set to `0` to disable `POST /sessions/:id/suite-replay`. |
 
 `LOG_SERVER_DIR` and `LOG_SERVER_MAX_FILES` must match what the MCP server uses,
 otherwise it reads a different set of files.

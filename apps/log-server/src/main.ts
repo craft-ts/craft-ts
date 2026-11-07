@@ -8,6 +8,7 @@ import { ResumeRecipeStore } from './resume-recipes.js';
 import { createPlaywrightCapturer } from './thumbnails/playwright-capturer.js';
 import { ThumbnailService } from './thumbnails/thumbnail-service.js';
 import { ThumbnailStore } from './thumbnails/thumbnail-store.js';
+import { createSuiteReplayer } from './suite-replay.js';
 
 const host = process.env['LOG_SERVER_HOST'] ?? '127.0.0.1';
 const port = Number(process.env['LOG_SERVER_PORT'] ?? '4319');
@@ -62,6 +63,8 @@ const server = createLogHttpServer({
   ...(e2eSessionRoots ? { e2eSessionRoots } : {}),
   ...(behaviorApps ? { behaviorApps } : {}),
   thumbnails,
+  // Not tied to the thumbnails: an agent replays the sessions a change touches.
+  ...(process.env['DEBUG_SESSION_SUITE_REPLAY'] === '0' ? {} : { suiteReplay: createSuiteReplayer({ dashboardUrl }) }),
   checkpoints: new ResumeCheckpointStore(resolve(sessionDirectory, 'checkpoints')),
   recipes: new ResumeRecipeStore(resolve(sessionDirectory, 'recipes')),
   ...(allowedOrigins ? { allowedOrigins } : {}),

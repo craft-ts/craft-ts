@@ -358,8 +358,18 @@ Fait :
 Avant ce lot : les indices visuels du rejeu (voile d'onglet, marqueur de clic)
 sont marqués `data-replay-cue` et masqués des captures (suite et vignettes).
 
-Reste : rejouer les sessions concernées sans dashboard ouvert à la main
-(aujourd'hui : lien, ou `replayGoldenSession` depuis un test).
+Rejeu sans dashboard ouvert à la main (fait le 2026-11-07) : le log server
+rejoue une session comme la suite (`POST /sessions/:id/suite-replay`, Chromium
+caché, actions dispatchées, état recalculé, pas d'image) et le MCP des logs
+l'expose (`sessions.replay`, `passed` vrai seulement si tout va au bout, clics
+prouvés). La boucle de l'agent : `sessions.relevant` (graph MCP) →
+`sessions.replay` (logs MCP) → écarts nommés.
+
+Constat : le Chromium du paquet `playwright` (147) affichait le premier écran
+plus lentement que celui de `@playwright/test` (153) ; l'attente de 2 s de
+l'élément d'une action était trop courte et repliait le clic en invocation.
+Elle est passée à 10 s (`interactionTargetTimeoutMs`) : un élément présent ne
+coûte rien, un élément absent après 10 s est un constat.
 
 Prévu à l'origine :
 

@@ -6,6 +6,7 @@ import { gunzipSync } from 'node:zlib';
 import { registerGuidedResumePrompt } from './resume-prompt.js';
 import { registerResumeTools } from './resume-tools.js';
 import { proposeGoldenSet } from './golden-set-tool.js';
+import { replaySessions } from './suite-replay-tool.js';
 import { compareSessionTraces, normalizeSessionTrace, type PortableSessionForTrace } from '@craft-ts/session-trace';
 
 export function createLogMcpServer(reader: LogReader): McpServer {
@@ -130,6 +131,19 @@ export function createLogMcpServer(reader: LogReader): McpServer {
         return toolResult({ error: error instanceof Error ? error.message : String(error) });
       }
     },
+  );
+
+  server.registerTool(
+    'sessions.replay',
+    {
+      description:
+        "Replay archived sessions as the regression suite does — each action dispatched on its element, every state the code can produce recomputed and checked — in the log server's hidden browser, one after the other. After an edit, pass the sessions sessions.relevant (graph MCP) names: passed is true when every one replays to the end with its clicks proven; otherwise each result names the gap (a call a click no longer makes, a state the code no longer produces) or why it could not run. Needs the app and the dashboard served.",
+      inputSchema: {
+        sessionIds: z.array(z.string().min(1)).min(1).max(20),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ sessionIds }) => toolResult(await replaySessions(sessionIds)),
   );
 
   registerResumeTools(server);

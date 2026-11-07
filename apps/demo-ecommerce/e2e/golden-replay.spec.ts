@@ -69,6 +69,15 @@ test('rejoue un parcours enregistré en laissant le code recalculer l’état', 
   // `innerText` reads the text as displayed: the heading is upper-cased by its style.
   expect(measured(result.captures.at(-1)!)?.text).toMatch(/merci pour votre commande/i);
 
+  // The log server replays it the same way on its own, as an agent asks it to
+  // after an edit (sessions.replay of the logs MCP): no dashboard to open.
+  const byServer = await test.step('rejoué par le log server', async () => {
+    const response = await fetch(`${server}/sessions/${sessionId}/suite-replay`, { method: 'POST' });
+    return await response.json() as { status: string; replayIndex: number; total: number; unprovenInteractions: string[] };
+  });
+  expect(byServer, JSON.stringify(byServer)).toMatchObject({ status: 'completed', unprovenInteractions: [] });
+  expect(byServer.replayIndex).toBe(byServer.total);
+
   // The same recording on an app whose confirmation button lost its handler:
   // calling the recorded methods would pass, dispatching the click does not.
   const disconnected = await replay('recomputed', 'interaction', DISCONNECT_CONFIRM_BUTTON, process.env['GOLDEN_DEBUG'] === '1' ? (line) => console.log('CONSOLE', line) : undefined);
