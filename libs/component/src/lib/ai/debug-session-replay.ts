@@ -889,6 +889,8 @@ export function createReplayController(
      * with an `[Interaction non prouvée]` warning.
      */
     mode?: 'invocation' | 'legacy-dom' | 'diagnostic' | 'interaction';
+    /** How long `'interaction'` waits for an action's element (default 10 s). */
+    interactionTargetTimeoutMs?: number;
     /** Non-blocking comparison of legacy playback with the compiled plan. */
     onDiagnostic?: (report: ReplayDiagnosticReport) => void;
     /** Apply a recorded navigation through the application's router. */
@@ -944,9 +946,13 @@ export function createReplayController(
   // a fallback when a recorded method cannot be identified.
   const useInvocationReplay = options.mode !== 'legacy-dom';
   const dispatchesInteractions = options.mode === 'interaction';
-  /** Wait for an element: none in invocation replay, where it is only a cue. */
+  /**
+   * Wait for an element: none in invocation replay, where it is only a cue.
+   * Dispatching needs it: a first screen can take seconds to render what the
+   * person clicked, and an element still missing after the wait is a finding.
+   */
   const targetWaitMs = dispatchesInteractions
-    ? 2_000
+    ? (options.interactionTargetTimeoutMs ?? 10_000)
     : useInvocationReplay
       ? 0
       : undefined;

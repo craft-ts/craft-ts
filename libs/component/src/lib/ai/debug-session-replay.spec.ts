@@ -5743,6 +5743,7 @@ describe("mode: 'interaction'", () => {
     const replay = createReplayController(session(), {
       mode: 'interaction',
       settleTimeoutMs: 100,
+      interactionTargetTimeoutMs: 200,
       ...(stateSource ? { stateSource } : {}),
       observedEvents: () => observed,
       invokeRecordedMethod: (event) => {
