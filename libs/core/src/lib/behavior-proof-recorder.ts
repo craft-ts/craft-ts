@@ -35,6 +35,17 @@ export type ɵBehaviorProofStep =
       }>;
     }>
   | Readonly<{
+      /** `guard:<collection>:<path>.<hook>`, the catalog's id of the guard. */
+      key: string;
+      kind: 'guard';
+      detail: Readonly<{
+        /** A guard is recorded once the route it guards has activated. */
+        outcome: 'allowed';
+        /** `<collection>:<path>.<hook>`. */
+        behavior: string;
+      }>;
+    }>
+  | Readonly<{
       /** `server-fn:<id>`, as a session trace keys it. */
       key: string;
       kind: 'http';
@@ -173,8 +184,7 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   if (!key) return yield* factory.apply(thisArg, args);
   const target = ɵbehaviorTarget(hostTags);
   const behavior = target ? { behavior: target } : {};
-  try {
-    const result = yield* factory.apply(thisArg, args);
+  const settle = (result: unknown): void =>
     record({
       key,
       kind: 'invocation',
@@ -182,26 +192,59 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
         ? { outcome: 'failed', exception: result._tag, ...behavior }
         : { outcome: 'succeeded', ...behavior },
     });
+  try {
+    const result = yield* factory.apply(thisArg, args);
+    // A loader may answer with a promise (a prepared HTTP request): its
+    // outcome, a typed exception included, is known once it settles.
+    if (isPromiseLike(result)) {
+      const session = recording;
+      result.then(
+        (value) => {
+          if (recording === session) settle(value);
+        },
+        (error: unknown) => {
+          if (recording === session) recordFailure(key, behavior, error);
+        },
+      );
+      return result;
+    }
+    settle(result);
     return result;
   } catch (error) {
-    const tag = (error as { _tag?: unknown } | null)?._tag;
-    record({
-      key,
-      kind: 'invocation',
-      detail: {
-        outcome: 'failed',
-        exception:
-          typeof tag === 'string'
-            ? tag
-            : error instanceof Error
-              ? error.name
-              : 'unknown',
-        ...behavior,
-      },
-    });
+    recordFailure(key, behavior, error);
     throw error;
   }
 };
+
+function recordFailure(
+  key: string,
+  behavior: Readonly<{ behavior?: string }>,
+  error: unknown,
+): void {
+  const tag = (error as { _tag?: unknown } | null)?._tag;
+  record({
+    key,
+    kind: 'invocation',
+    detail: {
+      outcome: 'failed',
+      exception:
+        typeof tag === 'string'
+          ? tag
+          : error instanceof Error
+            ? error.name
+            : 'unknown',
+      ...behavior,
+    },
+  });
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return (
+    (typeof value === 'object' || typeof value === 'function') &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === 'function'
+  );
+}
 
 /** The wrapper that feeds the recording; inert while none is started. */
 export function ɵprovideBehaviorProofRecording(): Provider {
@@ -217,9 +260,20 @@ export function ɵrecordRouteActivationProof(
     routePath: string;
     routeCollection?: string;
     outcome: 'activated' | 'failed';
+    guards?: readonly string[];
   }>,
 ): void {
   const behavior = ɵrouteBehaviorTarget(event);
+  if (behavior && event.outcome === 'activated') {
+    // The route activated: each of its guards let the user through.
+    for (const hook of event.guards ?? []) {
+      record({
+        key: `guard:${behavior}.${hook}`,
+        kind: 'guard',
+        detail: { outcome: 'allowed', behavior: `${behavior}.${hook}` },
+      });
+    }
+  }
   record({
     key: `route-activation:${event.routePath.replace(/#\d+/g, '')}`,
     kind: 'route',

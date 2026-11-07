@@ -10,6 +10,8 @@ export type CraftRouteActivationEvent = Readonly<{
   routeCollection?: string;
   componentName?: string;
   outcome: 'activated' | 'failed';
+  /** The guards the route passed before it activated (`canActivate`…). */
+  guards?: readonly string[];
   error?: string;
 }>;
 

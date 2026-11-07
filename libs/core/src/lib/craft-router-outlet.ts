@@ -775,6 +775,7 @@ export class CraftRouterOutletController {
         : {}),
       ...(component?.name ? { componentName: component.name } : {}),
       outcome,
+      ...(outcome === 'activated' ? passedGuards(this._meta) : {}),
       ...(error ? { error } : {}),
     });
   }
@@ -1183,4 +1184,15 @@ function matchToSnapshot(match: CraftMatch): {
     })),
     component: match.route.component,
   };
+}
+
+/** The guards an activated route went through, named as its route hooks. */
+function passedGuards(
+  meta: CraftRouteMeta | null,
+): { guards?: readonly string[] } {
+  const guards = [
+    ...(meta?.match ? ['canMatch'] : []),
+    ...(meta?.guard ? ['canActivate'] : []),
+  ];
+  return guards.length > 0 ? { guards } : {};
 }

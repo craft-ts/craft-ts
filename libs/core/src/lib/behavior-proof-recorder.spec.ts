@@ -48,6 +48,18 @@ const { Catalog } = craftService(
   },
 );
 
+const { Stock } = craftService(
+  { name: 'stock', providedIn: 'toProvide' },
+  function* () {
+    yield* query('level', {
+      method: (sku: string) => sku,
+      // A prepared HTTP request answers with a promise of the exception.
+      loader: ({ params }) =>
+        Promise.resolve(craftException({ _tag: 'OutOfStock' }, { sku: params })),
+    });
+  },
+);
+
 describe('behaviour proof recording', () => {
   let unregister: () => void;
   beforeEach(() => {
@@ -132,6 +144,21 @@ describe('behaviour proof recording', () => {
     ]);
   });
 
+  it('counts a promise that settles to an exception as a failure', async () => {
+    ɵstartBehaviorProofRecording();
+    const { sut } = setupCraftServiceTest(Stock, {});
+    sut.level.call('tea');
+    // The promise settles on a later microtask than the call.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([
+      {
+        key: 'invocation:service:stock / query:level',
+        kind: 'invocation',
+        detail: { outcome: 'failed', exception: 'OutOfStock', behavior: 'stock.level' },
+      },
+    ]);
+  });
+
   it('records nothing outside a recording, nor once its providers are gone', () => {
     setupCraftServiceTest(Basket, {}).sut.add('a');
     expect(ɵstopBehaviorProofRecording().steps).toEqual([]);
@@ -158,6 +185,44 @@ describe('behaviour proof recording', () => {
         key: 'route-activation:',
         kind: 'route',
         detail: { outcome: 'activated', behavior: 'coverage:' },
+      },
+    ]);
+  });
+
+  it('records the guards an activated route went through', () => {
+    ɵstartBehaviorProofRecording();
+    const tracker = CraftTestBed.runInInjectionContext(() =>
+      ɵinjectCraftRouteActivationTracker(),
+    );
+    tracker.publish({
+      url: '/admin',
+      routePath: 'admin',
+      routeCollection: 'shop',
+      outcome: 'activated',
+      guards: ['canActivate'],
+    });
+    tracker.publish({
+      url: '/admin',
+      routePath: 'admin',
+      routeCollection: 'shop',
+      outcome: 'failed',
+      guards: ['canActivate'],
+    });
+    expect(ɵstopBehaviorProofRecording().steps).toEqual([
+      {
+        key: 'guard:shop:admin.canActivate',
+        kind: 'guard',
+        detail: { outcome: 'allowed', behavior: 'shop:admin.canActivate' },
+      },
+      {
+        key: 'route-activation:admin',
+        kind: 'route',
+        detail: { outcome: 'activated', behavior: 'shop:admin' },
+      },
+      {
+        key: 'route-activation:admin',
+        kind: 'route',
+        detail: { outcome: 'failed', behavior: 'shop:admin' },
       },
     ]);
   });

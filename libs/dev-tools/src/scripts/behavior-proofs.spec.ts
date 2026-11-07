@@ -20,6 +20,7 @@ const catalog: BehaviorCatalog = {
   version: 1,
   behaviors: [
     { id: 'command:adminView.adminStore#success', kind: 'command' },
+    { id: 'guard:ecommerce:admin.canActivate', kind: 'guard' },
     { id: 'http-exception:GET /api/lines#Forbidden', kind: 'http-exception' },
     { id: 'http-exception:GET /api/lines#NotFound', kind: 'http-exception' },
     { id: 'http-exception:POST /api/orders#NotFound', kind: 'http-exception' },
@@ -108,6 +109,22 @@ describe('behaviorProofsFromTrace', () => {
         trace(['route', 'route-activation:', { outcome: 'activated', behavior: 'replay:' }]),
       ),
     ).toEqual(['route:replay:']);
+  });
+
+  it('proves a guard the route it guards was let through', () => {
+    expect(
+      behaviorProofsFromTrace(
+        catalog,
+        trace(
+          [
+            'guard',
+            'guard:ecommerce:admin.canActivate',
+            { outcome: 'allowed', behavior: 'ecommerce:admin.canActivate' },
+          ],
+          ['route', 'route-activation:admin', { outcome: 'activated', behavior: 'ecommerce:admin' }],
+        ),
+      ),
+    ).toEqual(['guard:ecommerce:admin.canActivate', 'route:ecommerce:admin']);
   });
 
   it('proves nothing from a step no assertion came after', () => {

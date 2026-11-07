@@ -2579,6 +2579,22 @@ function createForIndexReader(read: () => number): InputValue<number> {
   };
 }
 
+const MAX_FOR_SOURCE_PASSES = 8;
+
+/** Same rows in the same order: a derived source may rebuild its array. */
+function sameForItems(
+  next: readonly unknown[] | null | undefined,
+  previous: readonly unknown[] | null | undefined,
+): boolean {
+  if (Object.is(next, previous)) return true;
+  const nextItems = next ?? [];
+  const previousItems = previous ?? [];
+  return (
+    nextItems.length === previousItems.length &&
+    nextItems.every((item, index) => Object.is(item, previousItems[index]))
+  );
+}
+
 interface ForRenderedEntry {
   readonly key: unknown;
   item: unknown;
@@ -2634,10 +2650,22 @@ class ForRenderedNode implements RenderedNode {
       const previousItemTemplate = this.node.itemTemplate;
       this.node = this.descriptor();
       this.configureScheduler(this.node.schedule);
+      let itemTemplateChanged = this.node.itemTemplate !== previousItemTemplate;
+      let items = this.readSource();
       // Publish positions and commit DOM order before dependent effects flush.
-      ɵcraftBatch(() =>
-        this.reconcile(this.node.itemTemplate !== previousItemTemplate),
-      );
+      // The batch closes inside this effect, so it flushes the effects already
+      // queued; one of them may publish a new source (a service shortcut's
+      // reader) while this effect still runs, and that change does not run it
+      // again. Read the source once more and reconcile until it holds still.
+      for (let pass = 0; pass < MAX_FOR_SOURCE_PASSES; pass++) {
+        const current = items;
+        const templateChanged = itemTemplateChanged;
+        ɵcraftBatch(() => this.reconcile(current, templateChanged));
+        const next = this.readSource();
+        if (sameForItems(next, current)) break;
+        items = next;
+        itemTemplateChanged = false;
+      }
     });
   }
 
@@ -2657,11 +2685,17 @@ class ForRenderedNode implements RenderedNode {
     return true;
   }
 
-  private reconcile(itemTemplateChanged = false): void {
-    const items = resolveTemplateValue(this.node.source, this.context) as
+  private readSource(): readonly unknown[] | null | undefined {
+    return resolveTemplateValue(this.node.source, this.context) as
       | readonly unknown[]
       | null
       | undefined;
+  }
+
+  private reconcile(
+    items: readonly unknown[] | null | undefined,
+    itemTemplateChanged = false,
+  ): void {
     const collection = items ?? [];
 
     const keys = collection.map((item, index) => this.node.track(item, index));

@@ -112,6 +112,11 @@ export function behaviorProofSteps(
       const id = `server-function:${step.key.slice('server-fn:'.length)}`;
       if (ids.has(id)) prove(id, step.key);
     }
+    if (step.kind === 'guard' && step.detail['outcome'] === 'allowed') {
+      // Named by the runtime as the catalog names it: `demo:admin.canActivate`.
+      const id = `guard:${String(step.detail['behavior'])}`;
+      if (ids.has(id)) prove(id, step.key);
+    }
     if (
       step.kind === 'route' &&
       step.key.startsWith('route-activation:') &&
