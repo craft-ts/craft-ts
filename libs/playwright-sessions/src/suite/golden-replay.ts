@@ -100,6 +100,13 @@ export type GoldenReplayOptions = Readonly<{
 export const GOLDEN_REPLAY_SEED = 0x2f6e2b1;
 
 /**
+ * The dashboard's cues over the replayed page (a tab's veil — « Onglet
+ * fermé », « En pause » —, the click marker) are marked `data-replay-cue`:
+ * they are the replay's, not the page's, and stay out of its pictures.
+ */
+export const HIDE_REPLAY_CUES = '[data-replay-cue] { visibility: hidden !important; }';
+
+/**
  * Makes the replayed page still, and only it: the dashboard keeps its own
  * clock and random, which the synchronisation of the tabs relies on.
  * Animations end at once, transitions do not run, carets do not blink, and
@@ -221,7 +228,7 @@ async function captureMoment(
   if (!(await frameLocator.isVisible())) return undefined;
   const frame = await settleReplayFrame(frameLocator, settle);
   if (!frame) return undefined;
-  const png = await frameLocator.screenshot({ type: 'png', animations: 'disabled', caret: 'hide' });
+  const png = await frameLocator.screenshot({ type: 'png', animations: 'disabled', caret: 'hide', style: HIDE_REPLAY_CUES });
   return {
     replayIndex: point.replayIndex,
     reasons: point.reasons,

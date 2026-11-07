@@ -247,7 +247,12 @@ async function capture(
       params.maxWaitMs,
     );
     if (signal.aborted) return;
-    const png = await frameLocator.screenshot({ type: 'png', animations: 'disabled' });
+    // The dashboard's cues (a tab's veil, the click marker) are not the page.
+    const png = await frameLocator.screenshot({
+      type: 'png',
+      animations: 'disabled',
+      style: '[data-replay-cue] { visibility: hidden !important; }',
+    });
     const encoded = await encode(encoder, png, params.width, params.quality);
     const signature = Uint8Array.from(encoded.signature);
     const identical =

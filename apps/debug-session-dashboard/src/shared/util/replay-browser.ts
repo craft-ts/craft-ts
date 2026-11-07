@@ -458,6 +458,8 @@ export function renderFrames(
       'replay-visibility-overlay',
     );
     hide(visibilityOverlay, true);
+    // A cue of the replay, not of the page: a picture of the page leaves it out.
+    renderer.setAttribute(visibilityOverlay, 'data-replay-cue', '');
     renderer.setAttribute(
       visibilityOverlay,
       'aria-label',
@@ -508,6 +510,7 @@ export function renderFrames(
     renderer.setAttribute(marker, 'id', markerId(participantId));
     hide(marker, true);
     renderer.setAttribute(marker, 'aria-hidden', 'true');
+    renderer.setAttribute(marker, 'data-replay-cue', '');
     renderer.appendChild(
       marker,
       element('span', ui.markerRipple, 'click-marker-ripple'),
