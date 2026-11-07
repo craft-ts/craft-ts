@@ -4,3 +4,5 @@ export { sha256Hex } from './sha256.js';
 export * from './history.js';
 export * from './parse.js';
 export * from './resume-context.js';
+export * from './coverage-units.js';
+export * from './golden-set.js';

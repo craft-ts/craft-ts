@@ -48,3 +48,20 @@ findings but are never findings.
 
 `parseSessionTraceComparison` reads a comparison back from JSON;
 `isSessionHistory` validates a versioned `history.json`.
+
+## Coverage units and the golden set
+
+`sessionCoverageUnits(trace)` reads what a session covers as units that survive
+a refactor: `route:/produits/:id`, `route-activation:<route>`, `flow:<a> -> <b>`,
+`invocation:cart.add` (`:failed` when it threw), `exception:<tag>`,
+`server-fn:<id>:ok|error:<4xx|5xx|network>`, `http:<METHOD>:<path>:…`,
+`checkpoint:<address>`, `interaction:<name>`. Identifiers in a path become
+`:id`; values never enter a unit.
+
+`selectGoldenSet(candidates, { app, maxSessions?, weight?, priorityUnits?, previous? })`
+keeps the fewest sessions that show every unit (weighted greedy cover, failures
+weigh more), one per trace hash, none redundant. Each kept session lists the
+units only it shows. With `previous`, the sessions in force win ties, and the
+units a dropped session alone showed are listed in `toRecapture` until a new
+recording shows them. Pure and deterministic: the same candidates in any order
+give the same manifest.

@@ -5,6 +5,7 @@ import type { LogReader } from './log-reader.js';
 import { gunzipSync } from 'node:zlib';
 import { registerGuidedResumePrompt } from './resume-prompt.js';
 import { registerResumeTools } from './resume-tools.js';
+import { proposeGoldenSet } from './golden-set-tool.js';
 import { compareSessionTraces, normalizeSessionTrace, type PortableSessionForTrace } from '@craft-ts/session-trace';
 
 export function createLogMcpServer(reader: LogReader): McpServer {
@@ -102,6 +103,29 @@ export function createLogMcpServer(reader: LogReader): McpServer {
       try {
         const result = await compareE2eSession({ testId, project, sessionId });
         return toolResult(result);
+      } catch (error) {
+        return toolResult({ error: error instanceof Error ? error.message : String(error) });
+      }
+    },
+  );
+
+  server.registerTool(
+    'sessions.goldenSet',
+    {
+      description:
+        "Propose an app's golden set: the few recorded sessions that, replayed on each change, cover every route, method, outcome and exception the archived sessions show. With appDir, the set in force (.craft/golden-set.json) is kept stable and the behaviours no test proves come first; write: true saves the proposal there.",
+      inputSchema: {
+        origin: z.string().url(),
+        appDir: z.string().min(1).optional(),
+        app: z.string().min(1).max(80).optional(),
+        maxSessions: z.number().int().min(1).max(500).optional(),
+        write: z.boolean().optional(),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async (input) => {
+      try {
+        return toolResult(await proposeGoldenSet(input));
       } catch (error) {
         return toolResult({ error: error instanceof Error ? error.message : String(error) });
       }

@@ -69,6 +69,7 @@ describe('logs MCP server', () => {
       'logs.stats',
       'logs.clear',
       'sessions.compare',
+      'sessions.goldenSet',
       'resume.request',
       'recipe.list',
       'recipe.get',

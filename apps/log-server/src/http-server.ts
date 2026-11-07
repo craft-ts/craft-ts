@@ -26,12 +26,16 @@ import {
 } from './debug-session-store.js';
 import {
   compareSessionTraces,
+  isGoldenSetManifest,
   isSessionHistory,
   normalizeSessionTrace,
+  selectGoldenSet,
   SESSION_HISTORY_FILE,
   type PortableSessionForTrace,
   type SessionHistory,
+  type SessionTrace,
 } from '@craft-ts/session-trace';
+import { goldenSetCandidates } from './golden-set-candidates.js';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
 import {
   parseResumeCheckpointInput,
@@ -224,6 +228,11 @@ async function handleRequest(
       },
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
     );
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/sessions/golden-set') {
+    await handleGoldenSetRequest(request, response, options, maxBodySize, sessionCorsHeaders(request.headers.origin, allowedOrigins));
     return;
   }
 
@@ -1553,25 +1562,81 @@ function safeDecode(value: string): string | undefined {
  * Each stored session's normalised steps, computed once per version of the
  * session: a recording only grows while it runs, then stays as it is.
  */
-const sessionStepsCache = new Map<string, { updatedAt: string; steps: SessionSteps['steps'] }>();
+const sessionTraceCache = new Map<string, { updatedAt: string; trace: Pick<SessionTrace, 'steps' | 'hash'> }>();
 
-function storedSessionSteps(store: DebugSessionStore): SessionSteps[] {
+function storedSessionTraces(store: DebugSessionStore): { summary: ReturnType<DebugSessionStore['list']>[number]; trace: Pick<SessionTrace, 'steps' | 'hash'> }[] {
   const summaries = store.list();
   const present = new Set(summaries.map((summary) => summary.id));
-  for (const id of sessionStepsCache.keys()) if (!present.has(id)) sessionStepsCache.delete(id);
+  for (const id of sessionTraceCache.keys()) if (!present.has(id)) sessionTraceCache.delete(id);
   return summaries.flatMap((summary) => {
-    let cached = sessionStepsCache.get(summary.id);
+    let cached = sessionTraceCache.get(summary.id);
     if (cached?.updatedAt !== summary.updatedAt) {
       const session = store.get(summary.id);
       if (!session) return [];
-      cached = {
-        updatedAt: summary.updatedAt,
-        steps: normalizeSessionTrace(asPortableSession(session)).steps,
-      };
-      sessionStepsCache.set(summary.id, cached);
+      const { steps, hash } = normalizeSessionTrace(asPortableSession(session));
+      cached = { updatedAt: summary.updatedAt, trace: { steps, hash } };
+      sessionTraceCache.set(summary.id, cached);
     }
-    return [{ id: summary.id, createdAt: summary.createdAt, steps: cached.steps }];
+    return [{ summary, trace: cached.trace }];
   });
+}
+
+function storedSessionSteps(store: DebugSessionStore): SessionSteps[] {
+  return storedSessionTraces(store).map(({ summary, trace }) => ({ id: summary.id, createdAt: summary.createdAt, steps: trace.steps }));
+}
+
+/**
+ * Proposes an app's golden set from the archive. Read-only: the caller keeps
+ * the manifest (in the app's `.craft/golden-set.json`) and sends it back as
+ * `previous`, so the set does not churn and lost paths stay listed.
+ */
+async function handleGoldenSetRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  options: LogHttpServerOptions,
+  maxBodySize: number,
+  headers: Readonly<Record<string, string>>,
+): Promise<void> {
+  if (!options.sessionStore) {
+    sendJson(response, 404, { error: 'Session archive is unavailable.' }, headers);
+    return;
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(await readBody(request, maxBodySize));
+  } catch {
+    sendJson(response, 400, { error: 'Invalid golden-set payload.' }, headers);
+    return;
+  }
+  const origin = isRecord(payload) ? payload['origin'] : undefined;
+  const app = isRecord(payload) && typeof payload['app'] === 'string' ? payload['app'] : origin;
+  const maxSessions = isRecord(payload) ? payload['maxSessions'] : undefined;
+  const previous = isRecord(payload) ? payload['previous'] : undefined;
+  const priorityUnits = isRecord(payload) ? payload['priorityUnits'] : undefined;
+  if (
+    typeof origin !== 'string' ||
+    typeof app !== 'string' ||
+    (maxSessions !== undefined && (typeof maxSessions !== 'number' || !Number.isInteger(maxSessions) || maxSessions < 1 || maxSessions > 500)) ||
+    (previous !== undefined && !isGoldenSetManifest(previous)) ||
+    (priorityUnits !== undefined && (!Array.isArray(priorityUnits) || !priorityUnits.every((unit) => typeof unit === 'string')))
+  ) {
+    sendJson(response, 400, { error: 'Expected { origin, app?, maxSessions? (1-500), previous? (golden-set manifest), priorityUnits? (string[]) }.' }, headers);
+    return;
+  }
+  const { candidates, skipped } = goldenSetCandidates(
+    storedSessionTraces(options.sessionStore).map((stored) => {
+      const thumbnails = options.thumbnails?.get(stored.summary.id);
+      return thumbnails ? { ...stored, thumbnails } : stored;
+    }),
+    origin,
+  );
+  const selection = selectGoldenSet(candidates, {
+    app,
+    ...(maxSessions === undefined ? {} : { maxSessions }),
+    ...(previous === undefined ? {} : { previous }),
+    ...(priorityUnits === undefined ? {} : { priorityUnits: priorityUnits as string[] }),
+  });
+  sendJson(response, 200, { ...selection, candidates: candidates.length, skipped }, headers);
 }
 
 function asPortableSession(value: unknown): PortableSessionForTrace {

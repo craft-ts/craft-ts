@@ -25,6 +25,7 @@ npm run logs:server
 | `GET`    | `/sessions/:id/thumbnails/:file` | One thumbnail, WebP.                      |
 | `DELETE` | `/sessions/:id/thumbnails` | Cancel the preparation, drop the pictures.      |
 | `WS`     | `/sessions/ws`  | Stream session start, events, and finish.       |
+| `POST`   | `/sessions/golden-set` | Propose an app's golden set (`{ origin, app?, maxSessions?, previous?, priorityUnits? }`); read-only. |
 | `GET`    | `/e2e-sessions` | List histories under explicitly configured roots (`?root=0` selects one). |
 | `GET`    | `/e2e-sessions/:testId/:project/:file` | Read a referenced gzip history session (`?decompress=1` returns JSON). |
 | `GET`    | `/e2e-sessions/compare?test=<id>&project=<project>&run=<sessionId>` | Return the observed session and its green references for the dashboard. |
