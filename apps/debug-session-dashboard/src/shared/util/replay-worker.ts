@@ -14,6 +14,7 @@ import {
   replayViewport,
   replayViewportScale,
   replayIndex,
+  replayWarnings,
   replayableEvents,
   seekTarget,
   session,
@@ -49,6 +50,11 @@ export type ReplayWorkerSnapshot = Readonly<{
   scale: number;
   activeParticipantId: string | undefined;
   viewport: Readonly<{ width: number; height: number }> | undefined;
+  /**
+   * The replay's notes so far (fallbacks, observations it could not pair):
+   * a suite reports an `[Interaction non prouvée]` instead of passing on it.
+   */
+  warnings: readonly string[];
 }>;
 
 export type ReplayWorkerSurface = Readonly<{
@@ -56,6 +62,12 @@ export type ReplayWorkerSurface = Readonly<{
   plan: (options?: { maxPoints?: number }) => readonly ThumbnailCapturePoint[];
   /** Starts normal playback; the caller waits until the requested index. */
   advanceTo: (index: number) => void;
+  /**
+   * Runs the actions one at a time up to `index` and stays paused there: the
+   * same moment on every run, which a regression suite compares. Playback
+   * (`advanceTo`) goes on while the picture is taken.
+   */
+  seekTo: (index: number) => void;
 }>;
 
 const SETTLED_STATES: readonly string[] = ['ready', 'paused', 'completed'];
@@ -85,6 +97,7 @@ function snapshot(): ReplayWorkerSnapshot {
     scale: replayViewportScale(),
     activeParticipantId: activeReplayParticipantId(),
     viewport: replayViewport() ?? session()?.viewport,
+    warnings: replayWarnings(),
   };
 }
 
@@ -98,7 +111,10 @@ function differenceDetail(): ReplayWorkerSnapshot['differenceDetail'] {
   };
 }
 
-export function installReplayWorkerSurface(playReplay: () => void): void {
+export function installReplayWorkerSurface(
+  playReplay: () => void,
+  seekReplayToIndex: (index: number) => void,
+): void {
   const surface: ReplayWorkerSurface = {
     snapshot,
     plan: (options) => planThumbnailCapturePoints(visibleEvents(), options),
@@ -106,6 +122,9 @@ export function installReplayWorkerSurface(playReplay: () => void): void {
       // Keep the application on the recorded clock. Fast-forward seeking can
       // overlap async queries and compare a later checkpoint with stale data.
       if (['ready', 'paused'].includes(replayState())) playReplay();
+    },
+    seekTo: (index) => {
+      if (['ready', 'paused'].includes(replayState())) seekReplayToIndex(index);
     },
   };
   exposeReplayWorkerSurface(surface);

@@ -143,8 +143,13 @@ export const { ReplayBridge } = craftService(
           type: 'start',
           session: connection.session,
           startMode: connection.startMode,
-          mode: connection.diagnostic ? 'diagnostic' : 'invocation',
+          mode: connection.diagnostic
+            ? 'diagnostic'
+            : connection.dispatchInteractions
+              ? 'interaction'
+              : 'invocation',
           ...(connection.verifyState ? { verifyState: true } : {}),
+          ...(connection.recomputeState ? { stateSource: 'recomputed' } : {}),
           startIndex: connection.resumeIndex,
           replayRunId: connection.replayRunId,
           ...(connection.timelineOriginMs === undefined

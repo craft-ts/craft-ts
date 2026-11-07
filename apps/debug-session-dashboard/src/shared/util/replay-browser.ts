@@ -120,6 +120,23 @@ export function isReplayStateVerification(): boolean {
   return new URLSearchParams(platform.search()).get('replay-verify-state') === '1';
 }
 
+/**
+ * The replay lets the code produce the state it can and checks it instead of
+ * restoring it (`?replay-state=recomputed`): what the regression suite runs.
+ */
+export function isReplayStateRecomputed(): boolean {
+  return new URLSearchParams(platform.search()).get('replay-state') === 'recomputed';
+}
+
+/**
+ * The replay dispatches each recorded action on its element instead of
+ * calling the recorded methods (`?replay-mode=interaction`): the app's own
+ * handlers run, and must make the recorded calls.
+ */
+export function isReplayInteractionMode(): boolean {
+  return new URLSearchParams(platform.search()).get('replay-mode') === 'interaction';
+}
+
 /** Hands the worker's browser the control surface, on the page's global. */
 export function exposeReplayWorkerSurface(surface: object): void {
   Object.defineProperty(globalThis, '__craftReplayWorker', {

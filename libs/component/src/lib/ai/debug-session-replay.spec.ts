@@ -5603,3 +5603,199 @@ describe('verifyRecordedState', () => {
     });
   });
 });
+
+describe("stateSource: 'recomputed'", () => {
+  const LINES = 'service:cart / state:lines / state:lines#1';
+  const TOTAL = 'service:cart / query:total#1';
+  const NAME = 'component:Checkout / state:name#1';
+  // A click replays `add`; the recording then holds the line it added, the
+  // total the query loaded from it, and a name typed into a field (a state no
+  // replayed method owns).
+  const session = (): SendContextReplayExport => ({
+    format: 'craft-debug-session',
+    version: 8,
+    startUrl: 'http://localhost/',
+    exportedAt: 1_000,
+    truncated: false,
+    clips: [],
+    events: [
+      { id: 'add-click', sequence: 1, timestamp: 1_000, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#add', action: 'click' } },
+      {
+        id: 'add-started', sequence: 2, timestamp: 1_001, kind: 'craft', phase: 'started', name: 'method:add', operationId: 'add',
+        payload: { host: 'method:add', replayInvocation: { address: 'service:cart / state:lines / method:add', args: [] } },
+      },
+      { id: 'lines-changed', sequence: 3, timestamp: 1_002, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: LINES, primitiveKind: 'state' }, state: { [LINES]: ['espresso'] } },
+      { id: 'total-changed', sequence: 4, timestamp: 1_003, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: TOTAL, primitiveKind: 'query' }, state: { [TOTAL]: 3 } },
+      { id: 'name-typed', sequence: 5, timestamp: 1_004, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: NAME, primitiveKind: 'state' }, state: { [NAME]: 'Ada' } },
+      { id: 'pay-click', sequence: 6, timestamp: 1_005, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#pay', action: 'click' } },
+    ],
+  });
+  const run = async (options: { stateSource?: 'recorded' | 'recomputed'; total: number }) => {
+    document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+    const live: Record<string, unknown> = { [LINES]: [], [TOTAL]: 0, [NAME]: '' };
+    const restored: string[] = [];
+    const replay = createReplayController(session(), {
+      ...(options.stateSource ? { stateSource: options.stateSource } : {}),
+      // The code under replay: `add` adds the line, the query recomputes.
+      invokeRecordedMethod: () => {
+        live[LINES] = ['espresso'];
+        live[TOTAL] = options.total;
+      },
+      readState: () => ({ ...live }),
+      restoreState: (state) => {
+        for (const [address, value] of Object.entries(state as Record<string, unknown>)) {
+          restored.push(address);
+          live[address] = value;
+        }
+      },
+    });
+    const first = await replay.step();
+    const second = first ? undefined : await replay.step();
+    replay.stop();
+    return { difference: first ?? second, restored, live };
+  };
+
+  it('lets the code produce what it can, and restores only what it cannot', async () => {
+    const result = await run({ stateSource: 'recomputed', total: 3 });
+    expect(result.difference).toBeUndefined();
+    expect(result.restored).toEqual([NAME]);
+    expect(result.live).toEqual({ [LINES]: ['espresso'], [TOTAL]: 3, [NAME]: 'Ada' });
+  });
+
+  it('reports a query that no longer computes the recorded value, with the expected state as recovery', async () => {
+    const result = await run({ stateSource: 'recomputed', total: 2 });
+    expect(result.difference).toMatchObject({
+      expected: { [LINES]: ['espresso'], [TOTAL]: 3 },
+      actual: { [LINES]: ['espresso'], [TOTAL]: 2 },
+      recovery: { state: { [LINES]: ['espresso'], [TOTAL]: 3 } },
+    });
+    // The recorded value never overwrote the computed one.
+    expect(result.live[TOTAL]).toBe(2);
+    expect(result.restored).not.toContain(TOTAL);
+  });
+
+  it('restores everything by default, as the interactive replay does', async () => {
+    const result = await run({ total: 2 });
+    expect(result.difference).toBeUndefined();
+    expect(result.restored).toEqual([LINES, TOTAL, NAME]);
+    expect(result.live[TOTAL]).toBe(3);
+  });
+
+  it('checks what came after the last action before declaring the replay complete', async () => {
+    document.body.innerHTML = '<button id="add">Add</button>';
+    const events = session().events.filter((event) => event.id !== 'pay-click');
+    let total = 0;
+    const replay = createReplayController({ ...session(), events }, {
+      stateSource: 'recomputed',
+      invokeRecordedMethod: () => undefined,
+      readState: () => ({ [TOTAL]: total, [LINES]: [], [NAME]: '' }),
+      restoreState: () => undefined,
+    });
+    total = 0;
+    const first = await replay.step();
+    const difference = first ?? (await replay.step());
+    replay.stop();
+    expect(difference).toMatchObject({ expected: { [TOTAL]: 3 }, actual: { [TOTAL]: 0 } });
+  });
+});
+
+describe("mode: 'interaction'", () => {
+  const ADD = 'service:cart / state:lines / method:add';
+  const NAME = 'component:Checkout / state:name#1';
+  // A click on #add whose handler calls `add`, then a name typed into #name
+  // (a state no method owns), then a last click.
+  const session = (): SendContextReplayExport => ({
+    format: 'craft-debug-session',
+    version: 8,
+    startUrl: 'http://localhost/',
+    exportedAt: 1_000,
+    truncated: false,
+    clips: [],
+    events: [
+      { id: 'add-click', sequence: 1, timestamp: 1_000, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#add', action: 'click' } },
+      {
+        id: 'add-started', sequence: 2, timestamp: 1_001, kind: 'craft', phase: 'started', name: 'method:add', operationId: 'add',
+        payload: { host: 'method:add', replayInvocation: { address: `${ADD}#4`, args: [] } },
+      },
+      { id: 'name-input', sequence: 3, timestamp: 1_002, kind: 'dom', phase: 'emitted', name: 'input', payload: { selector: '#name', action: 'input', value: 'Ada' } },
+      { id: 'name-typed', sequence: 4, timestamp: 1_003, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: NAME, primitiveKind: 'state' }, state: { [NAME]: 'Ada' } },
+      { id: 'done-click', sequence: 5, timestamp: 1_004, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#done', action: 'click' } },
+    ],
+  });
+  type Harness = { wired: boolean; markup?: string; stateSource?: 'recomputed'; bound?: boolean };
+  const run = async ({ wired, markup, stateSource, bound = true }: Harness) => {
+    document.body.innerHTML = markup ?? '<button id="add">Add</button><input id="name"><button id="done">Done</button>';
+    const observed: SendContextEvent[] = [];
+    const live: Record<string, unknown> = { [NAME]: '' };
+    const invoked: string[] = [];
+    const warnings: string[] = [];
+    // The app's own handlers, as a component wires them.
+    document.querySelector('#add')?.addEventListener('click', () => {
+      if (!wired) return;
+      observed.push({
+        id: `observed-${observed.length}`, sequence: 100 + observed.length, timestamp: Date.now(), kind: 'craft', phase: 'started', name: 'method:add',
+        payload: { host: 'method:add', replayInvocation: { address: `${ADD}#9`, args: [] } },
+      });
+    });
+    document.querySelector('#name')?.addEventListener('input', (event) => {
+      if (bound) live[NAME] = (event.target as HTMLInputElement).value;
+    });
+    const replay = createReplayController(session(), {
+      mode: 'interaction',
+      settleTimeoutMs: 100,
+      ...(stateSource ? { stateSource } : {}),
+      observedEvents: () => observed,
+      invokeRecordedMethod: (event) => {
+        invoked.push(event.id);
+      },
+      readState: () => ({ ...live }),
+      restoreState: (state) => Object.assign(live, state as Record<string, unknown>),
+      onWarning: (message) => warnings.push(message),
+    });
+    const differences = [];
+    for (let step = 0; step < 3; step += 1) {
+      const difference = await replay.step();
+      if (difference) {
+        differences.push(difference);
+        break;
+      }
+    }
+    replay.stop();
+    return { difference: differences[0], invoked, warnings, live };
+  };
+
+  it('dispatches the action: the handler makes the recorded call, nothing is invoked for it', async () => {
+    const result = await run({ wired: true });
+    expect(result.difference).toBeUndefined();
+    expect(result.invoked).toEqual([]);
+    expect(result.warnings.filter((warning) => warning.includes('Interaction non prouvée'))).toEqual([]);
+    expect(result.live[NAME]).toBe('Ada');
+  });
+
+  it('stops on a button whose handler no longer makes the recorded call', async () => {
+    const result = await run({ wired: false });
+    expect(result.invoked).toEqual([]);
+    expect(result.difference).toMatchObject({
+      eventId: 'add-click',
+      expected: { calls: [ADD] },
+      actual: { calls: [], missing: [ADD] },
+    });
+  });
+
+  it('falls back on the invocation for an element it cannot find, and says so', async () => {
+    const result = await run({ wired: true, markup: '<input id="name"><button id="done">Done</button>' });
+    expect(result.difference).toBeUndefined();
+    expect(result.invoked).toEqual(['add-started']);
+    expect(result.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]') && warning.includes('#add'))).toBe(true);
+  });
+
+  it('with the state recomputed, checks what a typed field produced instead of restoring it', async () => {
+    const typed = await run({ wired: true, stateSource: 'recomputed' });
+    expect(typed.difference).toBeUndefined();
+    expect(typed.live[NAME]).toBe('Ada');
+    // A field no longer bound to its state: restoring would have hidden it.
+    const unbound = await run({ wired: true, stateSource: 'recomputed', bound: false });
+    expect(unbound.difference).toMatchObject({ expected: { [NAME]: 'Ada' }, actual: { [NAME]: '' } });
+    expect(unbound.live[NAME]).toBe('');
+  });
+});

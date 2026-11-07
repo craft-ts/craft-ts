@@ -81,6 +81,10 @@ export type ReplayFrameConnection = {
   diagnostic: boolean;
   /** Check recorded state changes against the live state instead of restoring them. */
   verifyState?: boolean;
+  /** Let the code recompute the state it can, and check it (`stateSource: 'recomputed'`). */
+  recomputeState?: boolean;
+  /** Dispatch the recorded actions instead of invoking their methods. */
+  dispatchInteractions?: boolean;
   timelineOriginMs?: number;
   startOffsetMs: number;
   pendingStep?: boolean;

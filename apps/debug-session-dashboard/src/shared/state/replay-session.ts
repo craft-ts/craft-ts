@@ -5,6 +5,8 @@ import {
   firstSelectedFile,
   hasFrame,
   hasFrameGrid,
+  isReplayInteractionMode,
+  isReplayStateRecomputed,
   isReplayStateVerification,
   newUuid,
   renderFrames,
@@ -389,6 +391,8 @@ export const { ReplaySession } = craftService(
           startMode: mode,
           diagnostic: diagnosticReplay(),
           ...(isReplayStateVerification() ? { verifyState: true } : {}),
+          ...(isReplayStateRecomputed() ? { recomputeState: true } : {}),
+          ...(isReplayInteractionMode() ? { dispatchInteractions: true } : {}),
           timelineOriginMs: participantTimelineOriginMs,
           startOffsetMs,
         };

@@ -67,7 +67,10 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     // Opened by the thumbnail worker: it replays and is photographed, it does
     // not ask for thumbnails of its own.
     const workerMode = isReplayWorkerMode();
-    if (workerMode) installReplayWorkerSurface(playback.playReplay);
+    if (workerMode)
+      installReplayWorkerSurface(playback.playReplay, (index) =>
+        replaySession.seekReplayToIndex(index),
+      );
 
     const archive = yield* SessionArchive();
     const e2eComparison = yield* E2eComparison();
