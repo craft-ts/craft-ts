@@ -81,6 +81,7 @@ const NAV_GROUPS = [
       ['View Transitions', { to: 'view-transitions' }],
       ['Pixel Art', { to: 'pixel-art' }],
       ['Pixel Art Matrix', { to: 'pixel-art-matrix' }],
+      ['Control Room', { to: 'control-room' }],
       ['Exceptions', { to: 'exceptions' }],
       ['Login Form', { to: 'login-form' }],
       ['State Machine', { to: 'state-machine' }],
