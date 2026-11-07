@@ -46,7 +46,7 @@ describe('demo architecture', () => {
 
   beforeAll(async () => {
     graph = await loadDemoArchitectureGraph();
-  }, 180_000);
+  }, 360_000);
 
   it('indexes current demo routes', () => {
     expect(

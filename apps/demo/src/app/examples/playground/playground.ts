@@ -70,7 +70,9 @@ const { ApiServicePlaygroundPlayground: ApiService } = craftService(
 
     yield* craftExpose('getTodos', craftGen(function* () {
       yield* craftSleep(500);
-      return [...TODOS];
+      // Fresh objects, as a server's JSON would be: a toggled todo is then a
+      // new item, and its row renders the change.
+      return TODOS.map((todo) => ({ ...todo }));
     }));
     yield* craftExpose('getTodo', craftGen(function* (id: number) {
       const todo = TODOS.find((t) => t.id === id);

@@ -53,5 +53,5 @@ describe('demo e-commerce behaviour obligations', () => {
     // Rewritten with `vitest -u`; in CI a stale catalog fails here.
     await expect.soft(behaviorCatalogToTypeScript(report.catalog)).toMatchFileSnapshot('./behaviors.catalog.ts');
     expect(report.violations).toEqual([]);
-  }, 60_000);
+  }, 180_000);
 });

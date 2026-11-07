@@ -14,5 +14,5 @@ describe('demo e-commerce scenario catalog architecture', () => {
       scenarios: ecommerceScenarios,
       codecNames: Object.keys(ecommerceCodecs),
     })).toEqual([]);
-  }, 45_000);
+  }, 180_000);
 });

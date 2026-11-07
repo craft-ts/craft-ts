@@ -27,7 +27,6 @@ import {
   mutation,
   query,
   queryParams,
-  craftExpose,
 } from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -98,13 +97,6 @@ export const { GranularMutationView, provideGranularMutationView } =
           }),
         ),
       );
-      function* isUpdatePending(user: User) {
-        const pending = updateUserName.select(user.id);
-        if (!pending) return false;
-
-        return yield* pending.isLoading();
-      }
-      yield* craftExpose('isUpdatePending', isUpdatePending);
       yield* craftMethod('updatePageSize', function* (event: Event) {
         const value = eventValue(event);
         yield* pagination.updatePageSize(Number(value));
@@ -157,11 +149,16 @@ const GranularMutation = craftComponent(
                                 'data-variant': 'tonal',
                                 'data-testid': 'update-user',
                                 disabled: function* () {
-                                  // `isLoading()` is a reactive read: without
-                                  // `yield*` it returns the generator itself,
-                                  // which is truthy — every button rendered
-                                  // disabled before it had ever been clicked.
-                                  return yield* GranularMutationView.isUpdatePending(yield* user());
+                                  // Read through the row's own mutation entry,
+                                  // as the status badge below does: the entry's
+                                  // status is the reactive reader it exposes.
+                                  return (
+                                    (yield* (
+                                      yield* GranularMutationView.updateUserName.selectOrCreate(
+                                        (yield* user()).id,
+                                      )
+                                    ).status()) === 'loading'
+                                  );
                                 },
                                 *click() {
                                   yield* GranularMutationView.updateUserName.mutate(yield* user());

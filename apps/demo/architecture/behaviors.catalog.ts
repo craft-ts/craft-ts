@@ -178,6 +178,11 @@ export const behaviorCatalog = {
       "file": "apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"
     },
     {
+      "id": "mutation:todoService.updateTodos#success",
+      "kind": "mutation",
+      "file": "apps/demo/src/app/examples/primitives/todo-service-from-spec/todo-service-from-spec.ts"
+    },
+    {
       "id": "route:demo:",
       "kind": "route",
       "file": "apps/demo/src/app/app.routes.ts"
