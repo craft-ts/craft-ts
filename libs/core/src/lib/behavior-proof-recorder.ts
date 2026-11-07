@@ -159,12 +159,12 @@ export function ɵbehaviorTarget(
   return `${owner.slice(owner.indexOf(':') + 1)}.${name}`;
 }
 
-function record(step: ɵBehaviorProofStep): void {
+function record(step: ɵBehaviorProofStep, assertionsBefore?: number): void {
   const id = JSON.stringify([step.key, step.detail]);
   if (!recording || recording.steps.has(id)) return;
   recording.steps.set(id, {
     step,
-    assertionsBefore: recording.assertions?.() ?? 0,
+    assertionsBefore: assertionsBefore ?? recording.assertions?.() ?? 0,
   });
 }
 
@@ -184,31 +184,45 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   if (!key) return yield* factory.apply(thisArg, args);
   const target = ɵbehaviorTarget(hostTags);
   const behavior = target ? { behavior: target } : {};
-  const settle = (result: unknown): void =>
-    record({
-      key,
-      kind: 'invocation',
-      detail: isCraftException(result)
-        ? { outcome: 'failed', exception: result._tag, ...behavior }
-        : { outcome: 'succeeded', ...behavior },
-    });
+  const settle = (result: unknown, assertionsBefore?: number): void =>
+    record(
+      {
+        key,
+        kind: 'invocation',
+        detail: isCraftException(result)
+          ? { outcome: 'failed', exception: result._tag, ...behavior }
+          : { outcome: 'succeeded', ...behavior },
+      },
+      assertionsBefore,
+    );
   try {
     const result = yield* factory.apply(thisArg, args);
-    // A loader may answer with a promise (a prepared HTTP request): its
-    // outcome, a typed exception included, is known once it settles.
+    const session = recording;
+    const succeeded = JSON.stringify([key, { outcome: 'succeeded', ...behavior }]);
+    const alreadySucceeded = session?.steps.has(succeeded) ?? false;
+    settle(result);
+    // A loader may answer with a promise (a prepared HTTP request): noted as
+    // a success when called, it becomes a failure if it settles to a typed
+    // exception or rejects while the recording lasts — unless an earlier
+    // call of the same invocation had already succeeded.
     if (isPromiseLike(result)) {
-      const session = recording;
+      const entry = session?.steps.get(succeeded);
+      const fail = (record: () => void) => {
+        if (!session || recording !== session) return;
+        if (!alreadySucceeded) session.steps.delete(succeeded);
+        record();
+      };
       result.then(
         (value) => {
-          if (recording === session) settle(value);
+          if (isCraftException(value))
+            fail(() => settle(value, entry?.assertionsBefore));
         },
-        (error: unknown) => {
-          if (recording === session) recordFailure(key, behavior, error);
-        },
+        (error: unknown) =>
+          fail(() =>
+            recordFailure(key, behavior, error, entry?.assertionsBefore),
+          ),
       );
-      return result;
     }
-    settle(result);
     return result;
   } catch (error) {
     recordFailure(key, behavior, error);
@@ -220,6 +234,7 @@ function recordFailure(
   key: string,
   behavior: Readonly<{ behavior?: string }>,
   error: unknown,
+  assertionsBefore?: number,
 ): void {
   const tag = (error as { _tag?: unknown } | null)?._tag;
   record({
@@ -235,7 +250,7 @@ function recordFailure(
             : 'unknown',
       ...behavior,
     },
-  });
+  }, assertionsBefore);
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {

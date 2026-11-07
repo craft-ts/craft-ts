@@ -8,9 +8,9 @@ export const behaviorCatalog = {
       "file": "libs/review-attestation/attestation-app/src/review-app.model.ts"
     },
     {
-      "id": "method:BypassesView.chooseRule",
+      "id": "method:BypassRuleFilter.chooseRule",
       "kind": "method",
-      "file": "libs/review-attestation/attestation-app/src/bypasses-view.ts"
+      "file": "libs/review-attestation/attestation-app/src/bypass-rule-filter.service.ts"
     },
     {
       "id": "method:CloseReview.closeReviewSession",
