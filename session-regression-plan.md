@@ -333,7 +333,35 @@ que la comparaison visuelle attrape déjà les régressions de rendu en mode inv
 Registre `attest` (D5), action CI qui lance le lot 3 sur une PR et publie un résumé
 (écarts, captures avant/après, sessions périmées) avec le lien vers le dashboard.
 
-### Lot 6 — Sessions concernées par un changement (la boucle locale, et l'IA)
+### Lot 6 — Sessions concernées par un changement (la boucle locale, et l'IA) — 🟡 fait (2026-11-07), non commité
+
+Fait :
+- `libs/graph-mcp/src/relevant-sessions.ts` : lignes modifiées (`git diff -U0`,
+  fichiers nouveaux compris) → nœuds du graphe qui les couvrent → leur impact
+  (`impactOf`, relations de `DEPENDENCY_FORWARD`) → unités qu'ils nomment
+  (service → `invocation:cart.…` ; méthode d'une primitive →
+  `invocation:cart.add` ; composant / élément interactif → `interaction:…` ;
+  route → `route-activation:` / `route:` ; server function → `server-fn:`) →
+  sessions du golden set, `direct` avant `impact`. Prudent : un fichier de code
+  inconnu du graphe rend toutes les sessions concernées (`unmapped`) ; specs,
+  docs et e2e ignorés. Chemins canonisés (`realpath`) : git et le graphe ne
+  voient pas toujours le même chemin à travers un lien symbolique.
+- Outil MCP `sessions.relevant` du serveur graph-mcp : `since` (HEAD par
+  défaut), `files`, `goldenSet`, `scope` (le dossier de l'app par défaut, pour
+  qu'un chantier ailleurs dans le monorepo ne rende pas tout concerné) ; chaque
+  session avec un lien de dashboard qui la rejoue comme la suite.
+- Vérifié sur le vrai graphe de demo-ecommerce et ses sessions e2e : bouton
+  « Confirmer » → achat en direct ; tableau d'admin → sessions d'admin, pas
+  l'achat ; server function `ecommerce.checkout` → achat ; et par le vrai
+  serveur MCP en stdio.
+
+Avant ce lot : les indices visuels du rejeu (voile d'onglet, marqueur de clic)
+sont marqués `data-replay-cue` et masqués des captures (suite et vignettes).
+
+Reste : rejouer les sessions concernées sans dashboard ouvert à la main
+(aujourd'hui : lien, ou `replayGoldenSession` depuis un test).
+
+Prévu à l'origine :
 
 Fichiers modifiés → graphe → adresses touchées → sessions dont la trace les contient.
 `craft-ts sessions check --changed` et outil MCP `sessions.relevant` : après une

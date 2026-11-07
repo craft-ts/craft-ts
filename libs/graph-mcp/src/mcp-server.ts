@@ -1,4 +1,4 @@
-import { dirname } from 'node:path';
+import { dirname, resolve as resolvePath } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   architectureReport,
@@ -23,6 +23,7 @@ import {
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { GraphStore } from './graph-store.js';
+import { gitChanges, readGoldenSetForImpact, relevantGoldenSessions } from './relevant-sessions.js';
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false } as const;
 const MAX_SOURCE_LINES = 200;
@@ -423,6 +424,41 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
           ),
           warnings: report.warnings,
           waived: report.waived,
+        };
+      }),
+  );
+
+  server.registerTool(
+    'sessions.relevant',
+    {
+      description:
+        "The recorded sessions of the app's golden set (.craft/golden-set.json) that a change touches: the ones to replay after an edit, before handing back. The changed lines (uncommitted by default, or since a ref) name the graph's nodes; each names the coverage units a session shows when it runs it. `direct` sessions run a changed node, `impact` ones a node it feeds, `unmapped` ones are replayed because a changed code file is unknown to the graph. Each comes with a dashboard link that replays it as the regression suite does (actions dispatched, state recomputed).",
+      inputSchema: {
+        since: z.string().min(1).optional().describe('Git ref to diff against; HEAD (what is not committed) by default'),
+        files: z.array(z.string().min(1)).optional().describe('Changed files, whole, instead of the git diff'),
+        goldenSet: z.string().min(1).optional().describe('Path of the golden set; <root>/.craft/golden-set.json by default'),
+        scope: z.string().min(1).optional().describe('Folder whose changes count; the graph root by default'),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ since, files, goldenSet, scope }) =>
+      respond(store, (graph) => {
+        const rootDir = store.options.rootDir;
+        const changes = files
+          ? files.map((file) => ({ file }))
+          : gitChanges(resolvePath(rootDir, scope ?? '.'), since);
+        const set = readGoldenSetForImpact(resolvePath(rootDir, goldenSet ?? '.craft/golden-set.json'));
+        const result = relevantGoldenSessions(graph, set, changes, { rootDir });
+        const dashboard = new URL(process.env['DEBUG_SESSION_DASHBOARD_URL'] ?? 'http://localhost:4210/');
+        dashboard.searchParams.set('replay-state', 'recomputed');
+        dashboard.searchParams.set('replay-mode', 'interaction');
+        return {
+          ...(files ? { files: files.length } : { since: since ?? 'HEAD', scope: resolvePath(rootDir, scope ?? '.') }),
+          ...result,
+          sessions: result.sessions.map((session) => ({
+            ...session,
+            replay: `${dashboard.origin}${dashboard.pathname}${dashboard.search}#/sessions/${encodeURIComponent(session.sessionId)}`,
+          })),
         };
       }),
   );
