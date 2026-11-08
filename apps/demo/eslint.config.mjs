@@ -107,8 +107,6 @@ export default [
     ],
     rules: {
       'craft-ts/no-throw': 'off',
-      // These entry points are synchronous adapters around Craft generators.
-      'craft-ts/no-craft-use': 'off',
     },
   },
   {
@@ -133,7 +131,6 @@ export default [
     ],
     rules: {
       'craft-ts/no-direct-temporal-globals': 'off',
-      'craft-ts/no-craft-use': 'off',
     },
   },
   {

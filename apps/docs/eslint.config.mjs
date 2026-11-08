@@ -31,7 +31,6 @@ export default [
     // imperative examples that production Craft modules reject.
     files: ['**/tests/snippets/**/*.ts'],
     rules: {
-      'craft-ts/no-craft-use': 'off',
       'craft-ts/prefer-craft-template-blocks': 'off',
       'craft-ts/no-direct-temporal-globals': 'off',
       'craft-ts/require-assert-exhaustive-route-exceptions': 'off',

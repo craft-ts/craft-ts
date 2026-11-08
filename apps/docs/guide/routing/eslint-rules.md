@@ -433,7 +433,7 @@ export default [
       'craft-ts/prefer-craft-template-blocks': 'error',
       'craft-ts/no-render-writes': 'error',
       'craft-ts/require-reactive-template-bindings': 'error',
-      'craft-ts/no-craft-use': 'error',
+      'craft-ts/no-craft-use': 'warn',
       'craft-ts/no-craft-service-return': 'error',
       'craft-ts/no-mutable-craft-service-closure-state': 'error',
       'craft-ts/require-craft-service-input-scope': 'error',
@@ -499,7 +499,7 @@ What each rule does:
 - `craft-ts/no-imported-state-actions`: rejects mutable actions on imported bindings, including inside Craft callbacks. Resolve the owner through Craft DI and pass the needed capability as an explicit function input; the rule has no autofix.
 - `craft-ts/no-state-facade`: rejects custom callable state types that combine a synchronous mutation method with a reader. Expose state operations through a `state(...)` insertion and delegate writes with `yield*`.
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values and message-catalog interpolation helpers remain valid
-- `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files. Declare primitive dependencies with `yield*` in a service, method, or effect body; component templates are synchronous and consume the resulting view API directly.
+- `craft-ts/no-craft-use`: warns when `craftUse(...)` appears outside a test file. In business code, prefer a named Craft primitive and `yield*` in its generator. Keep `craftUse` for synchronous test boundaries, including focused tests of a generator.
 - `craft-ts/no-craft-service-return`: forbids returning a value from a `craftService` factory. Its API is assembled from the named values yielded by its generator; use `yield* craftPrivate(...)` for primitives that should stay internal, and `craftExpose(name, value)` for standalone values that belong in the API. The rule autofixes simple returned objects whose properties already match yielded primitive names.
 - `craft-ts/no-mutable-craft-service-closure-state`: rejects writes to service-local variables from direct `craftExpose(...)` callbacks, including assignments, increments, and property assignments. Declare persistent values with `state(...)` and expose transitions through its insertion; helper-delegated writes are outside this rule's static analysis.
 - `craft-ts/no-duplicate-craft-service-exposure`: requires each public key in a `craftService` to occur once, including keys created by named utilities such as `state(...)` and keys created by `craftExpose(...)`. Remove a duplicate exposure or choose a distinct key for a standalone value; the rule does not autofix because removing an API key can affect consumers.
@@ -1167,7 +1167,7 @@ computation depends only on `users`.
 
 ### Keep casts and synchronous reads out of templates
 
-Craft templates reject both `as ...` / angle-bracket assertions and
+Craft templates reject `as ...` / angle-bracket assertions and warn on
 `craftUse(...)`. Fix the type or perform the synchronous-to-reactive
 conversion in the component logic, then expose a typed reader or generator to
 the template:
@@ -1180,10 +1180,13 @@ return { typedStep };
 matchNode.exhaustive(typedStep, 'step', steps);
 ```
 
-`no-craft-use` applies to Craft TypeScript files, not only the fourth
-`craftComponent(...)` argument. A synchronous integration boundary may opt out
-locally when its external API cannot consume a generator, but application
-state and templates should use `yield*`.
+`no-craft-use` warns throughout Craft TypeScript outside test files, including
+documentation snippets that teach business code. A synchronous read can hide
+where a reactive dependency is consumed; declare it in the owning generator
+with `yield*` and expose the resulting Craft value. Test files may use
+`craftUse` to inspect a value synchronously or to exercise a generator at a
+precise boundary. This rule is a warning, so lint does not block code while
+the right Craft abstraction is being chosen.
 
 ### Form and accessibility diagnostics
 
