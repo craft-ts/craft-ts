@@ -336,6 +336,20 @@ export function frameHasWindow(participantId: string): boolean {
   return frameFor(participantId)?.contentWindow != null;
 }
 
+/**
+ * The frame still shows the empty page every frame starts on: a tab scheduled
+ * for later, or one whose app has not replaced it yet. Its `load` is not the
+ * app's, and the app's bridge cannot answer from it. A frame showing the app
+ * is on another origin, which this window cannot read.
+ */
+export function frameShowsBlankPage(participantId: string): boolean {
+  try {
+    return frameFor(participantId)?.contentWindow?.location.href === 'about:blank';
+  } catch {
+    return false;
+  }
+}
+
 export function requestFrameFullscreen(participantId: string): void {
   void frameFor(participantId)?.requestFullscreen?.();
 }

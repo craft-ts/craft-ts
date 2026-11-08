@@ -4,6 +4,7 @@ import {
   cancelAfter,
   dateNow,
   frameHasWindow,
+  frameShowsBlankPage,
   hideClickMarker,
   isFrameWindow,
   newUuid,
@@ -80,6 +81,9 @@ export const { ReplayBridge } = craftService(
       observeReplayStage();
       const connection = frameConnections.get(participantId);
       if (!connection || !frameHasWindow(participantId)) return;
+      // A tab that opens later starts on an empty page whose `load` can come
+      // after the replay began: asking it for the bridge failed the replay.
+      if (connection.status === 'scheduled' || frameShowsBlankPage(participantId)) return;
       const parsed = parseLocalTarget(connection.href);
       if (!parsed.ok) return;
       const previousTimer = handshakeTimers.get(participantId);
