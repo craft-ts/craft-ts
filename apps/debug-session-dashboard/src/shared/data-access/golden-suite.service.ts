@@ -9,7 +9,7 @@ import {
 import {
   goldenSuiteDecoder,
   suiteOrigins,
-  suiteReplayDecoder,
+  suiteRunDecoder,
 } from '../util/golden-suite';
 import { SessionArchive } from './session-archive.service';
 
@@ -89,22 +89,23 @@ export const { GoldenSuiteArchive } = craftService(
     );
 
     // A replay changes nothing the archive keeps: asked for, not written.
-    // One at a time: the archive runs them one after the other anyway.
+    // One request for one session or the whole suite: the archive replays
+    // them one after the other and answers once they are all done.
     yield* query(
-      'suiteReplay',
+      'suiteRun',
       {
-        method: (sessionId: string) => sessionId,
-        loader: function* ({ params: sessionId }) {
+        method: (sessionIds: readonly string[]) => sessionIds,
+        loader: function* ({ params: sessionIds }) {
           return yield* CraftHttpClient.post(({ response }) => ({
-            url: `${SESSION_ARCHIVE_URL}/sessions/${encodeURIComponent(sessionId)}/suite-replay`,
-            payload: {},
-            success: response(suiteReplayDecoder),
+            url: `${SESSION_ARCHIVE_URL}/sessions/suite-replay`,
+            payload: { sessionIds },
+            success: response(suiteRunDecoder),
           }));
         },
       },
       function* ({ resource, hasException }) {
         return {
-          lastReplay: yield* craftComputed('lastReplay', function* () {
+          lastRun: yield* craftComputed('lastRun', function* () {
             return yield* resource.value();
           }),
           replaying: yield* craftComputed('replaying', function* () {
@@ -118,3 +119,4 @@ export const { GoldenSuiteArchive } = craftService(
     );
   },
 );
+

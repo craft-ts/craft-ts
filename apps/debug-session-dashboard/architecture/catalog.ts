@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "5062eb4b2cff3215",
+  "graphHash": "1324bfb3d724df08",
   "routes": [
     "",
     ":recipeId",
@@ -189,7 +189,7 @@ export const architectureCatalog = {
     "journalEventsState",
     "journalSummaryText",
     "kept",
-    "lastReplay",
+    "lastRun",
     "loadError",
     "loadErrorHidden",
     "loadErrorText",
@@ -322,7 +322,7 @@ export const architectureCatalog = {
     "suiteLoading",
     "suiteOpenings",
     "suiteOriginList",
-    "suiteReplay",
+    "suiteRun",
     "suiteUnreachable",
     "summary",
     "summaryHidden",
@@ -406,10 +406,6 @@ export const architectureCatalog = {
     },
     {
       "method": "POST",
-      "url": "*/sessions/*/suite-replay"
-    },
-    {
-      "method": "POST",
       "url": "*/sessions/*/thumbnails*"
     },
     {
@@ -427,6 +423,10 @@ export const architectureCatalog = {
     {
       "method": "POST",
       "url": "*/sessions/resume-requests"
+    },
+    {
+      "method": "POST",
+      "url": "*/sessions/suite-replay"
     },
     {
       "method": "POST",

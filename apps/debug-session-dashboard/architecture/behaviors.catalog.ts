@@ -18,7 +18,7 @@ export const behaviorCatalog = {
       "file": "apps/debug-session-dashboard/src/features/e2e-replay/e2e-replay-route.service.ts"
     },
     {
-      "id": "command:goldenSuiteArchive.suiteReplay#success",
+      "id": "command:goldenSuiteArchive.suiteRun#success",
       "kind": "command",
       "file": "apps/debug-session-dashboard/src/shared/data-access/golden-suite.service.ts"
     },

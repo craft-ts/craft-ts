@@ -17,6 +17,7 @@ import { GoldenSuiteArchive } from '../../shared/data-access/golden-suite.servic
 import {
   replayLineFor,
   replayStatusLine,
+  suiteRunLine,
   suiteView,
 } from '../../shared/util/golden-suite';
 
@@ -33,9 +34,9 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
   const unreachable = rawReactiveValue(archive.suite.suiteUnreachable);
   const origins = rawReactiveValue(archive.suite.origins);
   const origin = rawReactiveValue(archive.chosenOrigin.effective);
-  const lastReplay = rawReactiveValue(archive.suiteReplay.lastReplay);
-  const replaying = rawReactiveValue(archive.suiteReplay.replaying);
-  const replayFailed = rawReactiveValue(archive.suiteReplay.replayUnreachable);
+  const lastRun = rawReactiveValue(archive.suiteRun.lastRun);
+  const replaying = rawReactiveValue(archive.suiteRun.replaying);
+  const replayFailed = rawReactiveValue(archive.suiteRun.replayUnreachable);
 
   const facts = yield* craftComputed('facts', () => suiteView(suite()).facts);
   const kept = yield* craftComputed('kept', () => suiteView(suite()).sessions);
@@ -95,6 +96,23 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
     ),
   );
 
+  const replayAll = button(
+    'replaySuite',
+    {
+      type: 'button',
+      class: buttonUi.root,
+      'data-variant': 'primary',
+      'data-lab': 'suite-replay-all',
+      disabled: function* () {
+        return replaying() || (yield* kept()).length === 0;
+      },
+      click: function* () {
+        yield* archive.suiteRun.call((yield* kept()).map((row) => row.sessionId));
+      },
+    },
+    i18n.t('suiteReplayAll'),
+  );
+
   const replayStatus = p(
     {
       class: ui.lede,
@@ -102,6 +120,16 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       hidden: () => !replaying() && !replayFailed(),
     },
     () => replayStatusLine(replaying(), replayFailed()),
+  );
+
+  const runSummary = p(
+    {
+      class: badgeUi.root,
+      'data-lab': 'suite-run-summary',
+      'data-tone': () => suiteRunLine(lastRun()).tone,
+      hidden: () => replaying() || suiteRunLine(lastRun()).hidden,
+    },
+    () => suiteRunLine(lastRun()).text,
   );
 
   const keptList = ul(
@@ -146,16 +174,14 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
               class: badgeUi.root,
               'data-lab': 'suite-replay-result',
               'data-tone': function* () {
-                return replayLineFor(lastReplay(), (yield* row()).sessionId)
-                  .tone;
+                return replayLineFor(lastRun(), (yield* row()).sessionId).tone;
               },
               hidden: function* () {
-                return replayLineFor(lastReplay(), (yield* row()).sessionId)
-                  .hidden;
+                return replayLineFor(lastRun(), (yield* row()).sessionId).hidden;
               },
             },
             function* () {
-              return replayLineFor(lastReplay(), (yield* row()).sessionId).text;
+              return replayLineFor(lastRun(), (yield* row()).sessionId).text;
             },
           ),
         ]),
@@ -185,7 +211,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
               'data-lab': 'suite-replay-session',
               disabled: replaying,
               click: function* () {
-                yield* archive.suiteReplay.call((yield* row()).sessionId);
+                yield* archive.suiteRun.call([(yield* row()).sessionId]);
               },
             },
             i18n.t('suiteReplay'),
@@ -285,10 +311,12 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
           heading({ class: ui.title }, i18n.t('suiteTitle')),
           p({ class: ui.lede }, i18n.t('suiteLede')),
         ]),
+        div({ class: ui.listHeadActions }, [replayAll]),
       ]),
       originPicker,
       factList,
       replayStatus,
+      runSummary,
       div({ class: ui.sectionStack }, [
         keptList,
         unitSection(

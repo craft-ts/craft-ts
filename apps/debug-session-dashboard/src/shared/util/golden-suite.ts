@@ -49,6 +49,23 @@ export type SuiteReplayOutcome = Readonly<{
   droppedSteps: number;
 }>;
 
+/** A suite run: each session's replay, and whether the whole run passed. */
+export type SuiteRun = Readonly<{
+  passed: boolean;
+  results: readonly SuiteReplayOutcome[];
+}>;
+
+export const suiteRunDecoder = {
+  decode(input: unknown): SuiteRun | undefined {
+    if (!isRecord(input) || !Array.isArray(input['results'])) return undefined;
+    const results = input['results'].flatMap((result) => {
+      const outcome = suiteReplayDecoder.decode(result);
+      return outcome ? [outcome] : [];
+    });
+    return { passed: input['passed'] === true, results };
+  },
+};
+
 export const suiteReplayDecoder = {
   decode(input: unknown): SuiteReplayOutcome | undefined {
     if (!isRecord(input) || typeof input['sessionId'] !== 'string' || typeof input['status'] !== 'string')
@@ -172,17 +189,32 @@ function stringList(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
-/** What a kept session's row says about the last replay: nothing unless it was this one. */
+/** What a kept session's row says about the last run: nothing unless it was in it. */
 export function replayLineFor(
-  outcome: SuiteReplayOutcome | undefined,
+  run: SuiteRun | undefined,
   sessionId: string,
 ): Readonly<{ hidden: boolean; tone: string | undefined; text: string }> {
-  const line = outcome?.sessionId === sessionId ? describeSuiteReplay(outcome) : undefined;
+  const outcome = run?.results.find((result) => result.sessionId === sessionId);
+  const line = outcome ? describeSuiteReplay(outcome) : undefined;
   return { hidden: line === undefined, tone: line?.tone, text: line?.text ?? '' };
 }
 
-/** The page's word on a replay under way, or one the archive would not run. */
+/** The last run in a line: how many sessions replayed clean, out of how many. */
+export function suiteRunLine(
+  run: SuiteRun | undefined,
+): Readonly<{ hidden: boolean; tone: string | undefined; text: string }> {
+  if (!run || run.results.length === 0) return { hidden: true, tone: undefined, text: '' };
+  const clean = run.results.filter(
+    (result) => result.status === 'completed' && result.unprovenInteractions.length === 0,
+  ).length;
+  return {
+    hidden: false,
+    tone: run.passed ? 'important' : 'danger',
+    text: i18n.t('suiteRunSummary', { count: clean, total: run.results.length }),
+  };
+}
+
+/** The page's word on a run under way, or one the archive would not run. */
 export function replayStatusLine(replaying: boolean, failed: boolean): string {
   return replaying ? i18n.t('suiteReplaying') : failed ? i18n.t('suiteReplayUnavailable') : '';
 }
-

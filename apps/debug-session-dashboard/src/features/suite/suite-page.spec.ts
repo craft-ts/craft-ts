@@ -15,4 +15,8 @@ it('shows the sessions the suite keeps for the app, and what each one alone show
   // Replayed by the archive as the suite runs it: the row gives the outcome.
   await click('suite-replay-session');
   await shown('suite-replay-result', 'Rejouée sans écart · 14/14 actions');
+
+  // The whole suite at once, as after a change: how many replayed clean.
+  await click('suite-replay-all');
+  await shown('suite-run-summary', '1 session(s) sur 1 sans écart');
 });
