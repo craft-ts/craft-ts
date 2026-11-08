@@ -13,6 +13,7 @@ import { providePrimitiveResourceRuntimeObserver } from './primitive-resource-ru
 import {
   ɵcorrelationIdForDomEvent,
   ɵinjectCorrelationIdService,
+  ɵcurrentCorrelationId,
 } from './correlation-id';
 import { ɵinjectCraftPrimitiveRegistry } from './craft-primitive-registry';
 import { ɵinjectPersistedStorageSnapshotRegistry } from './persisted-storage-snapshot';
@@ -1043,7 +1044,7 @@ export function provideSendContextSession(
         const activeSession = ɵinjectSendContextSession();
         if (activeSession?.activeClip) {
           const correlationId =
-            ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+            ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined;
           const routeUrl = ɵinjectCraftRouterRuntime()?.url;
           activeSession.capture('component-lifecycle', 'emitted', {
             name: `${trace.phase}:${trace.componentName ?? 'unknown'}`,
@@ -1182,7 +1183,7 @@ export function provideSendContextSession(
     provideCraftHttpTrace((context, next) => {
       const session = requireSession();
       const correlationId =
-        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+        ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined;
       const operationId = randomId('http');
       session.capture('http', 'started', {
         name: context.method,
@@ -1214,7 +1215,7 @@ export function provideSendContextSession(
     ...provideCraftRouterTrace((context, next) => {
       const session = requireSession();
       const correlationId =
-        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+        ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined;
       const operationId = randomId('navigation');
       session.capture('navigation', 'started', {
         name: context.eventName ?? context.stage,
@@ -1266,7 +1267,7 @@ export function provideSendContextSession(
     providePrimitiveResourceRuntimeObserver((context) => {
       const session = requireSession();
       const correlationId =
-        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+        ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined;
       session.capture('primitive', 'emitted', {
         name: context.kind,
         correlationId,

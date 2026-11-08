@@ -74,6 +74,18 @@ export const ɵinjectCorrelationIdServiceIn = (
 ): CorrelationIdServiceApi | null =>
   runInInjectionContext(injector, () => ɵinjectCorrelationIdService());
 
+/**
+ * The id of the flow running now, read without tracking it. It changes on
+ * every interaction: a render or a computation that tracked it would run
+ * again on each click or key, before the handler of that event (a field
+ * rewritten with its old value, the first key typed lost).
+ */
+export function ɵcurrentCorrelationId(
+  service: CorrelationIdServiceApi | null | undefined,
+): string | undefined {
+  return untracked(() => service?.lastCorrelationId()) ?? undefined;
+}
+
 export function createCorrelationIdService(
   temporalRuntime?: CraftTemporalRuntime,
 ): CorrelationIdServiceApi {

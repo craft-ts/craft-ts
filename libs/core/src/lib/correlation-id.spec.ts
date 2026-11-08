@@ -1,4 +1,5 @@
 import {
+  computed,
   Injector,
   runInInjectionContext,
 } from './host/craft-compat';
@@ -12,6 +13,7 @@ import {
   provideCorrelationIdService,
   setCurrentStartCorrelationId,
   type CorrelationIdYield,
+  ɵcurrentCorrelationId,
 } from './correlation-id';
 
 describe('createCorrelationIdService', () => {
@@ -28,6 +30,23 @@ describe('createCorrelationIdService', () => {
     const id = service.generateAndSet('click');
     expect(id.startsWith('click:')).toBe(true);
     expect(service.lastCorrelationId()).toBe(id);
+  });
+
+  it('reads the current id without making a computation depend on it', () => {
+    // A render that tracked it ran again on the next key, before its handler,
+    // and wrote the field's old value over the key just typed.
+    const service = createCorrelationIdService();
+    service.generateAndSet('click');
+    let runs = 0;
+    const recorded = computed(() => {
+      runs += 1;
+      return ɵcurrentCorrelationId(service);
+    });
+    const first = recorded();
+    service.generateAndSet('enter');
+    expect(recorded()).toBe(first);
+    expect(runs).toBe(1);
+    expect(ɵcurrentCorrelationId(null)).toBeUndefined();
   });
 
   it('generates distinct ids on successive calls', () => {

@@ -6,7 +6,10 @@ import {
 } from './host/craft-compat';
 import { ɵcraftValueService } from './craft-service';
 import type { SendContextSession } from './send-context-to-ai.tokens';
-import { ɵinjectCorrelationIdService } from './correlation-id';
+import {
+  ɵinjectCorrelationIdService,
+  ɵcurrentCorrelationId,
+} from './correlation-id';
 import { isCraftReplaying } from './craft-replay';
 import { ɵisCraftHttpTransportActive } from './craft-http-trace';
 
@@ -870,10 +873,10 @@ function captureTransport(
   session.capture('transport', 'emitted', {
     name: 'transport-event',
     elapsedMs,
-    ...(ɵinjectCorrelationIdService()?.lastCorrelationId()
+    ...(ɵcurrentCorrelationId(ɵinjectCorrelationIdService())
       ? {
           correlationId:
-            ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined,
+            ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined,
         }
       : {}),
     payload: {

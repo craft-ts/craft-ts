@@ -56,7 +56,10 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
-import { ɵinjectCorrelationIdServiceIn } from './correlation-id';
+import {
+  ɵinjectCorrelationIdServiceIn,
+  ɵcurrentCorrelationId,
+} from './correlation-id';
 import {
   createNamedPrimitiveGen,
   type CraftPrimitiveGen,
@@ -1298,7 +1301,7 @@ function createAsyncProcessRef<
       ? ((async (param: ResourceLoaderParams<any>) => {
           const injector = getInjector();
           const correlationSvc = ɵinjectCorrelationIdServiceIn(injector);
-          const operationId = correlationSvc?.lastCorrelationId() ?? null;
+          const operationId = ɵcurrentCorrelationId(correlationSvc) ?? null;
           if (operationId) correlationSvc?.startOperation(operationId);
 
           // Unwrap the method-trigger nonce so the user loader and identifier logic
