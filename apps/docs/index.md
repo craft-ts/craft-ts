@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: '@craft-ts'
-  text: 'Safe AI-first APP, by construction.'
-  tagline: Fine-grained reactivity. Declare. Yield. Derive. Compile — no surprises.
+  text: 'Know what users do. Improve what matters.'
+  tagline: Build robust web apps with AI agents. Let them replay real user sessions and surface product insights that help your business grow.
 
   image:
     src: /assets/craft-ts-logo.png
@@ -25,6 +25,12 @@ hero:
       link: /resources/examples
 
 features:
+  - title: Real journeys. Reproducible regressions.
+    details: Replay recorded sessions against code changes. Craft checks whether real user actions still produce the expected behavior, then points to the route or action that diverged.
+  - title: End-to-end tests from real sessions
+    details: Turn real user journeys into replayable regression tests. AI agents can work from observed sessions instead of guessing how people use your app.
+  - title: Product analytics from real user journeys
+    details: Let AI analyze recorded sessions to reveal how people use your product, where journeys get stuck, and which improvements deserve priority — turning observed behavior into better business decisions.
   - title: Agents drive the tab you already have open
     details: In development the running app publishes its named controls. A coding agent fills, clicks and inspects that page — no second browser or DOM reverse-engineering required.
     link: /guide/ai/dev-page

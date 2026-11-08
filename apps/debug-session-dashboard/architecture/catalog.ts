@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "90d98439f9ae1684",
+  "graphHash": "5e63e7efea549f2a",
   "routes": [
     "",
     ":recipeId",
@@ -136,11 +136,8 @@ export const architectureCatalog = {
     "continuationsState",
     "copied",
     "coverage",
-    "coverageApps",
-    "coverageLoading",
     "coverageSections",
     "coverageSummaries",
-    "coverageUnreachable",
     "dashboardReplayStatus",
     "deleteSession",
     "deleteSessions",
@@ -314,6 +311,7 @@ export const architectureCatalog = {
     "targetUrl",
     "thread",
     "thumbnailManifest",
+    "thumbnailWatcher",
     "timeProgress",
     "timeRemaining",
     "timelineExpanded",
@@ -330,7 +328,8 @@ export const architectureCatalog = {
     "visibleSessions",
     "visibleWarnings",
     "warningHistory",
-    "warningHistoryOpen"
+    "warningHistoryOpen",
+    "watcher"
   ],
   "sources": [
     "refreshRequested$ (source$)",
@@ -382,7 +381,7 @@ export const architectureCatalog = {
     },
     {
       "method": "GET",
-      "url": "<unresolved:resume-thread.service.ts:79>"
+      "url": "<unresolved:resume-thread.service.ts:81>"
     },
     {
       "method": "POST",

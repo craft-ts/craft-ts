@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "b13ae3ed915d308d",
+  "graphHash": "35050ee667e6a7a3",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -34,29 +34,30 @@ export const architectureCatalog = {
     "captureError",
     "captureInProgress",
     "clearAllCache",
-    "copied",
     "error",
     "exception",
     "exceptionTag",
     "hasTask",
     "hasTaskException",
-    "instruction",
     "panelOffset",
-    "promptOptions",
-    "replayJson",
-    "replayStatus",
+    "sendContextInstruction",
+    "sendContextPromptOptions",
     "sendContextToAi",
+    "sendDialogCopied",
+    "sendDialogInstruction",
+    "sendDialogPromptOptions",
     "setBusy",
     "setCaptureError",
     "setCaptureInProgress",
     "setCopied",
     "setError",
     "setPanelOffset",
-    "setReplayStatus",
     "setStatus",
+    "setTimelineExpanded",
     "status",
     "taskQuery",
     "taskStatus",
+    "timelineExpanded",
     "title"
   ],
   "sources": [
@@ -67,7 +68,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:314>"
+      "url": "<unresolved:ai-send-context-chat.ts:255>"
     }
   ],
   "uniques": [],
@@ -148,6 +149,19 @@ export const architectureCatalog = {
     "routes": {}
   },
   "browserBoundaryServices": [],
-  "scopes": {}
+  "scopes": {
+    "quickstartTaskPageView": "toProvide",
+    "aiContextMenuDismissal": "toProvide",
+    "aiSendContextChatState": "toProvide",
+    "aiSendDialogState": "toProvide",
+    "craftRouterOutletState": "toProvide",
+    "StorageService": "abstract",
+    "CraftLogServerUrl": "abstract",
+    "CraftFieldCheckboxControl": "abstract",
+    "CraftFieldValueControl": "abstract",
+    "GlobalPersisterHandlerService": "toProvide",
+    "ServerFunctionTransport": "abstract",
+    "StoragePersister": "abstract"
+  }
 } as const;
 export type ArchitectureCatalog = typeof architectureCatalog;

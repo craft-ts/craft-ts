@@ -10,8 +10,8 @@ architecture — no hidden runtime dependencies or direct transport calls — an
 
 ::: warning An ESLint error is not a compile error
 A missing autofix does not break the build. If you skip the quick fix after
-changing a component's DI shape, `main.ts` keeps reading a stale `GenDeps_*` and
-can miss a real DI error. Run `eslint --fix` in CI.
+changing route metadata, the same-file DI proof or exhaustiveness check may be
+missing. Run `eslint --fix` in CI so those proofs stay armed.
 :::
 
 The plugin is exposed from `@craft-ts/dev-tools/eslint-rules`.
