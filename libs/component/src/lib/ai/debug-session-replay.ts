@@ -726,6 +726,35 @@ function nextReplayTask(): Promise<void> {
 }
 
 /** The live values at the addresses a recorded state names, for a readable gap. */
+/**
+ * Reads the state until it matches what was recorded, or the settle time is
+ * over: what the code computes can take more than a few tasks to land (a
+ * sign-in's answer decoded, a navigation, a lazy page created). At least
+ * `minTurns` tasks; past them only while time goes on (a frozen clock stops
+ * there). Never the replay's own (virtual) timers.
+ */
+async function settleReplayState(
+  expected: unknown,
+  read: () => unknown,
+  settleTimeoutMs: number | undefined,
+  minTurns = 50,
+): Promise<unknown> {
+  const startedAt = performance.now();
+  const settleUntil =
+    startedAt + Math.max(0, Math.min(settleTimeoutMs ?? 2500, 30_000));
+  let actual = read();
+  for (let turn = 0; hasReplayStateDifference(expected, actual); turn += 1) {
+    const now = performance.now();
+    // A clock still where it was after 50 tasks is frozen: time will not
+    // run out, so stop there.
+    const frozen = turn >= 50 && now === startedAt;
+    if (turn >= minTurns && (now >= settleUntil || frozen)) break;
+    await nextReplayTask();
+    actual = read();
+  }
+  return actual;
+}
+
 function pickReplayState(expected: unknown, actual: unknown): unknown {
   if (!isRecord(expected) || !isRecord(actual)) return actual;
   return Object.fromEntries(
@@ -1226,15 +1255,11 @@ export function createReplayController(
     const expectation = recomputedExpectation;
     recomputedExpectation = undefined;
     if (!expectation || !options.readState) return undefined;
-    let actual = options.readState();
-    for (
-      let turn = 0;
-      turn < 50 && hasReplayStateDifference(expectation.state, actual);
-      turn += 1
-    ) {
-      await nextReplayTask();
-      actual = options.readState();
-    }
+    const actual = await settleReplayState(
+      expectation.state,
+      options.readState,
+      options.settleTimeoutMs,
+    );
     if (!hasReplayStateDifference(expectation.state, actual)) return undefined;
     const recovery: ReplayRecovery = { state: expectation.state };
     pendingRecovery = { recovery, nextIndex: cursor };
@@ -2734,7 +2759,14 @@ export function createReplayController(
         !options.scenario
       ) {
         lastExpectedState = intervalEvent.state;
-        const actualState = options.readState();
+        // A recorded snapshot of the state can follow an answer still on its
+        // way in the replay.
+        const actualState = await settleReplayState(
+          intervalEvent.state,
+          options.readState,
+          options.settleTimeoutMs,
+          0,
+        );
         if (hasReplayStateDifference(intervalEvent.state, actualState)) {
           return reportDifference(
             {
@@ -2800,17 +2832,12 @@ export function createReplayController(
         );
     }
     if (verifiedEvent && options.readState) {
-      // Replayed calls and the responses they consumed may still be settling:
-      // a bounded number of tasks, never the replay's own (virtual) timers.
-      let actualState = options.readState();
-      for (
-        let turn = 0;
-        turn < 50 && hasReplayStateDifference(verifiedState, actualState);
-        turn += 1
-      ) {
-        await nextReplayTask();
-        actualState = options.readState();
-      }
+      // Replayed calls and the responses they consumed may still be settling.
+      const actualState = await settleReplayState(
+        verifiedState,
+        options.readState,
+        options.settleTimeoutMs,
+      );
       if (hasReplayStateDifference(verifiedState, actualState))
         return reportDifference(
           {

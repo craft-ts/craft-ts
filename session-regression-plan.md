@@ -452,6 +452,26 @@ e2e : un achat avec F5 au milieu se rejoue entier (rien de coupé, aucun clic no
 prouvé), et le bouton de confirmation débranché après le rechargement donne
 l'écart attendu.
 
+## Mesure sur des sessions faites à la main (2026-11-08)
+
+Deux sessions libres sur demo-ecommerce (417 et 390 actions : recherche,
+panier, connexion rapide en admin, édition de produits…), rejouées par le log
+server comme la suite (vrais clics, état recalculé).
+
+- **Clics non prouvés : 0** sur les deux sessions, dès le premier rejeu.
+- **Écarts : les deux s'arrêtaient** (action 319/417 et 77/390), sur des faux
+  écarts : la vérification de l'état n'attendait que 50 tâches avant de
+  conclure, alors qu'une connexion (réponse décodée, navigation, page chargée
+  en différé) ou une synchronisation du panier prend plus longtemps. Un des
+  trois points de comparaison n'attendait même pas du tout.
+- Corrigé : les trois points de comparaison attendent l'état jusqu'au temps de
+  stabilisation (`settleTimeoutMs`, 2,5 s par défaut) ; un vrai écart est
+  signalé un peu plus tard, un faux n'est plus signalé. Les deux sessions se
+  rejouent alors en entier (417/417, 390/390), sans clic non prouvé.
+
+Limite : deux sessions, une seule personne. La forme des écarts (asynchrone,
+pas les gestes) est le résultat qui compte.
+
 ## Sources
 
 - [meticulous.ai](https://www.meticulous.ai/)

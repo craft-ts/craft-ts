@@ -4379,6 +4379,8 @@ describe('debug session replay format', () => {
     } as const satisfies SendContextReplayExport;
     const replay = createReplayController(session, {
       mode: 'legacy-dom',
+      // The checkpoint diverges at once: no settle time to wait out.
+      settleTimeoutMs: 0,
       readState: () => actualState,
       forceRecovery: (recovery) => {
         actualState = recovery.state as typeof actualState;
@@ -5681,6 +5683,30 @@ describe("stateSource: 'recomputed'", () => {
     expect(result.difference).toBeUndefined();
     expect(result.restored).toEqual([LINES, TOTAL, NAME]);
     expect(result.live[TOTAL]).toBe(3);
+  });
+
+  it('waits for a state that lands late (an answer decoded, a page loaded) before calling it a gap', async () => {
+    const replayWith = async (settleTimeoutMs: number) => {
+      document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+      const live: Record<string, unknown> = { [LINES]: [], [TOTAL]: 0, [NAME]: 'Ada' };
+      const replay = createReplayController(session(), {
+        stateSource: 'recomputed',
+        settleTimeoutMs,
+        // The query's answer comes back 300 ms after the call.
+        invokeRecordedMethod: () => {
+          live[LINES] = ['espresso'];
+          setTimeout(() => { live[TOTAL] = 3; }, 300);
+        },
+        readState: () => ({ ...live }),
+        restoreState: (state) => Object.assign(live, state as Record<string, unknown>),
+      });
+      const first = await replay.step();
+      const difference = first ?? (await replay.step());
+      replay.stop();
+      return difference;
+    };
+    expect(await replayWith(1_000)).toBeUndefined();
+    expect(await replayWith(0)).toMatchObject({ expected: { [TOTAL]: 3 }, actual: { [TOTAL]: 0 } });
   });
 
   it('checks what came after the last action before declaring the replay complete', async () => {
