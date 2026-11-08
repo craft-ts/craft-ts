@@ -63,6 +63,8 @@ type RunSummary = Readonly<{
   total: number;
   message?: string;
   unprovenInteractions: number;
+  /** Actions at the end of the recording left out of the replay. */
+  droppedSteps?: number;
 }>;
 
 export type CompareGoldenRunsOptions = Readonly<{
@@ -113,6 +115,7 @@ function summary(run: GoldenReplayResult): RunSummary {
     total: run.total,
     ...(run.message ? { message: run.message } : {}),
     unprovenInteractions: run.unprovenInteractions.length,
+    ...(run.tailCut ? { droppedSteps: run.tailCut.droppedSteps } : {}),
   };
 }
 

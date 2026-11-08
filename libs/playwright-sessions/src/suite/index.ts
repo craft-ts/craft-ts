@@ -10,6 +10,7 @@ export {
   workerUrl,
   type AdvanceOutcome,
   type ReplayPlanPoint,
+  type TailCut,
   type WorkerSnapshot,
 } from './worker-driver.js';
 export * from './compare-runs.js';

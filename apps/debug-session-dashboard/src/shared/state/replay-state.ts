@@ -22,6 +22,7 @@ import {
   compileReplayPlan,
   environmentDifferences,
   getReplaySteps,
+  type ReplayTailCut,
 } from '@craft-ts/component';
 import type { ThumbnailManifest } from '../data-access/thumbnail-archive.service';
 import {
@@ -940,9 +941,12 @@ type ReplayRegisters = {
   seekStepping: boolean;
   /** The next start keeps the notes: it is a seek, not a new replay. */
   keepNotesOnStart: boolean;
+  /** The end of the open recording the replay leaves out, if it leaves one. */
+  tailCut: ReplayTailCut | undefined;
 };
 
 export const registers: ReplayRegisters = {
+  tailCut: undefined,
   loadedArchiveSessionId: undefined,
   loadedArchiveCreatedAtMs: undefined,
   differenceParticipantId: undefined,

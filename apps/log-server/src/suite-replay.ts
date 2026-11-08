@@ -41,7 +41,20 @@ export type SuiteReplayResult = Readonly<{
   unprovenInteractions: readonly string[];
   /** Every note of the replay. */
   notes: readonly string[];
+  /**
+   * The end of the recording left out (a tab closed mid-request, a page loaded
+   * again): `total` counts only what was replayed.
+   */
+  tailCut?: TailCut;
   durationMs: number;
+}>;
+
+export type TailCut = Readonly<{
+  reason: 'missing-result' | 'page-reload' | 'reload-requested';
+  atSequence: number;
+  keptSteps: number;
+  droppedSteps: number;
+  operationId?: string;
 }>;
 
 export type SuiteReplayer = (sessionId: string) => Promise<SuiteReplayResult>;
@@ -68,6 +81,7 @@ type WorkerSnapshot = Readonly<{
   difference: boolean;
   differenceDetail?: unknown;
   warnings?: readonly string[];
+  tailCut?: TailCut;
 }>;
 type WorkerWindow = {
   __craftReplayWorker?: {
@@ -105,6 +119,7 @@ export function createSuiteReplayer(options: SuiteReplayerOptions): SuiteReplaye
         ...extra,
         unprovenInteractions: notes.filter((note) => note.startsWith(UNPROVEN)),
         notes,
+        ...(last?.tailCut ? { tailCut: last.tailCut } : {}),
         durationMs: Date.now() - startedAt,
       };
     };

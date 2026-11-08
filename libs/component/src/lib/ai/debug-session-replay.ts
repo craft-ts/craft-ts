@@ -825,6 +825,9 @@ export type ReplayDiagnosticReport = Readonly<{
  * Replays app DOM events only. It never relaxes the browser's network boundary:
  * fetch interception is installed separately and unmatched requests reject.
  */
+/** Mouse gestures whose handlers read a position, a button or a click count. */
+const MOUSE_ACTIONS = new Set(['click', 'dblclick', 'auxclick', 'contextmenu']);
+
 export function createReplayController(
   session: SendContextReplayExport,
   options: Readonly<{
@@ -2089,8 +2092,27 @@ export function createReplayController(
     if (!target) return undefined;
     installRecordedFetchReplay();
     // The element was found: its handlers run, nothing is invoked for them.
+    // A field whose text was not recorded (values are kept only when the app
+    // opts in, never for a password) cannot be typed again: dispatching its
+    // input would run the handler on an empty field and report a false gap.
+    // Its state is restored from the recording instead, and the journal says so.
+    const typedValueMissing =
+      dispatchesInteractions &&
+      (action === 'input' || action === 'change') &&
+      typeof payload['value'] !== 'string' &&
+      typeof payload['checked'] !== 'boolean' &&
+      (target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement);
+    if (typedValueMissing)
+      options.onWarning?.(
+        `[Saisie non enregistrée] ${action} (${String(payload['selector'] ?? event.name ?? event.sequence)}) : valeur restaurée depuis l'enregistrement, gestionnaires non exécutés.`,
+      );
     const dispatchNatively =
-      dispatchesInteractions && !isGesture && target !== document.body;
+      dispatchesInteractions &&
+      !isGesture &&
+      target !== document.body &&
+      !typedValueMissing;
     if (dispatchesInteractions && isGesture)
       options.onWarning?.(
         `[Interaction non prouvée] Geste ${String(payload['trigger'])} rejoué par invocation, sans ses gestionnaires.`,
@@ -2100,9 +2122,13 @@ export function createReplayController(
       (target as HTMLInputElement).value = payload['value'];
       // The value is restored for presentation only. State changes are restored
       // from the recorded primitive snapshot or produced by a Craft invocation.
-      if (!useInvocationReplay || dispatchNatively) {
-        target.dispatchEvent(new Event('input', { bubbles: true }));
-        target.dispatchEvent(new Event('change', { bubbles: true }));
+      // A dispatched interaction replays the recorded input or change itself
+      // (once): the other one has its own recorded event when a handler
+      // listens to it, so firing it here would run that handler twice.
+      if (!useInvocationReplay && !dispatchNatively) {
+        for (const type of ['input', 'change'])
+          if (type !== action)
+            target.dispatchEvent(new Event(type, { bubbles: true }));
       }
     }
     if (
@@ -2193,8 +2219,12 @@ export function createReplayController(
       ? new KeyboardEvent(action, init)
       : action.startsWith('pointer') && typeof PointerEvent !== 'undefined'
         ? new PointerEvent(action, init)
-        : action.startsWith('mouse') || action === 'click'
-          ? new MouseEvent(action, init)
+        : action.startsWith('mouse') || MOUSE_ACTIONS.has(action)
+          ? new MouseEvent(action, {
+              ...init,
+              // The click count a handler reads to tell a double click apart.
+              detail: action === 'dblclick' ? 2 : action === 'click' ? 1 : 0,
+            })
           : new Event(action, init);
     let navigationTask: Promise<void> | undefined;
     let navigationFailed = false;
@@ -3276,6 +3306,119 @@ function isReplayStep(event: SendContextEvent): boolean {
         event.kind === 'scroll' ||
         event.kind === 'viewport'))
   );
+}
+
+/** Why the end of a recording was left out of its replay. */
+export type ReplayTailCutReason =
+  | 'missing-result'
+  | 'page-reload'
+  | 'reload-requested';
+
+/** What `cutUnfinishedTail` left out: from `atSequence` to the end. */
+export type ReplayTailCut = Readonly<{
+  reason: ReplayTailCutReason;
+  /** The first event left out. */
+  atSequence: number;
+  /** Actions kept, and actions left out. */
+  keptSteps: number;
+  droppedSteps: number;
+  /** The operation that never got its result, for `missing-result`. */
+  operationId?: string;
+}>;
+
+const TERMINAL_OPERATION_KINDS = new Set([
+  'http',
+  'navigation',
+  'route-load',
+  'async-process',
+]);
+
+/**
+ * The part of a recording a replay can go through: up to the first point it
+ * cannot. A tab closed in the middle of a request leaves an operation with no
+ * result, a page loaded again (F5, an address typed) starts a new app the
+ * replay does not follow, a reload asked by the app is a session boundary.
+ * The action that started what never finished is left out with all that
+ * follows; a page loaded again keeps everything before it. Without such a
+ * point, the session comes back as it is.
+ */
+export function cutUnfinishedTail(
+  session: SendContextReplayExport,
+): Readonly<{ session: SendContextReplayExport; cut?: ReplayTailCut }> {
+  const events = [...session.events].sort((a, b) => a.sequence - b.sequence);
+  const steps = events.filter(isReplayStep);
+  const candidates: { at: number; reason: ReplayTailCutReason; operationId?: string }[] = [];
+
+  const finished = new Set(
+    events
+      .filter((event) => event.phase === 'succeeded' || event.phase === 'failed')
+      .flatMap((event) => (event.operationId ? [event.operationId] : [])),
+  );
+  const unfinished = events.find(
+    (event) =>
+      event.phase === 'started' &&
+      TERMINAL_OPERATION_KINDS.has(event.kind) &&
+      event.operationId !== undefined &&
+      !finished.has(event.operationId),
+  );
+  if (unfinished) {
+    // The action that started it: the last one recorded before it.
+    const cause = [...steps].reverse().find((step) => step.sequence <= unfinished.sequence);
+    candidates.push({
+      at: cause?.sequence ?? unfinished.sequence,
+      reason: 'missing-result',
+      ...(unfinished.operationId ? { operationId: unfinished.operationId } : {}),
+    });
+  }
+
+  const booted = new Set<string>();
+  const reboot = events.find((event) => {
+    if (
+      event.kind !== 'participant' ||
+      !isRecord(event.payload) ||
+      event.payload['initial'] !== true
+    )
+      return false;
+    const participant = event.participantId ?? '';
+    if (booted.has(participant)) return true;
+    booted.add(participant);
+    return false;
+  });
+  if (reboot) candidates.push({ at: reboot.sequence, reason: 'page-reload' });
+
+  const reload = events.find(isDocumentReloadInvocation);
+  if (reload) {
+    const cause = [...steps].reverse().find((step) => step.sequence <= reload.sequence);
+    candidates.push({ at: cause?.sequence ?? reload.sequence, reason: 'reload-requested' });
+  }
+
+  const first = candidates.sort((left, right) => left.at - right.at)[0];
+  if (!first) return { session };
+  const kept = events.filter((event) => event.sequence < first.at);
+  const keptIds = new Set(kept.map((event) => event.id));
+  const lastKeptAt = kept.at(-1)?.timestamp ?? Number.NEGATIVE_INFINITY;
+  const keptSteps = steps.filter((step) => step.sequence < first.at).length;
+  return {
+    session: {
+      ...session,
+      events: kept,
+      clips: session.clips.map((clip) =>
+        isRecord(clip) && Array.isArray(clip['eventIds'])
+          ? { ...clip, eventIds: (clip['eventIds'] as string[]).filter((id) => keptIds.has(id)) }
+          : clip,
+      ) as SendContextReplayExport['clips'],
+      ...(session.snapshots
+        ? { snapshots: session.snapshots.filter((snapshot) => snapshot.capturedAt <= lastKeptAt) }
+        : {}),
+    },
+    cut: {
+      reason: first.reason,
+      atSequence: first.at,
+      keptSteps,
+      droppedSteps: steps.length - keptSteps,
+      ...(first.operationId ? { operationId: first.operationId } : {}),
+    },
+  };
 }
 
 /**

@@ -6,3 +6,4 @@ export * from './parse.js';
 export * from './resume-context.js';
 export * from './coverage-units.js';
 export * from './golden-set.js';
+export * from './replayable-part.js';

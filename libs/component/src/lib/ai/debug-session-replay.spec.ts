@@ -11,6 +11,7 @@ import {
   validateDebugSessionExport,
   createRecordedResponseResolver,
   createReplayController,
+  cutUnfinishedTail,
   getReplaySteps,
   installReplayNetworkGuard,
   runReplayTest,
@@ -5799,4 +5800,142 @@ describe("mode: 'interaction'", () => {
     expect(unbound.difference).toMatchObject({ expected: { [NAME]: 'Ada' }, actual: { [NAME]: '' } });
     expect(unbound.live[NAME]).toBe('');
   });
+  it('restores a field whose text was not recorded instead of typing it empty', async () => {
+    // A password typed, then a click: the recording holds the state, not the text.
+    const events = session().events
+      .filter((event) => !event.id.startsWith('add-'))
+      .map((event) => (event.id === 'name-input' ? { ...event, payload: { selector: '#name', action: 'input' } } : event));
+    document.body.innerHTML = '<button id="add">Add</button><input id="name" type="password"><button id="done">Done</button>';
+    const live: Record<string, unknown> = { [NAME]: '' };
+    let typed = 0;
+    document.querySelector('#name')!.addEventListener('input', (event) => {
+      typed += 1;
+      live[NAME] = (event.target as HTMLInputElement).value;
+    });
+    const warnings: string[] = [];
+    const replay = createReplayController({ ...session(), events }, {
+      mode: 'interaction',
+      stateSource: 'recomputed',
+      settleTimeoutMs: 50,
+      interactionTargetTimeoutMs: 100,
+      observedEvents: () => [],
+      invokeRecordedMethod: () => undefined,
+      readState: () => ({ ...live }),
+      restoreState: (state) => Object.assign(live, state as Record<string, unknown>),
+      onWarning: (message) => warnings.push(message),
+    });
+    const difference = (await replay.step()) ?? (await replay.step());
+    replay.stop();
+    expect(difference).toBeUndefined();
+    expect(typed).toBe(0);
+    expect(live[NAME]).toBe('Ada');
+    expect(warnings.filter((warning) => warning.startsWith('[Saisie non enregistrée]'))).toHaveLength(1);
+  });
+
+  it('replays each kind of gesture a person makes once, with what they typed or pressed', async () => {
+    document.body.innerHTML = [
+      '<input id="search">',
+      '<select id="size"><option value="s">S</option><option value="m">M</option></select>',
+      '<input id="gift" type="checkbox">',
+      '<div id="card">Carte</div>',
+      '<form id="form"><input id="qty"></form>',
+    ].join('');
+    const seen: string[] = [];
+    const on = (selector: string, type: string, describe: (event: Event) => string = () => '') =>
+      document.querySelector(selector)!.addEventListener(type, (event) => seen.push(`${selector} ${type} ${describe(event)}`.trim()));
+    const value = (event: Event) => (event.target as HTMLInputElement).value;
+    on('#search', 'input', value);
+    on('#search', 'keydown', (event) => (event as KeyboardEvent).key);
+    on('#size', 'change', value);
+    on('#gift', 'change', (event) => String((event.target as HTMLInputElement).checked));
+    on('#card', 'mouseenter');
+    on('#card', 'dblclick', (event) => `${(event as MouseEvent).clientX},${(event as MouseEvent).detail}`);
+    on('#qty', 'focus');
+    on('#form', 'submit', (event) => String(event.defaultPrevented));
+    document.querySelector('#form')!.addEventListener('submit', (event) => event.preventDefault(), true);
+    const gesture = (sequence: number, selector: string, action: string, extra: Record<string, unknown> = {}) => ({
+      id: `${action}-${sequence}`, sequence, timestamp: 1_000 + sequence, kind: 'dom' as const, phase: 'emitted' as const, name: action,
+      payload: { selector, action, ...extra },
+    });
+    const events = [
+      gesture(1, '#search', 'input', { value: 'esp' }),
+      gesture(2, '#search', 'keydown', { key: 'Enter', code: 'Enter' }),
+      gesture(3, '#size', 'change', { value: 'm' }),
+      gesture(4, '#gift', 'change', { checked: true }),
+      gesture(5, '#card', 'mouseenter', { clientX: 12, clientY: 4 }),
+      gesture(6, '#card', 'dblclick', { button: 0, clientX: 12, clientY: 4 }),
+      gesture(7, '#qty', 'focus'),
+      gesture(8, '#form', 'submit'),
+    ];
+    const warnings: string[] = [];
+    const replay = createReplayController(
+      { format: 'craft-debug-session', version: 8, startUrl: 'http://localhost/', exportedAt: 1_000, truncated: false, clips: [], events },
+      {
+        mode: 'interaction',
+        settleTimeoutMs: 50,
+        interactionTargetTimeoutMs: 100,
+        observedEvents: () => [],
+        invokeRecordedMethod: () => undefined,
+        readState: () => ({}),
+        restoreState: () => undefined,
+        onWarning: (message) => warnings.push(message),
+      },
+    );
+    for (let step = 0; step < events.length; step += 1) expect(await replay.step()).toBeUndefined();
+    replay.stop();
+    expect(seen).toEqual([
+      '#search input esp',
+      '#search keydown Enter',
+      '#size change m',
+      '#gift change true',
+      '#card mouseenter',
+      '#card dblclick 12,2',
+      '#qty focus',
+      '#form submit true',
+    ]);
+    expect(warnings.filter((warning) => warning.includes('Interaction non prouvée'))).toEqual([]);
+  });
 });
+
+describe('cutUnfinishedTail', () => {
+  type Event = SendContextReplayExport['events'][number];
+  let sequence = 0;
+  const event = (kind: string, phase: string, extra: Partial<Event> = {}): Event =>
+    ({ id: `e${++sequence}`, sequence, timestamp: 1_000 + sequence, kind, phase, name: kind, ...extra }) as Event;
+  const click = (selector: string) => event('dom', 'emitted', { name: 'click', payload: { selector, action: 'click' } });
+  const boot = () => event('participant', 'emitted', { name: 'state', participantId: 'tab', payload: { state: 'visible', initial: true } });
+  const session = (events: Event[], snapshots?: { capturedAt: number }[]): SendContextReplayExport => ({
+    format: 'craft-debug-session', version: 8, startUrl: 'http://localhost/', exportedAt: 0, truncated: false,
+    clips: [{ id: 'clip', eventIds: events.map((entry) => entry.id) }] as never,
+    events,
+    ...(snapshots ? { snapshots: snapshots as never } : {}),
+  });
+
+  it('gives a session that finished back as it is', () => {
+    sequence = 0;
+    const whole = session([boot(), click('#add'), event('http', 'started', { operationId: 'h1' }), event('http', 'succeeded', { operationId: 'h1' })]);
+    expect(cutUnfinishedTail(whole)).toEqual({ session: whole });
+  });
+
+  it('leaves out the action whose request never got its answer, and all that follows', () => {
+    sequence = 0;
+    const events = [
+      boot(), click('#add'), event('http', 'started', { operationId: 'h1' }), event('http', 'succeeded', { operationId: 'h1' }),
+      click('#pay'), event('http', 'started', { operationId: 'h2' }), event('hover', 'emitted', { payload: { action: 'leave', selector: '#pay' } }),
+    ];
+    const { session: cut, cut: what } = cutUnfinishedTail(session(events, [{ capturedAt: 1_003 }, { capturedAt: 1_006 }]));
+    expect(what).toEqual({ reason: 'missing-result', atSequence: 5, keptSteps: 1, droppedSteps: 2, operationId: 'h2' });
+    expect(cut.events.map((entry) => entry.sequence)).toEqual([1, 2, 3, 4]);
+    expect((cut.clips[0] as { eventIds: string[] }).eventIds).toEqual(['e1', 'e2', 'e3', 'e4']);
+    expect(cut.snapshots).toEqual([{ capturedAt: 1_003 }]);
+    // What is left plans without the missing result.
+    expect(compileReplayPlan(cut).issues.filter((issue) => issue.code === 'missing-result')).toEqual([]);
+  });
+
+  it('keeps everything before the page was loaded again', () => {
+    sequence = 0;
+    const events = [boot(), click('#sign-in'), event('http', 'started', { operationId: 'h1' }), event('http', 'succeeded', { operationId: 'h1' }), boot(), click('#search')];
+    expect(cutUnfinishedTail(session(events)).cut).toEqual({ reason: 'page-reload', atSequence: 5, keptSteps: 1, droppedSteps: 1 });
+  });
+});
+

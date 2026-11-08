@@ -57,6 +57,13 @@ describe('createSuiteReplayer', () => {
     expect(result).toMatchObject({ status: 'diverged', replayIndex: 2, difference });
   });
 
+  it('says how much of the recording was left out of the replay', async () => {
+    const tailCut = { reason: 'page-reload', atSequence: 62, keptSteps: 40, droppedSteps: 9 };
+    const fake = fakePlaywright([snapshot({ state: 'completed', replayIndex: 3, tailCut })]);
+    const result = await createSuiteReplayer({ dashboardUrl: 'http://localhost:4210/', loadPlaywright: fake.loadPlaywright, pollMs: 1 })('s');
+    expect(result).toMatchObject({ status: 'completed', tailCut });
+  });
+
   it('reports the actions replayed without their element', async () => {
     const note = '[Interaction non prouvée] Sélecteur introuvable pour click (#pay) : action rejouée par invocation, sans ses gestionnaires.';
     const fake = fakePlaywright([snapshot({ replayIndex: 3, warnings: ['autre note', note] })]);

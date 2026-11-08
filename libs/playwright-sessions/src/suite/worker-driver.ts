@@ -19,6 +19,17 @@ export type WorkerSnapshot = Readonly<{
   viewport?: Readonly<{ width: number; height: number }>;
   /** The replay's notes; absent from a dashboard older than the field. */
   warnings?: readonly string[];
+  /** The end of the recording left out of the replay; `total` counts the rest. */
+  tailCut?: TailCut;
+}>;
+
+/** The end of a recording the replay left out, and why (see `cutUnfinishedTail`). */
+export type TailCut = Readonly<{
+  reason: 'missing-result' | 'page-reload' | 'reload-requested';
+  atSequence: number;
+  keptSteps: number;
+  droppedSteps: number;
+  operationId?: string;
 }>;
 
 /** One moment of the replay worth a picture (the dashboard's thumbnail plan). */

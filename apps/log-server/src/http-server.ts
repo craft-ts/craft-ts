@@ -29,6 +29,7 @@ import {
   isGoldenSetManifest,
   isSessionHistory,
   normalizeSessionTrace,
+  replayablePart,
   selectGoldenSet,
   SESSION_HISTORY_FILE,
   type PortableSessionForTrace,
@@ -1594,7 +1595,9 @@ function storedSessionTraces(store: DebugSessionStore): { summary: ReturnType<De
     if (cached?.updatedAt !== summary.updatedAt) {
       const session = store.get(summary.id);
       if (!session) return [];
-      const { steps, hash } = normalizeSessionTrace(asPortableSession(session));
+      // A session covers what its replay goes through: an unfinished end (a
+      // tab closed mid-request, a page loaded again) proves nothing.
+      const { steps, hash } = normalizeSessionTrace(replayablePart(asPortableSession(session)).session);
       cached = { updatedAt: summary.updatedAt, trace: { steps, hash } };
       sessionTraceCache.set(summary.id, cached);
     }

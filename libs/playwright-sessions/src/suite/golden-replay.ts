@@ -9,6 +9,7 @@ import {
   workerPlan,
   workerUrl,
   type ReplayPlanPoint,
+  type TailCut,
   type WorkerSnapshot,
 } from './worker-driver.js';
 
@@ -64,6 +65,8 @@ export type GoldenReplayResult = Readonly<{
   /** Actions run when the replay stopped. */
   replayIndex: number;
   total: number;
+  /** The end of the recording left out (never reached, never compared). */
+  tailCut?: TailCut;
   captures: readonly GoldenCapture[];
   /** What was pinned, so two results are only compared under the same conditions. */
   determinism: Readonly<{ seed: number; reducedMotion: true; stillness: true; browser: string }>;
@@ -164,6 +167,7 @@ export async function replayGoldenSession(
     notes: snapshot?.warnings ?? [],
     replayIndex: snapshot?.replayIndex ?? 0,
     total: snapshot?.total ?? 0,
+    ...(snapshot?.tailCut ? { tailCut: snapshot.tailCut } : {}),
     captures,
     determinism,
   });

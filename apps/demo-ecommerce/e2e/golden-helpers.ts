@@ -44,7 +44,55 @@ export async function recordPurchaseByHand(browser: Browser, baseURL: string, se
   await page.close({ runBeforeUnload: true });
   await expect.poll(() => person.pages().length).toBe(0);
   await person.close();
+  return archivedSince(server, baseURL, startedAt);
+}
 
+/**
+ * A visit as a person makes one, with the gestures a scripted purchase leaves
+ * out: the pointer lingering over products, a search typed key by key with a
+ * typo corrected, a sign-in typed with its password and sent with Enter,
+ * then the purchase. Returns the id of the archived session.
+ */
+export async function recordVisitByHand(browser: Browser, baseURL: string, server: string): Promise<string> {
+  const startedAt = new Date().toISOString();
+  const person = await browser.newContext({ baseURL });
+  const page = await person.newPage();
+  await page.goto('/connexion');
+  await page.getByLabel('E-mail').click();
+  await page.keyboard.type('ines@atelier.demo', { delay: 30 });
+  await page.getByLabel('Mot de passe').click();
+  await page.keyboard.type('atelier-produit', { delay: 30 });
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: /Bonjour Inès/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Aller à la boutique' }).click();
+  const products = page.getByRole('button', { name: '+ Ajouter' });
+  await expect(products.first()).toBeVisible();
+  for (let index = 0; index < 3; index += 1) {
+    await products.nth(index).hover();
+    await page.waitForTimeout(120);
+  }
+  const search = page.getByRole('searchbox', { name: 'Rechercher un produit' });
+  await search.click();
+  await page.keyboard.type('croiz', { delay: 90 });
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('s', { delay: 90 });
+  // Every key reaches the field: the first one used to be written over.
+  await expect(search).toHaveValue('crois');
+  await expect(products.first()).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await products.first().click();
+  await page.getByRole('link', { name: /Panier/ }).click();
+  await page.getByRole('link', { name: /Passer commande/ }).click();
+  await page.getByRole('button', { name: 'Confirmer la commande' }).click();
+  await expect(page.getByText('Merci pour votre commande')).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => person.pages().length).toBe(0);
+  await person.close();
+  return archivedSince(server, baseURL, startedAt);
+}
+
+async function archivedSince(server: string, baseURL: string, startedAt: string): Promise<string> {
   let found: ArchivedSession | undefined;
   await expect.poll(async () => {
     const response = await fetch(`${server}/sessions`);

@@ -1,5 +1,6 @@
 import {
   planThumbnailCapturePoints,
+  type ReplayTailCut,
   type ThumbnailCapturePoint,
 } from '@craft-ts/component';
 import { exposeReplayWorkerSurface } from './replay-browser';
@@ -55,6 +56,11 @@ export type ReplayWorkerSnapshot = Readonly<{
    * a suite reports an `[Interaction non prouvée]` instead of passing on it.
    */
   warnings: readonly string[];
+  /**
+   * The end of the recording the replay leaves out (a tab closed mid-request,
+   * a page loaded again): `total` counts only what is replayed.
+   */
+  tailCut: ReplayTailCut | undefined;
 }>;
 
 export type ReplayWorkerSurface = Readonly<{
@@ -98,6 +104,7 @@ function snapshot(): ReplayWorkerSnapshot {
     activeParticipantId: activeReplayParticipantId(),
     viewport: replayViewport() ?? session()?.viewport,
     warnings: replayWarnings(),
+    tailCut: registers.tailCut,
   };
 }
 

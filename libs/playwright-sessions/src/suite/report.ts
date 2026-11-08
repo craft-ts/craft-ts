@@ -115,7 +115,7 @@ function imagePath(sessionId: string, moment: Pick<MomentComparison, 'replayInde
 }
 
 function run(summary: GoldenSessionComparison['base']): string {
-  return `${summary.status} ${summary.replayIndex}/${summary.total}${summary.unprovenInteractions ? ` · ${summary.unprovenInteractions} non prouvée(s)` : ''}`;
+  return `${summary.status} ${summary.replayIndex}/${summary.total}${summary.unprovenInteractions ? ` · ${summary.unprovenInteractions} non prouvée(s)` : ''}${summary.droppedSteps ? ` · fin non rejouée (${summary.droppedSteps} action(s))` : ''}`;
 }
 
 function escapeCell(value: string): string {

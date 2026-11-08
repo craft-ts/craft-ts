@@ -13,6 +13,8 @@ export type SessionReplayOutcome = Readonly<{
   message?: string;
   difference?: unknown;
   unprovenInteractions?: readonly string[];
+  /** The end of the recording left out of the replay: not checked. */
+  tailCut?: Readonly<{ reason: string; keptSteps: number; droppedSteps: number }>;
   durationMs?: number;
 }>;
 
@@ -38,6 +40,8 @@ export async function replaySessions(
   const counts: Record<string, number> = {};
   for (const result of results) counts[result.status] = (counts[result.status] ?? 0) + 1;
   // A replay that went through on invoked methods did not prove its clicks.
+  // One whose recording ends unfinished passes on the part it replayed: its
+  // `tailCut` says how much was left out.
   const passed = results.length > 0 && results.every((result) => result.status === 'completed' && (result.unprovenInteractions?.length ?? 0) === 0);
   return { passed, counts, results };
 }

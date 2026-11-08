@@ -84,6 +84,14 @@ describe('compareGoldenRuns', () => {
     expect(compareGoldenRuns({ base: [base, base], head: run([]) })).toMatchObject({ verdict: 'stale', moments: [] });
   });
 
+  it('says how much of a recording ends unreplayed', () => {
+    const tailCut = { reason: 'missing-result' as const, atSequence: 40, keptSteps: 4, droppedSteps: 2 };
+    const cut = run([capture(0, picture(), page)], { tailCut });
+    const comparison = compareGoldenRuns({ base: [cut, cut], head: cut });
+    expect(comparison).toMatchObject({ verdict: 'unchanged', head: { droppedSteps: 2 } });
+    expect(renderGoldenCheckReport(goldenCheckReport([comparison], { base: 'main', head: 'feature' }))).toContain('fin non rejouée (2 action(s))');
+  });
+
   it('calls two base runs that disagree flaky', () => {
     const base = run([]);
     const stalled = run([], { status: 'stalled', replayIndex: 2 });

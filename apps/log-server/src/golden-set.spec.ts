@@ -101,6 +101,19 @@ describe('POST /sessions/golden-set', () => {
     expect(body.rejected).toEqual([{ sessionId: '11111111-1111-4111-8111-111111111111', reason: 'redundant' }]);
   });
 
+  it('counts only what the replay goes through: not the request a closed tab left unanswered', async () => {
+    record('44444444-4444-4444-8444-444444444444', 'http://localhost:4204/', [
+      ...call(1, 'cart.add'),
+      { id: 'pay', sequence: 3, timestamp: 3, kind: 'dom', phase: 'emitted', payload: { action: 'click', selector: '#pay' } },
+      { id: 'pay-call', sequence: 4, timestamp: 4, kind: 'craft', phase: 'started', operationId: 'op4', payload: { behavior: 'checkout.pay' } },
+      { id: 'pay-http', sequence: 5, timestamp: 5, kind: 'http', phase: 'started', operationId: 'http5', payload: { method: 'POST', url: 'http://localhost:4204/api/pay' } },
+      // Recorded after the request that never answered: no replay reaches it.
+      ...call(6, 'cart.clear'),
+    ]);
+    const body = await (await post({ origin: 'http://localhost:4204', app: 'demo-ecommerce' })).json() as { manifest: { sessions: { units: string[] }[] } };
+    expect(body.manifest.sessions[0]?.units).toEqual(['invocation:cart.add']);
+  });
+
   it('refuses a malformed request', async () => {
     expect((await post({})).status).toBe(400);
     expect((await post({ origin: 'http://localhost:4204', maxSessions: 0 })).status).toBe(400);
