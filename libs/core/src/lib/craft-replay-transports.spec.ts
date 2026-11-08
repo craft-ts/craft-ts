@@ -66,6 +66,34 @@ describe('custom replay transports', () => {
   });
 });
 
+describe('the time of a captured message', () => {
+  it('keeps the time the adapter gave, however late the hook records it', () => {
+    const session = createSendContextSession();
+    // The recording has been running for half a second when the hook runs.
+    vi.spyOn(session, 'elapsedTime').mockReturnValue(500);
+    const replayed = vi.fn();
+    const adapter = craftReplayAdapter({
+      id: 'app:stream',
+      match: (url) => url.includes('/stream'),
+      replay: replayed,
+    });
+    captureCraftReplayTransportEvent(session, adapter, {
+      id: 'custom-1',
+      url: 'https://example.test/stream',
+      direction: 'incoming',
+      messageType: 'data',
+      data: { value: 1 },
+      elapsedMs: 2,
+    });
+    const events = session.events.filter((event) => event.kind === 'transport');
+    expect(events.map((event) => (event.payload as { elapsedMs: number }).elapsedMs)).toEqual([2]);
+    const replay = installCraftReplayTransports([adapter], events, () => undefined);
+    replay.advanceTo(2);
+    expect(replayed).toHaveBeenCalledOnce();
+    replay.restore();
+  });
+});
+
 describe('network coverage and replay guards', () => {
   it('records and replays an adapted direct fetch without calling live fetch twice', async () => {
     const session = createSendContextSession();

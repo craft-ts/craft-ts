@@ -368,6 +368,7 @@ export function captureCraftReplayTransportEvent(
       context.messageType,
       undefined,
       { replayable: false, reason: 'record-hook-failed' },
+      elapsedMs,
     );
     return;
   }
@@ -383,6 +384,10 @@ export function captureCraftReplayTransportEvent(
     context.direction,
     context.messageType,
     data,
+    undefined,
+    // The time the adapter gave: a message replays when it happened, not
+    // when the hook got round to recording it.
+    elapsedMs,
   );
 }
 
@@ -826,6 +831,8 @@ function captureTransport(
   messageType: string,
   rawData?: unknown,
   metadata?: Record<string, unknown>,
+  /** When the message happened, if the caller knows better than now. */
+  recordedElapsedMs?: number,
 ): void {
   let data: CraftReplayTransportValue | undefined;
   let replayable = true;
@@ -869,7 +876,7 @@ function captureTransport(
     replayable = false;
     reason = 'metadata-too-large';
   }
-  const elapsedMs = session.elapsedTime();
+  const elapsedMs = recordedElapsedMs ?? session.elapsedTime();
   session.capture('transport', 'emitted', {
     name: 'transport-event',
     elapsedMs,
