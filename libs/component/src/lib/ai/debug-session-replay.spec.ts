@@ -13,6 +13,7 @@ import {
   createReplayController,
   cutUnfinishedTail,
   getReplaySteps,
+  splitPageReloads,
   installReplayNetworkGuard,
   runReplayTest,
   runReplayTestOrThrow,
@@ -5980,6 +5981,50 @@ describe('cutUnfinishedTail', () => {
     sequence = 0;
     const events = [boot(), click('#sign-in'), event('http', 'started', { operationId: 'h1' }), event('http', 'succeeded', { operationId: 'h1' }), boot(), click('#search')];
     expect(cutUnfinishedTail(session(events)).cut).toEqual({ reason: 'page-reload', atSequence: 5, keptSteps: 1, droppedSteps: 1 });
+  });
+});
+
+describe('splitPageReloads', () => {
+  type Event = SendContextReplayExport['events'][number];
+  let sequence = 0;
+  const event = (kind: string, phase: string, extra: Partial<Event> = {}): Event =>
+    ({ id: `e${++sequence}`, sequence, timestamp: 1_000 + sequence, kind, phase, name: kind, participantId: 'tab', ...extra }) as Event;
+  const boot = (routeUrl: string) => [
+    event('participant', 'emitted', { name: 'state', payload: { state: 'visible', initial: true } }),
+    event('component-lifecycle', 'emitted', { name: 'create:Shell', payload: { transition: 'create', routeUrl } }),
+  ];
+  const click = (selector: string) => event('dom', 'emitted', { name: 'click', payload: { selector, action: 'click' } });
+  const participant = {
+    id: 'tab', title: 'Onglet', startUrl: 'http://localhost:4205/connexion', state: 'visible', status: 'completed',
+    createdAt: '2026-11-08T08:00:00.000Z', updatedAt: '2026-11-08T08:05:00.000Z', initialSnapshot: { a: 1 },
+  } as const;
+  const session = (events: Event[], participants: readonly unknown[] = [participant]): SendContextReplayExport =>
+    ({ format: 'craft-debug-session', version: 8, startUrl: participant.startUrl, exportedAt: 0, truncated: false, clips: [], participants, events }) as SendContextReplayExport;
+
+  it('replays each load of a tab as a tab of its own, the first closing when the page reloads', () => {
+    sequence = 0;
+    const events = [...boot('/connexion'), click('#sign-in'), ...boot('/catalogue'), click('#add')];
+    const split = splitPageReloads(session(events));
+    expect(split.participants).toEqual([
+      { ...participant, status: 'completed', updatedAt: new Date(1_004).toISOString() },
+      {
+        id: 'tab~rechargement-1', title: 'Onglet · rechargé', startUrl: 'http://localhost:4205/catalogue', state: 'visible',
+        status: 'completed', createdAt: new Date(1_004).toISOString(), updatedAt: participant.updatedAt,
+      },
+    ]);
+    expect(split.events.map((entry) => `${entry.sequence}:${entry.participantId}`)).toEqual([
+      '1:tab', '2:tab', '3:tab', '4:tab~rechargement-1', '5:tab~rechargement-1', '6:tab~rechargement-1',
+    ]);
+    // Nothing is left for the cut to remove: each tab loads once.
+    expect(cutUnfinishedTail(split).cut).toBeUndefined();
+  });
+
+  it('gives back a session whose tabs loaded once, or that has no participants', () => {
+    sequence = 0;
+    const once = session([...boot('/connexion'), click('#sign-in')]);
+    expect(splitPageReloads(once)).toBe(once);
+    const anonymous = session([...boot('/a'), ...boot('/b')], []);
+    expect(splitPageReloads(anonymous)).toBe(anonymous);
   });
 });
 

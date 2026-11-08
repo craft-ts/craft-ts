@@ -42,4 +42,11 @@ describe('replayablePart', () => {
     expect(cut).toEqual({ reason: 'page-reload', atSequence: 3 });
     expect(session.events.map((entry) => entry.sequence)).toEqual([1, 2]);
   });
+
+  it('keeps a reloaded page when the session has participants: the replay follows it', () => {
+    sequence = 0;
+    const events = [boot(), click(), boot(), click()];
+    expect(replayablePart({ events, participants: [{ id: 'tab' }] }).cut).toBeUndefined();
+  });
 });
+

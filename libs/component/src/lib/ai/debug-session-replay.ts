@@ -3342,6 +3342,88 @@ function isReplayStep(event: SendContextEvent): boolean {
   );
 }
 
+/** The tab a page reload starts in a replay: `<participant>~rechargement-<n>`. */
+export const PAGE_RELOAD_PARTICIPANT_SEPARATOR = '~rechargement-';
+
+/**
+ * A tab loaded again (F5, an address typed) starts a new app in the same
+ * recording: its participant announces a new initial state. A replay cannot
+ * reload the page it drives and go on, but it replays several tabs on one
+ * clock. Each load after the first becomes a tab of its own, which starts
+ * at the reloaded address when the person reloaded; the tab before closes
+ * then. Its browser storage and recorded answers are its own events.
+ * Sessions without participants are given back as they are (the end after a
+ * reload is then cut, see `cutUnfinishedTail`).
+ */
+export function splitPageReloads(
+  session: SendContextReplayExport,
+): SendContextReplayExport {
+  const participants = session.participants ?? [];
+  if (participants.length === 0) return session;
+  const events = [...session.events].sort((a, b) => a.sequence - b.sequence);
+  const boots = new Map<string, SendContextEvent[]>();
+  for (const event of events)
+    if (
+      event.kind === 'participant' &&
+      isRecord(event.payload) &&
+      event.payload['initial'] === true &&
+      event.participantId
+    )
+      boots.set(event.participantId, [...(boots.get(event.participantId) ?? []), event]);
+  const reloaded = [...boots].filter(([, loads]) => loads.length > 1);
+  if (reloaded.length === 0) return session;
+  const loadOf = new Map<string, readonly SendContextEvent[]>(reloaded);
+  const segmentId = (participantId: string, load: number) =>
+    load === 0 ? participantId : `${participantId}${PAGE_RELOAD_PARTICIPANT_SEPARATOR}${load}`;
+  const loadIndex = (event: SendContextEvent) => {
+    const loads = event.participantId ? loadOf.get(event.participantId) : undefined;
+    if (!loads) return 0;
+    let index = 0;
+    for (let load = 1; load < loads.length; load += 1)
+      if (event.sequence >= loads[load]!.sequence) index = load;
+    return index;
+  };
+  const iso = (time: number) => new Date(time).toISOString();
+  const splitParticipants = participants.flatMap((participant) => {
+    const loads = loadOf.get(participant.id);
+    if (!loads) return [participant];
+    return loads.map((boot, load) => {
+      const next = loads[load + 1];
+      const firstRoute = events.find(
+        (event) =>
+          event.participantId === participant.id &&
+          event.sequence > boot.sequence &&
+          isRecord(event.payload) &&
+          typeof event.payload['routeUrl'] === 'string',
+      );
+      let startUrl = participant.startUrl;
+      if (load > 0 && firstRoute && isRecord(firstRoute.payload))
+        try {
+          startUrl = new URL(String(firstRoute.payload['routeUrl']), participant.startUrl).href;
+        } catch {
+          // Keep the tab's first address when the reloaded one cannot be read.
+        }
+      const { initialSnapshot: _first, ...rest } = participant;
+      return {
+        ...(load === 0 ? participant : rest),
+        id: segmentId(participant.id, load),
+        ...(load > 0 ? { title: `${participant.title} · rechargé`, startUrl, createdAt: iso(boot.timestamp) } : {}),
+        ...(next ? { status: 'completed' as const, updatedAt: iso(next.timestamp) } : {}),
+      };
+    });
+  });
+  return {
+    ...session,
+    participants: splitParticipants,
+    events: events.map((event) => {
+      const load = loadIndex(event);
+      return load === 0 || !event.participantId
+        ? event
+        : { ...event, participantId: segmentId(event.participantId, load) };
+    }),
+  };
+}
+
 /** Why the end of a recording was left out of its replay. */
 export type ReplayTailCutReason =
   | 'missing-result'

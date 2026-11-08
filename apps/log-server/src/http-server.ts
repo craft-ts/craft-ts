@@ -1597,7 +1597,11 @@ function storedSessionTraces(store: DebugSessionStore): { summary: ReturnType<De
       if (!session) return [];
       // A session covers what its replay goes through: an unfinished end (a
       // tab closed mid-request, a page loaded again) proves nothing.
-      const { steps, hash } = normalizeSessionTrace(replayablePart(asPortableSession(session)).session);
+      const { steps, hash } = normalizeSessionTrace(replayablePart({
+        ...asPortableSession(session),
+        // A reloaded page is replayed in a tab of its own when there are participants.
+        participants: isRecord(session) && Array.isArray(session['participants']) ? session['participants'] : [],
+      }).session);
       cached = { updatedAt: summary.updatedAt, trace: { steps, hash } };
       sessionTraceCache.set(summary.id, cached);
     }

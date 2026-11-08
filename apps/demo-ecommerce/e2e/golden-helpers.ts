@@ -123,6 +123,34 @@ export async function recordAbandonedPurchase(browser: Browser, baseURL: string,
 }
 
 /**
+ * A purchase with a reload in the middle, as a person presses F5: a product
+ * added, the page loaded again (the cart is kept by the browser storage),
+ * then the cart, the checkout and the confirmation. Returns the session id.
+ */
+export async function recordPurchaseWithReload(browser: Browser, baseURL: string, server: string): Promise<string> {
+  const startedAt = new Date().toISOString();
+  const person = await browser.newContext({ baseURL });
+  const page = await person.newPage();
+  await page.goto('/catalogue');
+  await page.getByRole('button', { name: '+ Ajouter' }).first().click();
+  await expect(page.getByRole('link', { name: /Panier, 1 article/ })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await archiveSettled(server, baseURL, startedAt);
+  await page.reload();
+  await expect(page.getByRole('link', { name: /Panier, 1 article/ })).toBeVisible();
+  await page.getByRole('link', { name: /Panier/ }).click();
+  await page.getByRole('link', { name: /Passer commande/ }).click();
+  await page.getByRole('button', { name: 'Confirmer la commande' }).click();
+  await expect(page.getByText('Merci pour votre commande')).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await archiveSettled(server, baseURL, startedAt);
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => person.pages().length).toBe(0);
+  await person.close();
+  return archivedSince(server, baseURL, startedAt);
+}
+
+/**
  * The recorder sends its events to the log server a little after they happen:
  * a tab closed right after the last answer arrived can leave that answer out
  * of the archive, and the replay then leaves the action that asked for it out.

@@ -433,6 +433,25 @@ réponse pouvait la perdre avant qu'elle atteigne le log server (les helpers e2e
 attendent que l'archive cesse de grossir). Mesure : 5 séries golden sur 5 vertes
 (20 tests), aucun clic non prouvé, puis la suite complète 8/8.
 
+## Rechargement de page suivi (2026-11-08)
+
+Une page chargée à nouveau (F5, adresse tapée) démarre une nouvelle app dans le
+même enregistrement. Le rejeu la suit désormais : `splitPageReloads` fait de
+chaque chargement après le premier un onglet virtuel (`<id>~rechargement-N`),
+ouvert à l'adresse rechargée au moment du rechargement, l'onglet d'avant se
+fermant alors ; le dashboard le rejoue avec sa propre restauration du stockage
+navigateur et ses propres réponses enregistrées, sur l'horloge commune des
+onglets. La coupe de fin et la couverture du log server ne coupent plus à un
+rechargement quand la session a des participants.
+
+Trouvé en chemin : la frame vide d'un onglet programmé déclenchait la poignée de
+main avec le pont (son `load` d'`about:blank`), qui échouait au bout de 5 s et
+faisait échouer tout rejeu à plusieurs onglets, selon l'ordre des événements.
+
+e2e : un achat avec F5 au milieu se rejoue entier (rien de coupé, aucun clic non
+prouvé), et le bouton de confirmation débranché après le rechargement donne
+l'écart attendu.
+
 ## Sources
 
 - [meticulous.ai](https://www.meticulous.ai/)

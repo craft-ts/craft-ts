@@ -7,8 +7,10 @@
  *
  * - an operation with no result (a tab closed in the middle of a request):
  *   the action that started it is left out, with all that follows;
- * - a page loaded again (its participant announces a new initial state): the
- *   new app is not followed, everything before it is kept;
+ * - a page loaded again (its participant announces a new initial state), in a
+ *   session without participants: the new app is not followed, everything
+ *   before it is kept (with participants, the replay follows it in a tab of
+ *   its own);
  * - a reload the app asked for (`BrowserLocationService … method:reload`): a
  *   session boundary, left out with the action that asked for it.
  */
@@ -53,7 +55,11 @@ export function replayablePart<Session extends Readonly<{ events: readonly Event
     booted.add(participant);
     return false;
   });
-  if (reboot) candidates.push({ reason: 'page-reload', atSequence: sequenceOf(reboot) });
+  // A session with participants replays a reloaded page as a tab of its own
+  // (`splitPageReloads` in the component package): nothing to cut there.
+  const participants: unknown = (session as { participants?: unknown }).participants;
+  const hasParticipants = Array.isArray(participants) && participants.length > 0;
+  if (reboot && !hasParticipants) candidates.push({ reason: 'page-reload', atSequence: sequenceOf(reboot) });
 
   const reload = events.find((event) => {
     const invocation = record(record(event['payload'])['replayInvocation']);

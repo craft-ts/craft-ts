@@ -1,4 +1,4 @@
-import { cutUnfinishedTail, validateDebugSessionExport, type ReplayTailCut } from '@craft-ts/component';
+import { cutUnfinishedTail, splitPageReloads, validateDebugSessionExport, type ReplayTailCut } from '@craft-ts/component';
 import { craftExpose, craftService, rawReactiveValue } from '@craft-ts/core';
 import {
   after,
@@ -128,9 +128,10 @@ export const { ReplaySession } = craftService(
         });
         return;
       }
-      // The replay goes as far as the recording lets it: an end left unfinished
-      // (a tab closed mid-request, a page loaded again) is left out, and said.
-      const { session: replayable, cut } = cutUnfinishedTail(result.session);
+      // A page loaded again goes on in a tab of its own; the replay goes as far
+      // as the recording lets it: an end left unfinished (a tab closed
+      // mid-request) is left out, and said.
+      const { session: replayable, cut } = cutUnfinishedTail(splitPageReloads(result.session));
       registers.tailCut = cut;
       const recordedUrl = parseLocalTarget(replayable.startUrl);
       setStates({
