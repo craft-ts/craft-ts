@@ -1448,7 +1448,7 @@ test('replays every recorded user action and targets the recorded user', async (
   const clickInteractions = interactions.filter(
     (event) => event.payload?.['action'] === 'click',
   );
-  expect(session!.version).toBe(6);
+  expect(session!.version).toBe(8);
   expect(interactions).toHaveLength(10);
   expect(clickInteractions).toHaveLength(5);
   expect(
@@ -1475,7 +1475,7 @@ test('replays every recorded user action and targets the recorded user', async (
       event.payload?.['host'] === 'method:addUser' &&
       typeof event.payload?.['replayInvocation'] === 'object',
   );
-  expect(addUserCalls).toHaveLength(6);
+  expect(addUserCalls).toHaveLength(2);
   expect(
     addUserCalls.filter((event) => {
       const invocation = event.payload?.['replayInvocation'];
@@ -1504,7 +1504,7 @@ test('replays every recorded user action and targets the recorded user', async (
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
   await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
   await expect(dashboard.locator('[data-lab="left"]')).toContainText(
-    /Format v6 · \d+ événements/,
+    /Format v8 · replay v\d+ · \d+ événements/,
   );
   await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
@@ -1536,10 +1536,11 @@ test('replays every recorded user action and targets the recorded user', async (
   ).toBeCloseTo(session.viewport!.width / session.viewport!.height);
   expect(frameBounds!.width).toBeCloseTo(visibleViewportBounds!.width, 0);
   expect(frameBounds!.height).toBeCloseTo(visibleViewportBounds!.height, 0);
+  // Play and pause are one button whose name follows the state; restart
+  // replaced the stop button in the dashboard rework.
   for (const actionName of [
     'Lecture à vitesse réelle',
-    'Pause',
-    'Arrêter',
+    'Recommencer le replay depuis le début',
     'Plein écran',
     'Action suivante',
   ]) {
@@ -1632,15 +1633,16 @@ test('replays every recorded user action and targets the recorded user', async (
     `${replaySteps.length} / ${replaySteps.length} étapes · terminé`,
   );
 
-  await expect(
-    dashboard.getByRole('button', { name: 'Lecture à vitesse réelle' }),
-  ).toBeDisabled();
+  // Nothing is left to step through; the play button now offers to start
+  // over, next to the restart button.
   await expect(
     dashboard.getByRole('button', { name: 'Action suivante' }),
   ).toBeDisabled();
   await expect(
-    dashboard.getByRole('button', { name: 'Arrêter' }),
-  ).toBeDisabled();
+    dashboard.getByRole('button', {
+      name: 'Recommencer le replay depuis le début',
+    }),
+  ).toHaveCount(2);
   await openDetails(dashboard);
   await expect(
     dashboard.getByRole('button', { name: 'Exporter la cible' }),
@@ -1909,8 +1911,9 @@ test('replays hover cues and registered form insertion methods', async ({
     /Survol rejoué/,
   );
 
+  // After a step the replay is paused: the play button resumes it.
   await dashboard
-    .getByRole('button', { name: 'Lecture à vitesse réelle' })
+    .getByRole('button', { name: /^(Lecture à vitesse réelle|Reprendre le replay)$/ })
     .click();
   await expect(replayApp.getByText('Replay todo')).toBeVisible({
     timeout: 30_000,

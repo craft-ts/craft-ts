@@ -48,6 +48,18 @@ test('replays independent user streams and their timeout deadlines', async ({
       return sessionId;
     })
     .not.toBe('');
+  // What the person saw: Bob's first heartbeat comes about 800 ms after the
+  // page mounts, so whether his 700 ms first deadline fired depends on the
+  // machine. The replay must show the same values as the recording.
+  const recorded: Record<string, string> = {};
+  for (const user of ['alice', 'bob', 'chloe']) {
+    const value = demo.getByTestId(`${user}-value`);
+    await expect(value).toHaveText(/^timeout \(\d+ ms\)$/);
+    recorded[user] = (await value.textContent()) ?? '';
+  }
+  expect(recorded['alice']).toBe('timeout (1200 ms)');
+  expect(recorded['chloe']).toBe('timeout (2000 ms)');
+  expect(['timeout (700 ms)', 'timeout (1500 ms)']).toContain(recorded['bob']);
   await demo.close();
 
   const dashboard = await context.newPage();
@@ -62,14 +74,12 @@ test('replays independent user streams and their timeout deadlines', async ({
     .getByRole('button', { name: 'Lecture à vitesse réelle' })
     .click();
   await expect(replayApp.getByTestId('alice-value')).toHaveText(
-    'timeout (1200 ms)',
+    recorded['alice']!,
     { timeout: 30_000 },
   );
-  await expect(replayApp.getByTestId('bob-value')).toHaveText(
-    'timeout (1500 ms)',
-  );
+  await expect(replayApp.getByTestId('bob-value')).toHaveText(recorded['bob']!);
   await expect(replayApp.getByTestId('chloe-value')).toHaveText(
-    'timeout (2000 ms)',
+    recorded['chloe']!,
   );
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     'terminé',
