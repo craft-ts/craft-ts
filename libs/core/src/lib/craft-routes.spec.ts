@@ -534,7 +534,7 @@ describe('craftRoutes', () => {
 
   it('does not import @angular/router at runtime', () => {
     const source = readFileSync(
-      join(process.cwd(), 'libs/core/src/lib/craft-routes.ts'),
+      join(import.meta.dirname, 'craft-routes.ts'),
       'utf8',
     );
     expect(source).not.toMatch(
