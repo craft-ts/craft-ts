@@ -3428,6 +3428,31 @@ export function cutUnfinishedTail(
 
   const first = candidates.sort((left, right) => left.at - right.at)[0];
   if (!first) return { session };
+  // An operation started before the cut and finished after it would be left
+  // without its result: the cut moves back to the action that started it,
+  // until every kept operation keeps its result.
+  for (;;) {
+    const ended = new Set(
+      events
+        .filter(
+          (event) =>
+            event.sequence < first.at &&
+            (event.phase === 'succeeded' || event.phase === 'failed'),
+        )
+        .flatMap((event) => (event.operationId ? [event.operationId] : [])),
+    );
+    const orphan = events.find(
+      (event) =>
+        event.sequence < first.at &&
+        event.phase === 'started' &&
+        TERMINAL_OPERATION_KINDS.has(event.kind) &&
+        event.operationId !== undefined &&
+        !ended.has(event.operationId),
+    );
+    if (!orphan) break;
+    const cause = [...steps].reverse().find((step) => step.sequence <= orphan.sequence);
+    first.at = Math.min(first.at - 1, cause?.sequence ?? orphan.sequence);
+  }
   const kept = events.filter((event) => event.sequence < first.at);
   const keptIds = new Set(kept.map((event) => event.id));
   const lastKeptAt = kept.at(-1)?.timestamp ?? Number.NEGATIVE_INFINITY;

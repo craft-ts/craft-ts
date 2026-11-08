@@ -407,26 +407,31 @@ l'ingestion, rétention ; preview/staging en premier, jamais la prod par défaut
 - **Données personnelles** dès qu'on sort du poste : le lot 7 ne s'ouvre pas sans
   caviardage vérifié.
 
-## Constat ouvert (2026-11-08) : catalogue vide au démarrage d'un rejeu
+## Constat résolu (2026-11-08) : catalogue vide au démarrage d'un rejeu
 
-En suite e2e complète, environ un rejeu sur trois de `golden-replay` ou
-`golden-human` s'arrête sur « + Ajouter » introuvable : la page rejouée affiche
-le catalogue vide (« Rien dans cette catégorie », sans catégories). Le même
-enregistrement rejoué plusieurs fois passe ou échoue : la cause est côté rejeu.
-Ce qui est établi :
+En suite e2e complète, environ un rejeu sur trois démarrait sur un catalogue vide
+(« + Ajouter » introuvable). Trouvé par trace dans la page rejouée :
 
-- aucune requête n'est bloquée par le `fetch` de garde du pont avant l'arrivée de
-  la session ;
-- le résolveur des réponses enregistrées ne sert rien avant l'échec, le rejeu
-  HTTP de Craft non plus : le chargement du catalogue n'est jamais parti ;
-- piste : course entre `registry.restore(initialSnapshot)` suivi aussitôt de
-  `ɵclearCraftPrimitiveReplaySnapshots` dans le pont, et la création différée
-  de la page catalogue (route chargée en lazy) ; la query n'a alors ni valeur
-  restaurée ni chargement.
+- `bootstrapCraft` n'attend pas les promesses des initialiseurs : la retenue du
+  pont de rejeu ne retenait rien, et une page pouvait monter avant que le
+  dashboard envoie la session ;
+- sa requête de démarrage tombait alors sur la garde des transports, installée
+  au lancement sans adaptateur, qui rejette tout `fetch` : la query du
+  catalogue passait en `exception` (`HttpError` statut 0) pour tout le rejeu.
 
-À instruire à part, avec un témoin qui échoue (rejeu répété de la même session).
-Le repli par sélecteur (`[Cible retrouvée par sélecteur]`) n'y peut rien : le
-bouton n'est pas à l'écran.
+Corrigé : au lancement, le `fetch` du pont est posé par-dessus la garde des
+transports et **retient** les requêtes jusqu'à l'installation des réponses
+enregistrées, puis les y fait passer. Même chose côté client HTTP Craft : un
+appel fait pendant une session de rejeu avant l'installation de ses résultats
+attend au lieu d'être rejeté (et échoue, sans jamais partir en réseau, si la
+session se termine d'abord).
+
+Deux défauts trouvés en chemin : la coupe de fin gardait le début d'une
+opération dont elle retirait la fin (elle recule désormais jusqu'à ce que toute
+opération gardée ait son résultat), et un onglet fermé juste après la dernière
+réponse pouvait la perdre avant qu'elle atteigne le log server (les helpers e2e
+attendent que l'archive cesse de grossir). Mesure : 5 séries golden sur 5 vertes
+(20 tests), aucun clic non prouvé, puis la suite complète 8/8.
 
 ## Sources
 

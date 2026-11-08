@@ -5968,6 +5968,14 @@ describe('cutUnfinishedTail', () => {
     expect(compileReplayPlan(cut).issues.filter((issue) => issue.code === 'missing-result')).toEqual([]);
   });
 
+  it('moves the cut back so that no kept request loses its answer', () => {
+    sequence = 0;
+    const events = [boot(), click('#a'), click('#order'), event('http', 'started', { operationId: 'order' }), boot(), event('http', 'succeeded', { operationId: 'order' })];
+    const { session: cut, cut: what } = cutUnfinishedTail(session(events));
+    expect(what).toMatchObject({ reason: 'page-reload', atSequence: 3, keptSteps: 1 });
+    expect(compileReplayPlan(cut).issues.filter((issue) => issue.code === 'missing-result')).toEqual([]);
+  });
+
   it('keeps everything before the page was loaded again', () => {
     sequence = 0;
     const events = [boot(), click('#sign-in'), event('http', 'started', { operationId: 'h1' }), event('http', 'succeeded', { operationId: 'h1' }), boot(), click('#search')];

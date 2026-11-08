@@ -40,6 +40,7 @@ export async function recordPurchaseByHand(browser: Browser, baseURL: string, se
   await page.getByRole('button', { name: 'Confirmer la commande' }).click();
   await expect(page.getByText('Merci pour votre commande')).toBeVisible();
   await page.waitForLoadState('networkidle');
+  await archiveSettled(server, baseURL, startedAt);
   // Closed as a tab is closed: the page says it is done before it goes.
   await page.close({ runBeforeUnload: true });
   await expect.poll(() => person.pages().length).toBe(0);
@@ -86,6 +87,7 @@ export async function recordVisitByHand(browser: Browser, baseURL: string, serve
   await page.getByRole('button', { name: 'Confirmer la commande' }).click();
   await expect(page.getByText('Merci pour votre commande')).toBeVisible();
   await page.waitForLoadState('networkidle');
+  await archiveSettled(server, baseURL, startedAt);
   await page.close({ runBeforeUnload: true });
   await expect.poll(() => person.pages().length).toBe(0);
   await person.close();
@@ -118,6 +120,29 @@ export async function recordAbandonedPurchase(browser: Browser, baseURL: string,
   await expect.poll(() => person.pages().length).toBe(0);
   await person.close();
   return archivedSince(server, baseURL, startedAt);
+}
+
+/**
+ * The recorder sends its events to the log server a little after they happen:
+ * a tab closed right after the last answer arrived can leave that answer out
+ * of the archive, and the replay then leaves the action that asked for it out.
+ * Waits until the archived recording stops growing.
+ */
+async function archiveSettled(server: string, baseURL: string, startedAt: string): Promise<void> {
+  let last = -1;
+  let stableSince = Date.now();
+  await expect.poll(async () => {
+    const response = await fetch(`${server}/sessions`);
+    const body = await response.json() as { sessions?: (ArchivedSession & { eventCount?: number })[] };
+    const recording = (body.sessions ?? []).find((session) =>
+      session.createdAt >= startedAt && !session.test && new URL(session.startUrl).origin === new URL(baseURL).origin);
+    const count = recording?.eventCount ?? -1;
+    if (count !== last) {
+      last = count;
+      stableSince = Date.now();
+    }
+    return count >= 0 && Date.now() - stableSince >= 600;
+  }, { timeout: 10_000, intervals: [150] }).toBe(true);
 }
 
 async function archivedSince(server: string, baseURL: string, startedAt: string): Promise<string> {

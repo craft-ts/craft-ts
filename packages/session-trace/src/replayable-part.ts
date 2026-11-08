@@ -62,11 +62,28 @@ export function replayablePart<Session extends Readonly<{ events: readonly Event
   });
   if (reload) candidates.push({ reason: 'reload-requested', atSequence: sequenceOf(causeOf(reload)) });
 
-  const first = candidates.sort((left, right) => left.atSequence - right.atSequence)[0];
-  if (!first) return { session };
+  const sorted = candidates.sort((left, right) => left.atSequence - right.atSequence)[0];
+  if (!sorted) return { session };
+  let at = sorted.atSequence;
+  // An operation started before the cut and finished after it would be left
+  // without its result: the cut moves back to the action that started it.
+  for (;;) {
+    const ended = new Set(events
+      .filter((event) => sequenceOf(event) < at && (event['phase'] === 'succeeded' || event['phase'] === 'failed'))
+      .flatMap((event) => (typeof event['operationId'] === 'string' ? [event['operationId']] : [])));
+    const orphan = events.find((event) =>
+      sequenceOf(event) < at &&
+      event['phase'] === 'started' &&
+      TERMINAL_OPERATION_KINDS.has(String(event['kind'])) &&
+      typeof event['operationId'] === 'string' &&
+      !ended.has(event['operationId']));
+    if (!orphan) break;
+    at = Math.min(at - 1, sequenceOf(causeOf(orphan)));
+  }
+  const cut = { ...sorted, atSequence: at };
   return {
-    session: { ...session, events: events.filter((event) => sequenceOf(event) < first.atSequence) },
-    cut: first,
+    session: { ...session, events: events.filter((event) => sequenceOf(event) < cut.atSequence) },
+    cut,
   };
 }
 
