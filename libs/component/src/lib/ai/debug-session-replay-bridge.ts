@@ -133,20 +133,10 @@ export function provideCraftDebugReplayBridge(
         ɵsetCraftReplayMode(true);
       }
       let restoreReplayLaunchFetch: (() => void) | undefined;
-      if (isCraftDebugReplayLaunch()) {
-        const nativeFetch = globalThis.fetch;
-        const blockedFetch: typeof fetch = async (input, init) => {
-          const request = new Request(input, init);
-          throw new Error(
-            `Replay blocked live network request before recorded responses were installed: ${request.method} ${request.url}`,
-          );
-        };
-        globalThis.fetch = blockedFetch;
-        restoreReplayLaunchFetch = () => {
-          if (globalThis.fetch === blockedFetch) globalThis.fetch = nativeFetch;
-          restoreReplayLaunchFetch = undefined;
-        };
-      }
+      // Sends the requests held before the session arrived through the
+      // recorded responses, once they are installed.
+      let releaseHeldLaunchRequests: () => void = () => undefined;
+      const liveFetch = globalThis.fetch;
       const session = ɵinjectSendContextSession();
       const registry = ɵinjectCraftPrimitiveRegistry();
       const methodReplayRegistry = ɵinjectCraftMethodReplayRegistry();
@@ -175,6 +165,52 @@ export function provideCraftDebugReplayBridge(
         | undefined = isCraftDebugReplayLaunch()
         ? installCraftReplayTransports([], [], () => undefined)
         : undefined;
+      // Installed over the transport guard, which rejects any fetch it has no
+      // adapter for: a startup request must reach this hold, not fail there.
+      if (isCraftDebugReplayLaunch()) {
+        // The app initializers are not awaited before the first render: a
+        // page can mount, and its loaders start, before the dashboard sends
+        // the session. Their requests wait here instead of failing (a query
+        // whose startup request failed stays empty for the whole replay),
+        // then get their recorded answer. Once released, a request that
+        // still reaches this fetch never had a recorded answer: it fails.
+        let held:
+          | {
+              request: Request;
+              resolve: (response: Response) => void;
+              reject: (error: unknown) => void;
+            }[]
+          | undefined = [];
+        const blockedFetch: typeof fetch = async (input, init) => {
+          const request = new Request(input, init);
+          if (held)
+            return new Promise<Response>((resolve, reject) =>
+              held!.push({ request, resolve, reject }),
+            );
+          throw new Error(
+            `Replay blocked live network request before recorded responses were installed: ${request.method} ${request.url}`,
+          );
+        };
+        globalThis.fetch = blockedFetch;
+        releaseHeldLaunchRequests = () => {
+          const waiting = held ?? [];
+          held = undefined;
+          for (const { request, resolve, reject } of waiting)
+            globalThis.fetch(request).then(resolve, reject);
+        };
+        restoreReplayLaunchFetch = () => {
+          const waiting = held ?? [];
+          held = undefined;
+          for (const { request, reject } of waiting)
+            reject(
+              new Error(
+                `Replay stopped before recorded responses were installed: ${request.method} ${request.url}`,
+              ),
+            );
+          if (globalThis.fetch === blockedFetch) globalThis.fetch = liveFetch;
+          restoreReplayLaunchFetch = undefined;
+        };
+      }
       let restoreDialogs: () => void = () => undefined;
       const send = (
         origin: string,
@@ -361,6 +397,8 @@ export function provideCraftDebugReplayBridge(
             },
             (request) => replayTransportFetch(request),
           );
+          releaseHeldLaunchRequests();
+          releaseHeldLaunchRequests = () => undefined;
           restoreDialogs();
           restoreDialogs = startDebugSessionDialogReplay(
             validation.session.events,
