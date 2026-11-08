@@ -30,7 +30,7 @@ export function createRegistryMcpServer(
     bridge,
     'page',
     'page',
-    'Read named controls on the connected browser tab, or run act (goto / fill / click / press) then return the new page state. Omit clientId when exactly one tab is ready. Default detail is controls; pass detail "dom-styles" only to debug layout/CSS.',
+    'Read named controls on the connected browser tab, or batch deterministic goto / fill / click / press actions in one act array and return the resulting page state once. Inspect between calls only when the next action depends on a new result. Omit clientId when exactly one tab is ready. Default detail is controls; pass detail "dom-styles" only to debug layout/CSS.',
     {
       clientId: z.string().min(1).optional(),
       act: z
@@ -66,6 +66,24 @@ export function createRegistryMcpServer(
     'registry.clients',
     'registry/clients',
     'List every page/registry client card (ready, connecting, reloading). Pass clientId to page and registry.* when more than one card is ready.',
+  );
+  server.registerTool(
+    'bridge.timings',
+    {
+      description:
+        'Read recent MCP-to-browser bridge timings. Use after a representative interaction to see total bridge time and, for page/app calls, page readiness wait and browser round-trip time. Compare with the host-reported tool duration to estimate time outside the shared bridge. Keeps the latest 200 calls in memory; returns 20 by default.',
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async ({ limit }) =>
+      toolResult(
+        await bridge.request(
+          'bridge/timings',
+          limit === undefined ? {} : { limit },
+        ),
+      ),
   );
 
   registerTool(

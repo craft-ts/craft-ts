@@ -7,6 +7,7 @@ import {
 } from 'ws';
 import type {
   AppMethod,
+  BridgeTiming,
   HelloOk,
   PageMethod,
   PageSurface,
@@ -57,6 +58,7 @@ export class RegistryBridgeBroker {
   readonly #server: WebSocketServer;
   readonly #pending = new Map<string, PendingCall>();
   readonly #clients = new Map<string, ClientConnection>();
+  readonly #timings: BridgeTiming[] = [];
   readonly #socketClientIds = new WeakMap<WebSocket, string>();
   readonly #heartbeats = new WeakMap<WebSocket, ReturnType<typeof setInterval>>();
   readonly #requestTimeoutMs: number;
@@ -125,19 +127,70 @@ export class RegistryBridgeBroker {
     method: RegistryBrokerMethod,
     params?: Readonly<Record<string, unknown>>,
   ): Promise<unknown> {
+    if (method === 'bridge/timings') {
+      const asked = params?.['limit'];
+      const limit =
+        typeof asked === 'number'
+          ? Math.max(1, Math.min(100, Math.floor(asked)))
+          : 20;
+      return { calls: this.#timings.slice(-limit) };
+    }
+
+    const startedAt = performance.now();
+    const timing: { pageReadyMs?: number; tabRoundTripMs?: number } = {};
+    let status: BridgeTiming['status'] = 'ok';
+    const requestedClientId =
+      typeof params?.['clientId'] === 'string' ? params['clientId'] : undefined;
+    try {
+      return await this.#request(method, params, timing);
+    } catch (error) {
+      status = 'error';
+      throw error;
+    } finally {
+      this.#timings.push({
+        timestamp: new Date().toISOString(),
+        method,
+        durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
+        status,
+        ...(requestedClientId === undefined
+          ? {}
+          : { clientId: requestedClientId }),
+        ...timing,
+      });
+      if (this.#timings.length > 200) {
+        this.#timings.splice(0, this.#timings.length - 200);
+      }
+    }
+  }
+
+  async #request(
+    method: RegistryBrokerMethod,
+    params: Readonly<Record<string, unknown>> | undefined,
+    timing: { pageReadyMs?: number; tabRoundTripMs?: number },
+  ): Promise<unknown> {
     if (method === 'registry/clients') {
       return this.clients;
     }
     if (method === 'page') {
-      return this.#requestPage(params);
+      return this.#requestPage(params, method, timing);
     }
     if (isAppMethod(method)) {
-      return this.#requestPage(params, method);
+      return this.#requestPage(params, method, timing);
     }
 
     const { clientId, forwardedParams } = splitTargetParams(params);
     const client = this.#resolveRegistryClient(clientId);
-    return this.#forward(client, method, forwardedParams, this.#requestTimeoutMs);
+    const forwardStartedAt = performance.now();
+    try {
+      return await this.#forward(
+        client,
+        method,
+        forwardedParams,
+        this.#requestTimeoutMs,
+      );
+    } finally {
+      timing.tabRoundTripMs = Math.round((performance.now() - forwardStartedAt) * 100) / 100;
+    }
   }
 
   async close(): Promise<void> {
@@ -167,6 +220,7 @@ export class RegistryBridgeBroker {
   async #requestPage(
     params?: Readonly<Record<string, unknown>>,
     method: PageMethod | AppMethod = 'page',
+    timing?: { pageReadyMs?: number; tabRoundTripMs?: number },
   ): Promise<unknown> {
     const timeoutMs = pageTimeoutMs(params);
     const { clientId, forwardedParams } = splitTargetParams(params, [
@@ -177,21 +231,43 @@ export class RegistryBridgeBroker {
     const clientIdForWait = client.clientId;
 
     while (true) {
-      await this.#waitUntilPageReady(clientIdForWait, deadline);
+      const readyStartedAt = performance.now();
+      try {
+        await this.#waitUntilPageReady(clientIdForWait, deadline);
+      } finally {
+        if (timing) {
+          timing.pageReadyMs = Math.round(
+            ((timing.pageReadyMs ?? 0) + performance.now() - readyStartedAt) *
+              100,
+          ) / 100;
+        }
+      }
       const current = this.#clients.get(clientIdForWait);
       if (current === undefined) {
         throw new Error('page client is not connected');
       }
       try {
-        const result = await this.#forward(
-          current,
-          method,
-          forwardedParams,
-          Math.max(1, deadline - Date.now()),
-        );
-        return method === 'page'
-          ? this.#mergeForwardedPageResult(current, result)
-          : result;
+        const forwardStartedAt = performance.now();
+        try {
+          const result = await this.#forward(
+            current,
+            method,
+            forwardedParams,
+            Math.max(1, deadline - Date.now()),
+          );
+          return method === 'page'
+            ? this.#mergeForwardedPageResult(current, result)
+            : result;
+        } finally {
+          if (timing) {
+            timing.tabRoundTripMs = Math.round(
+              ((timing.tabRoundTripMs ?? 0) +
+                performance.now() -
+                forwardStartedAt) *
+                100,
+            ) / 100;
+          }
+        }
       } catch (error) {
         if (!isDisconnectError(error) || Date.now() >= deadline) {
           throw error;

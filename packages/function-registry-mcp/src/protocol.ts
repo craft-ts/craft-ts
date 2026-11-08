@@ -19,7 +19,18 @@ export type RegistryBrokerMethod =
   | RegistryMethod
   | PageMethod
   | AppMethod
-  | 'registry/clients';
+  | 'registry/clients'
+  | 'bridge/timings';
+
+export type BridgeTiming = Readonly<{
+  timestamp: string;
+  method: RegistryBrokerMethod;
+  durationMs: number;
+  status: 'ok' | 'error';
+  clientId?: string;
+  pageReadyMs?: number;
+  tabRoundTripMs?: number;
+}>;
 
 export type RegistryEntry = Readonly<{
   key: string;

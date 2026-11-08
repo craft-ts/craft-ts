@@ -25,10 +25,27 @@ the user's scenario and the next useful step.
 
 Two MCP servers of this repo (`.mcp.json`): the logs one (`resume.*`,
 `session.*`) and the registry one (`resume.doctor`, `scenario.search/get`,
-`app.*`, `checkpoint.*`, `page`). Hosts that defer MCP tools list them by name
-only: load them before concluding they are missing. If neither server is there
-at all, say so in one sentence and ask the person to approve the project MCP
-servers and open a new session; do not edit global configuration.
+`app.*`, `checkpoint.*`, `page`, `bridge.timings`). Hosts that defer MCP tools
+list them by name only: load them before concluding they are missing. If neither
+server is there at all, say so in one sentence and ask the person to approve the
+project MCP servers and open a new session; do not edit global configuration.
+
+## Fast path
+
+- Reuse a valid checkpoint or recipe before rebuilding the scenario. A healthy
+  saved recipe runs entirely in the tab with one `recipe.run` call; do not
+  replay its steps through the agent.
+- Make independent reads together (story, prerequisites, checkpoints, recipes,
+  and independent recorded responses). Avoid repeated lookups and partial
+  `recipe.save` calls; assemble and save one complete draft.
+- For UI work, put deterministic `goto`, `fill`, `click`, and `press` actions
+  into one ordered `page` `act` array. Read the page between calls only when a
+  later action depends on the newly returned state. Use `registry.*` or `app.*`
+  for state setup and inspection when the visible UI is not part of the goal.
+- If interaction feels slow, compare the host's tool duration with
+  `bridge.timings`: `pageReadyMs` is time waiting for a ready tab and
+  `tabRoundTripMs` includes the browser action and response. A large gap outside
+  those bridge timings points to agent-host or model orchestration overhead.
 
 ## 1. Check setup, then read the point (no app action)
 

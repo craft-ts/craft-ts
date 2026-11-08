@@ -19,6 +19,7 @@ describe('registry MCP server', () => {
     const tools = await client.listTools();
     expect(tools.tools.map(({ name }) => name)).toEqual([
       'page',
+      'bridge.timings',
       'registry.clients',
       'registry.list',
       'registry.get',

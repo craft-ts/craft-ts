@@ -8,13 +8,20 @@ npm run start --workspace @craft-ts/function-registry-mcp
 ```
 
 Set `REGISTRY_BRIDGE_HOST` and `REGISTRY_BRIDGE_PORT` to override the WebSocket
-listener. MCP tools are `page`, `registry.clients`, `registry.list`, `registry.get`,
+listener. MCP tools are `page`, `bridge.timings`, `registry.clients`,
+`registry.list`, `registry.get`,
 `registry.call`, primitive-specific value tools such as `registry.query.get`,
 `registry.query.update`, `registry.mutation.patch`,
 `registry.asyncProcess.set`, `registry.queryParams.update`,
 `registry.override`, `registry.restore`, and `registry.logs`. Their WebSocket
 methods use slash forms internally (`page`, `registry/list`, `registry/resource/update`,
 etc.), and each request and response carries a `callId`.
+
+`page.act` accepts an ordered action array, so batch deterministic navigation and
+control changes into one call and inspect the returned page once. `bridge.timings`
+shows recent request duration, page readiness wait, and browser round-trip time;
+compare it with the agent host's tool duration to spot time spent outside the
+shared bridge. Timing history is in memory and keeps the latest 200 calls.
 
 `page` reads the named interactive surface (`data-craft-name`) on the connected
 tab and can `act` (goto, fill, click, press) in the same round-trip. A read
