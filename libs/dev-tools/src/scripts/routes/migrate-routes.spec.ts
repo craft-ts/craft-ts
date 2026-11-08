@@ -36,8 +36,8 @@ describe('routes migration', () => {
   it('migrates static component routes, preserves the export name, and is idempotent', () => {
     const project = createProject({
       '/src/profile-page.ts': `
-        export class ProfilePage {}
-        export type GenDeps_ProfilePage = {};
+        import { craftComponent, p } from '@craft-ts/component';
+        export const ProfilePage = craftComponent('ProfilePage', {}, () => p('profile'));
       `,
       '/src/profile.routes.ts': `
         import type { Routes } from '@angular/router';
@@ -60,9 +60,8 @@ describe('routes migration', () => {
       /export const \{ profileRoutes: routes \} = craftRoutes\(["']profile["'], \[/,
     );
     expect(output).toMatch(/craftRoute\(["']["'], \{/);
-    expect(output).toMatch(
-      /componentDeps: \{\} as import\(["']\.\/profile-page["']\)\.GenDeps_ProfilePage/,
-    );
+    expect(output).toContain('...loadCraftComponent');
+    expect(output).toContain("withRetry(import('./profile-page'))");
     expect(output).toContain(
       'type _CheckProfileDI = ValidateCascadeRoutesFile<never, Router, typeof routes>;',
     );
@@ -72,41 +71,28 @@ describe('routes migration', () => {
     expect(sourceFile.getFullText()).toBe(output);
   });
 
-  it('generates the component GenDeps type through the angular brand codemod', () => {
+  it('requires Angular components to be converted to craftComponent before route migration', () => {
     const project = createProject({
-      '/src/angular.d.ts': `
-        declare module '@angular/core' {
-          export declare function Component(metadata: unknown): ClassDecorator;
-        }
-      `,
-      '/src/detail.ts': `
-        import { Component } from '@angular/core';
-        @Component({ standalone: true, template: '' })
-        export class DetailPage {}
-      `,
+      '/src/detail.ts': `export class DetailPage {}`,
       '/src/detail.routes.ts': `
-        import { Routes } from '@angular/router';
+        import type { Routes } from '@angular/router';
         import { DetailPage } from './detail';
         export const detailRoutes: Routes = [{ path: ':id', component: DetailPage }];
       `,
     });
     const sourceFile = project.getSourceFileOrThrow('/src/detail.routes.ts');
+    const diagnostics: RouteMigrationDiagnostic[] = [];
 
-    migrateRoutesSourceFile(sourceFile);
-
-    expect(
-      project.getSourceFileOrThrow('/src/detail.ts').getFullText(),
-    ).toContain('export type GenDeps_DetailPage');
-    expect(sourceFile.getFullText()).toMatch(
-      /componentDeps: \{\} as import\(["']\.\/detail["']\)\.GenDeps_DetailPage/,
-    );
+    expect(migrateRoutesSourceFile(sourceFile, { diagnostics })).toEqual([]);
+    expect(diagnostics[0]?.message).toContain('craftComponent');
+    expect(sourceFile.getFullText()).toContain('component: DetailPage');
   });
 
   it('emits actionable diagnostics and does not rewrite Angular guards', () => {
     const project = createProject({
       '/src/page.ts': `
-        export class Page {}
-        export type GenDeps_Page = {};
+        import { craftComponent, p } from '@craft-ts/component';
+        export const Page = craftComponent('Page', {}, () => p('page'));
       `,
       '/src/app.routes.ts': `
         import type { Routes } from '@angular/router';
@@ -138,8 +124,8 @@ describe('routes migration', () => {
   it('supports satisfies Routes, inherited names, and a pinned parent mount', () => {
     const project = createProject({
       '/src/admin.ts': `
-        export default class AdminPage {}
-        export type GenDeps_AdminPage = {};
+        import { craftComponent, p } from '@craft-ts/component';
+        export default craftComponent('AdminPage', {}, () => p('admin'));
       `,
       '/src/admin.routes.ts': `
         import type { Routes } from '@angular/router';
@@ -191,7 +177,7 @@ describe('routes migration', () => {
     const routesFile = join(rootDir, 'app.routes.ts');
     await writeFile(
       join(rootDir, 'page.ts'),
-      'export class Page {}\nexport type GenDeps_Page = {};\n',
+      "import { craftComponent, p } from '@craft-ts/component';\nexport const Page = craftComponent('Page', {}, () => p('page'));\n",
       'utf8',
     );
     await writeFile(

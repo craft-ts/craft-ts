@@ -25,9 +25,9 @@ describe('require-exception-component-di-check', () => {
 import { craftRoutes, craftRoute, ValidateCascadeRoutesFile } from '@craft-ts/core';
 const { demoRoutes } = craftRoutes('demo', [craftRoute(':userId', {
   component: class {}, componentDeps: {},
-  errorComponent: { component: class {}, componentDeps: {} as import('./route-error').GenDeps_RouteError },
+  errorComponent: { component: class {}, componentDeps: {} as import('./route-error').ComponentDeps_RouteError },
 }, { USER_DISABLED: craftExceptionHandler(function* ({ renderComponent }) {
-  return renderComponent({ loadComponent: () => import('./disabled'), componentDeps: {} as import('./disabled').GenDeps_Disabled });
+  return renderComponent({ loadComponent: () => import('./disabled'), componentDeps: {} as import('./disabled').ComponentDeps_Disabled });
 }) })]);
 type _Check = ValidateCascadeRoutesFile<'Parent', Router, typeof demoRoutes>;
 `;

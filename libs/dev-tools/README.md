@@ -136,7 +136,6 @@ metadata, lazy loading, and dependency proofs aligned:
 ```bash
 npx craft route add /users/:userId \
   --component src/users/user-detail.ts#UserDetail
-npx craft route add /users/:userId --create-component users/user-detail
 npx craft route split \
   --parent src/app.routes.ts#appRoutes \
   --prefix users \
@@ -144,8 +143,9 @@ npx craft route split \
 ```
 
 Use `--dry-run`, `--yes`, and `--json` for scripted workflows. The generator
-adds `componentDeps`, `withRetry`, parent-mount assertions, and the file-level
-route DI proof where applicable.
+adds the lazy loader, parent-mount assertions, and the file-level route DI
+proof where applicable. Route targets must be Craft components; their dependency
+contract travels through `loadCraftComponent(...)`.
 
 ## Static dependency graph
 

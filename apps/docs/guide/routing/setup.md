@@ -1,6 +1,6 @@
 # Routing setup
 
-Six steps turn plain route definitions into routes the compiler checks: a
+Four steps turn route definitions into routes the compiler checks: a
 missing provider, a misspelled input or a route pointing at nothing becomes a
 build error instead of a blank screen. Architecture tests then keep those
 proofs from quietly disappearing.
@@ -33,7 +33,7 @@ boundary.
 <<< @/tests/snippets/guide/routing/setup/approutes.spec.ts#approutes
 
 
-`RouteCheckedDI` compares:
+`RouteCheckedDI` compares the dependency contract derived from the Craft component with:
 
 - the dependencies declared by the routed component
 - the providers available from the app, parent mount, route and component
@@ -48,33 +48,20 @@ Typical errors look like:
 
 ## 2. Define routes with `craftRoute` and collect them with `craftRoutes`
 
-Do not export a plain untyped routes array directly. Define each typed route with
-`craftRoute(...)`, collect them with `craftRoutes(...)`, and declare `componentDeps` on each route
-component.
+Collect routes with `craftRoutes(...)`. For Craft components, spread
+`loadCraftComponent(...)` into the route: the helper carries the component's dependency contract
+into the route type, so you do not repeat it as `componentDeps`.
 
 ::: warning Breaking rename
 The former `route(...)` helper has been renamed to `craftRoute(...)`. There is no compatibility alias:
 update both the import and every call site.
 :::
 
-```ts
-import { craftRoute, craftRoutes } from '@craft-ts/core';
+<<< @/tests/snippets/learn/09-routing/app-routes.ts#app-routes
 
-export const { appRoutes } = craftRoutes('app', [
-  craftRoute('', {
-    loadComponent: ({ withRetry }) => withRetry(import('./test')),
-    componentDeps: {} as import('./test').GenDeps_TestComponent,
-  }),
-]);
-```
-
-The important part is:
-
-```ts
-componentDeps: {} as import('./test').GenDeps_TestComponent,
-```
-
-That line connects the component dependency metadata to its per-route DI check.
+`loadCraftComponent(...)` wires the lazy component and its dependency contract together. The
+per-route `RouteCheckedDI` / `CanRun` proof remains in the route file; see the tested example in
+[Learn step 9](/learn/09-routing#the-check-that-pays-for-all-of-this).
 
 ### Prefer the route CLI for day-to-day authoring
 
@@ -83,13 +70,13 @@ The CLI is the primary writing façade while the generated result remains ordina
 ```bash
 npx craft route add
 npx craft route add /users/:userId --component src/app/users/user-detail.ts#UserDetailComponent
-npx craft route add /users/:userId --create-component users/user-detail
 ```
 
 By default it detects the project and `craftRoutes` collections, creates one lazy routes file
-per feature, adds `componentDeps`, `withRetry`, `.withParent`, the parent mount assertion and the
-same-file DI check, then runs ESLint and TypeScript diagnostics. Use `--dry-run` to inspect the plan,
-`--yes` for non-interactive scripts and `--json` for machine-readable output.
+per feature, adds the lazy loader, `.withParent`, the parent mount assertion and the same-file DI
+check, then runs ESLint and TypeScript diagnostics. Use `--dry-run` to inspect the plan,
+`--yes` for non-interactive scripts and `--json` for machine-readable output. Route targets must
+already be Craft components.
 
 Static redirects stay in the selected collection:
 
@@ -145,90 +132,15 @@ the number of sibling routes. Split routes with `loadChildren` when code
 splitting or ownership boundaries make that useful — each child still needs
 its own per-route checks. See **[Scaling routes](/guide/routing/scaling)**.
 
-## 3. Generate dependency metadata
+## 3. Install the ESLint rules
 
-Add a script in your app:
-
-```json
-{
-  "scripts": {
-    "craft:brand": "craft-brand --root src"
-  }
-}
-```
-
-Then run:
-
-```bash
-npm run craft:brand
-```
-
-This is the step that creates the initial `GenDeps_*` aliases in your component files, for example:
-
-```ts
-export type GenDeps_TestComponent = GetDeps<{
-  deps: {
-    TaskList: GetServiceDependencies<typeof TaskList>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<TestComponent>;
-}>;
-```
-
-Adjust `--root` to your real source root:
-
-- `src` for an application
-- `projects/my-app/src` for a workspace app
-- `libs/my-feature/src` for a library
-
-If you use a project-level `craft-brand.config.ts`, you can extend the script:
-
-```json
-{
-  "scripts": {
-    "craft:brand": "craft-brand --root src --config ./craft-brand.config.ts"
-  }
-}
-```
-
-## 4. Install the ESLint rules
-
-Several checks in this guide rely on code a rule generates or keeps in sync —
-`GenDeps_*` aliases, the same-file DI proof, the exhaustiveness assert. Others
-enforce the architecture itself.
+Several checks in this guide enforce the same-file DI proof, the exhaustiveness
+assert and the architecture itself.
 
 Installing the plugin and the rule list is its own page:
 **[ESLint rules](/guide/routing/eslint-rules)**.
 
-## 5. When a component changes, regenerate `GenDeps` with the Quick Fix
-
-After changing a component's DI-related shape, refresh its generated alias.
-
-Typical triggers:
-
-- adding or removing `inject(...)`
-- changing constructor injection
-- changing component `imports`
-- changing `providers`
-- changing `viewProviders`
-
-Recommended workflow:
-
-- first generation or bulk refactor: `npm run craft:brand`
-- one file without `GenDeps_*`: run the dependency generator for the relevant source root
-- one file with `GenDeps_*`: run `eslint --fix` for the file
-- CLI alternative for one file: `eslint --fix src/app/feature/my-component.ts`
-
-Important limits:
-
-- the Quick Fix only handles the current file
-- if you rename the component class, rerun the generator so the `GenDeps_*` alias name stays aligned
-
-:::warning
-An Eslint error does not trigger a compilation error, so make sure to run the Quick Fix or `eslint --fix` after changing a component's DI shape. Otherwise, `main.ts` will not see the updated `GenDeps_*` and may miss real DI errors.
-:::
-
-## 6. Make the DI contract enforceable
+## 4. Make the DI contract enforceable
 
 The proofs in this guide are unused type aliases unless they stay in the file:
 comment out a `CanRun` and the project still compiles. That is the one fragile

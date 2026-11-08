@@ -256,4 +256,4 @@ you think, that a list item renders its label. That is its own page:
 - [Testing services](/guide/testing/services)
 - [Browser boundaries](/guide/testing/browser-boundaries)
 - [Architecture rules](/guide/testing/architecture) — constraints on the whole app graph
-- [Routing setup](/guide/routing/setup) — where `GenDeps_*` comes from
+- [Routing setup](/guide/routing/setup) — route DI proofs from `ComponentDepsOf`

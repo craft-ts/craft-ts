@@ -1,4 +1,3 @@
-import type { GetDeps } from './branded-component/branded-component';
 import { ɵcraftValueService } from './craft-service';
 import { type SendContextPayload } from './send-context-to-ai.tokens';
 import {
@@ -57,8 +56,3 @@ export function createSendContextToAiBuffer(
 ): SendContextToAiBuffer {
   return { snapshot: () => registry.snapshot() };
 }
-
-export type GenDeps_SendContextToAiBuffer = GetDeps<{
-  deps: {};
-  provided: {};
-}>;

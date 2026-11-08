@@ -8,7 +8,6 @@ import {
   type Signal,
   untracked,
 } from '../host/craft-compat';
-import type { GetDeps } from '../branded-component/branded-component';
 import { REACTIVE_VALUE_TYPE, rawReactiveFacade } from '../reactive-read';
 import { executeYieldable } from '../yieldable';
 import {
@@ -793,20 +792,6 @@ export function CraftFieldDirective<
   functionalFieldDirectives.set(key, directive);
   return directive as BoundCraftFieldDirective<Field>;
 }
-
-export type GenDeps_LegacyCraftFieldDirective = GetDeps<{
-  deps: Record<never, never>;
-  provided: Record<never, never>;
-  missingProvider: {
-    Renderer2: Renderer2;
-    Injector: Injector;
-    CraftFieldValueControl: typeof CraftFieldValueControl;
-    CraftFieldCheckboxControl: typeof CraftFieldCheckboxControl;
-  };
-}>;
-
-/** @deprecated DI metadata belongs to `LegacyCraftFieldDirective` only. */
-export type GenDeps_CraftFieldDirective = GenDeps_LegacyCraftFieldDirective;
 
 function formatMinMax(value: number | Date, inputType: string): string {
   if (value instanceof Date) return formatDateForInput(value, inputType);

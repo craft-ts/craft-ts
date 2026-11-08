@@ -339,7 +339,7 @@ target Angular ou Craft
 | Régression RouterLink                                         | Extraire les options pures et conserver un adaptateur Angular de compatibilité.     |
 | Dépendance circulaire core/component                          | Utiliser un protocole de target neutre et garder le montage concret dans component. |
 | Perte de compatibilité Angular Router                         | Conserver un host Angular minimal autour des routes.                                |
-| Régression de typage DI                                       | Régénérer les `GenDeps_*` et valider les checks de routes après chaque phase.       |
+| Régression de typage DI                                       | Vérifier que `ComponentDepsOf` dérive le contrat du composant après chaque phase.    |
 
 ## Critères de réussite
 

@@ -117,8 +117,7 @@
     "apps/log-server",
     "libs/playwright-sessions",
     "packages/*",
-    "libs/test-type",
-    "tools/generators"
+    "libs/test-type"
   ],
   "dependencies": {
     "alien-signals": "^3.2.1",

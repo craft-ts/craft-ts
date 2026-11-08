@@ -188,28 +188,22 @@ async function main(argv: string[]): Promise<number> {
         path:
           parsed.positionals[0] ?? (await readline.question('Route path: ')),
         component: parsed.values['component'],
-        createComponent: parsed.values['create-component'],
         featureFile: parsed.values['feature-file'],
         redirectTo: parsed.values['redirect-to'],
         confirm,
       };
       if (
         !options.component &&
-        !options.createComponent &&
         !options.redirectTo
       ) {
         const kind = (
           await readline.question(
-            'Target: [e]xisting component, [c]reate component, [r]edirect? ',
+            'Target: [e]xisting Craft component, [r]edirect? ',
           )
         ).toLowerCase();
         if (kind.startsWith('e')) {
           options.component = await readline.question(
             'Component <file#Class>: ',
-          );
-        } else if (kind.startsWith('c')) {
-          options.createComponent = await readline.question(
-            'Angular component name/path: ',
           );
         } else if (kind.startsWith('r')) {
           options.redirectTo = await readline.question('Redirect target: ');
@@ -485,7 +479,6 @@ function parseArgs(argv: string[]) {
     'tsconfig',
     'parent',
     'component',
-    'create-component',
     'feature-file',
     'redirect-to',
     'prefix',
@@ -1297,8 +1290,7 @@ Options:
   --root <dir>                 Workspace root (defaults to cwd)
   --project <name|tsconfig>    Angular project or tsconfig
   --parent <file#collection>   Parent craftRoutes collection
-  --component <file#Class>     Existing routed component
-  --create-component <name>    Generate with the local Angular CLI or Nx
+  --component <file#Export>    Existing Craft component
   --feature-file <file>        Create/use an explicit lazy feature collection
   --redirect-to <path>         Add a static redirect
   --prefix <path>              Static prefix moved by route split

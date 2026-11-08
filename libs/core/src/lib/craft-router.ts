@@ -387,12 +387,12 @@ type RoutePathFromInput<Input extends { to: NavigableRoutePath }> = Extract<
  * `CraftRoutesPathRegistry` view (`typeof routes.META_PATHS`) rather than the
  * full `CraftRoutesMetaData`. The slim view excludes `componentDeps`-derived
  * fields, which would otherwise create a self-referencing cycle when the
- * shortcut is called from a component whose own `GenDeps_*` is registered:
+ * shortcut is called from a component whose own dependency contract is registered:
  *
  *     navigate(...) signature
  *       → NavigableRoutePath
  *         → CraftRouterRoutesRegistry
- *           → componentDeps (GenDeps_X)            // ← excluded by META_PATHS
+ *           → component dependency contract         // ← excluded by META_PATHS
  *             → propertiesDeps.method = ExtractDeps<X['method']>
  *               → X['method'] inferred from body
  *                 → body calls navigate(...) ↺ back to the top

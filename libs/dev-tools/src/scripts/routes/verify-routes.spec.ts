@@ -114,15 +114,15 @@ describe('route verification', () => {
     await writeFile(
       routeFile,
       `export const { demoRoutes } = craftRoutes('demo', [
-  { path: 'page', loadComponent: () => import('./page') },
+  { path: 'page', ...loadCraftComponent(() => import('./page').then((m) => m.default)) },
 ]);
-type _CanRun = CanRun<RouteCheckedDI<import('./page').GenDeps_Page, never, Router, 'path: "page"'>>;
+type _CanRun = CanRun<RouteCheckedDI<ComponentDepsOf<(typeof import('./page'))['default']>, never, Router, 'path: "page"'>>;
 `,
       'utf8',
     );
     await writeFile(
       join(root, 'page.ts'),
-      'export default class Page {}\n',
+      "import { craftComponent, p } from '@craft-ts/component';\nexport default craftComponent('Page', {}, () => p('page'));\n",
       'utf8',
     );
     const lintPayload = JSON.stringify([

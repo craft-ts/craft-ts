@@ -25,14 +25,12 @@ provideCraftRouter(
   withComponentInputBinding(),
   withErrorComponent({
     component: MyGlobalErrorScreen,
-    componentDeps:
-      {} as import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
   }),
 ),
 ```
 
-It also works standalone via `provideCraftLoading(withErrorComponent({ component,
-componentDeps }))`.
+The Craft component carries its own dependency contract. It also works standalone via
+`provideCraftLoading(withErrorComponent({ component: MyGlobalErrorScreen }))`.
 
 ## Consume the exception
 

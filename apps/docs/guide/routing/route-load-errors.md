@@ -31,13 +31,9 @@ provideCraftRouter(
   appRoutes.toRoutes(),
   withErrorComponent({
     component: MyGlobalErrorScreen,
-    componentDeps:
-      {} as import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
   }),
   withRouteLoadError({
     component: MyRouteLoadErrorScreen,
-    componentDeps:
-      {} as import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
     retry: {
       attempts: 1,
       delayMs: 250,
@@ -86,10 +82,22 @@ Browsers can remember a failed dynamic `import()` for the exact same module spec
 Craft lazy route import with the loader's `withRetry` helper:
 
 ```ts
-loadComponent: ({ withRetry }) => withRetry(import('./detail')),
-loadChildren: ({ withRetry }) =>
-  withRetry(import('./admin.routes')).then((m) => m.adminRoutes),
+import { loadCraftComponent } from '@craft-ts/component';
+import { craftRoute } from '@craft-ts/core';
+
+craftRoute('detail', {
+  ...loadCraftComponent(({ withRetry }) =>
+    withRetry(import('./detail')).then((m) => m.Detail),
+  ),
+}),
+craftRoute('admin', {
+  loadChildren: ({ withRetry }) =>
+    withRetry(import('./admin.routes')).then((m) => m.adminRoutes),
+}),
 ```
+
+`loadCraftComponent(...)` also carries a Craft component's dependency contract into the route. The
+eager error components above carry their own dependency contracts.
 
 The initial import remains statically analyzable, so Craft and Vite still rewrite it to the hashed
 production chunk. On a configured retry, Craft extracts the emitted chunk URL from the browser
@@ -158,8 +166,6 @@ The default retry is one retry after 250 ms. You can make it explicit in `withRo
 ```ts
 withRouteLoadError({
   component: MyRouteLoadErrorScreen,
-  componentDeps:
-    {} as import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
   retry: {
     attempts: 2,
     delayMs: 500,
@@ -175,8 +181,6 @@ Use callbacks when retry behaviour depends on the error:
 ```ts
 withRouteLoadError({
   component: MyRouteLoadErrorScreen,
-  componentDeps:
-    {} as import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
   retry: {
     attempts: 3,
     shouldRetry: (error, context) => {
@@ -203,8 +207,6 @@ For custom logic, pass a retry strategy:
 ```ts
 withRouteLoadError({
   component: MyRouteLoadErrorScreen,
-  componentDeps:
-    {} as import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
   retry: {
     async execute(loader, context) {
       console.warn('route load failed, retrying', context);
@@ -235,8 +237,6 @@ craftRoute('admin', {
     }),
     provideRouteLoadErrorComponent({
       component: AdminRouteLoadErrorScreen,
-      componentDeps:
-        {} as import('./admin-route-load-error-screen').GenDeps_AdminRouteLoadErrorScreen,
     }),
   ],
   loadChildren: ({ withRetry }) =>

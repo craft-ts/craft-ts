@@ -12,7 +12,6 @@ import {
   sep,
 } from 'node:path';
 import { promisify } from 'node:util';
-import { names } from '@nx/devkit';
 import {
   ArrayLiteralExpression,
   CallExpression,
@@ -23,10 +22,7 @@ import {
   SyntaxKind,
   ts,
 } from 'ts-morph';
-import {
-  findAngularDecoratedClass,
-  transformSourceFile as generateAngularDependencies,
-} from '../angular-brand-codemod.js';
+import { findAngularDecoratedClass } from './angular-class-detection.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -44,12 +40,10 @@ const nodeRouteFileSystem: RouteFileSystem = {
 export type RouteCommandDiagnostic = {
   code:
     | 'AMBIGUOUS_PARENT'
-    | 'COMPONENT_GENERATION_FAILED'
     | 'COMPONENT_NOT_FOUND'
     | 'DUPLICATE_ROUTE'
     | 'INVALID_ARGUMENT'
     | 'LOCAL_DEPENDENCY'
-    | 'NO_ANGULAR_CLI'
     | 'NO_MATCHING_ROUTES'
     | 'PARENT_NOT_FOUND'
     | 'TARGET_EXISTS'
@@ -149,6 +143,12 @@ export async function runRouteAdd(
       'Choose exactly one of --component, --create-component, or --redirect-to.',
     );
   }
+  if (options.createComponent && !options.dryRun) {
+    return failed(
+      'COMPONENT_NOT_FOUND',
+      'Creating a route component is supported by the Nx route generator, which scaffolds a Craft component. Use an existing Craft component with --component <file>#<export> for the standalone CLI.',
+    );
+  }
 
   const { project, tsConfigFilePath, sourceRoot } = createRouteProject(
     rootDir,
@@ -188,6 +188,16 @@ export async function runRouteAdd(
         `Component target does not exist: ${options.component}`,
       );
     }
+    const componentSource =
+      project.getSourceFile(componentTarget.filePath) ??
+      addSourceFileFromWorkspace(project, componentTarget.filePath, fileSystem);
+    const decorated = componentSource && findAngularDecoratedClass(componentSource);
+    if (decorated?.className === componentTarget.className) {
+      return failed(
+        'COMPONENT_NOT_FOUND',
+        `The route CLI requires a Craft component with an inferred dependency contract; ${componentTarget.className} is an Angular-decorated class. Convert it to craftComponent first.`,
+      );
+    }
     touched.add(componentTarget.filePath);
   }
 
@@ -210,19 +220,6 @@ export async function runRouteAdd(
     options.validate === false
       ? new Set<string>()
       : await captureRouteEslintBaseline(rootDir, sourceRoot, plan.files);
-
-  if (options.createComponent) {
-    const created = await createAngularComponent(
-      rootDir,
-      options,
-      resolveAngularProjectName(rootDir, options.project, sourceRoot),
-    );
-    if ('diagnostic' in created)
-      return resultFromDiagnostics([created.diagnostic], plan);
-    componentTarget = created.component;
-    touched.add(componentTarget.filePath);
-    addSourceFileFromWorkspace(project, componentTarget.filePath, fileSystem);
-  }
 
   const targetCollection = ensureFeatureCollection(
     project,
@@ -261,34 +258,19 @@ export async function runRouteAdd(
       )}, pathMatch: 'full' }`,
     );
   } else if (componentTarget) {
-    const componentSource =
-      project.getSourceFile(componentTarget.filePath) ??
-      addSourceFileFromWorkspace(project, componentTarget.filePath, fileSystem);
-    if (!componentSource) {
-      return failed(
-        'COMPONENT_NOT_FOUND',
-        `Could not read ${componentTarget.filePath}.`,
-        plan,
-      );
-    }
-    const hasGenDeps = ensureGenDeps(componentSource, componentTarget.className);
     const moduleSpecifier = relativeModuleSpecifier(
       targetCollection.sourceFile.getFilePath(),
       componentTarget.filePath,
     );
     targetCollection.routes.addElement(
-      `craftRoute(${quote(featureDecision.localRoutePath)}, {${
-        hasGenDeps
-          ? `
-        componentDeps: {} as import(${quote(moduleSpecifier)}).GenDeps_${componentTarget.className},`
-          : ''
-      }
-        loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) => withRetry(import(${quote(
+      `craftRoute(${quote(featureDecision.localRoutePath)}, {
+        ...loadCraftComponent(({ withRetry }: CraftRouteLazyLoadHelpers) => withRetry(import(${quote(
           moduleSpecifier,
-        )})).then((m) => m.${componentTarget.className}),
+        )})).then((m) => m.${componentTarget.className})),
       })`,
     );
     ensureImport(targetCollection.sourceFile, 'craftRoute');
+    ensureImport(targetCollection.sourceFile, 'loadCraftComponent', '@craft-ts/component');
     ensureTypeImport(targetCollection.sourceFile, 'CraftRouteLazyLoadHelpers');
   }
 
@@ -917,147 +899,6 @@ function parseComponentTarget(
   };
 }
 
-async function createAngularComponent(
-  rootDir: string,
-  options: RouteAddOptions,
-  projectName: string | undefined,
-): Promise<
-  { component: ComponentTarget } | { diagnostic: RouteCommandDiagnostic }
-> {
-  const angularBinary = findLocalBinary(rootDir, 'ng');
-  const nxBinary = findLocalBinary(rootDir, 'nx');
-  const angularWorkspace = existsSync(join(rootDir, 'angular.json'));
-  const nxWorkspace = existsSync(join(rootDir, 'nx.json'));
-  const runner =
-    angularWorkspace && angularBinary
-      ? {
-          binary: angularBinary,
-          args: (name: string) => [
-            'generate',
-            'component',
-            name,
-            '--inline-template',
-            '--inline-style',
-            '--skip-tests',
-            ...(projectName ? ['--project', projectName] : []),
-          ],
-        }
-      : nxWorkspace && nxBinary
-        ? {
-            binary: nxBinary,
-            args: (name: string) => [
-              'generate',
-              '@schematics/angular:component',
-              name,
-              '--inline-template',
-              '--inline-style',
-              ...(projectName ? ['--project', projectName] : []),
-              '--skip-tests',
-            ],
-          }
-        : undefined;
-  if (!runner) {
-    return {
-      diagnostic: {
-        code: 'NO_ANGULAR_CLI',
-        message:
-          'No compatible local Angular or Nx CLI workspace was found. Expected angular.json + node_modules/.bin/ng, or nx.json + node_modules/.bin/nx.',
-      },
-    };
-  }
-  const name = options.createComponent;
-  if (!name)
-    throw new Error('createAngularComponent requires createComponent.');
-  const expectedFileName = `${names(basename(name)).fileName}.ts`;
-  const filesBefore = new Set(await findFiles(rootDir, expectedFileName));
-  try {
-    await execFileAsync(runner.binary, runner.args(name), { cwd: rootDir });
-  } catch (error) {
-    return {
-      diagnostic: {
-        code: 'COMPONENT_GENERATION_FAILED',
-        message: `Component generation failed through ${basename(runner.binary)}: ${commandError(error)}`,
-      },
-    };
-  }
-  const candidates = (await findFiles(rootDir, expectedFileName)).sort(
-    (left, right) =>
-      Number(filesBefore.has(left)) - Number(filesBefore.has(right)),
-  );
-  const filePath = candidates
-    .filter((candidate) => !candidate.endsWith('.spec.ts'))
-    .sort((a, b) => b.length - a.length)[0];
-  if (!filePath) {
-    return {
-      diagnostic: {
-        code: 'COMPONENT_NOT_FOUND',
-        message: `Component generation completed but ${basename(name)}.ts could not be located.`,
-      },
-    };
-  }
-  const source = new Project().addSourceFileAtPath(filePath);
-  const decorated = findAngularDecoratedClass(source);
-  const exportedName =
-    decorated.className ??
-    source
-      .getVariableDeclarations()
-      .find((declaration) => declaration.isExported())
-      ?.getName();
-  if (!exportedName) {
-    return {
-      diagnostic: {
-        code: 'COMPONENT_NOT_FOUND',
-        message: `Generated component could not be inferred in ${filePath}.`,
-      },
-    };
-  }
-  return { component: { filePath, className: exportedName } };
-}
-
-function resolveAngularProjectName(
-  rootDir: string,
-  projectOption: string | undefined,
-  sourceRoot: string,
-): string | undefined {
-  const projectFile = join(sourceRoot, 'project.json');
-  if (existsSync(projectFile)) {
-    try {
-      const parsed = JSON.parse(readFileSync(projectFile, 'utf8')) as {
-        name?: unknown;
-      };
-      if (typeof parsed.name === 'string' && parsed.name) return parsed.name;
-    } catch {
-      // Fall through to the explicit option/basename heuristic.
-    }
-  }
-  if (
-    projectOption &&
-    !projectOption.endsWith('.json') &&
-    !projectOption.includes('/') &&
-    !projectOption.includes('\\')
-  ) {
-    return projectOption;
-  }
-  const relativeSourceRoot = relative(rootDir, sourceRoot);
-  return relativeSourceRoot && !relativeSourceRoot.startsWith('..')
-    ? basename(sourceRoot)
-    : undefined;
-}
-
-/**
- * Craft SFCs infer their contract from the component itself, so a missing
- * GenDeps alias is not an error: the route simply omits `componentDeps`.
- */
-function ensureGenDeps(sourceFile: SourceFile, className: string): boolean {
-  // Already declared (hand-written, or branded by a previous run).
-  if (sourceFile.getTypeAlias(`GenDeps_${className}`)) return true;
-  // Only an Angular-decorated class can have one generated for it; a Craft SFC
-  // carries its contract itself, so the route just omits `componentDeps`.
-  if (!findAngularDecoratedClass(sourceFile).className) return false;
-  generateAngularDependencies(sourceFile);
-  return Boolean(sourceFile.getTypeAlias(`GenDeps_${className}`));
-}
-
 function hasRoutePath(routes: ArrayLiteralExpression, path: string): boolean {
   return routes
     .getElements()
@@ -1088,7 +929,7 @@ function routeMatchesRequest(
     component.filePath,
   );
   return (
-    text.includes(`GenDeps_${component.className}`) &&
+    text.includes('loadCraftComponent') &&
     text.includes(moduleSpecifier)
   );
 }

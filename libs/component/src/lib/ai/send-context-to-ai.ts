@@ -35,7 +35,6 @@ import {
   ɵinjectPersistedStorageSnapshotRegistry,
   ɵinjectCraftRouterRuntime,
   type SendContextTarget,
-  type GetDeps,
   type SendContextPayload,
   type SendContextSession,
   type SendContextSessionSnapshot,
@@ -1340,12 +1339,3 @@ export function provideSendContextToAi(
     }),
   ];
 }
-
-export type GenDeps_AiContextMenuController = GetDeps<{
-  deps: {};
-  provided: {};
-  missingProvider: {
-    Injector: Injector;
-    TakeAppSnapshot: typeof ɵinjectTakeAppSnapshot;
-  };
-}>;

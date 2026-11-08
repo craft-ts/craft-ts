@@ -25,7 +25,7 @@ import type {
   ServiceMigrationOverride,
   ServiceMigrationScope,
   ServiceMigrationStrategy,
-} from '../angular-brand-codemod.js';
+} from './config-types.js';
 import { loadCraftDevToolsConfig } from './config.js';
 import type {
   ServiceMigrationDiagnostic,

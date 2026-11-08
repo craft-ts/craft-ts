@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { loadAngularBrandConfigFromFile } from '../angular-brand-codemod';
+import { loadCraftDevToolsConfig } from './config';
 import { runServicesMigration } from './migrate-services';
 
 const temporaryDirectories: string[] = [];
@@ -411,13 +411,12 @@ describe('services migration', () => {
     expect(output).not.toContain("from '@angular/router'");
   });
 
-  it('loads unified config overrides while preserving brand config compatibility', async () => {
+  it('loads service migration overrides from the dev-tools config', async () => {
     const root = await fixture({
       'tsconfig.json': '{}',
       'craft-dev-tools.config.ts': `
         import { defineCraftDevToolsConfig } from '@craft-ts/dev-tools';
         export default defineCraftDevToolsConfig({
-          brand: { importAugmentations: [{ match: { module: 'pkg' }, deps: [{ key: 'Box', symbol: 'Box', typeText: 'Box<string>' }] }] },
           serviceMigration: { overrides: [{ symbol: 'ApiService', name: 'Backend', providedIn: 'manuallyProvidedAtRoot' }] },
         });
       `,
@@ -437,10 +436,9 @@ describe('services migration', () => {
       "name: 'Backend', providedIn: 'manuallyProvidedAtRoot'",
     );
     expect(output).toContain('provideBackend');
-    expect(
-      loadAngularBrandConfigFromFile(join(root, 'craft-dev-tools.config.ts'))
-        .importAugmentations?.[0]?.deps?.[0]?.typeText,
-    ).toBe('Box<string>');
+    expect(loadCraftDevToolsConfig(root).serviceMigration?.overrides).toEqual([
+      { symbol: 'ApiService', name: 'Backend', providedIn: 'manuallyProvidedAtRoot' },
+    ]);
   });
 
   it('preserves generics, avoids property shadowing, and cleans replaced imports', async () => {

@@ -163,7 +163,7 @@ describe('Craft route generators', () => {
       'utf8',
     );
     expect(routes).toContain('demo-page');
-    expect(routes).not.toContain('GenDeps_DemoPage');
+    expect(routes).not.toContain('componentDeps:');
   });
 
   it('splits routes through the same virtual Tree', async () => {
@@ -295,17 +295,8 @@ type _CanRunApp = CanRun<_CheckAppDI>;
 
 function component(className: string): string {
   return `
-import { Component } from '@angular/core';
-import { type GetDeps, type GetPublicComponentProperties } from '@craft-ts/core';
+import { craftComponent } from '@craft-ts/component';
 
-@Component({ selector: 'app-user-detail', template: '' })
-export class ${className} {}
-
-export type GenDeps_${className} = GetDeps<{
-  deps: {};
-  propertiesDeps: {};
-  provided: {};
-  publicProperties: GetPublicComponentProperties<${className}>;
-}>;
+export const ${className} = craftComponent('${className}', {}, () => []);
 `;
 }

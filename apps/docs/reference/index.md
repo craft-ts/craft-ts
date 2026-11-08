@@ -253,7 +253,6 @@ parameter with a Standard Schema. The package imports core for types only.
 | `npx craft route add`              | Scaffolds a typed route                                | [Automation](/guide/routing/automation)                                                                   |
 | `npx craft route split`            | Splits a flat collection                               | [Scaling routes](/guide/routing/scaling)                                                                  |
 | `npx craft route verify`           | Optional compiler-fixture suite for the type machinery | [Automation](/guide/routing/automation#compiler-fixture-suite-optional)                                   |
-| `craft-brand --root src`           | Generates and refreshes `GenDeps_*`                    | [Brand config](/guide/routing/setup#_3-generate-dependency-metadata)                                      |
 | `@craft-ts/dev-tools/eslint-rules` | The ESLint rule set                                    | [ESLint rules](/guide/routing/eslint-rules) · [Accessibility](/guide/components/accessibility)            |
 | `npx craft-graph`                  | Writes the static Craft graph                          | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |
 | `npx nx architecture <app>`        | Runs the app's architecture Vitest suite               | [Architecture rules](/guide/testing/architecture) · [Craft graph vs Nx](/guide/testing/craft-graph-vs-nx) |

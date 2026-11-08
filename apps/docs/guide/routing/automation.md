@@ -1,8 +1,9 @@
 # CLI automation
 
-Writing a typed route by hand means four pieces that must agree: the route, its
-`componentDeps`, the `withRetry` wrapper and the DI check. The CLI writes all
-four, and the output stays ordinary editable TypeScript.
+Writing a typed route by hand means the route, its lazy component loader and
+the DI check must agree. Use `loadCraftComponent(...)` for Craft components;
+the helper carries their dependency contract into the route. The CLI writes
+ordinary editable TypeScript for Craft components.
 
 **Use it for** day-to-day route authoring and for migrating an existing app.
 **Then edit the result** — nothing here is generated code you must not touch.
@@ -113,8 +114,8 @@ npx craft-migrate \
 ```
 
 Resolve every manual diagnostic before considering the migration complete.
-In particular, verify generated `componentDeps`, inherited route providers,
-lazy child collections, and the file-level DI checks.
+In particular, verify Craft component loaders, inherited route providers, lazy
+child collections, and the file-level DI checks.
 
 ## Add a CI check
 
@@ -134,8 +135,9 @@ See the [complete migration guide](/resources/migration) for the post-codemod ch
 
 ## Make the DI contract enforceable
 
-The CLI writes the route, `componentDeps`, `withRetry` and the DI proof. Those
-proofs are unused type aliases: omit one and the project still compiles. That
+The CLI writes the route loader and the DI proof. Craft component routes use
+`loadCraftComponent(...)` to carry their dependency contract. The proofs are
+unused type aliases: omit one and the project still compiles. That
 is the one fragile step in an otherwise compile-time guarantee.
 
 [Architecture tests](/guide/testing/architecture#assertroutediproofs) close it.

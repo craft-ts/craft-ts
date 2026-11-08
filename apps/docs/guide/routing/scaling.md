@@ -18,7 +18,7 @@ Add one `RouteCheckedDI` / `CanRun` pair for each routed component:
 import { type CanRun, type RouteCheckedDI } from '@craft-ts/core';
 
 type _CheckItem0 = RouteCheckedDI<
-  import('./item-0').GenDeps_Item0Component,
+  ComponentDepsOf<(typeof import('./item-0'))['default']>,
   AppProvidedNames,
   AppProvidedValues,
   'Item0Component'
@@ -26,7 +26,7 @@ type _CheckItem0 = RouteCheckedDI<
 type _CanRunItem0 = CanRun<_CheckItem0>;
 
 type _CheckItem1 = RouteCheckedDI<
-  import('./item-1').GenDeps_Item1Component,
+  ComponentDepsOf<(typeof import('./item-1'))['default']>,
   AppProvidedNames,
   AppProvidedValues,
   'Item1Component'
@@ -84,12 +84,14 @@ then enforce it once in the parent with
 
 ```ts
 // view-transitions.routes.ts — the child declares where it belongs
+import { loadCraftComponent } from '@craft-ts/component';
 import { craftRoutes, craftRoute, type ParentRoutes } from '@craft-ts/core';
 
 export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
   craftRoute(':photoId', {
-    componentDeps: {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
-    loadComponent: ({ withRetry }) => withRetry(import('./photo-detail')),
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./photo-detail')).then((m) => m.PhotoDetailComponent),
+    ),
   }),
 ]).withParent<ParentRoutes<'view-transitions'>>();
 ```

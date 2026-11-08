@@ -463,7 +463,7 @@ bootstrapCraft.
    queryParams. Do not keep them in component-local state.
 4. In template event handlers, emit one source$ event and let query, mutation
    and state react through on$. Do not chain imperative Craft actions there.
-5. Use craftComponent, craftRoutes, componentDeps and the route DI proof;
+5. Use craftComponent, craftRoutes, ComponentDepsOf and the route DI proof;
    do not introduce Angular decorators or inject().
 6. Keep translations in src/i18n/catalog.ts. Add locales with
    defineLocaleLike and project-specific tokens in project-tokens.ts.

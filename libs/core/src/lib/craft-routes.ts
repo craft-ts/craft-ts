@@ -2205,7 +2205,7 @@ type CraftRoutesPathRegistryWithContext<
  * Use this in the `CraftRouterRoutesRegistry` augmentation. The registry only
  * needs paths and queryParams to validate `navigate({to: ...})`. Including
  * `componentDeps` would create a self-referencing cycle whenever a registered
- * component's body calls back into the router (its `GenDeps_*` would feed
+ * component's body calls back into the router (its dependency contract would feed
  * back into the type that resolves `NavigableRoutePath`).
  *
  * `META_DATA` stays available on the same `craftRoutes` result for use cases
@@ -2247,7 +2247,7 @@ export type CraftRoutesApp<
    *
    * **Do not register `typeof X.META_DATA` directly in
    * `CraftRouterRoutesRegistry`** — that creates a cycle in any tracked
-   * component whose `GenDeps_*` references methods that call the router. Use
+   * component whose dependency contract references methods that call the router. Use
    * `META_PATHS` for the registry instead.
    */
   readonly META_DATA: CraftRoutesMetaData<Routes, Name>;

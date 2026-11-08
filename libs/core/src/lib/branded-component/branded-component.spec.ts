@@ -139,7 +139,7 @@ describe('GetDeps', () => {
     type ParentDeps = GetDeps<{
       deps: {
         CommonModule: CommonModule;
-        GenDeps_StatusComponent: StatusDeps;
+        TestDeps_StatusComponent: StatusDeps;
         Counter: CounterDependency;
       };
       provided: {
@@ -181,7 +181,7 @@ describe('GetDeps', () => {
     type ParentDeps = GetDeps<{
       deps: {
         CommonModule: CommonModule;
-        GenDeps_StatusComponent: StatusDeps;
+        TestDeps_StatusComponent: StatusDeps;
       };
       provided: {};
       missingProvider: {
