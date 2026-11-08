@@ -131,7 +131,10 @@ export const { ReplaySession } = craftService(
       // A page loaded again goes on in a tab of its own; the replay goes as far
       // as the recording lets it: an end left unfinished (a tab closed
       // mid-request) is left out, and said.
-      const { session: replayable, cut } = cutUnfinishedTail(splitPageReloads(result.session));
+      // The journal and « Déboguer ici » keep the whole recording; only what
+      // the replay consumes leaves the cut end out (see `replayedPart`).
+      const replayable = splitPageReloads(result.session);
+      const { cut } = cutUnfinishedTail(replayable);
       registers.tailCut = cut;
       const recordedUrl = parseLocalTarget(replayable.startUrl);
       setStates({

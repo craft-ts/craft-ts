@@ -17,6 +17,7 @@ import {
   replayIndex,
   replayWarnings,
   replayableEvents,
+  replayedEvents,
   seekTarget,
   session,
   status,
@@ -124,7 +125,7 @@ export function installReplayWorkerSurface(
 ): void {
   const surface: ReplayWorkerSurface = {
     snapshot,
-    plan: (options) => planThumbnailCapturePoints(visibleEvents(), options),
+    plan: (options) => planThumbnailCapturePoints(replayedEvents(visibleEvents()), options),
     advanceTo: () => {
       // Keep the application on the recorded clock. Fast-forward seeking can
       // overlap async queries and compare a later checkpoint with stale data.

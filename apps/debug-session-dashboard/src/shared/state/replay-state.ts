@@ -786,7 +786,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     );
     const replayableEventsState = yield* craftComputed(
       'replayableEventsState',
-      () => getReplaySteps(visibleEvents()),
+      () => getReplaySteps(replayedEvents(visibleEvents())),
     );
     replayableEventsBridge.bind(rawReactiveValue(replayableEventsState));
     const replayPlanState = yield* craftComputed(
@@ -795,7 +795,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
         const current = yield* sessionState();
         return current
           ? compileReplayPlan(
-              current,
+              replayedPart(current),
               undefined,
               isValidSelector,
             )
@@ -1258,6 +1258,34 @@ export function replayParticipantIds(): readonly string[] {
     .map((participant) => participant.id);
 }
 
+/**
+ * The events a replay goes through: the end it leaves out (`tailCut`, an
+ * operation that never got its result) stays in the journal, where « Déboguer
+ * ici » can still relaunch what was in flight, but is never replayed.
+ */
+export function replayedEvents<Event extends Readonly<{ sequence: number }>>(
+  events: readonly Event[],
+): readonly Event[] {
+  const cut = registers.tailCut;
+  return cut ? events.filter((event) => event.sequence < cut.atSequence) : events;
+}
+
+/** A recording without the end its replay leaves out. */
+export function replayedPart(
+  recording: SendContextReplayExport,
+): SendContextReplayExport {
+  if (!registers.tailCut) return recording;
+  const events = replayedEvents(recording.events);
+  const lastKeptAt = events.at(-1)?.timestamp ?? Number.NEGATIVE_INFINITY;
+  return {
+    ...recording,
+    events,
+    ...(recording.snapshots
+      ? { snapshots: recording.snapshots.filter((snapshot) => snapshot.capturedAt <= lastKeptAt) }
+      : {}),
+  };
+}
+
 /** Each replayable tab's slice of the recording, on one shared timeline. */
 export function sessionsForReplay(): readonly ReplaySlice[] {
   const imported = session();
@@ -1265,7 +1293,7 @@ export function sessionsForReplay(): readonly ReplaySlice[] {
   const slices = replayParticipantIds().flatMap((participantId) => {
     const replay = sessionForParticipant(participantId);
     return replay && !replay.truncated
-      ? [{ participantId, session: replay }]
+      ? [{ participantId, session: replayedPart(replay) }]
       : [];
   });
   if (selectedParticipantId() !== 'all' || slices.length <= 1) return slices;
