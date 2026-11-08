@@ -426,11 +426,16 @@ export const { ReplayBridge } = craftService(
       setStates({ replayState: 'paused', difference: undefined });
       resolveLatestReplayDifference(connection.participantId, 'recovered');
       seekHooks.settle();
+      // A checkpoint restored without navigating sends an empty address: it
+      // made `new URL('')` throw, and the forced recovery never said so.
       const href = data['href'];
-      const destination =
-        typeof href === 'string'
-          ? `navigation vers ${new URL(href).pathname}`
-          : 'point de contrôle restauré';
+      let destination = 'point de contrôle restauré';
+      if (typeof href === 'string' && href !== '')
+        try {
+          destination = `navigation vers ${new URL(href, connection.href).pathname}`;
+        } catch {
+          // An address that cannot be read still recovered the replay.
+        }
       setStates({
         status: `Reprise forcée · ${destination} · étape ${rawReactiveValue(replayIndex)()}`,
       });
