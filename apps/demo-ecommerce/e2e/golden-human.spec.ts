@@ -1,7 +1,10 @@
 import { test, craftSession, expect } from './fixtures';
-import { harness, recordVisitByHand } from './golden-helpers';
+import { harness, recordAbandonedPurchase, recordVisitByHand } from './golden-helpers';
 
-type ServerReplay = { status: string; replayIndex: number; total: number; unprovenInteractions: string[]; notes: string[]; difference?: unknown };
+type ServerReplay = {
+  status: string; replayIndex: number; total: number; unprovenInteractions: string[]; notes: string[]; difference?: unknown;
+  tailCut?: { reason: string; keptSteps: number; droppedSteps: number };
+};
 
 /**
  * The suite on gestures a scripted purchase leaves out: pointer moves, a
@@ -28,3 +31,35 @@ test('rejoue une visite faite à la main, touche par touche', {
   // The demo records what is typed, its password included: every key is typed again.
   expect(result.notes.filter((note) => note.startsWith('[Saisie non enregistrée]'))).toEqual([]);
 });
+
+/**
+ * A purchase abandoned while its order was on its way: the recording ends on
+ * a request with no answer, which no replay can finish. The suite replays
+ * what came before (the cart filled, the checkout page reached) and says
+ * what it left out, instead of refusing the whole session.
+ */
+test('rejoue la partie terminée d’un achat abandonné en pleine commande', {
+  annotation: craftSession({ id: 'shop.golden-abandoned', capture: 'none' }),
+}, async ({ browser, baseURL }, testInfo) => {
+  test.setTimeout(180_000);
+  const { server, app } = harness(baseURL);
+  const sessionId = await test.step('un achat abandonné, archivé', () => recordAbandonedPurchase(browser, app, server));
+
+  const result = await test.step('rejoué par le log server', async () => {
+    const response = await fetch(`${server}/sessions/${sessionId}/suite-replay`, { method: 'POST' });
+    return await response.json() as ServerReplay;
+  });
+  await testInfo.attach('server-replay.json', { body: JSON.stringify(result, null, 2), contentType: 'application/json' });
+  if (process.env['GOLDEN_DEBUG'] === '1') console.log('ABANDONED', JSON.stringify(result, null, 2));
+
+  expect(result, JSON.stringify(result, null, 2)).toMatchObject({
+    status: 'completed',
+    unprovenInteractions: [],
+    tailCut: { reason: 'missing-result' },
+  });
+  expect(result.replayIndex).toBe(result.total);
+  // The cart was filled and the checkout reached before the order was sent.
+  expect(result.tailCut!.keptSteps).toBeGreaterThanOrEqual(3);
+  expect(result.tailCut!.droppedSteps).toBeGreaterThanOrEqual(1);
+});
+

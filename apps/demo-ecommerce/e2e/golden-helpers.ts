@@ -92,6 +92,34 @@ export async function recordVisitByHand(browser: Browser, baseURL: string, serve
   return archivedSince(server, baseURL, startedAt);
 }
 
+/**
+ * A purchase abandoned as a person abandons one: the order is sent, its answer
+ * never comes (the server function is held back), and the tab is closed. The
+ * recording ends on a request with no result. Returns the archived session id.
+ */
+export async function recordAbandonedPurchase(browser: Browser, baseURL: string, server: string): Promise<string> {
+  const startedAt = new Date().toISOString();
+  const person = await browser.newContext({ baseURL });
+  const page = await person.newPage();
+  // Held, never answered: the order is still on its way when the tab closes.
+  await page.route('**/__server-functions*', (route) =>
+    route.request().postData()?.includes('ecommerce.checkout') ? undefined : route.continue());
+  await page.goto('/catalogue');
+  await page.getByRole('button', { name: '+ Ajouter' }).first().click();
+  await page.getByRole('link', { name: /Panier/ }).click();
+  await page.getByRole('link', { name: /Passer commande/ }).click();
+  await expect(page.getByRole('button', { name: 'Confirmer la commande' })).toBeEnabled();
+  await page.waitForLoadState('networkidle');
+  const order = page.waitForRequest((request) => request.postData()?.includes('ecommerce.checkout') ?? false);
+  await page.getByRole('button', { name: 'Confirmer la commande' }).click();
+  await order;
+  await page.waitForTimeout(300);
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => person.pages().length).toBe(0);
+  await person.close();
+  return archivedSince(server, baseURL, startedAt);
+}
+
 async function archivedSince(server: string, baseURL: string, startedAt: string): Promise<string> {
   let found: ArchivedSession | undefined;
   await expect.poll(async () => {

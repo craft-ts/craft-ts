@@ -5800,6 +5800,42 @@ describe("mode: 'interaction'", () => {
     expect(unbound.difference).toMatchObject({ expected: { [NAME]: 'Ada' }, actual: { [NAME]: '' } });
     expect(unbound.live[NAME]).toBe('');
   });
+  it('dispatches on the recorded selector when the Craft address is gone, and lets the call oracle judge', async () => {
+    const replayTarget = { runtimeId: 'craft-render-runtime-v1', componentPath: ['0000000000000000'], localTargetPath: [] };
+    const run = async (wired: boolean) => {
+      const events = session().events
+        .filter((event) => !event.id.startsWith('name-') && event.id !== 'done-click')
+        .map((event) => (event.id === 'add-click' ? { ...event, payload: { selector: '#add', action: 'click', replayTarget } } : event));
+      document.body.innerHTML = '<button id="add">Add</button>';
+      const observed: SendContextEvent[] = [];
+      document.querySelector('#add')!.addEventListener('click', () => {
+        if (wired) observed.push({ id: 'seen', sequence: 100, timestamp: Date.now(), kind: 'craft', phase: 'started', name: 'method:add', payload: { host: 'method:add', replayInvocation: { address: `${ADD}#9`, args: [] } } });
+      });
+      const warnings: string[] = [];
+      const invoked: string[] = [];
+      const replay = createReplayController({ ...session(), events }, {
+        mode: 'interaction', settleTimeoutMs: 100, interactionTargetTimeoutMs: 5_000,
+        observedEvents: () => observed,
+        invokeRecordedMethod: (event) => { invoked.push(event.id); },
+        readState: () => ({}), restoreState: () => undefined,
+        onWarning: (message) => warnings.push(message),
+      });
+      const startedAt = performance.now();
+      const difference = await replay.step();
+      replay.stop();
+      return { difference, warnings, invoked, waitedMs: performance.now() - startedAt };
+    };
+    const found = await run(true);
+    expect(found.difference).toBeUndefined();
+    expect(found.invoked).toEqual([]);
+    expect(found.warnings.some((warning) => warning.startsWith('[Cible retrouvée par sélecteur]'))).toBe(true);
+    expect(found.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]'))).toBe(false);
+    // A second of grace, not the whole wait.
+    expect(found.waitedMs).toBeLessThan(3_000);
+    // The element the selector names no longer makes the call: a gap.
+    expect((await run(false)).difference).toMatchObject({ actual: { missing: [ADD] } });
+  });
+
   it('restores a field whose text was not recorded instead of typing it empty', async () => {
     // A password typed, then a click: the recording holds the state, not the text.
     const events = session().events

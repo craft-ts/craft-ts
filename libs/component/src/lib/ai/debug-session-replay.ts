@@ -565,14 +565,26 @@ async function waitForCraftReplayTarget(
   target: CraftReplayTarget,
   timeoutMs = 10_000,
   aborted?: () => boolean,
+  /**
+   * Stops waiting once this selector has matched for a second while the
+   * address still has not: the element is on screen under another address.
+   */
+  fallbackSelector?: string,
 ): Promise<ReturnType<typeof ɵresolveCraftReplayTarget>> {
   const deadline = performance.now() + timeoutMs;
+  let selectorSeenAt: number | undefined;
   let result = ɵresolveCraftReplayTarget(target);
   while (
     result.status === 'missing' &&
     performance.now() < deadline &&
     !aborted?.()
   ) {
+    if (fallbackSelector !== undefined) {
+      if (!(safeQuerySelector(fallbackSelector) instanceof HTMLElement))
+        selectorSeenAt = undefined;
+      else if (selectorSeenAt === undefined) selectorSeenAt = performance.now();
+      else if (performance.now() - selectorSeenAt >= 1_000) break;
+    }
     await new Promise<void>((resolve) => setTimeout(resolve, 25));
     result = ɵresolveCraftReplayTarget(target);
   }
@@ -1954,12 +1966,34 @@ export function createReplayController(
               // seconds waiting for a target that cannot affect app state.
               targetWaitMs,
               skippable(),
+              dispatchesInteractions && typeof payload['selector'] === 'string'
+                ? payload['selector']
+                : undefined,
             );
       target =
         resolution.status === 'resolved' &&
         resolution.element instanceof HTMLElement
           ? resolution.element
           : null;
+      // A dispatched interaction can fall back on the recorded selector: the
+      // render address carries component ordinals that vary with creation
+      // order, while the element is on screen. Its handlers then run, and the
+      // call oracle checks they made the recorded calls, so a wrong match is
+      // a reported gap, never a silent pass.
+      const selectorMatch =
+        !target &&
+        dispatchesInteractions &&
+        event.kind !== 'hover' &&
+        resolution.status === 'missing' &&
+        typeof payload['selector'] === 'string'
+          ? safeQuerySelector(payload['selector'])
+          : null;
+      if (selectorMatch instanceof HTMLElement) {
+        target = selectorMatch;
+        options.onWarning?.(
+          `[Cible retrouvée par sélecteur] ${event.name ?? event.sequence} (${String(payload['selector'])}) : adresse Craft introuvable, action déclenchée sur l’élément du sélecteur enregistré.`,
+        );
+      }
       if (!target && event.kind === 'hover') {
         options.onWarning?.(
           `Replay Craft hover target is ${resolution.status}; showing the recorded coordinates instead.`,

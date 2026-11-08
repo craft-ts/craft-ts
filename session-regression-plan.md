@@ -407,6 +407,27 @@ l'ingestion, rétention ; preview/staging en premier, jamais la prod par défaut
 - **Données personnelles** dès qu'on sort du poste : le lot 7 ne s'ouvre pas sans
   caviardage vérifié.
 
+## Constat ouvert (2026-11-08) : catalogue vide au démarrage d'un rejeu
+
+En suite e2e complète, environ un rejeu sur trois de `golden-replay` ou
+`golden-human` s'arrête sur « + Ajouter » introuvable : la page rejouée affiche
+le catalogue vide (« Rien dans cette catégorie », sans catégories). Le même
+enregistrement rejoué plusieurs fois passe ou échoue : la cause est côté rejeu.
+Ce qui est établi :
+
+- aucune requête n'est bloquée par le `fetch` de garde du pont avant l'arrivée de
+  la session ;
+- le résolveur des réponses enregistrées ne sert rien avant l'échec, le rejeu
+  HTTP de Craft non plus : le chargement du catalogue n'est jamais parti ;
+- piste : course entre `registry.restore(initialSnapshot)` suivi aussitôt de
+  `ɵclearCraftPrimitiveReplaySnapshots` dans le pont, et la création différée
+  de la page catalogue (route chargée en lazy) ; la query n'a alors ni valeur
+  restaurée ni chargement.
+
+À instruire à part, avec un témoin qui échoue (rejeu répété de la même session).
+Le repli par sélecteur (`[Cible retrouvée par sélecteur]`) n'y peut rien : le
+bouton n'est pas à l'écran.
+
 ## Sources
 
 - [meticulous.ai](https://www.meticulous.ai/)
