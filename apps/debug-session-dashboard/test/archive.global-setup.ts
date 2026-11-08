@@ -35,6 +35,8 @@ const AGES_IN_MS = 3_000;
 /** Recorded for a replay this dashboard does not know: « Supprimer les incompatibles ». */
 const INCOMPATIBLE_SESSION_ID = '0b9f2f8e-6c3d-4b1a-9e47-5a0c2d8e1f04';
 const RETENTION_MS = 24 * 60 * 60 * 1000;
+/** The same checkout recorded by hand (no test metadata): the suite keeps it. */
+export const HAND_RECORDED_SESSION_ID = '0b9f2f8e-6c3d-4b1a-9e47-5a0c2d8e1f05';
 
 const workspaceRoot = resolve(import.meta.dirname, '../../..');
 /** Vitest's default jsdom URL. */
@@ -70,6 +72,8 @@ export default async function setup(project: TestProject) {
       { ...session, startUrl: 'http://localhost:4205/admin', replayVersion: 99 },
       now,
     ],
+    // At the shop's home: the list's tests look for the others by address.
+    [HAND_RECORDED_SESSION_ID, { ...withoutTestMetadata(session), startUrl: 'http://localhost:4205/' }, now],
   ] as const) {
     sessionStore.begin(id, recorded, createdAt);
     sessionStore.finish(id, 'completed');
@@ -134,6 +138,17 @@ export default async function setup(project: TestProject) {
     recipes,
     // jsdom's own origin, which its XMLHttpRequest sends as the dashboard would.
     allowedOrigins: [JSDOM_ORIGIN],
+    // No browser to replay with: the replay a suite runs answers at its
+    // boundary, as a healthy session replays.
+    suiteReplay: async (sessionId) => ({
+      sessionId,
+      status: 'completed',
+      replayIndex: 14,
+      total: 14,
+      unprovenInteractions: [],
+      notes: [],
+      durationMs: 1,
+    }),
     // No browser to capture with: the archive says so, as with
     // DEBUG_SESSION_THUMBNAILS=0.
     thumbnails: new ThumbnailService({
@@ -149,6 +164,7 @@ export default async function setup(project: TestProject) {
   project.provide('archiveUrl', url);
   project.provide('archivedSessionId', ARCHIVED_SESSION_ID);
   project.provide('disposableSessionId', DISPOSABLE_SESSION_ID);
+  project.provide('handRecordedSessionId', HAND_RECORDED_SESSION_ID);
   project.provide('recipeId', savedRecipe.id);
   project.provide(
     'e2eReferenceSource',
@@ -166,7 +182,14 @@ declare module 'vitest' {
     archiveUrl: string;
     archivedSessionId: string;
     disposableSessionId: string;
+    handRecordedSessionId: string;
     recipeId: string;
     e2eReferenceSource: string;
   }
 }
+
+function withoutTestMetadata<Session extends Record<string, unknown>>(recorded: Session): Omit<Session, 'test'> {
+  const { test: _test, ...rest } = recorded;
+  return rest;
+}
+

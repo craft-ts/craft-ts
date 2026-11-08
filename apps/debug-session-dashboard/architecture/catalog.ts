@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "5e63e7efea549f2a",
+  "graphHash": "5062eb4b2cff3215",
   "routes": [
     "",
     ":recipeId",
@@ -11,7 +11,8 @@ export const architectureCatalog = {
     "e2e-replay",
     "import",
     "recipes",
-    "sessions"
+    "sessions",
+    "suite"
   ],
   "services": [
     "CraftFieldCheckboxControl",
@@ -36,6 +37,7 @@ export const architectureCatalog = {
     "docToastQueue",
     "e2eComparison",
     "e2eReplayRoute",
+    "goldenSuiteArchive",
     "replayBridge",
     "replayDashboardState",
     "replayDebug",
@@ -105,6 +107,7 @@ export const architectureCatalog = {
     "ReplayTimeline",
     "ResumeDialog",
     "SessionsPage",
+    "SuitePage",
     "craftPending"
   ],
   "primitives": [
@@ -128,6 +131,7 @@ export const architectureCatalog = {
     "chat",
     "checkpoints",
     "choice",
+    "chosenOrigin",
     "clearAllCache",
     "closeRemovedSession",
     "closed",
@@ -152,6 +156,7 @@ export const architectureCatalog = {
     "differenceTitle",
     "disabled",
     "dismissedWarnings",
+    "effective",
     "environmentWarningHidden",
     "environmentWarningState",
     "error",
@@ -163,6 +168,7 @@ export const architectureCatalog = {
     "existingText",
     "expiredSessionCount",
     "expiredSessions",
+    "facts",
     "failArchivedSession",
     "failedHidden",
     "feedback",
@@ -171,6 +177,7 @@ export const architectureCatalog = {
     "firstDivergenceLabel",
     "firstDivergenceText",
     "followRoute",
+    "goldenSuite",
     "hasDifferenceState",
     "hidden",
     "hiddenFirstDivergence",
@@ -181,6 +188,8 @@ export const architectureCatalog = {
     "issuesText",
     "journalEventsState",
     "journalSummaryText",
+    "kept",
+    "lastReplay",
     "loadError",
     "loadErrorHidden",
     "loadErrorText",
@@ -201,6 +210,7 @@ export const architectureCatalog = {
     "openArchivedSession",
     "openEntryIndex",
     "openThumbnailManifest",
+    "openings",
     "orchestrationCommands",
     "orchestrationIssues",
     "orchestrationState",
@@ -230,6 +240,7 @@ export const architectureCatalog = {
     "recordedSessions",
     "recordingCount",
     "recordingLabel",
+    "rejected",
     "renderedMarks",
     "replayActionOffsetsMsState",
     "replayDifferences",
@@ -238,11 +249,13 @@ export const architectureCatalog = {
     "replayPlanState",
     "replaySkeletonVisible",
     "replayState",
+    "replayUnreachable",
     "replayViewport",
     "replayViewportScale",
     "replayWarnings",
     "replayableEventsState",
     "replayableParticipantsState",
+    "replaying",
     "reportText",
     "restartDisabled",
     "resumeCheckpointList",
@@ -305,6 +318,12 @@ export const architectureCatalog = {
     "steps",
     "storageBytes",
     "submitDisabled",
+    "suite",
+    "suiteLoading",
+    "suiteOpenings",
+    "suiteOriginList",
+    "suiteReplay",
+    "suiteUnreachable",
     "summary",
     "summaryHidden",
     "summaryText",
@@ -318,9 +337,11 @@ export const architectureCatalog = {
     "timelineProgress",
     "title",
     "titleText",
+    "toRecapture",
     "toastMessage",
     "toasts",
     "toleranceMessage",
+    "uncovered",
     "view",
     "viewportLabel",
     "visibleEventPageState",
@@ -385,11 +406,19 @@ export const architectureCatalog = {
     },
     {
       "method": "POST",
+      "url": "*/sessions/*/suite-replay"
+    },
+    {
+      "method": "POST",
       "url": "*/sessions/*/thumbnails*"
     },
     {
       "method": "POST",
       "url": "*/sessions/delete-many"
+    },
+    {
+      "method": "POST",
+      "url": "*/sessions/golden-set"
     },
     {
       "method": "POST",
@@ -542,7 +571,8 @@ export const architectureCatalog = {
         "apps/debug-session-dashboard/src/features/e2e-replay/e2e-replay.routes.ts",
         "apps/debug-session-dashboard/src/features/recipes/recipes.routes.ts",
         "apps/debug-session-dashboard/src/features/replay/replay.routes.ts",
-        "apps/debug-session-dashboard/src/features/sessions/sessions.routes.ts"
+        "apps/debug-session-dashboard/src/features/sessions/sessions.routes.ts",
+        "apps/debug-session-dashboard/src/features/suite/suite.routes.ts"
       ]
     }
   },
@@ -556,6 +586,7 @@ export const architectureCatalog = {
     "sessionPageActions": "global",
     "behaviorCoverageArchive": "global",
     "e2eComparison": "global",
+    "goldenSuiteArchive": "global",
     "resumeThread": "global",
     "sessionArchive": "global",
     "thumbnailArchive": "global",

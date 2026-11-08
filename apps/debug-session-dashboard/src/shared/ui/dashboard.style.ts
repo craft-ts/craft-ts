@@ -464,6 +464,18 @@ export const ui = craftStyles('dashboard', {
     gap(space(2)),
     paddingBlockStart(space(1)),
   ],
+  /** A behaviour's id in a row (`flow:… -> …`): code, which may break anywhere. */
+  unitTag: [
+    display.inlineFlex,
+    maxInlineSize(unit.pct(100)),
+    px(space(2)),
+    borderRadius(radii.sm),
+    bg(theme.code),
+    color(herbier.text.codePlain),
+    fontFamily(monospaceStack),
+    ...font(text.xs),
+    overflowWrap.anywhere,
+  ],
   /** Above the list: which sessions it shows, and the housekeeping when there is some. */
   listTools: [
     display.flex,
