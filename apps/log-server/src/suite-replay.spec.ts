@@ -132,6 +132,23 @@ describe('POST /sessions/:id/suite-replay', () => {
     expect((await fetch(`${base}/sessions/00000000-0000-4000-8000-000000000000/suite-replay`, { method: 'POST' })).status).toBe(404);
   });
 
+  it('replays the sessions of a suite one after the other, and says whether it passed', async () => {
+    const replayed: string[] = [];
+    const replay = vi.fn(async (sessionId: string): Promise<SuiteReplayResult> => {
+      replayed.push(sessionId);
+      return { sessionId, status: 'completed', replayIndex: 3, total: 3, unprovenInteractions: [], notes: [], durationMs: 5 };
+    });
+    const base = await start(replay);
+    const missing = '00000000-0000-4000-8000-000000000000';
+    const response = await fetch(`${base}/sessions/suite-replay`, { method: 'POST', body: JSON.stringify({ sessionIds: [id, missing] }) });
+    expect(response.status).toBe(200);
+    const body = await response.json() as { passed: boolean; counts: Record<string, number>; results: { sessionId: string; status: string }[] };
+    expect(replayed).toEqual([id]);
+    expect(body).toMatchObject({ passed: false, counts: { completed: 1, 'not-found': 1 } });
+    expect(body.results.map((result) => result.status)).toEqual(['completed', 'not-found']);
+    expect((await fetch(`${base}/sessions/suite-replay`, { method: 'POST', body: JSON.stringify({ sessionIds: [] }) })).status).toBe(400);
+  });
+
   it('says the replay is off when the server has none', async () => {
     const base = await start();
     const response = await fetch(`${base}/sessions/${id}/suite-replay`, { method: 'POST' });

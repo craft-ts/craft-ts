@@ -38,7 +38,7 @@ import {
 } from '@craft-ts/session-trace';
 import { goldenSetCandidates } from './golden-set-candidates.js';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
-import type { SuiteReplayer } from './suite-replay.js';
+import type { SuiteReplayer, SuiteReplayResult } from './suite-replay.js';
 import {
   parseResumeCheckpointInput,
   summarizeCheckpoint,
@@ -767,6 +767,41 @@ async function handleRequest(
     const deleted = options.sessionStore.deleteMany(ids);
     options.thumbnails?.prune();
     sendJson(response, 200, { deleted }, headers);
+    return;
+  }
+
+  // The suite: several sessions replayed one after the other, as after a change.
+  if (url.pathname === '/sessions/suite-replay' && request.method === 'POST') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.suiteReplay) {
+      sendJson(response, 503, { status: 'unavailable', message: 'Rejeu de suite désactivé sur ce serveur.' }, headers);
+      return;
+    }
+    let ids: unknown;
+    try {
+      const body = JSON.parse(await readBody(request, maxBodySize)) as unknown;
+      ids = isRecord(body) ? body['sessionIds'] : undefined;
+    } catch {
+      ids = undefined;
+    }
+    if (
+      !Array.isArray(ids) ||
+      ids.length === 0 ||
+      ids.length > 100 ||
+      !ids.every((id) => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id))
+    ) {
+      sendJson(response, 400, { error: 'Expected { sessionIds: string[] } (1-100 session ids).' }, headers);
+      return;
+    }
+    const results: unknown[] = [];
+    for (const id of ids as string[]) {
+      results.push(
+        options.sessionStore?.get(id)
+          ? await options.suiteReplay(id)
+          : { sessionId: id, status: 'not-found', replayIndex: 0, total: 0, message: 'Session absente de l’archive.', unprovenInteractions: [], notes: [], durationMs: 0 },
+      );
+    }
+    sendJson(response, 200, suiteRunSummary(results as readonly SuiteReplayResult[]), headers);
     return;
   }
 
@@ -1718,3 +1753,18 @@ function sendJson(
   });
   response.end(JSON.stringify(body));
 }
+
+/**
+ * A suite run: passed when every session replayed to the end with its clicks
+ * proven (a replay that went through on invoked methods proved nothing).
+ */
+function suiteRunSummary(results: readonly SuiteReplayResult[]) {
+  const counts: Record<string, number> = {};
+  for (const result of results) counts[result.status] = (counts[result.status] ?? 0) + 1;
+  return {
+    passed: results.every((result) => result.status === 'completed' && result.unprovenInteractions.length === 0),
+    counts,
+    results,
+  };
+}
+
