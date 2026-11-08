@@ -41,6 +41,8 @@ export type ReplayPlatform = Readonly<{
   uuid: () => string;
   /** The query string of the dashboard's own address. */
   search: () => string;
+  /** The dashboard's own address. */
+  href: () => string;
 }>;
 
 const INERT_TIMER: ReplayTimer = { cancel: () => undefined };
@@ -51,6 +53,7 @@ const INERT_PLATFORM: ReplayPlatform = {
   dateNow: () => 0,
   uuid: () => '',
   search: () => '',
+  href: () => '',
 };
 
 let platform: ReplayPlatform = INERT_PLATFORM;
@@ -332,6 +335,11 @@ export function hasFrame(participantId: string): boolean {
 }
 
 /** Whether the tab's frame holds a page that can be sent messages. */
+/** The address of this dashboard, as the browser shows it ('' before install). */
+export function dashboardHref(): string {
+  return platform.href();
+}
+
 export function frameHasWindow(participantId: string): boolean {
   return frameFor(participantId)?.contentWindow != null;
 }

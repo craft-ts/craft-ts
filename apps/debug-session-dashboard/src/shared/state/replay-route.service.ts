@@ -62,6 +62,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       dateNow: () => temporal.dateNow(),
       uuid: () => browserCrypto.randomUUID(),
       search: () => browserLocation.search(),
+      href: () => browserLocation.href(),
     });
 
     // Opened by the thumbnail worker: it replays and is photographed, it does
