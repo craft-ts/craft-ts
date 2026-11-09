@@ -3,7 +3,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import type { DependencyGraph, DependencyGraphNode } from '@craft-ts/dev-tools/dependency-graph';
 import { DEPENDENCY_FORWARD } from '@craft-ts/dev-tools/graph-metrics';
-import { createSliceIndex, impactOf } from '@craft-ts/dev-tools/scripts/code-slice.js';
+import { createSliceIndex, impactOf, PRODUCES_BACKWARD } from '@craft-ts/dev-tools/scripts/code-slice.js';
 
 /**
  * The recorded sessions a change touches: the ones to replay after an edit,
@@ -44,7 +44,7 @@ export type RelevantSessionsResult = Readonly<{
   changed: readonly Readonly<{ kind: string; label: string; file?: string }>[];
   /** Nodes reached by impact only. */
   impacted: number;
-  /** Changed code files without a node: every session is replayed for them. */
+  /** Changed code files without a node, and stylesheets: every session is replayed for them. */
   unmappedFiles: readonly string[];
   /** Files a replay cannot show (tests, docs). */
   ignoredFiles: readonly string[];
@@ -57,7 +57,20 @@ export type RelevantSessionsOptions = Readonly<{
   maxUnits?: number;
 }>;
 
+/**
+ * What a change reaches, in reverse of what produces a node, without one
+ * relation: a component `provides` a scoped service, and the service's slice
+ * takes the component in, render tree and all. Followed backward from a
+ * change, it made every page that uses its own instance of the service
+ * (`storefrontView` on the home page) look touched by a change to another
+ * page's child (the formula composer): every session was replayed. A change
+ * to the provider itself is a change to the providing component, a direct hit.
+ */
+const IMPACT_BACKWARD = PRODUCES_BACKWARD.filter((kind) => kind !== 'provides');
+
 const CODE_FILE = /\.(c|m)?[jt]sx?$/;
+/** A stylesheet changes what every page shows, and the graph has no node for it. */
+const STYLE_FILE = /\.(css|scss|sass|less)$/;
 const NOT_RUN = /(\.spec|\.test|\.e2e)\.[cm]?[jt]sx?$|\.d\.ts$|(^|\/)(e2e|architecture|test|tests)\//;
 
 export function relevantGoldenSessions(
@@ -84,6 +97,10 @@ export function relevantGoldenSessions(
   for (const change of changes) {
     const file = canonical(isAbsolute(change.file) ? change.file : resolve(rootDir, change.file));
     const relative = file.startsWith(`${rootDir}/`) ? file.slice(rootDir.length + 1) : file;
+    if (STYLE_FILE.test(file) && !NOT_RUN.test(relative)) {
+      unmappedFiles.push(relative);
+      continue;
+    }
     if (!CODE_FILE.test(file) || NOT_RUN.test(relative)) {
       ignoredFiles.push(relative);
       continue;
@@ -100,7 +117,7 @@ export function relevantGoldenSessions(
     for (const node of covering.length > 0 ? covering : inFile) changed.set(node.id, node);
   }
 
-  const index = createSliceIndex(graph, { readFile: () => undefined, forward: DEPENDENCY_FORWARD });
+  const index = createSliceIndex(graph, { readFile: () => undefined, forward: DEPENDENCY_FORWARD, backward: IMPACT_BACKWARD });
   const impacted = new Map<string, DependencyGraphNode>();
   for (const id of changed.keys())
     for (const reached of impactOf(index, id)) {
@@ -216,6 +233,7 @@ function canonical(path: string): string {
   return known;
 }
 
+/** Whether the node's lines meet `[from, to]`; an empty range (`from > to`) is met by the nodes around it. */
 function overlaps(node: DependencyGraphNode, from: number, to: number): boolean {
   if (node.line === undefined) return false;
   const end = node.endLine ?? node.line;
@@ -250,8 +268,12 @@ export function changesFromUnifiedDiff(diff: string): FileChange[] {
       if (!match) continue;
       const start = Number(match[1]);
       const count = match[2] === undefined ? 1 : Number(match[2]);
-      // A pure deletion (count 0) sits between two lines: both may be the node's.
-      changes.get(current)!.lines.push(count === 0 ? [Math.max(1, start), start + 1] : [start, start + count - 1]);
+      // A pure deletion (count 0) sits between line `start` and the next: an
+      // empty range, `[start + 1, start]`, that only the nodes spanning both
+      // lines overlap. Counting the two lines themselves made a node that
+      // merely ends above (a call on the line before) changed, and its impact
+      // could reach the whole app.
+      changes.get(current)!.lines.push(count === 0 ? [start + 1, start] : [start, start + count - 1]);
     }
   }
   return [...changes].map(([file, change]) => (change.whole ? { file } : { file, lines: change.lines }));

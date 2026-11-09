@@ -79,6 +79,7 @@
         "./libs/dev-tools/src/scripts/graph-coverage.ts"
       ],
       "@craft-ts/dev-tools/*": ["./libs/dev-tools/src/*"],
+      "@craft-ts/graph-mcp": ["./libs/graph-mcp/src/index.ts"],
       "@craft-ts/dev-tools/testing": ["./libs/dev-tools/src/testing.ts"],
       "@craft-ts/dev-tools/template-migration": [
         "./libs/dev-tools/src/template-migration.ts"

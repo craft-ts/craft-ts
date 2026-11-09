@@ -25,7 +25,8 @@ describe('changesFromUnifiedDiff', () => {
       '@@ -1,5 +0,0 @@',
     ].join('\n');
     expect(changesFromUnifiedDiff(diff)).toEqual([
-      { file: 'src/a.ts', lines: [[3, 3], [11, 14], [24, 25]] },
+      // The two lines removed after line 24: between 24 and 25, nothing new.
+      { file: 'src/a.ts', lines: [[3, 3], [11, 14], [25, 24]] },
       { file: 'src/gone.ts' },
     ]);
   });
@@ -93,6 +94,29 @@ describe('relevantGoldenSessions on the e-commerce demo', () => {
     const unknown = relevant([{ file: `${repository}libs/core/src/lib/craft-state.ts`, lines: [[1, 1]] }]);
     expect(unknown.unmappedFiles).toHaveLength(1);
     expect(unknown.sessions.map((session) => session.hit)).toEqual(['unmapped', 'unmapped', 'unmapped']);
+  });
+
+  it('puts a removed line in the nodes around it, not in the call on the line before', () => {
+    // « Ajouter au panier » no longer forgets the choices: the line after the
+    // cart's `add` is gone. The cart is read by every page; the composer is not.
+    const file = `${app}/src/client/store-pages.ts`;
+    const forget = readFileSync(file, 'utf8').split('\n').findIndex((line) => line.includes('shopUi.formulaPicks.forget(formula.id)')) + 1;
+    expect(forget).toBeGreaterThan(1);
+    // The diff `git diff -U0` gives for that removal.
+    const diff = ['--- a/src/client/store-pages.ts', '+++ b/src/client/store-pages.ts', `@@ -${forget} +${forget - 1},0 @@`].join('\n');
+    const result = relevant(changesFromUnifiedDiff(diff).map((change) => ({ ...change, file })));
+    const changed = result.changed.map((node) => `${node.kind}:${node.label}`);
+    expect(changed).toEqual(expect.arrayContaining(['component:EcommerceFormulaComposer', 'template-element:add-formula']));
+    expect(changed).not.toContain('property:cart.cartLines');
+    // The other pages provide their own instance of the services the formula
+    // page provides: none of them is touched through it.
+    expect(result.sessions.flatMap((session) => session.because)).not.toContain('service:storefrontView');
+  });
+
+  it('replays everything for a stylesheet: it changes what every page shows', () => {
+    const result = relevant([{ file: 'src/client/app.css', lines: [[38, 38]] }]);
+    expect(result.unmappedFiles).toEqual(['src/client/app.css']);
+    expect(result.sessions.map((session) => session.hit)).toEqual(['unmapped', 'unmapped', 'unmapped']);
   });
 
   it('takes the whole file when the changed lines fall outside every node', () => {
