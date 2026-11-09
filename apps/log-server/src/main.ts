@@ -9,6 +9,7 @@ import { createPlaywrightCapturer } from './thumbnails/playwright-capturer.js';
 import { ThumbnailService } from './thumbnails/thumbnail-service.js';
 import { ThumbnailStore } from './thumbnails/thumbnail-store.js';
 import { createSuiteReplayer } from './suite-replay.js';
+import { createSessionsCheckAccess, findSessionsCheckRepository } from './sessions-check.js';
 
 const host = process.env['LOG_SERVER_HOST'] ?? '127.0.0.1';
 const port = Number(process.env['LOG_SERVER_PORT'] ?? '4319');
@@ -57,6 +58,12 @@ const thumbnails = new ThumbnailService({
     width: Number(process.env['DEBUG_SESSION_THUMBNAIL_WIDTH'] ?? '480'),
   },
 });
+// The repository's `sessions:check`, when the server runs in one: its last
+// report on the suite page, and the approval of a change from there.
+const sessionsCheckRepository =
+  process.env['DEBUG_SESSION_CHECK'] === '0'
+    ? undefined
+    : process.env['CRAFT_SESSIONS_CHECK_REPOSITORY'] ?? findSessionsCheckRepository(process.cwd());
 const server = createLogHttpServer({
   store,
   sessionStore,
@@ -65,6 +72,7 @@ const server = createLogHttpServer({
   thumbnails,
   // Not tied to the thumbnails: an agent replays the sessions a change touches.
   ...(process.env['DEBUG_SESSION_SUITE_REPLAY'] === '0' ? {} : { suiteReplay: createSuiteReplayer({ dashboardUrl }) }),
+  ...(sessionsCheckRepository ? { sessionsCheck: createSessionsCheckAccess({ repository: sessionsCheckRepository }) } : {}),
   checkpoints: new ResumeCheckpointStore(resolve(sessionDirectory, 'checkpoints')),
   recipes: new ResumeRecipeStore(resolve(sessionDirectory, 'recipes')),
   ...(allowedOrigins ? { allowedOrigins } : {}),

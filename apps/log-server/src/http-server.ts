@@ -39,6 +39,7 @@ import {
 import { goldenSetCandidates, openedByTooling } from './golden-set-candidates.js';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
 import type { SuiteReplayer, SuiteReplayResult } from './suite-replay.js';
+import type { SessionsCheckAccess } from './sessions-check.js';
 import {
   parseResumeCheckpointInput,
   summarizeCheckpoint,
@@ -72,6 +73,8 @@ export type LogHttpServerOptions = {
   readonly thumbnails?: ThumbnailService;
   /** Replays an archived session as the regression suite does (`POST /sessions/:id/suite-replay`). */
   readonly suiteReplay?: SuiteReplayer;
+  /** The last base-against-head check of an app, and approving a change it found. */
+  readonly sessionsCheck?: SessionsCheckAccess;
   /** Where the dashboard leaves "resume here" for the AI; one per server by default. */
   readonly resumeRequests?: ResumeRequestBoard;
   /** Frozen resume points, on disk next to the sessions. */
@@ -237,6 +240,49 @@ async function handleRequest(
 
   if (request.method === 'POST' && url.pathname === '/sessions/golden-set') {
     await handleGoldenSetRequest(request, response, options, maxBodySize, sessionCorsHeaders(request.headers.origin, allowedOrigins));
+    return;
+  }
+
+  // The last `sessions:check` of the app recorded at `origin`.
+  if (request.method === 'GET' && url.pathname === '/sessions/check') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionsCheck) {
+      sendJson(response, 503, { status: 'unavailable', message: 'Ce serveur ne tourne pas dans un dépôt qui a sessions:check.' }, headers);
+      return;
+    }
+    const last = options.sessionsCheck.report(url.searchParams.get('origin') ?? '');
+    sendJson(response, 200, last ? { app: last.app, report: last.report } : { report: null }, headers);
+    return;
+  }
+
+  // A person approves the change the last check found in a session.
+  if (request.method === 'POST' && url.pathname === '/sessions/check/approve') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionsCheck) {
+      sendJson(response, 503, { status: 'unavailable', message: 'Ce serveur ne tourne pas dans un dépôt qui a sessions:check.' }, headers);
+      return;
+    }
+    let body: unknown;
+    try {
+      body = JSON.parse(await readBody(request, maxBodySize)) as unknown;
+    } catch {
+      body = undefined;
+    }
+    const origin = isRecord(body) ? body['origin'] : undefined;
+    const sessionId = isRecord(body) ? body['sessionId'] : undefined;
+    if (typeof origin !== 'string' || typeof sessionId !== 'string' || !/^[0-9a-f-]{8,36}$/i.test(sessionId)) {
+      sendJson(response, 400, { error: 'Expected { origin: string, sessionId: string }.' }, headers);
+      return;
+    }
+    const approval = await options.sessionsCheck.approve(origin, sessionId);
+    sendJson(
+      response,
+      approval.approved ? 200 : 409,
+      approval.approved
+        ? { approved: true, sessionId, output: approval.output, ...(approval.report ? { app: approval.report.app, report: approval.report.report } : { report: null }) }
+        : { approved: false, message: approval.message },
+      headers,
+    );
     return;
   }
 
