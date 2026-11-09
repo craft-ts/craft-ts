@@ -1318,7 +1318,9 @@ export function ɵstableReplaySelector(element: Element): string {
     );
     current = current.parentElement;
   }
-  return `body > ${parts.join(' > ')}`;
+  // A path cut before reaching `body` starts below it, not right under it.
+  const reachedBody = current === null || current === document.body;
+  return `body${reachedBody ? ' > ' : ' '}${parts.join(' > ')}`;
 }
 
 export function ɵreplayScrollAncestors(element: Element): readonly Readonly<{

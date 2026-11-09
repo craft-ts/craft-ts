@@ -5685,6 +5685,34 @@ describe("stateSource: 'recomputed'", () => {
     expect(result.live[TOTAL]).toBe(3);
   });
 
+  it('takes a page created under another instance number, and an id made opaque as a key, for the same state', async () => {
+    const PAGE = (n: number) => `component:Shell#2 / component:FormulaPage#${n} / query:storeQuery#1`;
+    const PICKS = 'service:shopUi / state:formulaPicks#1';
+    const replayWith = async (live: Record<string, unknown>) => {
+      document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+      const events = [
+        session().events[0]!,
+        // What the recording held: the page as #93, a pick keyed by its real id.
+        { id: 'snapshot', sequence: 2, timestamp: 1_001, kind: 'primitive', phase: 'emitted', name: 'query', state: { [PAGE(87)]: null, [PAGE(93)]: { products: 6 }, [PICKS]: { 'pause-cafe': { 'pause-pastry': ['cookie'] } } } },
+        session().events[5]!,
+      ] as SendContextReplayExport['events'];
+      const replay = createReplayController({ ...session(), events }, {
+        stateSource: 'recomputed',
+        settleTimeoutMs: 0,
+        invokeRecordedMethod: () => undefined,
+        readState: () => live,
+        restoreState: () => undefined,
+      });
+      const difference = (await replay.step()) ?? (await replay.step());
+      replay.stop();
+      return difference;
+    };
+    // The replay created the page as #87 and its data made the id opaque.
+    expect(await replayWith({ [PAGE(87)]: { products: 6 }, [PICKS]: { 'pause-cafe': { 'craft-ref:7784243abfa964df': ['cookie'] } } })).toBeUndefined();
+    // Another value is still a gap, whatever the instance number.
+    expect(await replayWith({ [PAGE(87)]: { products: 5 }, [PICKS]: { 'pause-cafe': { 'pause-pastry': ['cookie'] } } })).toBeDefined();
+  });
+
   it('waits for a state that lands late (an answer decoded, a page loaded) before calling it a gap', async () => {
     const replayWith = async (settleTimeoutMs: number) => {
       document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
@@ -5818,6 +5846,78 @@ describe("mode: 'interaction'", () => {
     expect(result.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]') && warning.includes('#add'))).toBe(true);
   });
 
+  it('clicks a button whose handler navigates, instead of driving the router for it', async () => {
+    // « Ajouter au panier » adds the line, then opens the cart: the recording
+    // plans that click as the navigation it led to.
+    document.body.innerHTML = '<button id="add">Add</button>';
+    const observed: SendContextEvent[] = [];
+    const clicks: string[] = [];
+    document.querySelector('#add')!.addEventListener('click', () => {
+      clicks.push('add');
+      observed.push({
+        id: 'observed-add', sequence: 100, timestamp: Date.now(), kind: 'craft', phase: 'started', name: 'method:add',
+        payload: { host: 'method:add', replayInvocation: { address: `${ADD}#9`, args: [] } },
+      });
+    });
+    const navigateToRecordedRoute = vi.fn();
+    const invoked: string[] = [];
+    const replay = createReplayController(
+      {
+        ...session(),
+        events: [
+          session().events[0]!,
+          session().events[1]!,
+          { id: 'to-cart', sequence: 3, timestamp: 1_002, kind: 'navigation', phase: 'started', name: 'NavigationStart', payload: { url: '/panier' } },
+        ],
+      },
+      {
+        mode: 'interaction',
+        settleTimeoutMs: 100,
+        interactionTargetTimeoutMs: 200,
+        observedEvents: () => observed,
+        invokeRecordedMethod: (event) => {
+          invoked.push(event.id);
+        },
+        navigateToRecordedRoute,
+      },
+    );
+    const difference = await replay.step();
+    replay.stop();
+    expect(difference).toBeUndefined();
+    expect(clicks).toEqual(['add']);
+    expect(invoked).toEqual([]);
+    expect(navigateToRecordedRoute).not.toHaveBeenCalled();
+  });
+
+  it('dispatches a choice with the recorded value, even if a render put the previous one back', async () => {
+    document.body.innerHTML = '<select id="category"><option value="coffee">Café</option><option value="pastries">Pâtisseries</option></select>';
+    const select = document.querySelector<HTMLSelectElement>('#category')!;
+    const read: string[] = [];
+    select.addEventListener('change', () => read.push(select.value));
+    const replay = createReplayController(
+      {
+        ...session(),
+        events: [
+          { id: 'pick', sequence: 1, timestamp: 1_000, kind: 'dom', phase: 'emitted', name: 'change', payload: { selector: '#category', action: 'change', value: 'pastries' } },
+        ],
+      },
+      {
+        mode: 'interaction',
+        settleTimeoutMs: 50,
+        interactionTargetTimeoutMs: 200,
+        observedEvents: () => [],
+        // The app renders while the replay waits: its options mark the
+        // state's choice, still the previous one.
+        onInteraction: () => {
+          select.value = 'coffee';
+        },
+      },
+    );
+    await replay.step();
+    replay.stop();
+    expect(read).toEqual(['pastries']);
+  });
+
   it('with the state recomputed, checks what a typed field produced instead of restoring it', async () => {
     const typed = await run({ wired: true, stateSource: 'recomputed' });
     expect(typed.difference).toBeUndefined();
@@ -5861,6 +5961,44 @@ describe("mode: 'interaction'", () => {
     expect(found.waitedMs).toBeLessThan(3_000);
     // The element the selector names no longer makes the call: a gap.
     expect((await run(false)).difference).toMatchObject({ actual: { missing: [ADD] } });
+  });
+
+  it('reads a selector the recorder cut at six levels as a path under body', async () => {
+    // The row's address carries its key, an id the recording made opaque; the
+    // recorder cut the path and anchored it to body, above `craft-root`.
+    const replayTarget = { runtimeId: 'craft-render-runtime-v1', componentPath: ['0000000000000000'], localTargetPath: [] };
+    const run = async (markup: string) => {
+      const events = session().events
+        .filter((event) => !event.id.startsWith('name-') && event.id !== 'done-click')
+        .map((event) => (event.id === 'add-click' ? { ...event, payload: { selector: 'body > div:nth-of-type(1) > section:nth-of-type(1) > button:nth-of-type(2)', action: 'click', replayTarget } } : event));
+      document.body.innerHTML = markup;
+      const observed: SendContextEvent[] = [];
+      const clicked: string[] = [];
+      for (const button of document.querySelectorAll('button'))
+        button.addEventListener('click', () => {
+          clicked.push(button.id);
+          if (button.id === 'edit') observed.push({ id: 'seen', sequence: 100, timestamp: Date.now(), kind: 'craft', phase: 'started', name: 'method:add', payload: { host: 'method:add', replayInvocation: { address: `${ADD}#9`, args: [] } } });
+        });
+      const warnings: string[] = [];
+      const replay = createReplayController({ ...session(), events }, {
+        mode: 'interaction', settleTimeoutMs: 100, interactionTargetTimeoutMs: 2_000,
+        observedEvents: () => observed,
+        invokeRecordedMethod: () => undefined,
+        readState: () => ({}), restoreState: () => undefined,
+        onWarning: (message) => warnings.push(message),
+      });
+      await replay.step();
+      replay.stop();
+      return { clicked, warnings };
+    };
+    const row = '<div><section><button id="other">Voir</button><button id="edit">Modifier</button></section></div>';
+    const found = await run(`<craft-root>${row}</craft-root>`);
+    expect(found.clicked).toEqual(['edit']);
+    expect(found.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]'))).toBe(false);
+    // Two elements under body answer the cut path: none is chosen.
+    const twice = await run(`<craft-root>${row}</craft-root><aside>${row}</aside>`);
+    expect(twice.clicked).toEqual([]);
+    expect(twice.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]'))).toBe(true);
   });
 
   it('restores a field whose text was not recorded instead of typing it empty', async () => {

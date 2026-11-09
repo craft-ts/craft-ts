@@ -525,6 +525,25 @@ function safeQuerySelector(selector: string): Element | null {
   }
 }
 
+/**
+ * The element a recorded selector names. The recorder cut a path at six
+ * levels and anchored it to `body` all the same (`body > div…` for an element
+ * under `craft-root`), a selector that never matches: it is read again as a
+ * path under `body`, when that names a single element.
+ */
+function recordedSelectorMatch(selector: string): Element | null {
+  const direct = safeQuerySelector(selector);
+  if (direct || !selector.startsWith('body > ')) return direct;
+  try {
+    const matches = document.querySelectorAll(
+      `body ${selector.slice('body > '.length)}`,
+    );
+    return matches.length === 1 ? (matches[0] ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 function isCraftReplayTarget(value: unknown): value is CraftReplayTarget {
   return (
     isRecord(value) &&
@@ -580,7 +599,7 @@ async function waitForCraftReplayTarget(
     !aborted?.()
   ) {
     if (fallbackSelector !== undefined) {
-      if (!(safeQuerySelector(fallbackSelector) instanceof HTMLElement))
+      if (!(recordedSelectorMatch(fallbackSelector) instanceof HTMLElement))
         selectorSeenAt = undefined;
       else if (selectorSeenAt === undefined) selectorSeenAt = performance.now();
       else if (performance.now() - selectorSeenAt >= 1_000) break;
@@ -769,11 +788,61 @@ function hasReplayStateDifference(expected: unknown, actual: unknown): boolean {
     // Route transitions add and remove registry entries while a checkpoint is
     // captured. Compare only primitive addresses that exist on both sides.
     const sharedKeys = Object.keys(expected).filter((key) => key in actual);
-    return sharedKeys.some(
-      (key) => !replaySnapshotValueMatches(expected[key], actual[key]),
-    );
+    if (
+      sharedKeys.every((key) =>
+        replaySnapshotValueMatches(expected[key], actual[key]),
+      )
+    )
+      return false;
+    // A page the replay created once more or once less than the recording
+    // holds the same primitive under another instance number.
+    return !sameStateIgnoringOrdinals(expected, actual);
   }
   return !replaySnapshotValueMatches(expected, actual);
+}
+
+/**
+ * The same values per primitive once the instance numbers are left out of the
+ * addresses (`page#93` and `page#87` are one page): for each address on both
+ * sides, the values that are there match one for one.
+ */
+function sameStateIgnoringOrdinals(
+  expected: Readonly<Record<string, unknown>>,
+  actual: Readonly<Record<string, unknown>>,
+): boolean {
+  const byAddress = (state: Readonly<Record<string, unknown>>) => {
+    const grouped = new Map<string, unknown[]>();
+    for (const [address, value] of Object.entries(state)) {
+      const key = withoutInstanceNumbers(address);
+      const values = grouped.get(key) ?? [];
+      if (value !== null && value !== undefined) values.push(value);
+      grouped.set(key, values);
+    }
+    return grouped;
+  };
+  const expectedValues = byAddress(expected);
+  const actualValues = byAddress(actual);
+  for (const [address, wanted] of expectedValues) {
+    const found = actualValues.get(address);
+    if (!found) continue;
+    if (wanted.length !== found.length) return false;
+    const left = [...found];
+    for (const value of wanted) {
+      const index = left.findIndex((candidate) =>
+        replaySnapshotValueMatches(value, candidate),
+      );
+      if (index < 0) return false;
+      left.splice(index, 1);
+    }
+  }
+  return true;
+}
+
+function withoutInstanceNumbers(address: string): string {
+  return address
+    .split(' / ')
+    .map((part) => part.replace(/#\d+$/, ''))
+    .join(' / ');
 }
 
 function replaySnapshotValueMatches(
@@ -806,11 +875,23 @@ function replaySnapshotValueMatches(
         replaySnapshotValueMatches(value, actual[index]),
       )
     );
-  if (isRecord(expected) && isRecord(actual))
-    return Object.keys(expected).every(
-      (key) =>
-        key in actual && replaySnapshotValueMatches(expected[key], actual[key]),
+  if (isRecord(expected) && isRecord(actual)) {
+    // A key can be a reference too (an id the recording made opaque, used as
+    // a map key): a key missing on one side pairs with an unused reference
+    // key on the other, as a reference value would.
+    const spareActual = Object.keys(actual).filter(
+      (key) => !(key in expected) && isCraftReferencePlaceholder(key),
     );
+    const spareAnyActual = Object.keys(actual).filter((key) => !(key in expected));
+    return Object.keys(expected).every((key) => {
+      if (key in actual)
+        return replaySnapshotValueMatches(expected[key], actual[key]);
+      const pair = isCraftReferencePlaceholder(key)
+        ? spareAnyActual.shift()
+        : spareActual.shift();
+      return pair !== undefined && replaySnapshotValueMatches(expected[key], actual[pair]);
+    });
+  }
   return stableJson(expected) === stableJson(actual);
 }
 
@@ -1450,7 +1531,13 @@ export function createReplayController(
         return undefined;
       }
     }
-    if (plannedCommand?.kind === 'navigate') {
+    // A recorded action whose handler navigated is planned as the navigation
+    // it led to. Dispatched, the action is clicked like any other: its handler
+    // makes its calls (an item added, choices forgotten) and navigates itself.
+    // Driving the router instead skipped the handler and lost its calls.
+    const navigatesThroughHandler =
+      dispatchesInteractions && event.kind === 'dom';
+    if (plannedCommand?.kind === 'navigate' && !navigatesThroughHandler) {
       const payload =
         event.kind === 'navigation' && isRecord(event.payload)
           ? event.payload
@@ -2011,7 +2098,7 @@ export function createReplayController(
         event.kind !== 'hover' &&
         resolution.status === 'missing' &&
         typeof payload['selector'] === 'string'
-          ? safeQuerySelector(payload['selector'])
+          ? recordedSelectorMatch(payload['selector'])
           : null;
       if (selectorMatch instanceof HTMLElement) {
         target = selectorMatch;
@@ -2295,6 +2382,22 @@ export function createReplayController(
     if (cursor === startingCursor && running)
       playbackEpoch = performance.now() - (timeOf(event) - firstTime);
     if ((!useInvocationReplay && !isGesture) || dispatchNatively) {
+      // The browser sets a field and fires its event in the same task. Here
+      // the scroll and the timeline were awaited in between: a render of the
+      // app (a select's options marking the state's choice) can have put the
+      // previous value back. The recorded one is set again, right before.
+      if (
+        typeof payload['value'] === 'string' &&
+        'value' in target &&
+        (target as HTMLInputElement).value !== payload['value']
+      )
+        (target as HTMLInputElement).value = payload['value'];
+      if (
+        typeof payload['checked'] === 'boolean' &&
+        target instanceof HTMLInputElement &&
+        (target.type === 'checkbox' || target.type === 'radio')
+      )
+        target.checked = payload['checked'];
       target.dispatchEvent(native);
     } else if (useInvocationReplay) {
       const navigation =
