@@ -73,7 +73,9 @@ export default async function setup(project: TestProject) {
       now,
     ],
     // At the shop's home: the list's tests look for the others by address.
-    [HAND_RECORDED_SESSION_ID, { ...withoutTestMetadata(session), startUrl: 'http://localhost:4205/' }, now],
+    // Recorded with the app's exchanges (version 8): the suite leaves older
+    // recordings out, they cannot be replayed past their first call.
+    [HAND_RECORDED_SESSION_ID, { ...withoutTestMetadata(session), version: 8, startUrl: 'http://localhost:4205/' }, now],
   ] as const) {
     sessionStore.begin(id, recorded, createdAt);
     sessionStore.finish(id, 'completed');
