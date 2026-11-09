@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "1324bfb3d724df08",
+  "graphHash": "a53013b7774e94ca",
   "routes": [
     "",
     ":recipeId",
@@ -114,6 +114,9 @@ export const architectureCatalog = {
     "activeReplayEventIdState",
     "activeReplayParticipantId",
     "activeRouteSessionId",
+    "approveChange",
+    "approveFailed",
+    "approving",
     "approximate",
     "archived",
     "ariaDisabled",
@@ -129,6 +132,8 @@ export const architectureCatalog = {
     "captureError",
     "captureInProgress",
     "chat",
+    "check",
+    "checkRows",
     "checkpoints",
     "choice",
     "chosenOrigin",
@@ -189,6 +194,7 @@ export const architectureCatalog = {
     "journalEventsState",
     "journalSummaryText",
     "kept",
+    "lastCheck",
     "lastRun",
     "loadError",
     "loadErrorHidden",
@@ -386,6 +392,10 @@ export const architectureCatalog = {
     },
     {
       "method": "GET",
+      "url": "*/sessions/check?origin=*"
+    },
+    {
+      "method": "GET",
       "url": "*/sessions/checkpoints?*"
     },
     {
@@ -407,6 +417,10 @@ export const architectureCatalog = {
     {
       "method": "POST",
       "url": "*/sessions/*/thumbnails*"
+    },
+    {
+      "method": "POST",
+      "url": "*/sessions/check/approve"
     },
     {
       "method": "POST",

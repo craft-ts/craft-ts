@@ -218,3 +218,138 @@ export function suiteRunLine(
 export function replayStatusLine(replaying: boolean, failed: boolean): string {
   return replaying ? i18n.t('suiteReplaying') : failed ? i18n.t('suiteReplayUnavailable') : '';
 }
+
+export type SessionsCheckVerdict = 'regression' | 'changed' | 'flaky' | 'stale' | 'unchanged';
+
+/** A session of the last `sessions:check`, as the suite page needs it. */
+export type SessionsCheckSession = Readonly<{
+  sessionId: string;
+  verdict: SessionsCheckVerdict;
+  reason: string;
+  approved: boolean;
+  /** On a change: the moments that differ. */
+  moments: readonly number[];
+}>;
+
+/** The last base-against-head check of the app (`GET /sessions/check`). */
+export type SessionsCheck = Readonly<{
+  app: string;
+  base: string;
+  head: string;
+  passed: boolean;
+  sessions: readonly SessionsCheckSession[];
+}>;
+
+const VERDICTS: readonly SessionsCheckVerdict[] = ['regression', 'changed', 'flaky', 'stale', 'unchanged'];
+
+/** The archive's answer: no `check` when the app was never checked — a value, not a failure. */
+export type SessionsCheckAnswer = Readonly<{ check?: SessionsCheck }>;
+
+export const sessionsCheckDecoder = {
+  decode(input: unknown): SessionsCheckAnswer | undefined {
+    if (!isRecord(input)) return undefined;
+    const report = input['report'];
+    if (report === null) return {};
+    if (!isRecord(report) || !Array.isArray(report['sessions'])) return undefined;
+    return { check: {
+      app: typeof input['app'] === 'string' ? input['app'] : '',
+      base: typeof report['base'] === 'string' ? report['base'] : '',
+      head: typeof report['head'] === 'string' ? report['head'] : '',
+      passed: report['passed'] === true,
+      sessions: report['sessions'].flatMap((session): SessionsCheckSession[] => {
+        if (!isRecord(session) || typeof session['sessionId'] !== 'string') return [];
+        const verdict = VERDICTS.find((item) => item === session['verdict']);
+        if (!verdict) return [];
+        const change = isRecord(session['change']) ? session['change'] : undefined;
+        return [{
+          sessionId: session['sessionId'],
+          verdict,
+          reason: typeof session['reason'] === 'string' ? session['reason'] : '',
+          approved: session['approved'] === true,
+          moments: Array.isArray(change?.['moments']) ? change['moments'].filter((moment): moment is number => typeof moment === 'number') : [],
+        }];
+      }),
+    } };
+  },
+};
+
+/** The answer to an approval that went through (a refusal is an error status): which session. */
+export const sessionsCheckApprovalDecoder = {
+  decode(input: unknown): Readonly<{ sessionId: string }> | undefined {
+    return isRecord(input) && input['approved'] === true && typeof input['sessionId'] === 'string'
+      ? { sessionId: input['sessionId'] }
+      : undefined;
+  },
+};
+
+export type SessionsCheckRow = Readonly<{
+  sessionId: string;
+  title: string;
+  label: string;
+  tone: 'danger' | 'warning' | 'important' | undefined;
+  reason: string;
+  /** A change nobody approved yet: the only thing a person can approve. */
+  approvable: boolean;
+}>;
+
+export type SessionsCheckView = Readonly<{
+  /** Nothing checked yet, or the archive cannot say. */
+  none: boolean;
+  builds: string;
+  verdictLine: string;
+  tone: 'danger' | 'important' | undefined;
+  /** The sessions to look at: every one but the unchanged. */
+  rows: readonly SessionsCheckRow[];
+}>;
+
+const VERDICT_ORDER: readonly SessionsCheckVerdict[] = VERDICTS;
+
+function verdictLabel(session: SessionsCheckSession): Readonly<{ label: string; tone: SessionsCheckRow['tone'] }> {
+  if (session.approved) return { label: i18n.t('suiteCheckApproved'), tone: 'important' };
+  switch (session.verdict) {
+    case 'regression':
+      return { label: i18n.t('suiteCheckRegression'), tone: 'danger' };
+    case 'changed':
+      return { label: i18n.t('suiteCheckChanged'), tone: 'warning' };
+    case 'flaky':
+      return { label: i18n.t('suiteCheckFlaky'), tone: 'warning' };
+    case 'stale':
+      return { label: i18n.t('suiteCheckStale'), tone: undefined };
+    case 'unchanged':
+      return { label: i18n.t('suiteCheckUnchanged'), tone: 'important' };
+  }
+}
+
+export function sessionsCheckView(answer: SessionsCheckAnswer | undefined): SessionsCheckView {
+  const check = answer?.check;
+  if (!check) return { none: true, builds: '', verdictLine: '', tone: undefined, rows: [] };
+  const counts = new Map<string, number>();
+  for (const session of check.sessions) {
+    const { label } = verdictLabel(session);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const sorted = [...check.sessions].sort(
+    (left, right) =>
+      Number(left.approved) - Number(right.approved) || VERDICT_ORDER.indexOf(left.verdict) - VERDICT_ORDER.indexOf(right.verdict),
+  );
+  return {
+    none: false,
+    builds: i18n.t('suiteCheckBuilds', { name: check.base, detail: check.head }),
+    verdictLine: [
+      [...counts].map(([label, count]) => `${label} ${count}`).join(' · '),
+      check.passed ? i18n.t('suiteCheckPassed') : i18n.t('suiteCheckFailed'),
+    ].filter(Boolean).join(' — '),
+    tone: check.passed ? 'important' : 'danger',
+    rows: sorted
+      .filter((session) => session.verdict !== 'unchanged')
+      .map((session) => ({
+        sessionId: session.sessionId,
+        title: session.sessionId.slice(0, 8),
+        ...verdictLabel(session),
+        reason: session.moments.length
+          ? i18n.t('suiteCheckMoments', { detail: session.reason, name: session.moments.join(', ') })
+          : session.reason,
+        approvable: session.verdict === 'changed' && !session.approved,
+      })),
+  };
+}

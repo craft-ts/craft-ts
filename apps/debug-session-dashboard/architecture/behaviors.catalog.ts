@@ -58,6 +58,11 @@ export const behaviorCatalog = {
       "file": "apps/debug-session-dashboard/src/shared/data-access/thumbnail-archive.service.ts"
     },
     {
+      "id": "mutation:goldenSuiteArchive.approveChange#success",
+      "kind": "mutation",
+      "file": "apps/debug-session-dashboard/src/shared/data-access/golden-suite.service.ts"
+    },
+    {
       "id": "mutation:sessionArchive.deleteSession#success",
       "kind": "mutation",
       "file": "apps/debug-session-dashboard/src/shared/data-access/session-archive.service.ts"

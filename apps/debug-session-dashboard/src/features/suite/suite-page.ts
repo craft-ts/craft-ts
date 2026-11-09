@@ -17,6 +17,7 @@ import { GoldenSuiteArchive } from '../../shared/data-access/golden-suite.servic
 import {
   replayLineFor,
   replayStatusLine,
+  sessionsCheckView,
   suiteRunLine,
   suiteView,
 } from '../../shared/util/golden-suite';
@@ -26,6 +27,8 @@ import {
  * alone shows, the ones left out and why, the paths no session shows any
  * more. A session opens in the replay, or is replayed here as the suite runs
  * it (by the archive, actions dispatched on their elements, state recomputed).
+ * The last base-against-head check (`npm run sessions:check`) is shown too,
+ * and a change it found, when it is wanted, is approved from here.
  */
 export const SuitePage = craftComponent('SuitePage', {}, function* () {
   const archive = yield* GoldenSuiteArchive();
@@ -37,6 +40,11 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
   const lastRun = rawReactiveValue(archive.suiteRun.lastRun);
   const replaying = rawReactiveValue(archive.suiteRun.replaying);
   const replayFailed = rawReactiveValue(archive.suiteRun.replayUnreachable);
+  const lastCheck = rawReactiveValue(archive.lastCheck.check);
+  const approving = rawReactiveValue(archive.approveChange.approving);
+  const approveFailed = rawReactiveValue(archive.approveChange.approveFailed);
+  const check = yield* craftComputed('check', () => sessionsCheckView(lastCheck()));
+  const checkRows = yield* craftComputed('checkRows', () => sessionsCheckView(lastCheck()).rows);
 
   const facts = yield* craftComputed('facts', () => suiteView(suite()).facts);
   const kept = yield* craftComputed('kept', () => suiteView(suite()).sessions);
@@ -221,6 +229,132 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
     ),
   );
 
+  const checkSection = div(
+    { class: ui.sideSection, 'data-lab': 'suite-check' },
+    [
+      p({ class: ui.sideSectionTitle }, [
+        span(i18n.t('suiteCheckTitle')),
+        span(
+          {
+            class: badgeUi.root,
+            'data-lab': 'suite-check-builds',
+            hidden: function* () {
+              return (yield* check()).none;
+            },
+          },
+          function* () {
+            return (yield* check()).builds;
+          },
+        ),
+      ]),
+      p(
+        {
+          class: ui.lede,
+          'data-lab': 'suite-check-none',
+          hidden: function* () {
+            return !(yield* check()).none;
+          },
+        },
+        i18n.t('suiteCheckNone'),
+      ),
+      p(
+        {
+          class: badgeUi.root,
+          'data-lab': 'suite-check-verdict',
+          'data-tone': function* () {
+            return (yield* check()).tone;
+          },
+          hidden: function* () {
+            return (yield* check()).none;
+          },
+        },
+        function* () {
+          return (yield* check()).verdictLine;
+        },
+      ),
+      p(
+        {
+          class: ui.lede,
+          hidden: function* () {
+            return (yield* check()).none;
+          },
+        },
+        i18n.t('suiteCheckHint'),
+      ),
+      p(
+        {
+          class: ui.lede,
+          'data-lab': 'suite-approve-failed',
+          hidden: () => approving() || !approveFailed(),
+        },
+        i18n.t('suiteApproveFailed'),
+      ),
+      ul(
+        { class: ui.sessions },
+        forNode(checkRows, { track: (row) => row.sessionId }, (row) =>
+          li({ class: ui.row, 'data-lab': 'suite-check-session' }, [
+            span({ class: ui.rowBody }, [
+              span({ class: ui.rowTitle }, [
+                span(function* () {
+                  return (yield* row()).title;
+                }),
+                span(
+                  {
+                    class: badgeUi.root,
+                    'data-lab': 'suite-check-session-verdict',
+                    'data-tone': function* () {
+                      return (yield* row()).tone;
+                    },
+                  },
+                  function* () {
+                    return (yield* row()).label;
+                  },
+                ),
+              ]),
+              span({ class: ui.rowMeta }, function* () {
+                return (yield* row()).reason;
+              }),
+            ]),
+            span({ class: ui.rowActions }, [
+              button(
+                'openCheckedSession',
+                {
+                  type: 'button',
+                  class: [buttonUi.root, ui.inlineAction],
+                  'data-variant': 'link',
+                  click: function* () {
+                    yield* CraftRouter.navigate({
+                      to: 'sessions/:sessionId',
+                      params: { sessionId: (yield* row()).sessionId },
+                    });
+                  },
+                },
+                i18n.t('suiteOpenSession'),
+              ),
+              button(
+                'approveCheckedChange',
+                {
+                  type: 'button',
+                  class: [buttonUi.root, ui.inlineAction],
+                  'data-variant': 'primary',
+                  'data-lab': 'suite-approve-change',
+                  hidden: function* () {
+                    return !(yield* row()).approvable;
+                  },
+                  disabled: approving,
+                  click: function* () {
+                    yield* archive.approveCheckedChange(origin(), (yield* row()).sessionId);
+                  },
+                },
+                () => (approving() ? i18n.t('suiteApproving') : i18n.t('suiteApprove')),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    ],
+  );
+
   const unitSection = (
     lab: string,
     title: string,
@@ -318,6 +452,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       replayStatus,
       runSummary,
       div({ class: ui.sectionStack }, [
+        checkSection,
         keptList,
         unitSection(
           'suite-to-recapture',
