@@ -24,6 +24,7 @@ import {
   relevantGoldenSessions,
   type FileChange,
 } from '@craft-ts/graph-mcp';
+import { proposeGoldenSet } from '@craft-ts/log-mcp/golden-set';
 
 /** What `sessions-check.mjs` resolved: see `sessionsCheckPlan`. */
 type SessionsCheckBuild = Readonly<{ name: string; ref?: string }>;
@@ -98,9 +99,40 @@ type ApprovalPlan = Readonly<{
   approve: Readonly<{ sessionId: string; by: string }>;
 }>;
 
+/** What `--select` hands over: the app, and where the archive is. */
+type SelectionPlan = Readonly<{
+  app: string;
+  origin: string;
+  out: string;
+  archive: string;
+  select: Readonly<{ appDir: string; maxSessions?: number }>;
+}>;
+
 const planFile = process.env['CRAFT_SESSIONS_CHECK'];
-const plan = planFile ? (JSON.parse(readFileSync(planFile, 'utf8')) as SessionsCheckPlan | ApprovalPlan) : undefined;
+const plan = planFile ? (JSON.parse(readFileSync(planFile, 'utf8')) as SessionsCheckPlan | ApprovalPlan | SelectionPlan) : undefined;
 const approval = plan && 'approve' in plan ? plan : undefined;
+const selection = plan && 'select' in plan ? plan : undefined;
+
+/**
+ * Not a replay: the archive proposes the suite — the one in place kept
+ * stable, the behaviours no test proves first — and it is written next to
+ * the app. The same proposal as the logs MCP's `sessions.goldenSet`.
+ */
+test('choisir la suite de l’app', async () => {
+  test.skip(!selection, 'lancé par sessions-check.mjs --select');
+  const { out, archive, app, origin, select } = selection!;
+  const previousUrl = process.env['LOG_SERVER_URL'];
+  process.env['LOG_SERVER_URL'] = archive;
+  try {
+    const proposed = await proposeGoldenSet({ origin, app, appDir: select.appDir, write: true, ...(select.maxSessions ? { maxSessions: select.maxSessions } : {}) });
+    writeFileSync(join(out, 'selection.json'), `${JSON.stringify(proposed, null, 2)}\n`);
+  } catch (error) {
+    writeFileSync(join(out, 'selection.json'), `${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n`);
+  } finally {
+    if (previousUrl === undefined) delete process.env['LOG_SERVER_URL'];
+    else process.env['LOG_SERVER_URL'] = previousUrl;
+  }
+});
 
 /**
  * Not a replay: the change the last report found in a session enters the
@@ -128,7 +160,7 @@ test('approuver un changement de la dernière vérification', () => {
 });
 
 test('la suite de sessions, base contre tête', async ({ browser }) => {
-  test.skip(!plan || approval !== undefined, 'lancé par tools/sessions-check/sessions-check.mjs');
+  test.skip(!plan || approval !== undefined || selection !== undefined, 'lancé par tools/sessions-check/sessions-check.mjs');
   const check = plan as SessionsCheckPlan;
   const sessionIds = check.changed ? relevantSessionIds(check) : check.sessionIds;
   if (check.changed?.list) return;

@@ -8,6 +8,11 @@
  * (`runGoldenCheck` of `@craft-ts/playwright-sessions/suite`). The report
  * (markdown, JSON, pictures) is written to `--out`.
  *
+ * `--select` chooses the suite and writes it next to the app
+ * (`<app>/.craft/golden-set.json`): the sessions kept, with what each one
+ * alone shows; the check replays that set while it is there, the archive's
+ * proposal otherwise.
+ *
  * `--approve <session>` approves the change the last check found in a session:
  * the difference itself is recorded in the attestation register
  * (`.craft/attestations.jsonl`), and the next check that finds it again
@@ -27,11 +32,13 @@ const repository = resolve(here, '../..');
 
 export const SESSIONS_CHECK_USAGE = `Usage : node tools/sessions-check/sessions-check.mjs --base <ref> [options]
         node tools/sessions-check/sessions-check.mjs --approve <session> [--app <nom>]
+        node tools/sessions-check/sessions-check.mjs --select [--app <nom>] [--max-sessions <n>]
 
   --base <ref>        la version de référence (commit, branche, tag), servie depuis un worktree temporaire
   --head <ref>        la version vérifiée ; l'arbre de travail par défaut
   --app <nom>         l'application (${Object.keys(SESSIONS_CHECK_APPS).join(', ')}) ; demo-ecommerce par défaut
-  --sessions <ids>    des sessions précises, séparées par des virgules ; le golden set de l'archive par défaut
+  --sessions <ids>    des sessions précises, séparées par des virgules ; par défaut le golden set de l'app
+                      (<app>/.craft/golden-set.json, écrit par --select), sinon celui que l'archive propose
   --changed           seulement les sessions que le changement de la base à la tête touche (graphe de l'app)
   --scope <dossier>   avec --changed : le dossier dont les changements comptent ; celui de l'app par défaut
   --list              avec --changed : dire quelles sessions seraient rejouées, sans rien rejouer
@@ -41,7 +48,10 @@ export const SESSIONS_CHECK_USAGE = `Usage : node tools/sessions-check/sessions-
   --dashboard <url>   le dashboard de rejeu (http://localhost:4210/ par défaut)
   --approve <session> approuver le changement que la dernière vérification a trouvé dans cette session
                       (son id, ou son début) : la différence précise entre au registre, pas la session
-  --ledger <fichier>  le registre des approbations ; .craft/attestations.jsonl par défaut`;
+  --ledger <fichier>  le registre des approbations ; .craft/attestations.jsonl par défaut
+  --select            choisir la suite de l'app et l'écrire dans <app>/.craft/golden-set.json : la suite en
+                      place reste stable, les comportements qu'aucun test ne prouve passent d'abord
+  --max-sessions <n>  avec --select : la taille maximale de la suite`;
 
 /** Reads the command line; throws a message for the person on a mistake. */
 export function parseSessionsCheckArguments(argv) {
@@ -59,6 +69,8 @@ export function parseSessionsCheckArguments(argv) {
     dashboard: 'http://localhost:4210/',
     approve: undefined,
     ledger: undefined,
+    select: false,
+    maxSessions: undefined,
     help: false,
   };
   const valueOf = (index, name) => {
@@ -115,12 +127,27 @@ export function parseSessionsCheckArguments(argv) {
       case '--ledger':
         options.ledger = valueOf(index++, name);
         break;
+      case '--select':
+        options.select = true;
+        break;
+      case '--max-sessions': {
+        const value = Number(valueOf(index++, name));
+        if (!Number.isInteger(value) || value < 1) throw new Error('--max-sessions attend un entier positif.');
+        options.maxSessions = value;
+        break;
+      }
       default:
         throw new Error(`Option inconnue : ${name}`);
     }
   }
   if (options.help) return options;
   if (!(options.app in SESSIONS_CHECK_APPS)) throw new Error(`Application inconnue : ${options.app}.`);
+  if (options.maxSessions !== undefined && !options.select) throw new Error('--max-sessions va avec --select.');
+  if (options.select) {
+    if (options.base || options.head || options.changed || options.sessions || options.approve !== undefined)
+      throw new Error('--select choisit la suite : sans --base, --head, --changed, --sessions ni --approve.');
+    return options;
+  }
   if (options.approve !== undefined) {
     if (options.base || options.head || options.changed || options.sessions)
       throw new Error('--approve porte sur la dernière vérification : sans --base, --head, --changed ni --sessions.');
@@ -205,6 +232,37 @@ export function sessionToApprove(report, wanted) {
 
 const LABEL = { regression: 'régression', changed: 'changement', flaky: 'instable', stale: 'périmée', unchanged: 'inchangée' };
 
+/** Where an app keeps its suite: the manifest `--select` writes. */
+export function goldenSetFileOf(app, repository) {
+  return resolve(repository, SESSIONS_CHECK_APPS[app].scope, '.craft', 'golden-set.json');
+}
+
+/** The sessions of a golden-set manifest, with what each one shows; undefined without one. */
+export function manifestSessions(path) {
+  if (!existsSync(path)) return undefined;
+  const manifest = JSON.parse(readFileSync(path, 'utf8'));
+  if (manifest?.format !== 'craft-golden-set' || !Array.isArray(manifest.sessions)) throw new Error(`${path} n’est pas un manifeste de golden set.`);
+  return manifest.sessions.map((session) => ({
+    sessionId: session.sessionId,
+    recordedAt: session.recordedAt,
+    units: Array.isArray(session.units) ? session.units : [],
+  }));
+}
+
+/** The suite in a few lines: what is kept, why, what is lost. */
+export function summarizeSelection(selection, path) {
+  const { manifest } = selection;
+  return [
+    `${manifest.sessions.length} session(s) gardée(s) sur ${selection.candidates ?? '?'} examinée(s) → ${path}`,
+    ...manifest.sessions.map(
+      (session) => `  ${session.sessionId.slice(0, 8)} · ${session.units.length} comportement(s), ${session.uniqueUnits.length} montré(s) par elle seule${session.uniqueUnits.length ? ` : ${session.uniqueUnits.slice(0, 3).join(', ')}${session.uniqueUnits.length > 3 ? '…' : ''}` : ''}`,
+    ),
+    ...(selection.rejected?.length ? [`${selection.rejected.length} laissée(s) de côté (doublon, redondante, non rejouable, au-delà de la taille).`] : []),
+    ...(manifest.toRecapture.length ? [`À réenregistrer (plus aucune session ne les montre) : ${manifest.toRecapture.join(', ')}`] : []),
+    ...(selection.priorityUnits?.length ? [`Comportements qu’aucun test ne prouve, choisis d’abord : ${selection.priorityUnits.length}.`] : []),
+  ].join('\n');
+}
+
 /** The golden set the archive proposes for the app: the sessions it keeps, with what each one shows. */
 export async function goldenSessions(archive, origin, fetchImpl = fetch) {
   const response = await fetchImpl(`${archive.replace(/\/$/, '')}/sessions/golden-set`, {
@@ -285,6 +343,36 @@ function runRunner(plan) {
 }
 
 /**
+ * `--select`: the archive proposes the suite (the one in place kept stable,
+ * the behaviours no test proves first) and it is written next to the app.
+ */
+async function select(options) {
+  const out = outOf(options, repository);
+  const file = goldenSetFileOf(options.app, repository);
+  rmSync(join(out, 'selection.json'), { force: true });
+  runRunner({
+    repository,
+    app: options.app,
+    origin: SESSIONS_CHECK_APPS[options.app].origin,
+    out,
+    archive: options.archive,
+    select: { appDir: resolve(repository, SESSIONS_CHECK_APPS[options.app].scope), ...(options.maxSessions ? { maxSessions: options.maxSessions } : {}) },
+  });
+  const selectionFile = join(out, 'selection.json');
+  if (!existsSync(selectionFile)) {
+    console.error('Le choix de la suite s’est arrêté sans résultat.');
+    return 1;
+  }
+  const selection = JSON.parse(readFileSync(selectionFile, 'utf8'));
+  if (selection.error) {
+    console.error(selection.error);
+    return 1;
+  }
+  console.log(`\n${summarizeSelection(selection, relative(process.cwd(), file))}`);
+  return 0;
+}
+
+/**
  * `--approve`: the difference the last check found in a session enters the
  * register; the report is written again with it approved.
  */
@@ -338,6 +426,11 @@ async function main(argv) {
   }
   if (options.approve !== undefined) return approve(options);
   const app = SESSIONS_CHECK_APPS[options.app];
+  if (options.select) {
+    if (!(await answers(`${options.archive.replace(/\/$/, '')}/health`)))
+      throw new Error(`Le serveur de logs ne répond pas sur ${options.archive} (npm run logs:server).`);
+    return select(options);
+  }
   if (!(await answers(`${options.archive.replace(/\/$/, '')}/health`)))
     throw new Error(`Le serveur de logs ne répond pas sur ${options.archive} (npm run logs:server).`);
   const replays = !options.list;
@@ -348,14 +441,16 @@ async function main(argv) {
     throw new Error(`${app.origin} répond déjà : arrêtez le serveur de ${options.app}, chaque version y sera servie à son tour.`);
   const baseCommit = resolveCommit(options.base);
   const headCommit = options.head === undefined ? undefined : resolveCommit(options.head);
-  const golden = await goldenSessions(options.archive, app.origin);
+  // The suite the app keeps (`--select`), or the archive's proposal.
+  const kept = manifestSessions(goldenSetFileOf(options.app, repository));
+  const golden = kept ?? (await goldenSessions(options.archive, app.origin));
   const sessions = options.sessions
     ? options.sessions.map((sessionId) => golden.find((session) => session.sessionId === sessionId) ?? { sessionId, recordedAt: '', units: [] })
     : golden;
   if (sessions.length === 0) throw new Error(`L’archive ne propose aucune session pour ${app.origin}.`);
   const plan = sessionsCheckPlan(options, { repository, baseCommit, headCommit, sessions });
   console.log(
-    `${sessions.length} session(s)${options.changed ? ', réduites à celles que le changement touche' : ''} · base ${plan.base.name} ×2 · tête ${plan.head.name} ×1`,
+    `${sessions.length} session(s) ${kept ? `de la suite de l’app (${relative(process.cwd(), goldenSetFileOf(options.app, repository))})` : 'proposée(s) par l’archive'}${options.changed ? ', réduites à celles que le changement touche' : ''} · base ${plan.base.name} ×2 · tête ${plan.head.name} ×1`,
   );
   // What an earlier run left must not pass for this one. The plan is a file:
   // the units of every session are too much for an environment variable.

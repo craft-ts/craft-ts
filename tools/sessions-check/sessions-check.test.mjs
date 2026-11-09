@@ -7,11 +7,14 @@ import test from 'node:test';
 import {
   goldenSessions,
   parseSessionsCheckArguments,
+  goldenSetFileOf,
   ledgerOf,
+  manifestSessions,
   resolveCommit,
   sessionToApprove,
   sessionsCheckPlan,
   summarizeRelevantSessions,
+  summarizeSelection,
   summarizeSessionsCheck,
 } from './sessions-check.mjs';
 
@@ -186,4 +189,41 @@ test('words an approved change apart, and passes when every change is approved',
   );
   assert.match(fresh, /changement 1 · changement approuvé 1 · inchangée 9/);
   assert.match(fresh, /npm run sessions:check -- --approve <session> \(12f3fde3\)/);
+});
+
+test('--select writes the suite next to the app, and the check replays it while it is there', () => {
+  assert.equal(parseSessionsCheckArguments(['--select', '--max-sessions', '5']).maxSessions, 5);
+  assert.throws(() => parseSessionsCheckArguments(['--select', '--base', 'main']), /choisit la suite/);
+  assert.throws(() => parseSessionsCheckArguments(['--base', 'main', '--max-sessions', '5']), /va avec --select/);
+  assert.equal(goldenSetFileOf('demo-ecommerce', '/repo'), '/repo/apps/demo-ecommerce/.craft/golden-set.json');
+
+  const directory = mkdtempSync(join(tmpdir(), 'sessions-select-'));
+  try {
+    const file = join(directory, 'golden-set.json');
+    assert.equal(manifestSessions(file), undefined);
+    writeFileSync(file, JSON.stringify({ format: 'craft-golden-set', sessions: [{ sessionId: 's1', recordedAt: 'r1', units: ['route:/'], uniqueUnits: [] }] }));
+    assert.deepEqual(manifestSessions(file), [{ sessionId: 's1', recordedAt: 'r1', units: ['route:/'] }]);
+    writeFileSync(file, '{"format":"autre"}');
+    assert.throws(() => manifestSessions(file), /n’est pas un manifeste/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+
+  const summary = summarizeSelection(
+    {
+      candidates: 15,
+      manifest: {
+        sessions: [{ sessionId: '801744a1-aaaa', units: ['a', 'b', 'c', 'd'], uniqueUnits: ['a', 'b', 'c', 'd'] }],
+        toRecapture: ['route:/admin'],
+      },
+      rejected: [{ sessionId: 'x', reason: 'duplicate' }],
+      priorityUnits: ['invocation:cart.add#failed'],
+    },
+    'apps/demo-ecommerce/.craft/golden-set.json',
+  );
+  assert.match(summary, /1 session\(s\) gardée\(s\) sur 15 examinée\(s\) → apps\/demo-ecommerce\/.craft\/golden-set.json/);
+  assert.match(summary, /801744a1 · 4 comportement\(s\), 4 montré\(s\) par elle seule : a, b, c…/);
+  assert.match(summary, /1 laissée\(s\) de côté/);
+  assert.match(summary, /À réenregistrer .* route:\/admin/);
+  assert.match(summary, /aucun test ne prouve, choisis d’abord : 1/);
 });
