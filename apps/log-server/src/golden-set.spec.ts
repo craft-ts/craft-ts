@@ -59,9 +59,9 @@ describe('POST /sessions/golden-set', () => {
   let server: ReturnType<typeof createLogHttpServer>;
   let baseUrl: string;
 
-  const record = (id: string, startUrl: string, events: Record<string, unknown>[]) => {
+  const record = (id: string, startUrl: string, events: Record<string, unknown>[], version = 8) => {
     sessionStore.begin(id, {
-      format: 'craft-debug-session', version: 6, startUrl, exportedAt: 0, truncated: false, events, clips: [],
+      format: 'craft-debug-session', version, startUrl, exportedAt: 0, truncated: false, events, clips: [],
     } as never, '2026-11-07T08:00:00.000Z');
     sessionStore.finish(id, 'completed');
   };
@@ -112,6 +112,30 @@ describe('POST /sessions/golden-set', () => {
     ]);
     const body = await (await post({ origin: 'http://localhost:4204', app: 'demo-ecommerce' })).json() as { manifest: { sessions: { units: string[] }[] } };
     expect(body.manifest.sessions[0]?.units).toEqual(['invocation:cart.add']);
+  });
+
+  it('leaves out what the resume tooling opened, however it is marked', async () => {
+    // A guided resume booted the app with its launch parameter; a recipe run
+    // starts with it. Neither carries resume metadata in the summary.
+    record('55555555-5555-4555-8555-555555555555', 'http://localhost:4204/', [
+      { id: 'boot', sequence: 1, timestamp: 1, kind: 'component-lifecycle', phase: 'emitted', name: 'create:Shell', payload: { routeUrl: '/formule?craft-resume=abc&craft-resume-before=12' } },
+      ...call(2, 'cart.add'),
+    ]);
+    record('66666666-6666-4666-8666-666666666666', 'http://localhost:4204/?craft-resume-recipe=r1', call(1, 'cart.clear'));
+    const body = await (await post({ origin: 'http://localhost:4204', app: 'demo-ecommerce' })).json() as { skipped: { sessionId: string; reason: string }[]; candidates: number };
+    expect(body.candidates).toBe(0);
+    expect(body.skipped).toEqual(expect.arrayContaining([
+      { sessionId: '55555555-5555-4555-8555-555555555555', reason: 'tooling' },
+      { sessionId: '66666666-6666-4666-8666-666666666666', reason: 'tooling' },
+    ]));
+  });
+
+  it('leaves out a session recorded before the app\'s exchanges were', async () => {
+    // Version 6 kept no answer for the app's calls: its replay stops at the first.
+    record('77777777-7777-4777-8777-777777777777', 'http://localhost:4204/', call(1, 'cart.add'), 6);
+    const body = await (await post({ origin: 'http://localhost:4204', app: 'demo-ecommerce' })).json() as { skipped: { sessionId: string; reason: string }[]; candidates: number };
+    expect(body.candidates).toBe(0);
+    expect(body.skipped).toEqual([{ sessionId: '77777777-7777-4777-8777-777777777777', reason: 'outdated' }]);
   });
 
   it('refuses a malformed request', async () => {

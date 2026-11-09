@@ -36,7 +36,7 @@ import {
   type SessionHistory,
   type SessionTrace,
 } from '@craft-ts/session-trace';
-import { goldenSetCandidates } from './golden-set-candidates.js';
+import { goldenSetCandidates, openedByTooling } from './golden-set-candidates.js';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
 import type { SuiteReplayer, SuiteReplayResult } from './suite-replay.js';
 import {
@@ -1619,9 +1619,9 @@ function safeDecode(value: string): string | undefined {
  * Each stored session's normalised steps, computed once per version of the
  * session: a recording only grows while it runs, then stays as it is.
  */
-const sessionTraceCache = new Map<string, { updatedAt: string; trace: Pick<SessionTrace, 'steps' | 'hash'> }>();
+const sessionTraceCache = new Map<string, { updatedAt: string; trace: Pick<SessionTrace, 'steps' | 'hash'>; launchedByTooling: boolean }>();
 
-function storedSessionTraces(store: DebugSessionStore): { summary: ReturnType<DebugSessionStore['list']>[number]; trace: Pick<SessionTrace, 'steps' | 'hash'> }[] {
+function storedSessionTraces(store: DebugSessionStore): { summary: ReturnType<DebugSessionStore['list']>[number]; trace: Pick<SessionTrace, 'steps' | 'hash'>; launchedByTooling: boolean }[] {
   const summaries = store.list();
   const present = new Set(summaries.map((summary) => summary.id));
   for (const id of sessionTraceCache.keys()) if (!present.has(id)) sessionTraceCache.delete(id);
@@ -1637,10 +1637,10 @@ function storedSessionTraces(store: DebugSessionStore): { summary: ReturnType<De
         // A reloaded page is replayed in a tab of its own when there are participants.
         participants: isRecord(session) && Array.isArray(session['participants']) ? session['participants'] : [],
       }).session);
-      cached = { updatedAt: summary.updatedAt, trace: { steps, hash } };
+      cached = { updatedAt: summary.updatedAt, trace: { steps, hash }, launchedByTooling: openedByTooling(bootAddresses(session)) };
       sessionTraceCache.set(summary.id, cached);
     }
-    return [{ summary, trace: cached.trace }];
+    return [{ summary, trace: cached.trace, launchedByTooling: cached.launchedByTooling }];
   });
 }
 
@@ -1766,5 +1766,15 @@ function suiteRunSummary(results: readonly SuiteReplayResult[]) {
     counts,
     results,
   };
+}
+
+/** The addresses the app booted at: its components record the route they were created on. */
+function bootAddresses(session: unknown): string[] {
+  const events = isRecord(session) && Array.isArray(session['events']) ? session['events'] : [];
+  return events.flatMap((event) => {
+    if (!isRecord(event) || event['kind'] !== 'component-lifecycle') return [];
+    const payload = isRecord(event['payload']) ? event['payload'] : {};
+    return typeof payload['routeUrl'] === 'string' ? [payload['routeUrl']] : [];
+  });
 }
 
