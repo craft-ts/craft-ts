@@ -71,6 +71,19 @@ describe('createSuiteReplayer', () => {
     expect(result).toMatchObject({ status: 'completed', unprovenInteractions: [note], notes: ['autre note', note] });
   });
 
+  it('calls a session without any action replayed once the page is ready', async () => {
+    const fake = fakePlaywright([]);
+    const page = { goto: vi.fn(), evaluate: vi.fn(async () => snapshot({ ready: false, state: 'ready', total: 0 })) };
+    const browser = { version: () => 'test', newContext: async () => ({ newPage: async () => page }), close: vi.fn(async () => undefined) };
+    const result = await createSuiteReplayer({
+      dashboardUrl: 'http://localhost:4210/',
+      loadPlaywright: async () => ({ chromium: { launch: async () => browser } }) as never,
+      pollMs: 50,
+    })('s');
+    expect(fake.visited).toEqual([]);
+    expect(result).toMatchObject({ status: 'completed', replayIndex: 0, total: 0, notes: [expect.stringContaining('Aucune action')] });
+  });
+
   it('says when there is no browser, and when the replay stops moving', async () => {
     const none = await createSuiteReplayer({ dashboardUrl: 'http://localhost:4210/', loadPlaywright: async () => { throw new Error('missing'); } })('s');
     expect(none).toMatchObject({ status: 'unavailable', message: expect.stringContaining('Playwright') });

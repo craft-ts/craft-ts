@@ -145,10 +145,21 @@ export function createSuiteReplayer(options: SuiteReplayerOptions): SuiteReplaye
       url.hash = `#/sessions/${encodeURIComponent(sessionId)}`;
       await page.goto(url.href, { waitUntil: 'domcontentloaded' });
 
+      // A session where the person did nothing (the page opened, or loaded
+      // again by the dev server) has no action to replay: the dashboard gets
+      // ready with none and never says « ready » for the worker. Once that
+      // holds for a second, the session replayed what it had: nothing.
+      let emptySince: number | undefined;
       for (;;) {
         last = await snapshot(page);
         if (last?.failed !== undefined) return result('failed', { message: last.failed });
         if (last?.ready) break;
+        const empty = last?.state === 'ready' && last.total === 0 ? last : undefined;
+        emptySince = empty ? (emptySince ?? Date.now()) : undefined;
+        if (empty && emptySince !== undefined && Date.now() - emptySince >= 1_000) {
+          last = { ...empty, warnings: [...(empty.warnings ?? []), 'Aucune action à rejouer : la page s’ouvre, rien de plus.'] };
+          return result('completed');
+        }
         if (Date.now() > deadline) return result('timeout', { message: 'le replay n’est pas prêt' });
         await sleep(pollMs);
       }

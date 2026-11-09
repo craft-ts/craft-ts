@@ -186,9 +186,23 @@ export async function replayGoldenSession(
       }),
       { waitUntil: 'domcontentloaded' },
     );
-    const ready = await waitForWorker(page, (snapshot) => snapshot.ready || snapshot.failed !== undefined, deadline);
+    // A session where the person did nothing (the page opened, or loaded
+    // again by the dev server) has no action: the dashboard is ready with
+    // none and never says « ready ». Once that holds for a second, the
+    // session replayed what it had: nothing, and there is no moment to take.
+    let emptySince: number | undefined;
+    const ready = await waitForWorker(
+      page,
+      (snapshot) => {
+        const empty = snapshot.state === 'ready' && snapshot.total === 0;
+        emptySince = empty ? (emptySince ?? Date.now()) : undefined;
+        return snapshot.ready || snapshot.failed !== undefined || (emptySince !== undefined && Date.now() - emptySince >= 1_000);
+      },
+      deadline,
+    );
     if (!ready) return result('timeout', await readWorker(page), { message: 'le replay n’est pas prêt' });
     if (ready.failed !== undefined) return result('failed', ready, { message: ready.failed });
+    if (!ready.ready) return result('completed', ready);
     await fitRecordedViewport(page, ready, deadline);
 
     const plan = [...(await workerPlan(page, maxPoints))].sort((a, b) => a.replayIndex - b.replayIndex);
