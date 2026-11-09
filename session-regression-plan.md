@@ -282,7 +282,14 @@ Fait (`@craft-ts/playwright-sessions/suite`) :
   nomme `h1 … styles.color` / `letter-spacing` / largeur ; bouton débranché →
   `regression` avec l'appel manquant.
 
-Reste : commande CLI (`craft-ts sessions check`) et action CI ; vue base/tête
+Fait (2026-11-08) : commande locale `npm run sessions:check -- --base <ref> [--head <ref>]`
+(`tools/sessions-check/`, golden set lu dans l'archive, base servie depuis un worktree,
+tête = arbre de travail ou un ref, rapport dans `tmp/sessions-check/<app>`). Éprouvée sur
+l'archive réelle de demo-ecommerce (11 sessions, ~5 min) : sans changement 11 inchangées ;
+contre un commit cassé (choix de formule non oubliés + couleur du logo) 3 régressions
+(appel `formulaPicks.forget` manquant) et 5 changements (couleur nommée, images). Limite :
+une session sans action n'a aucun moment photographié, donc un changement visuel y passe.
+Reste : action CI (pas voulue pour l'instant) ; vue base/tête
 dans le dashboard ; `gitWorktreeServer` éprouvé sur un vrai serveur d'app (testé
 sur un serveur Node) ; servir une build à une autre origine que celle de
 l'enregistrement.
@@ -334,6 +341,17 @@ Registre `attest` (D5), action CI qui lance le lot 3 sur une PR et publie un ré
 (écarts, captures avant/après, sessions périmées) avec le lien vers le dashboard.
 
 ### Lot 6 — Sessions concernées par un changement (la boucle locale, et l'IA) — 🟡 fait (2026-11-07), non commité
+
+Fait (2026-11-08) : `npm run sessions:check -- --base <ref> --changed [--scope <dossier>] [--list]`
+ne rejoue que les sessions que le diff base → tête touche (graphe de l'app analysé
+en mémoire, `relevantGoldenSessions`). Sur demo-ecommerce, « les choix de formule ne
+sont plus oubliés » : 4 sessions sur 11, dont les 3 régressions, en 2,8 min au
+lieu de 5. Trois corrections de l'impact :
+- une ligne supprimée ne compte que pour les nœuds qui l'entourent (elle marquait
+  l'appel de la ligne du dessus, `cart.cartLines`, lu partout) ;
+- `provides` n'est plus suivi à rebours (un service fourni par une page prenait
+  son arbre de rendu, et chaque page qui a sa propre instance semblait touchée) ;
+- une feuille de style compte comme inconnue du graphe : toutes les sessions.
 
 Fait :
 - `libs/graph-mcp/src/relevant-sessions.ts` : lignes modifiées (`git diff -U0`,
