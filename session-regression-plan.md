@@ -176,6 +176,14 @@ Pas un deuxième moteur.
 
 Chaque lot est utile seul.
 
+**État au 2026-11-09** (branche `feat/session-regression-suite`, commitée, non poussée) :
+la boucle locale tourne de bout en bout — choisir les sessions, les rejouer base contre
+tête, dire régression / changement / inchangé, voir base et tête côte à côte, approuver
+un changement voulu ; la suite réelle de demo-ecommerce (11 sessions) passe. Restent : le
+lot 7 (non commencé), la CI (écartée faute de crédit), le packaging pour les apps
+craft-ts (mis de côté) et les points « Reste » ci-dessous, qui attendent tous un vrai cas
+(autre origine, `Date`, autre app). Les questions du §6 ne sont pas tranchées.
+
 **Décision du 2026-11-07 : les sessions déjà archivées ne sont pas prises en compte.**
 On prépare d'abord le système ; les sessions qui l'alimenteront seront enregistrées
 une fois qu'il sera en place. Le jeu d'essai des lots est donc synthétique (traces
@@ -184,9 +192,9 @@ construites dans les specs) ou produit par les e2e (`__fixtures__` de
 lot 0 (mesurer la rejouabilité des sessions archivées) est abandonné ; la
 rejouabilité sera mesurée par le système lui-même (lot 2, statut de chaque session).
 
-### Lot 1 — Unités de couverture et sélection (pur, sans navigateur) — 🟡 noyau fait (2026-11-07)
+### Lot 1 — Unités de couverture et sélection (pur, sans navigateur) — ✅ fait, commité
 
-Fait, non commité :
+Fait :
 - `packages/session-trace/src/coverage-units.ts` : `sessionCoverageUnits`,
   familles et poids, échecs pondérés par famille, `behaviorCoverageUnit`.
 - `packages/session-trace/src/golden-set.ts` : `selectGoldenSet` (couverture
@@ -199,7 +207,19 @@ Fait, non commité :
 - `packages/log-mcp` : outil `sessions.goldenSet` (lit et écrit
   `<app>/.craft/golden-set.json`, priorités = comportements non prouvés).
 
-Reste : page **Suite** du dashboard, commande pour les humains.
+Fait (2026-11-08) : page **Suite** du dashboard (sessions retenues, ce que chacune
+seule montre, laissées de côté, chemins à réenregistrer, rejeu de toute la suite).
+La commande pour les humains est `sessions:check`, qui lit le golden set dans l'archive.
+
+Fait (2026-11-09) : `npm run sessions:check -- --select [--app <nom>] [--max-sessions <n>]`
+choisit la suite et l'écrit dans `<app>/.craft/golden-set.json` (même proposition que
+l'outil MCP `sessions.goldenSet` : la suite en place reste stable, les comportements
+qu'aucun test ne prouve passent d'abord) ; le check rejoue ce manifeste tant qu'il est
+là, la proposition de l'archive sinon. Sur demo-ecommerce : 11 sessions gardées sur 29.
+Le nom `craft-ts sessions select` attend le packaging (mis de côté).
+
+Reste : le stockage des sessions elles-mêmes (D7, §6) — le manifeste se committe, les
+sessions restent dans l'archive du poste.
 
 Prévu :
 
@@ -210,7 +230,7 @@ Prévu :
 - Dashboard : page **Suite** (sessions retenues, pourquoi, unités sans session).
 - Outil MCP `sessions.select` / `sessions.suite`.
 
-### Lot 2 — Mode « suite » du rejeu (É1) et déterminisme (É4) — 🟡 fait (2026-11-07), non commité
+### Lot 2 — Mode « suite » du rejeu (É1) et déterminisme (É4) — ✅ fait, commité ; `Date` non figée
 
 Fait :
 - `createReplayController({ stateSource: 'recomputed' })`
@@ -243,11 +263,13 @@ Constats :
   panier vide au lieu de « Merci pour votre commande ». La capture le montre,
   pas l'oracle d'état → le lot 4 (vrais clics) est nécessaire.
 - Les indices visuels du rejeu (badge « Onglet fermé », marqueur de clic)
-  apparaissent dans les captures : à masquer en mode worker.
+  apparaissaient dans les captures → fait : marqués `data-replay-cue` et cachés à la
+  capture (`HIDE_REPLAY_CUES`).
 - Le capteur de vignettes du log-server garde son propre pilote (le log-server
   est compilé et publié, il ne peut pas dépendre de `playwright-sessions`).
-- Le gel de `Date` n'est pas appliqué : la synchronisation des onglets passe par
-  l'horloge murale ; à reprendre par l'horloge virtuelle du rejeu.
+- **Reste** : le gel de `Date` n'est pas appliqué (seul `Math.random` est à graine) :
+  la synchronisation des onglets passe par l'horloge murale ; à reprendre par
+  l'horloge virtuelle du rejeu. Sans effet visible sur la suite de demo-ecommerce.
 
 Prévu à l'origine :
 
@@ -259,7 +281,7 @@ Prévu à l'origine :
 - Extraction du runner depuis `thumbnails/playwright-capturer.ts`, URL cible en
   paramètre, sortie = captures + digests de layout + trace observée.
 
-### Lot 3 — Base contre tête — 🟡 fait (2026-11-07), non commité
+### Lot 3 — Base contre tête — ✅ fait en local, commité ; CI écartée
 
 Fait (`@craft-ts/playwright-sessions/suite`) :
 - `compareGoldenRuns` : base ×2 + tête ×1 par session. Verdicts `regression`
@@ -289,10 +311,19 @@ l'archive réelle de demo-ecommerce (11 sessions, ~5 min) : sans changement 11 i
 contre un commit cassé (choix de formule non oubliés + couleur du logo) 3 régressions
 (appel `formulaPicks.forget` manquant) et 5 changements (couleur nommée, images). Limite :
 une session sans action n'a aucun moment photographié, donc un changement visuel y passe.
-Reste : action CI (pas voulue pour l'instant) ; vue base/tête
-dans le dashboard ; `gitWorktreeServer` éprouvé sur un vrai serveur d'app (testé
-sur un serveur Node) ; servir une build à une autre origine que celle de
-l'enregistrement.
+`gitWorktreeServer` est éprouvé sur un vrai serveur d'app (Vite de demo-ecommerce, base
+servie depuis un worktree, à chaque `sessions:check`).
+
+Fait (2026-11-09) :
+- **Vue base/tête** sur la page Suite : « Voir les différences » ouvre, moment par moment,
+  les images base, tête et différence (le log-server les sert depuis le dernier rapport,
+  `GET /sessions/check/image?origin=&path=`, chemin validé) et les mesures changées.
+- **Session sans action** : son seul moment est la page telle qu'elle s'ouvre. Sur la
+  tête « logo seul », les 3 sessions sans action passent d'« inchangée » à « changement ».
+  Limite : sans taille de fenêtre enregistrée, l'image est petite (394×201).
+
+Reste : servir une build à une autre origine que celle de l'enregistrement (un vrai cas :
+une preview ou un staging). Écarté : l'action CI (pas de crédit).
 
 Prévu à l'origine :
 
@@ -302,7 +333,7 @@ Prévu à l'origine :
   l'actuelle `#/compare` gagne un onglet visuel base/tête synchronisé.
 - Sessions périmées classées à part (D6), jamais en rouge.
 
-### Lot 4 — Mode interaction (É2) — 🟡 fait (2026-11-07), non commité
+### Lot 4 — Mode interaction (É2) — ✅ fait, commité
 
 Fait :
 - `createReplayController({ mode: 'interaction' })` : garde les frontières du
@@ -326,8 +357,9 @@ Fait :
   bouton « Confirmer » a perdu son gestionnaire s'arrête sur
   `missing: [service:cart / mutation:syncServerCart / method:mutate]`.
 
-Reste : masquer les indices visuels du rejeu dans les captures ; mesurer la
-part d'actions en repli sur de vraies sessions humaines.
+Mesuré (2026-11-09) sur la suite réelle de demo-ecommerce : 0 action en repli sur
+3 732 (11 sessions humaines). Les indices visuels sont masqués dans les captures
+(lot 2). Reste : la même mesure sur une autre app.
 
 Prévu à l'origine :
 
@@ -335,7 +367,7 @@ Dispatch réel sur cible résolue, invocation attendue comme oracle, repli trac�
 Le plus gros morceau, dans `debug-session-replay.ts` ; à faire après le lot 3 parce
 que la comparaison visuelle attrape déjà les régressions de rendu en mode invocation.
 
-### Lot 5 — Approbation et CI — 🟡 approbation locale faite (2026-11-09), non commitée ; CI écartée
+### Lot 5 — Approbation et CI — ✅ approbation locale faite, commitée (2026-11-09) ; CI écartée
 
 Fait (approbation, en local) :
 - **Ce qui s'approuve, c'est la différence, pas la session.** `compareGoldenRuns` donne à
@@ -380,7 +412,7 @@ par les tests (lib, lanceur, log-server), pas sur une vraie régression de l'arc
 
 Écarté pour l'instant : l'action CI et le résumé de PR (pas de CI voulue).
 
-### Lot 6 — Sessions concernées par un changement (la boucle locale, et l'IA) — 🟡 fait (2026-11-07), non commité
+### Lot 6 — Sessions concernées par un changement (la boucle locale, et l'IA) — ✅ fait, commité
 
 Fait (2026-11-08) : `npm run sessions:check -- --base <ref> --changed [--scope <dossier>] [--list]`
 ne rejoue que les sessions que le diff base → tête touche (graphe de l'app analysé
@@ -437,7 +469,7 @@ modification, l'agent rejoue lui-même les 5 sessions concernées et voit les é
 **nommés** (adresse, route) avant de rendre la main. C'est l'angle « agent-first »
 que Meticulous n'a pas.
 
-### Lot 7 — Collecte au-delà du poste (É7)
+### Lot 7 — Collecte au-delà du poste (É7) — ⬜ non commencé
 
 Mode distant du log-server (jeton, origines, TLS), contrôle de caviardage bloquant à
 l'ingestion, rétention ; preview/staging en premier, jamais la prod par défaut.
