@@ -7,7 +7,9 @@ import test from 'node:test';
 import {
   goldenSessions,
   parseSessionsCheckArguments,
+  ledgerOf,
   resolveCommit,
+  sessionToApprove,
   sessionsCheckPlan,
   summarizeRelevantSessions,
   summarizeSessionsCheck,
@@ -126,4 +128,62 @@ test('says which sessions a change touches, and why', () => {
   assert.match(summary, /direct · 801744a1 · interaction:EcommerceFormulaComposer:button:add-formula:click ← template-element:add-formula/);
   assert.doesNotMatch(summary, /Inconnus du graphe/);
   assert.match(summarizeRelevantSessions({ changes: 1, changed: [], unmappedFiles: ['src/app.css'], untouched: 0, sessions: [] }), /Inconnus du graphe \(toutes les sessions comptent\) : src\/app\.css/);
+});
+
+test('--approve names a session of the last check; a regression is never approved', () => {
+  const options = parseSessionsCheckArguments(['--approve', '801744a1']);
+  assert.equal(options.approve, '801744a1');
+  assert.equal(ledgerOf(options, '/repo'), '/repo/.craft/attestations.jsonl');
+  assert.throws(() => parseSessionsCheckArguments(['--approve', 'x', '--base', 'main']), /dernière vérification/);
+  const report = {
+    base: 'main (abc)',
+    head: 'arbre de travail',
+    sessions: [
+      { sessionId: '801744a1-aaaa', verdict: 'changed', reason: '2 moment(s) sur 8 diffèrent', change: { moments: [3, 5], fingerprint: 'f1' } },
+      { sessionId: '801744b2-bbbb', verdict: 'regression', reason: 'la tête s’écarte de l’enregistrement à l’action 4' },
+      { sessionId: 'c0ffee00-cccc', verdict: 'changed', reason: '1 moment', change: { moments: [1], fingerprint: 'f2' }, approved: true },
+      { sessionId: 'd00d0000-dddd', verdict: 'unchanged', reason: '' },
+    ],
+  };
+  assert.equal(sessionToApprove(report, '801744a1').sessionId, '801744a1-aaaa');
+  assert.throws(() => sessionToApprove(report, '801744'), /désigne 2 sessions/);
+  assert.throws(() => sessionToApprove(report, '801744b2'), /régression .* ne s’approuve pas/);
+  assert.throws(() => sessionToApprove(report, 'c0ffee00'), /déjà approuvé/);
+  assert.throws(() => sessionToApprove(report, 'd00d0000'), /pas de changement à approuver \(inchangée\)/);
+  assert.throws(() => sessionToApprove(report, 'nope'), /n’a pas rejoué de session « nope »/);
+  assert.throws(() => sessionToApprove({ ...report, sessions: [{ ...report.sessions[0], change: undefined }] }, '801744a1'), /relancez/);
+});
+
+test('words an approved change apart, and passes when every change is approved', () => {
+  const approved = summarizeSessionsCheck(
+    {
+      base: 'main (abc)',
+      head: 'logo (f2c)',
+      passed: true,
+      approved: 1,
+      counts: { regression: 0, changed: 1, flaky: 0, stale: 0, unchanged: 10 },
+      sessions: [{ sessionId: '801744a1-aaaa', verdict: 'changed', approved: true, reason: '2 moment(s) sur 8 diffèrent' }],
+    },
+    'tmp/report.md',
+  );
+  assert.match(approved, /main \(abc\) → logo \(f2c\) : changement approuvé 1 · inchangée 10/);
+  assert.match(approved, /changement approuvé · 801744a1/);
+  assert.match(approved, /Rien à corriger : 1 changement\(s\) déjà approuvé\(s\)/);
+  assert.doesNotMatch(approved, /--approve/);
+  const fresh = summarizeSessionsCheck(
+    {
+      base: 'main (abc)',
+      head: 'logo (f2c)',
+      passed: false,
+      approved: 1,
+      counts: { regression: 0, changed: 2, flaky: 0, stale: 0, unchanged: 9 },
+      sessions: [
+        { sessionId: '801744a1-aaaa', verdict: 'changed', approved: true, reason: '' },
+        { sessionId: '12f3fde3-bbbb', verdict: 'changed', reason: '1 moment(s) sur 8 diffèrent' },
+      ],
+    },
+    'tmp/report.md',
+  );
+  assert.match(fresh, /changement 1 · changement approuvé 1 · inchangée 9/);
+  assert.match(fresh, /npm run sessions:check -- --approve <session> \(12f3fde3\)/);
 });

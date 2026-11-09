@@ -5,11 +5,17 @@ import { test } from '@playwright/test';
 import type { Frame } from '@playwright/test';
 import { collectLayoutDigest } from '@craft-ts/style-testing/digest';
 import {
+  approveGoldenChange,
   commandServer,
   gitWorktreeServer,
+  goldenCheckReport,
+  isGoldenChangeApproved,
+  readGoldenLedger,
   runGoldenCheck,
+  updateGoldenLedger,
   writeGoldenCheckReport,
   type GoldenBuild,
+  type GoldenCheckReport,
 } from '@craft-ts/playwright-sessions/suite';
 import {
   changesFromUnifiedDiff,
@@ -23,7 +29,10 @@ import {
 type SessionsCheckBuild = Readonly<{ name: string; ref?: string }>;
 type SessionsCheckPlan = Readonly<{
   repository: string;
+  app: string;
   origin: string;
+  /** The attestation register: the changes a person approved. */
+  ledger: string;
   command: string;
   dashboardUrl: string;
   sessionIds: readonly string[];
@@ -79,27 +88,72 @@ function relevantSessionIds(plan: SessionsCheckPlan): readonly string[] {
   return relevant.sessions.map((session) => session.sessionId);
 }
 
+/** What `--approve` hands over: the session of the last report, and who approves. */
+type ApprovalPlan = Readonly<{
+  repository: string;
+  app: string;
+  origin: string;
+  out: string;
+  ledger: string;
+  approve: Readonly<{ sessionId: string; by: string }>;
+}>;
+
+const planFile = process.env['CRAFT_SESSIONS_CHECK'];
+const plan = planFile ? (JSON.parse(readFileSync(planFile, 'utf8')) as SessionsCheckPlan | ApprovalPlan) : undefined;
+const approval = plan && 'approve' in plan ? plan : undefined;
+
+/**
+ * Not a replay: the change the last report found in a session enters the
+ * register, and the report is written again with it approved. Its outcome is
+ * written for the launcher (`approval.json`).
+ */
+test('approuver un changement de la dernière vérification', () => {
+  test.skip(!approval, 'lancé par sessions-check.mjs --approve');
+  const { out, ledger, app, origin, approve } = approval!;
+  const outcome = (value: Record<string, unknown>) => writeFileSync(join(out, 'approval.json'), `${JSON.stringify(value, null, 2)}\n`);
+  const report = JSON.parse(readFileSync(join(out, 'report.json'), 'utf8')) as GoldenCheckReport;
+  const session = report.sessions.find((item) => item.sessionId === approve.sessionId);
+  try {
+    if (!session) throw new Error(`La dernière vérification n’a pas rejoué ${approve.sessionId}.`);
+    const builds = { base: report.base, head: report.head };
+    const approved = updateGoldenLedger(ledger, (current) => approveGoldenChange(current, app, session, { by: approve.by, builds }));
+    writeGoldenCheckReport(
+      out,
+      goldenCheckReport(report.sessions, builds, { app, origin, isApproved: (item) => isGoldenChangeApproved(approved, app, item) }),
+    );
+    outcome({ approved: true, sessionId: session.sessionId, change: session.change, ledger });
+  } catch (error) {
+    outcome({ approved: false, message: error instanceof Error ? error.message : String(error) });
+  }
+});
+
 test('la suite de sessions, base contre tête', async ({ browser }) => {
-  const planFile = process.env['CRAFT_SESSIONS_CHECK'];
-  test.skip(!planFile, 'lancé par tools/sessions-check/sessions-check.mjs');
-  const plan = JSON.parse(readFileSync(planFile!, 'utf8')) as SessionsCheckPlan;
-  const sessionIds = plan.changed ? relevantSessionIds(plan) : plan.sessionIds;
-  if (plan.changed?.list) return;
-  const server = { command: plan.command, url: `${plan.origin}/` };
+  test.skip(!plan || approval !== undefined, 'lancé par tools/sessions-check/sessions-check.mjs');
+  const check = plan as SessionsCheckPlan;
+  const sessionIds = check.changed ? relevantSessionIds(check) : check.sessionIds;
+  if (check.changed?.list) return;
+  const server = { command: check.command, url: `${check.origin}/` };
   const build = (side: SessionsCheckBuild): GoldenBuild => ({
     name: side.name,
     serve: side.ref
-      ? gitWorktreeServer({ ...server, ref: side.ref, repository: plan.repository })
-      : commandServer({ ...server, cwd: plan.repository }),
+      ? gitWorktreeServer({ ...server, ref: side.ref, repository: check.repository })
+      : commandServer({ ...server, cwd: check.repository }),
   });
   // Nothing the change touches: nothing to serve nor replay.
   const report = await runGoldenCheck({
     browser,
-    dashboardUrl: plan.dashboardUrl,
+    dashboardUrl: check.dashboardUrl,
     sessionIds,
-    base: sessionIds.length ? build(plan.base) : { name: plan.base.name },
-    head: sessionIds.length ? build(plan.head) : { name: plan.head.name },
-    replay: { maxPoints: plan.maxPoints, measure: measurePage, timeoutMs: 15 * 60_000 },
+    base: sessionIds.length ? build(check.base) : { name: check.base.name },
+    head: sessionIds.length ? build(check.head) : { name: check.head.name },
+    replay: { maxPoints: check.maxPoints, measure: measurePage, timeoutMs: 15 * 60_000 },
+    // The changes a person approved, read now: an approval made while the
+    // replays ran counts for this report too.
+    report: {
+      app: check.app,
+      origin: check.origin,
+      isApproved: (session) => isGoldenChangeApproved(readGoldenLedger(check.ledger), check.app, session),
+    },
     onReplay: (role, result) =>
       console.log(
         `${role === 'base' ? 'base' : 'tête'} · ${result.sessionId.slice(0, 8)} · ${result.status} ${result.replayIndex}/${result.total}${
@@ -109,5 +163,5 @@ test('la suite de sessions, base contre tête', async ({ browser }) => {
   });
   // The verdict is the launcher's to give, from the report: the test only
   // fails when the check could not run.
-  writeGoldenCheckReport(plan.out, report);
+  writeGoldenCheckReport(check.out, report);
 });

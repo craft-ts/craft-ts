@@ -8,6 +8,11 @@
  * (`runGoldenCheck` of `@craft-ts/playwright-sessions/suite`). The report
  * (markdown, JSON, pictures) is written to `--out`.
  *
+ * `--approve <session>` approves the change the last check found in a session:
+ * the difference itself is recorded in the attestation register
+ * (`.craft/attestations.jsonl`), and the next check that finds it again
+ * passes. A regression is never approved.
+ *
  * The replays run in the Playwright runner, which reads the TypeScript of the
  * workspace: this script resolves what to check and hands it over.
  */
@@ -21,6 +26,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repository = resolve(here, '../..');
 
 export const SESSIONS_CHECK_USAGE = `Usage : node tools/sessions-check/sessions-check.mjs --base <ref> [options]
+        node tools/sessions-check/sessions-check.mjs --approve <session> [--app <nom>]
 
   --base <ref>        la version de référence (commit, branche, tag), servie depuis un worktree temporaire
   --head <ref>        la version vérifiée ; l'arbre de travail par défaut
@@ -32,7 +38,10 @@ export const SESSIONS_CHECK_USAGE = `Usage : node tools/sessions-check/sessions-
   --max-points <n>    moments photographiés par session (8 par défaut)
   --out <dossier>     où écrire le rapport ; tmp/sessions-check/<app> par défaut (hors de git)
   --archive <url>     le serveur de logs (http://127.0.0.1:4319 par défaut)
-  --dashboard <url>   le dashboard de rejeu (http://localhost:4210/ par défaut)`;
+  --dashboard <url>   le dashboard de rejeu (http://localhost:4210/ par défaut)
+  --approve <session> approuver le changement que la dernière vérification a trouvé dans cette session
+                      (son id, ou son début) : la différence précise entre au registre, pas la session
+  --ledger <fichier>  le registre des approbations ; .craft/attestations.jsonl par défaut`;
 
 /** Reads the command line; throws a message for the person on a mistake. */
 export function parseSessionsCheckArguments(argv) {
@@ -48,6 +57,8 @@ export function parseSessionsCheckArguments(argv) {
     out: undefined,
     archive: 'http://127.0.0.1:4319',
     dashboard: 'http://localhost:4210/',
+    approve: undefined,
+    ledger: undefined,
     help: false,
   };
   const valueOf = (index, name) => {
@@ -98,13 +109,24 @@ export function parseSessionsCheckArguments(argv) {
       case '--dashboard':
         options.dashboard = valueOf(index++, name);
         break;
+      case '--approve':
+        options.approve = valueOf(index++, name);
+        break;
+      case '--ledger':
+        options.ledger = valueOf(index++, name);
+        break;
       default:
         throw new Error(`Option inconnue : ${name}`);
     }
   }
   if (options.help) return options;
-  if (!options.base) throw new Error('--base est requis : la version à laquelle comparer.');
   if (!(options.app in SESSIONS_CHECK_APPS)) throw new Error(`Application inconnue : ${options.app}.`);
+  if (options.approve !== undefined) {
+    if (options.base || options.head || options.changed || options.sessions)
+      throw new Error('--approve porte sur la dernière vérification : sans --base, --head, --changed ni --sessions.');
+    return options;
+  }
+  if (!options.base) throw new Error('--base est requis : la version à laquelle comparer.');
   if ((options.scope !== undefined || options.list) && !options.changed)
     throw new Error('--scope et --list vont avec --changed.');
   return options;
@@ -145,11 +167,43 @@ export function sessionsCheckPlan(options, resolved) {
           },
         }
       : {}),
-    out: resolve(resolved.repository, options.out ?? join('tmp', 'sessions-check', options.app)),
+    out: outOf(options, resolved.repository),
+    ledger: ledgerOf(options, resolved.repository),
     base: build(options.base, resolved.baseCommit),
     head: build(options.head, resolved.headCommit),
   };
 }
+
+/** Where the report of an app goes: out of git by default. */
+export function outOf(options, repository) {
+  return resolve(repository, options.out ?? join('tmp', 'sessions-check', options.app));
+}
+
+/** The attestation register the approvals are written to and read from. */
+export function ledgerOf(options, repository) {
+  return resolve(repository, options.ledger ?? join('.craft', 'attestations.jsonl'));
+}
+
+/**
+ * The session of the last report `--approve` names (its id, or the start of
+ * it), checked to be a change a person can approve. Throws a message for the
+ * person otherwise: a regression is fixed, not approved.
+ */
+export function sessionToApprove(report, wanted) {
+  const matches = report.sessions.filter((session) => session.sessionId === wanted || session.sessionId.startsWith(wanted));
+  if (matches.length === 0) throw new Error(`La dernière vérification (${report.base} → ${report.head}) n’a pas rejoué de session « ${wanted} ».`);
+  if (matches.length > 1) throw new Error(`« ${wanted} » désigne ${matches.length} sessions : donnez plus de caractères de l’id.`);
+  const [session] = matches;
+  const id = session.sessionId.slice(0, 8);
+  if (session.verdict === 'regression')
+    throw new Error(`${id} est une régression (${session.reason}) : elle se corrige, elle ne s’approuve pas.`);
+  if (session.verdict !== 'changed') throw new Error(`${id} n’a pas de changement à approuver (${LABEL[session.verdict]}).`);
+  if (session.approved) throw new Error(`Le changement de ${id} est déjà approuvé.`);
+  if (!session.change) throw new Error(`Le rapport ne donne pas l’empreinte du changement de ${id} : relancez la vérification.`);
+  return session;
+}
+
+const LABEL = { regression: 'régression', changed: 'changement', flaky: 'instable', stale: 'périmée', unchanged: 'inchangée' };
 
 /** The golden set the archive proposes for the app: the sessions it keeps, with what each one shows. */
 export async function goldenSessions(archive, origin, fetchImpl = fetch) {
@@ -183,16 +237,87 @@ export function summarizeRelevantSessions(relevant) {
 /** The report in a few lines, and whether the check passed. */
 export function summarizeSessionsCheck(report, markdownPath) {
   const order = ['regression', 'changed', 'flaky', 'stale', 'unchanged'];
-  const label = { regression: 'régression', changed: 'changement', flaky: 'instable', stale: 'périmée', unchanged: 'inchangée' };
-  const counts = order.filter((verdict) => report.counts[verdict] > 0).map((verdict) => `${label[verdict]} ${report.counts[verdict]}`);
+  const approved = report.approved ?? 0;
+  const counts = order.flatMap((verdict) => {
+    const count = report.counts[verdict] - (verdict === 'changed' ? approved : 0);
+    return [
+      ...(count > 0 ? [`${LABEL[verdict]} ${count}`] : []),
+      ...(verdict === 'changed' && approved > 0 ? [`changement approuvé ${approved}`] : []),
+    ];
+  });
+  const toApprove = report.sessions.filter((session) => session.verdict === 'changed' && !session.approved);
   return [
     `${report.base} → ${report.head} : ${counts.join(' · ') || 'aucune session'}`,
     ...report.sessions
       .filter((session) => session.verdict !== 'unchanged')
-      .map((session) => `  ${label[session.verdict]} · ${session.sessionId.slice(0, 8)} · ${session.reason}`),
+      .map((session) => `  ${session.approved ? 'changement approuvé' : LABEL[session.verdict]} · ${session.sessionId.slice(0, 8)} · ${session.reason}`),
     `Rapport : ${markdownPath}`,
-    report.passed ? 'Rien à corriger ni à approuver.' : 'À regarder : une régression, ou un changement que personne n’a approuvé.',
+    report.passed
+      ? approved > 0
+        ? `Rien à corriger : ${approved} changement(s) déjà approuvé(s).`
+        : 'Rien à corriger ni à approuver.'
+      : 'À regarder : une régression, ou un changement que personne n’a approuvé.',
+    ...(toApprove.length
+      ? [`Voulu ? npm run sessions:check -- --approve <session>${report.app && report.app !== 'demo-ecommerce' ? ` --app ${report.app}` : ''} (${toApprove.map((session) => session.sessionId.slice(0, 8)).join(', ')})`]
+      : []),
   ].join('\n');
+}
+
+/** Who approves: the name git commits with. */
+function approver() {
+  try {
+    return execFileSync('git', ['-C', repository, 'config', 'user.name'], { encoding: 'utf8' }).trim() || 'inconnu';
+  } catch {
+    return process.env['USER'] ?? 'inconnu';
+  }
+}
+
+/** The runner, on the plan written next to the report. */
+function runRunner(plan) {
+  mkdirSync(plan.out, { recursive: true });
+  const planFile = join(plan.out, 'plan.json');
+  writeFileSync(planFile, JSON.stringify(plan));
+  return spawnSync(
+    process.execPath,
+    [join(repository, 'node_modules/@playwright/test/cli.js'), 'test', '--config', relative(repository, join(here, 'playwright.config.ts'))],
+    { cwd: repository, stdio: 'inherit', env: { ...process.env, CRAFT_SESSIONS_CHECK: planFile } },
+  );
+}
+
+/**
+ * `--approve`: the difference the last check found in a session enters the
+ * register; the report is written again with it approved.
+ */
+async function approve(options) {
+  const out = outOf(options, repository);
+  const json = join(out, 'report.json');
+  if (!existsSync(json)) throw new Error(`Aucune vérification de ${options.app} à approuver (${relative(process.cwd(), json)}) : lancez d’abord npm run sessions:check -- --base <ref>.`);
+  const session = sessionToApprove(JSON.parse(readFileSync(json, 'utf8')), options.approve);
+  rmSync(join(out, 'approval.json'), { force: true });
+  runRunner({
+    repository,
+    app: options.app,
+    origin: SESSIONS_CHECK_APPS[options.app].origin,
+    out,
+    ledger: ledgerOf(options, repository),
+    approve: { sessionId: session.sessionId, by: approver() },
+  });
+  const approvalFile = join(out, 'approval.json');
+  if (!existsSync(approvalFile)) {
+    console.error('L’approbation s’est arrêtée sans rien écrire.');
+    return 1;
+  }
+  const approval = JSON.parse(readFileSync(approvalFile, 'utf8'));
+  if (!approval.approved) {
+    console.error(approval.message);
+    return 1;
+  }
+  console.log(
+    `\nChangement de ${session.sessionId.slice(0, 8)} approuvé (moment(s) ${session.change.moments.join(', ')}, empreinte ${session.change.fingerprint.slice(0, 12)}) → ${relative(process.cwd(), approval.ledger)}.`,
+  );
+  const report = JSON.parse(readFileSync(json, 'utf8'));
+  console.log(summarizeSessionsCheck(report, relative(process.cwd(), join(out, 'report.md'))));
+  return 0;
 }
 
 async function answers(url) {
@@ -211,6 +336,7 @@ async function main(argv) {
     console.log(SESSIONS_CHECK_USAGE);
     return 0;
   }
+  if (options.approve !== undefined) return approve(options);
   const app = SESSIONS_CHECK_APPS[options.app];
   if (!(await answers(`${options.archive.replace(/\/$/, '')}/health`)))
     throw new Error(`Le serveur de logs ne répond pas sur ${options.archive} (npm run logs:server).`);
@@ -234,14 +360,8 @@ async function main(argv) {
   // What an earlier run left must not pass for this one. The plan is a file:
   // the units of every session are too much for an environment variable.
   mkdirSync(plan.out, { recursive: true });
-  for (const file of ['report.json', 'relevant.json']) rmSync(join(plan.out, file), { force: true });
-  const planFile = join(plan.out, 'plan.json');
-  writeFileSync(planFile, JSON.stringify(plan));
-  const run = spawnSync(
-    process.execPath,
-    [join(repository, 'node_modules/@playwright/test/cli.js'), 'test', '--config', relative(repository, join(here, 'playwright.config.ts'))],
-    { cwd: repository, stdio: 'inherit', env: { ...process.env, CRAFT_SESSIONS_CHECK: planFile } },
-  );
+  for (const file of ['report.json', 'relevant.json', 'approval.json']) rmSync(join(plan.out, file), { force: true });
+  const run = runRunner(plan);
   if (options.list) {
     const relevantFile = join(plan.out, 'relevant.json');
     if (!existsSync(relevantFile)) {
