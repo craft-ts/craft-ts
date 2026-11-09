@@ -255,6 +255,20 @@ async function handleRequest(
     return;
   }
 
+  // A picture of the last check: a moment of a session on the base, the head, or their difference.
+  if (request.method === 'GET' && url.pathname === '/sessions/check/image') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    const image = options.sessionsCheck?.image(url.searchParams.get('origin') ?? '', url.searchParams.get('path') ?? '');
+    if (!image) {
+      sendJson(response, 404, { error: 'Picture not found.' }, headers);
+      return;
+    }
+    // A new check rewrites the pictures under the same names: never cached.
+    response.writeHead(200, { ...headers, 'content-type': 'image/png', 'content-length': image.byteLength, 'cache-control': 'no-store' });
+    response.end(image);
+    return;
+  }
+
   // A person approves the change the last check found in a session.
   if (request.method === 'POST' && url.pathname === '/sessions/check/approve') {
     const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);

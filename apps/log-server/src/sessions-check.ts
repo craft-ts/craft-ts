@@ -24,7 +24,12 @@ export type SessionsCheckAccess = Readonly<{
   /** The last check whose sessions were recorded at `origin`. */
   report(origin: string): SessionsCheckReport | undefined;
   approve(origin: string, sessionId: string): Promise<SessionsCheckApproval>;
+  /** A picture of the last check (`images/<session>/<moment>-base|head|diff.png`), if it has it. */
+  image(origin: string, path: string): Buffer | undefined;
 }>;
+
+/** The pictures a report names, and nothing else under its directory. */
+const IMAGE_PATH = /^images\/[0-9a-f-]{36}\/\d{3,5}-(base|head|diff)\.png$/i;
 
 /** The repository the server runs in, if it has the command: from `start` up. */
 export function findSessionsCheckRepository(start: string): string | undefined {
@@ -52,7 +57,8 @@ export function createSessionsCheckAccess(options: SessionsCheckAccessOptions): 
           (error, stdout, stderr) => done({ code: error ? (typeof error.code === 'number' ? error.code : 1) : 0, stdout, stderr }),
         );
       }));
-  const report = (origin: string): SessionsCheckReport | undefined => {
+  const report = (origin: string): SessionsCheckReport | undefined => latest(origin)?.found;
+  const latest = (origin: string): { found: SessionsCheckReport; directory: string } | undefined => {
     const directory = join(options.repository, REPORTS);
     if (!existsSync(directory)) return undefined;
     const found = readdirSync(directory, { withFileTypes: true })
@@ -62,16 +68,25 @@ export function createSessionsCheckAccess(options: SessionsCheckAccessOptions): 
         try {
           const parsed = JSON.parse(readFileSync(file, 'utf8')) as unknown;
           if (!isRecord(parsed) || parsed['format'] !== 'craft-golden-check' || parsed['origin'] !== origin) return [];
-          return [{ app: entry.name, report: parsed, at: statSync(file).mtimeMs }];
+          return [{ app: entry.name, report: parsed, at: statSync(file).mtimeMs, directory: join(directory, entry.name) }];
         } catch {
           return [];
         }
       })
       .sort((left, right) => right.at - left.at);
-    return found[0] && { app: found[0].app, report: found[0].report };
+    return found[0] && { found: { app: found[0].app, report: found[0].report }, directory: found[0].directory };
   };
   return {
     report,
+    image(origin, path) {
+      const last = latest(origin);
+      if (!last || !IMAGE_PATH.test(path)) return undefined;
+      try {
+        return readFileSync(join(last.directory, path));
+      } catch {
+        return undefined;
+      }
+    },
     async approve(origin, sessionId) {
       const last = report(origin);
       if (!last) return { approved: false, message: `Aucune vérification de ${origin} : lancez npm run sessions:check -- --base <ref>.` };

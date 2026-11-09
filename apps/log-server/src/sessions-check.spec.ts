@@ -64,6 +64,22 @@ describe('the last sessions:check of an app', () => {
     expect(await (await fetch(`${base}/sessions/check?origin=http://localhost:9`)).json()).toEqual({ report: null });
   });
 
+  it('serves the pictures of the last check, and nothing else', async () => {
+    writeReport('shop', report('http://localhost:4204'));
+    const pictures = join(repository, 'tmp', 'sessions-check', 'shop', 'images', '801744a1-0000-4000-8000-000000000000');
+    mkdirSync(pictures, { recursive: true });
+    writeFileSync(join(pictures, '003-head.png'), 'png');
+    const base = await start();
+    const picture = (path: string, origin = 'http://localhost:4204') =>
+      fetch(`${base}/sessions/check/image?origin=${encodeURIComponent(origin)}&path=${encodeURIComponent(path)}`);
+    const found = await picture('images/801744a1-0000-4000-8000-000000000000/003-head.png');
+    expect([found.status, found.headers.get('content-type'), await found.text()]).toEqual([200, 'image/png', 'png']);
+    expect((await picture('images/801744a1-0000-4000-8000-000000000000/003-base.png')).status).toBe(404);
+    expect((await picture('report.json')).status).toBe(404);
+    expect((await picture('images/../report.json')).status).toBe(404);
+    expect((await picture('images/801744a1-0000-4000-8000-000000000000/003-head.png', 'http://localhost:9')).status).toBe(404);
+  });
+
   it('approves through the command, and gives its refusal back', async () => {
     writeReport('shop', report('http://localhost:4204'));
     const run = vi.fn(async (args: readonly string[]) => {
