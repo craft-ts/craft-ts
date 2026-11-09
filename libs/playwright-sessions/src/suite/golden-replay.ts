@@ -189,7 +189,8 @@ export async function replayGoldenSession(
     // A session where the person did nothing (the page opened, or loaded
     // again by the dev server) has no action: the dashboard is ready with
     // none and never says « ready ». Once that holds for a second, the
-    // session replayed what it had: nothing, and there is no moment to take.
+    // session replayed what it had: nothing. Its one moment is the page as
+    // it opened, so that a change to what that page shows is still seen.
     let emptySince: number | undefined;
     const ready = await waitForWorker(
       page,
@@ -202,7 +203,11 @@ export async function replayGoldenSession(
     );
     if (!ready) return result('timeout', await readWorker(page), { message: 'le replay n’est pas prêt' });
     if (ready.failed !== undefined) return result('failed', ready, { message: ready.failed });
-    if (!ready.ready) return result('completed', ready);
+    if (!ready.ready) {
+      const opened = await captureOpenedPage(page, ready, deadline, settle, options.measure);
+      if (opened) captures.push(opened);
+      return result('completed', ready);
+    }
     await fitRecordedViewport(page, ready, deadline);
 
     const plan = [...(await workerPlan(page, maxPoints))].sort((a, b) => a.replayIndex - b.replayIndex);
@@ -231,6 +236,25 @@ export async function replayGoldenSession(
     return result('failed', await readWorker(page), { message: error instanceof Error ? error.message.split('\n')[0] : String(error) });
   } finally {
     await page.close().catch(() => undefined);
+  }
+}
+
+/**
+ * The page a session without action opened on, as its only moment. Not a
+ * failure when there is none to take: the session still replayed all it had.
+ */
+async function captureOpenedPage(
+  page: Page,
+  snapshot: WorkerSnapshot,
+  deadline: number,
+  settle: Readonly<{ quietMs: number; maxWaitMs: number }>,
+  measure: GoldenReplayOptions['measure'],
+): Promise<GoldenCapture | undefined> {
+  try {
+    await fitRecordedViewport(page, snapshot, deadline);
+    return await captureMoment(page, { replayIndex: 0, reasons: ['opened'], offsetMs: 0 }, snapshot, settle, measure);
+  } catch {
+    return undefined;
   }
 }
 
