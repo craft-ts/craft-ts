@@ -30,7 +30,9 @@ export type SubjectKind =
   | 'template'
   | 'folder-layout'
   | 'eslint-disable'
-  | 'architecture-waiver';
+  | 'architecture-waiver'
+  /** A difference a regression-suite session shows between base and head, approved. */
+  | 'golden-session';
 
 export type Verdict =
   | 'ok'

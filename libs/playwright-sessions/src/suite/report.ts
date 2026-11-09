@@ -5,14 +5,36 @@ import type { GoldenSessionComparison, GoldenVerdict, MomentComparison } from '.
 export type GoldenCheckReport = Readonly<{
   format: 'craft-golden-check';
   schemaVersion: 1;
+  /** The app checked, and where its sessions were recorded, when the check says so. */
+  app?: string;
+  origin?: string;
   base: string;
   head: string;
   sessions: readonly GoldenSessionComparison[];
   /** Sessions per verdict. */
   counts: Readonly<Record<GoldenVerdict, number>>;
+  /** Of the `changed` sessions, those whose very difference a person approved. */
+  approved: number;
   /** Whether a person or a fix is needed: a regression, or a change nobody approved yet. */
   passed: boolean;
 }>;
+
+export type GoldenCheckReportOptions = Readonly<{
+  app?: string;
+  origin?: string;
+  /**
+   * Whether a person approved the difference of a `changed` session (see
+   * `isGoldenChangeApproved`). Asked of nothing else: a regression is never
+   * approved.
+   */
+  isApproved?: (session: GoldenSessionComparison) => boolean;
+}>;
+
+const APPROVED = '✅ changement approuvé';
+
+function verdictLabel(session: GoldenSessionComparison): string {
+  return session.approved ? APPROVED : LABEL[session.verdict];
+}
 
 const ORDER: readonly GoldenVerdict[] = ['regression', 'changed', 'flaky', 'stale', 'unchanged'];
 const LABEL: Readonly<Record<GoldenVerdict, string>> = {
@@ -24,18 +46,27 @@ const LABEL: Readonly<Record<GoldenVerdict, string>> = {
 };
 
 export function goldenCheckReport(
-  sessions: readonly GoldenSessionComparison[],
+  compared: readonly GoldenSessionComparison[],
   builds: Readonly<{ base: string; head: string }>,
+  options: GoldenCheckReportOptions = {},
 ): GoldenCheckReport {
+  // Approved anew on each report: an approval read from an earlier one does not carry.
+  const sessions = compared.map(({ approved: _approved, ...session }): GoldenSessionComparison =>
+    session.verdict === 'changed' && options.isApproved?.(session) ? { ...session, approved: true } : session,
+  );
+  const approved = sessions.filter((session) => session.approved).length;
   const counts = Object.fromEntries(ORDER.map((verdict) => [verdict, sessions.filter((session) => session.verdict === verdict).length])) as Record<GoldenVerdict, number>;
   const sorted = [...sessions].sort((a, b) => ORDER.indexOf(a.verdict) - ORDER.indexOf(b.verdict) || (a.sessionId < b.sessionId ? -1 : 1));
   return {
     format: 'craft-golden-check',
     schemaVersion: 1,
+    ...(options.app === undefined ? {} : { app: options.app }),
+    ...(options.origin === undefined ? {} : { origin: options.origin }),
     ...builds,
     sessions: sorted,
     counts,
-    passed: counts.regression === 0 && counts.changed === 0,
+    approved,
+    passed: counts.regression === 0 && counts.changed === approved,
   };
 }
 
@@ -44,15 +75,22 @@ export function renderGoldenCheckReport(report: GoldenCheckReport): string {
   const lines = [
     `# Suite de sessions : ${report.base} → ${report.head}`,
     '',
-    ORDER.filter((verdict) => report.counts[verdict] > 0).map((verdict) => `${LABEL[verdict]} : ${report.counts[verdict]}`).join(' · ') || 'Aucune session.',
+    ORDER.filter((verdict) => report.counts[verdict] > 0)
+      .map((verdict) =>
+        verdict === 'changed' && report.approved > 0
+          ? [report.counts.changed - report.approved > 0 ? `${LABEL.changed} : ${report.counts.changed - report.approved}` : '', `${APPROVED} : ${report.approved}`].filter(Boolean).join(' · ')
+          : `${LABEL[verdict]} : ${report.counts[verdict]}`)
+      .join(' · ') || 'Aucune session.',
     '',
     '| session | verdict | pourquoi | base | tête |',
     '| --- | --- | --- | --- | --- |',
     ...report.sessions.map((session) =>
-      `| \`${session.sessionId}\` | ${LABEL[session.verdict]} | ${escapeCell(session.reason)} | ${run(session.base)} | ${run(session.head)} |`),
+      `| \`${session.sessionId}\` | ${verdictLabel(session)} | ${escapeCell(session.reason)} | ${run(session.base)} | ${run(session.head)} |`),
   ];
   for (const session of report.sessions.filter((item) => item.verdict === 'regression' || item.verdict === 'changed')) {
-    lines.push('', `## ${LABEL[session.verdict]} · \`${session.sessionId}\``, '', session.reason);
+    lines.push('', `## ${verdictLabel(session)} · \`${session.sessionId}\``, '', session.reason);
+    if (session.change)
+      lines.push('', `Empreinte du changement : \`${session.change.fingerprint}\`${session.approved ? ' (approuvée)' : ` — \`npm run sessions:check -- --approve ${session.sessionId.slice(0, 8)}\` l’approuve`}.`);
     if (session.difference)
       lines.push('', '```json', JSON.stringify(session.difference, null, 2).slice(0, 4_000), '```');
     for (const moment of session.moments.filter((item) => item.status !== 'same')) lines.push('', ...renderMoment(session.sessionId, moment));
@@ -73,7 +111,7 @@ function renderMoment(sessionId: string, moment: MomentComparison): string[] {
     '',
     `| base | tête | différence |`,
     `| --- | --- | --- |`,
-    `| ![](${imagePath(sessionId, moment, 'base')}) | ![](${imagePath(sessionId, moment, 'head')}) | ${moment.diffPng ? `![](${imagePath(sessionId, moment, 'diff')})` : '—'} |`,
+    `| ![](${imagePath(sessionId, moment, 'base')}) | ![](${imagePath(sessionId, moment, 'head')}) | ${moment.diffPng || (moment.pixelRatio > 0 && !moment.sizeChanged) ? `![](${imagePath(sessionId, moment, 'diff')})` : '—'} |`,
   ];
   if (moment.measureChanges.length > 0)
     lines.push('', '| mesure | base | tête |', '| --- | --- | --- |', ...moment.measureChanges.map((change) =>

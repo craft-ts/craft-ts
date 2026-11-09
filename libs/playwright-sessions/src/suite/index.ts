@@ -16,3 +16,4 @@ export {
 export * from './compare-runs.js';
 export * from './report.js';
 export * from './check.js';
+export * from './approval.js';

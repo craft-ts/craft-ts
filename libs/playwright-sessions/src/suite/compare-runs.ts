@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import type { GoldenCapture, GoldenReplayResult } from './golden-replay.js';
@@ -31,6 +32,11 @@ export type MomentComparison = Readonly<{
   /** Measured values that differ, outside the noise (at most `maxChanges`). */
   measureChanges: readonly MeasureChange[];
   measureChangeCount: number;
+  /**
+   * Hash of every measured change (path, base, head), not only the listed
+   * ones: what an approval of this moment rests on. Empty when none.
+   */
+  measureFingerprint: string;
   /** Measured values that differ between the two base runs. */
   noisyMeasures: number;
   /** Share of the picture that differs, outside the noise (0–1). */
@@ -55,6 +61,22 @@ export type GoldenSessionComparison = Readonly<{
   /** The head's gap, when it stopped on one. */
   difference?: GoldenReplayResult['difference'];
   moments: readonly MomentComparison[];
+  /** On `changed`: the difference a person can approve. */
+  change?: GoldenChange;
+  /** On `changed`: a person approved this very difference (see `approval.ts`). */
+  approved?: true;
+}>;
+
+/**
+ * The difference of a `changed` session, as precisely as it can be approved:
+ * which moments differ, how (changed, missing, new), and a hash of their
+ * measured changes. Pixels are left out of the hash — their ratio moves from
+ * run to run — but a moment that differs only by its pixels is listed.
+ */
+export type GoldenChange = Readonly<{
+  /** The replay indexes of the moments that differ. */
+  moments: readonly number[];
+  fingerprint: string;
 }>;
 
 type RunSummary = Readonly<{
@@ -104,8 +126,19 @@ export function compareGoldenRuns(
     return { ...common, verdict: 'regression', reason: `${lost.length} action(s) dont l’élément n’existe plus dans la tête : ${lost[0]}`, moments };
   const changed = moments.filter((moment) => moment.status !== 'same');
   return changed.length > 0
-    ? { ...common, verdict: 'changed', reason: `${changed.length} moment(s) sur ${moments.length} diffèrent`, moments }
+    ? { ...common, verdict: 'changed', reason: `${changed.length} moment(s) sur ${moments.length} diffèrent`, moments, change: goldenChange(changed) }
     : { ...common, verdict: 'unchanged', reason: 'aucune différence hors du bruit', moments };
+}
+
+function goldenChange(changed: readonly MomentComparison[]): GoldenChange {
+  return {
+    moments: changed.map((moment) => moment.replayIndex),
+    fingerprint: hash(changed.map((moment) => [moment.replayIndex, moment.status, moment.measureFingerprint])),
+  };
+}
+
+function hash(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 32);
 }
 
 function summary(run: GoldenReplayResult): RunSummary {
@@ -136,7 +169,7 @@ function compareMoments(
       reasons: capture.reasons,
     };
     if (!headCapture)
-      return { ...identity, status: 'missing-in-head', measureChanges: [], measureChangeCount: 0, noisyMeasures: 0, pixelRatio: 1, noisyPixelRatio: 0, basePng: capture.png };
+      return { ...identity, status: 'missing-in-head', measureChanges: [], measureChangeCount: 0, measureFingerprint: '', noisyMeasures: 0, pixelRatio: 1, noisyPixelRatio: 0, basePng: capture.png };
     return compareMoment(identity, capture, again.get(capture.replayIndex), headCapture, options);
   });
   const known = new Set(base.map((capture) => capture.replayIndex));
@@ -149,6 +182,7 @@ function compareMoments(
         status: 'new-in-head',
         measureChanges: [],
         measureChangeCount: 0,
+        measureFingerprint: '',
         noisyMeasures: 0,
         pixelRatio: 1,
         noisyPixelRatio: 0,
@@ -183,6 +217,7 @@ function compareMoment(
     status: changed ? 'changed' : 'same',
     measureChanges: changes.slice(0, maxChanges),
     measureChangeCount: changes.length,
+    measureFingerprint: changes.length ? hash(changes.map((change) => [change.path, change.base ?? null, change.head ?? null])) : '',
     noisyMeasures: noisy.size,
     pixelRatio: pixels.ratio,
     noisyPixelRatio: pixels.noisyRatio,

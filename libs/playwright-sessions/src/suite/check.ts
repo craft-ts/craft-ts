@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import type { Browser, BrowserContext } from '@playwright/test';
 import { compareGoldenRuns, type CompareGoldenRunsOptions, type GoldenSessionComparison } from './compare-runs.js';
 import { replayGoldenSession, type GoldenReplayOptions, type GoldenReplayResult } from './golden-replay.js';
-import { goldenCheckReport, type GoldenCheckReport } from './report.js';
+import { goldenCheckReport, type GoldenCheckReport, type GoldenCheckReportOptions } from './report.js';
 
 /**
  * A build of the app the suite replays on. The two builds are served one after
@@ -33,6 +33,8 @@ export type GoldenCheckInput = Readonly<{
   /** Shared by every replay (maxPoints, measure, …). */
   replay?: Omit<GoldenReplayOptions, 'dashboardUrl' | 'sessionId'>;
   compare?: CompareGoldenRunsOptions;
+  /** The app named in the report, and the changes a person approved. */
+  report?: GoldenCheckReportOptions;
   /** Told of each replay as it ends. */
   onReplay?: (build: 'base' | 'head', result: GoldenReplayResult) => void;
 }>;
@@ -49,7 +51,7 @@ export async function runGoldenCheck(input: GoldenCheckInput): Promise<GoldenChe
     const [head] = headRuns.get(sessionId)!;
     return compareGoldenRuns({ base: [base!, baseAgain!], head: head! }, input.compare);
   });
-  return goldenCheckReport(sessions, { base: input.base.name, head: input.head.name });
+  return goldenCheckReport(sessions, { base: input.base.name, head: input.head.name }, input.report);
 }
 
 async function replayOnBuild(
