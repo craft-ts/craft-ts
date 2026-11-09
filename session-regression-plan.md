@@ -335,10 +335,50 @@ Dispatch réel sur cible résolue, invocation attendue comme oracle, repli trac�
 Le plus gros morceau, dans `debug-session-replay.ts` ; à faire après le lot 3 parce
 que la comparaison visuelle attrape déjà les régressions de rendu en mode invocation.
 
-### Lot 5 — Approbation et CI
+### Lot 5 — Approbation et CI — 🟡 approbation locale faite (2026-11-09), non commitée ; CI écartée
 
-Registre `attest` (D5), action CI qui lance le lot 3 sur une PR et publie un résumé
-(écarts, captures avant/après, sessions périmées) avec le lien vers le dashboard.
+Fait (approbation, en local) :
+- **Ce qui s'approuve, c'est la différence, pas la session.** `compareGoldenRuns` donne à
+  chaque session `changed` un `change` : les moments qui diffèrent et une empreinte
+  (sha-256) de leur statut et de **toutes** leurs différences de mesures (chemin, base,
+  tête), pas seulement des 40 listées (`measureFingerprint` par moment). Les pixels
+  n'entrent pas dans l'empreinte (leur taux bouge d'un rejeu à l'autre), mais un moment
+  qui ne diffère que par ses pixels est compté dans la liste des moments.
+- **Registre `attest` existant** (`.craft/attestations.jsonl`, D5) : genre
+  `golden-session` ajouté à `SubjectKind` ; sujet `golden:<app>:<session>`, empreinte =
+  preuve = celle de la différence, verdict `ok`, `by` = `git config user.name`, note =
+  moments + base → tête. `approval.ts` de `@craft-ts/playwright-sessions/suite` :
+  `approveGoldenChange` (refuse une régression, une session sans changement),
+  `isGoldenChangeApproved` (`statusOf` → `current`), `updateGoldenLedger` (relu juste
+  avant d'écrire, écrit entier par renommage, refuse un registre aux lignes illisibles
+  pour ne pas les perdre). La CLI `attest status` signale ces sujets comme orphelins sans
+  les supprimer.
+- **Rapport** : `goldenCheckReport(…, { app, origin, isApproved })` marque `approved` les
+  `changed` dont la différence précise est au registre ; `approved` compté à part ;
+  `passed` = aucune régression et tout changement approuvé. Markdown : « ✅ changement
+  approuvé », empreinte et commande d'approbation sous chaque changement.
+- **Commande** : `npm run sessions:check -- --approve <session>` (id ou début d'id) porte
+  sur la dernière vérification (`tmp/sessions-check/<app>/report.json`) ; refuse une
+  régression (« elle se corrige, elle ne s'approuve pas »), une session inchangée, un
+  id ambigu ; réécrit le rapport. Le check suivant lit le registre : résumé
+  « changement approuvé N », code 0 si tout changement l'est.
+- **Dashboard** : page Suite, section « Dernière vérification base contre tête »
+  (verdicts, sessions à regarder, bouton « Approuver ce changement » sur les seuls
+  changements non approuvés). Le log-server lit le dernier rapport de l'origine
+  (`GET /sessions/check?origin=`) et approuve en lançant la commande
+  (`POST /sessions/check/approve`) : un seul écrivain du registre. Actif quand le
+  serveur tourne dans un dépôt qui a `tools/sessions-check/` (`DEBUG_SESSION_CHECK=0`
+  le coupe).
+
+Preuve (2026-11-09, archive réelle de demo-ecommerce, 11 sessions) : tête = commit hors
+branche qui ne change que la couleur du logo (`.brand`) → « changement 8 · inchangée 3 »,
+code 1 ; 7 approbations par `--approve`, la 8ᵉ par le bouton de la page Suite ; relancé
+→ « changement approuvé 8 · inchangée 3 », code 0 (l'empreinte est stable d'un rejeu à
+l'autre) ; tête = logo + espacement du bandeau → « changement 8 », code 1 de nouveau.
+`--approve` sur une session inchangée est refusé. Le refus d'une régression est prouvé
+par les tests (lib, lanceur, log-server), pas sur une vraie régression de l'archive.
+
+Écarté pour l'instant : l'action CI et le résumé de PR (pas de CI voulue).
 
 ### Lot 6 — Sessions concernées par un changement (la boucle locale, et l'IA) — 🟡 fait (2026-11-07), non commité
 
