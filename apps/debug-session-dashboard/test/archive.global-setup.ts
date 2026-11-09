@@ -148,6 +148,17 @@ export default async function setup(project: TestProject) {
             verdict: 'changed',
             reason: '2 moment(s) sur 8 diffèrent',
             change: { moments: [3, 5], fingerprint: 'f1' },
+            moments: [
+              { replayIndex: 0, status: 'same', measureChanges: [], measureChangeCount: 0, pixelRatio: 0 },
+              {
+                replayIndex: 3,
+                status: 'changed',
+                measureChanges: [{ path: 'digest.nodes[html/body/a.brand].styles.color', base: '"rgb(35, 64, 52)"', head: '"rgb(180, 35, 90)"' }],
+                measureChangeCount: 1,
+                pixelRatio: 0.004,
+              },
+              { replayIndex: 5, status: 'missing-in-head', measureChanges: [], measureChangeCount: 0, pixelRatio: 1 },
+            ],
             ...(approved ? { approved: true } : {}),
           },
           { sessionId: DISPOSABLE_SESSION_ID, verdict: 'unchanged', reason: 'aucune différence hors du bruit' },
@@ -159,6 +170,9 @@ export default async function setup(project: TestProject) {
     );
   };
   writeCheck(false);
+  const checkPictures = join(checkReport, '..', 'images', HAND_RECORDED_SESSION_ID);
+  mkdirSync(checkPictures, { recursive: true });
+  for (const name of ['003-base', '003-head', '003-diff', '005-base']) writeFileSync(join(checkPictures, `${name}.png`), 'png');
 
   const e2eSessions = join(workspaceRoot, 'apps/demo-ecommerce/e2e/__sessions__');
   const history = JSON.parse(

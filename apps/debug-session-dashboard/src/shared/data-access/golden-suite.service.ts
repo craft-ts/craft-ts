@@ -21,6 +21,9 @@ import { SessionArchive } from './session-archive.service';
 
 const SESSION_ARCHIVE_URL =
   import.meta.env['VITE_CRAFT_SESSION_ARCHIVE_URL'] ?? 'http://127.0.0.1:4319';
+/** Where the pictures of the last check come from: the archive, and only it. */
+export const CHECK_ARCHIVE_URL = SESSION_ARCHIVE_URL;
+export const CHECK_PICTURE_ORIGIN = new URL(SESSION_ARCHIVE_URL).origin;
 
 /**
  * An app's regression suite as the archive proposes it, and the replay of one
@@ -93,6 +96,19 @@ export const { GoldenSuiteArchive } = craftService(
         };
       },
     );
+
+    // The session of the last check whose moments are shown, base and head
+    // side by side; one at a time, '' for none.
+    yield* state('openedCheckSession', '', function* ({ state: read, set }) {
+      return {
+        current: yield* craftComputed('current', function* () {
+          return yield* read();
+        }),
+        toggle: function* (sessionId: string) {
+          yield* set((yield* read()) === sessionId ? '' : sessionId);
+        },
+      };
+    });
 
     // A person approves the change the last check found in a session: the
     // archive has the check's own command write it to the register.

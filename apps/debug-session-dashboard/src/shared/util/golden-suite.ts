@@ -228,8 +228,45 @@ export type SessionsCheckSession = Readonly<{
   reason: string;
   approved: boolean;
   /** On a change: the moments that differ. */
-  moments: readonly number[];
+  changedMoments: readonly number[];
+  /** The moments that differ, with what differs in each. */
+  moments: readonly SessionsCheckMoment[];
 }>;
+
+/** A moment of a session that differs between base and head. */
+export type SessionsCheckMoment = Readonly<{
+  replayIndex: number;
+  status: 'changed' | 'missing-in-head' | 'new-in-head';
+  /** Share of the picture that differs (0–1). */
+  pixelRatio: number;
+  sizeChanged: boolean;
+  measureChangeCount: number;
+  measureChanges: readonly Readonly<{ path: string; base?: string; head?: string }>[];
+}>;
+
+const MOMENT_STATUSES: readonly SessionsCheckMoment['status'][] = ['changed', 'missing-in-head', 'new-in-head'];
+
+function decodeMoment(input: unknown): SessionsCheckMoment[] {
+  if (!isRecord(input) || typeof input['replayIndex'] !== 'number') return [];
+  const status = MOMENT_STATUSES.find((item) => item === input['status']);
+  if (!status) return [];
+  const changes = Array.isArray(input['measureChanges']) ? input['measureChanges'] : [];
+  return [{
+    replayIndex: input['replayIndex'],
+    status,
+    pixelRatio: typeof input['pixelRatio'] === 'number' ? input['pixelRatio'] : 0,
+    sizeChanged: input['sizeChanged'] === true,
+    measureChangeCount: typeof input['measureChangeCount'] === 'number' ? input['measureChangeCount'] : changes.length,
+    measureChanges: changes.flatMap((change) =>
+      isRecord(change) && typeof change['path'] === 'string'
+        ? [{
+            path: change['path'],
+            ...(typeof change['base'] === 'string' ? { base: change['base'] } : {}),
+            ...(typeof change['head'] === 'string' ? { head: change['head'] } : {}),
+          }]
+        : []),
+  }];
+}
 
 /** The last base-against-head check of the app (`GET /sessions/check`). */
 export type SessionsCheck = Readonly<{
@@ -266,7 +303,8 @@ export const sessionsCheckDecoder = {
           verdict,
           reason: typeof session['reason'] === 'string' ? session['reason'] : '',
           approved: session['approved'] === true,
-          moments: Array.isArray(change?.['moments']) ? change['moments'].filter((moment): moment is number => typeof moment === 'number') : [],
+          changedMoments: Array.isArray(change?.['moments']) ? change['moments'].filter((moment): moment is number => typeof moment === 'number') : [],
+          moments: Array.isArray(session['moments']) ? session['moments'].flatMap(decodeMoment) : [],
         }];
       }),
     } };
@@ -282,6 +320,18 @@ export const sessionsCheckApprovalDecoder = {
   },
 };
 
+/** A moment as the page shows it: where, how much, the three pictures, the measures. */
+export type SessionsCheckMomentRow = Readonly<{
+  key: string;
+  title: string;
+  detail: string;
+  /** Picture paths in the report (`images/…`); absent when the moment has none. */
+  base?: string;
+  head?: string;
+  diff?: string;
+  measures: readonly string[];
+}>;
+
 export type SessionsCheckRow = Readonly<{
   sessionId: string;
   title: string;
@@ -290,7 +340,40 @@ export type SessionsCheckRow = Readonly<{
   reason: string;
   /** A change nobody approved yet: the only thing a person can approve. */
   approvable: boolean;
+  /** What differs, moment by moment: base, head and their difference. */
+  moments: readonly SessionsCheckMomentRow[];
 }>;
+
+const MEASURES_SHOWN = 12;
+
+function picturePath(sessionId: string, replayIndex: number, kind: 'base' | 'head' | 'diff'): string {
+  return `images/${sessionId}/${String(replayIndex).padStart(3, '0')}-${kind}.png`;
+}
+
+function momentRow(sessionId: string, moment: SessionsCheckMoment): SessionsCheckMomentRow {
+  const title = i18n.t('suiteCheckMomentTitle', { count: moment.replayIndex });
+  const key = `${sessionId}:${moment.replayIndex}`;
+  if (moment.status === 'missing-in-head')
+    return { key, title, detail: i18n.t('suiteCheckMomentMissing'), base: picturePath(sessionId, moment.replayIndex, 'base'), measures: [] };
+  if (moment.status === 'new-in-head')
+    return { key, title, detail: i18n.t('suiteCheckMomentNew'), head: picturePath(sessionId, moment.replayIndex, 'head'), measures: [] };
+  const hidden = moment.measureChangeCount - Math.min(moment.measureChanges.length, MEASURES_SHOWN);
+  return {
+    key,
+    title,
+    detail: i18n.t('suiteCheckMomentDetail', {
+      detail: moment.sizeChanged ? i18n.t('suiteCheckMomentResized') : `${(moment.pixelRatio * 100).toFixed(2)} %`,
+      count: moment.measureChangeCount,
+    }),
+    base: picturePath(sessionId, moment.replayIndex, 'base'),
+    head: picturePath(sessionId, moment.replayIndex, 'head'),
+    ...(moment.pixelRatio > 0 && !moment.sizeChanged ? { diff: picturePath(sessionId, moment.replayIndex, 'diff') } : {}),
+    measures: [
+      ...moment.measureChanges.slice(0, MEASURES_SHOWN).map((change) => `${change.path} : ${change.base ?? '—'} → ${change.head ?? '—'}`),
+      ...(hidden > 0 ? [i18n.t('suiteCheckMomentMore', { count: hidden })] : []),
+    ],
+  };
+}
 
 export type SessionsCheckView = Readonly<{
   /** Nothing checked yet, or the archive cannot say. */
@@ -346,10 +429,17 @@ export function sessionsCheckView(answer: SessionsCheckAnswer | undefined): Sess
         sessionId: session.sessionId,
         title: session.sessionId.slice(0, 8),
         ...verdictLabel(session),
-        reason: session.moments.length
-          ? i18n.t('suiteCheckMoments', { detail: session.reason, name: session.moments.join(', ') })
+        reason: session.changedMoments.length
+          ? i18n.t('suiteCheckMoments', { detail: session.reason, name: session.changedMoments.join(', ') })
           : session.reason,
         approvable: session.verdict === 'changed' && !session.approved,
+        moments: session.moments.map((moment) => momentRow(session.sessionId, moment)),
       })),
   };
+}
+
+/** Where the archive serves a picture of the last check of `origin`. */
+export function checkPictureUrl(archiveUrl: string, origin: string, path: string | undefined): string | undefined {
+  if (!path || !origin) return undefined;
+  return `${archiveUrl.replace(/\/$/, '')}/sessions/check/image?origin=${encodeURIComponent(origin)}&path=${encodeURIComponent(path)}`;
 }

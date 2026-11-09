@@ -1863,4 +1863,35 @@ export const ui = craftStyles('dashboard', {
     fontWeight(weight.semibold),
     ...font(text.sm),
   ],
+  /** A checked session's row: its moments wrap under it when shown. */
+  checkRow: [flexWrap.wrap, py(space(2))],
+  /** The moments of a checked session: one under the other, full width of the row. */
+  checkMoments: [display.grid, gap(space(4)), flexBasis(unit.pct(100)), paddingBlockStart(space(2))],
+  checkMoment: [display.grid, gap(space(2))],
+  /** Base, head, difference: side by side once there is room. */
+  checkPictures: [
+    display.grid,
+    gap(space(3)),
+    gridTemplateColumns(tracks.list(tracks.minmax(space(0), tracks.fr(1)))),
+    when(bp.medium, [
+      gridTemplateColumns(
+        tracks.list(
+          tracks.minmax(space(0), tracks.fr(1)),
+          tracks.minmax(space(0), tracks.fr(1)),
+          tracks.minmax(space(0), tracks.fr(1)),
+        ),
+      ),
+    ]),
+  ],
+  checkPicture: [display.grid, alignContent.start, gap(space(1))],
+  checkPictureLabel: [...small],
+  checkPictureImage: [
+    display.block,
+    inlineSize(unit.pct(100)),
+    borderRadius(radii.sm),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.line),
+    bg(theme.selected),
+  ],
 });

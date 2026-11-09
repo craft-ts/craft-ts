@@ -5,21 +5,30 @@ import {
   div,
   forNode,
   heading,
+  img,
   li,
   p,
+  safeResourceUrl,
   span,
   ul,
 } from '@craft-ts/component';
 import { CraftRouter, craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
 import { ui } from '../../shared/ui/dashboard.style';
-import { GoldenSuiteArchive } from '../../shared/data-access/golden-suite.service';
 import {
+  CHECK_ARCHIVE_URL,
+  CHECK_PICTURE_ORIGIN,
+  GoldenSuiteArchive,
+} from '../../shared/data-access/golden-suite.service';
+import {
+  checkPictureUrl,
   replayLineFor,
   replayStatusLine,
   sessionsCheckView,
   suiteRunLine,
   suiteView,
+  type SessionsCheckMomentRow,
+  type SessionsCheckRow,
 } from '../../shared/util/golden-suite';
 
 /**
@@ -43,6 +52,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
   const lastCheck = rawReactiveValue(archive.lastCheck.check);
   const approving = rawReactiveValue(archive.approveChange.approving);
   const approveFailed = rawReactiveValue(archive.approveChange.approveFailed);
+  const openedCheck = rawReactiveValue(archive.openedCheckSession.current);
   const check = yield* craftComputed('check', () => sessionsCheckView(lastCheck()));
   const checkRows = yield* craftComputed('checkRows', () => sessionsCheckView(lastCheck()).rows);
 
@@ -229,6 +239,83 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
     ),
   );
 
+  // A picture of the last check, asked for only while its session is open.
+  const picture = (
+    lab: string,
+    label: string,
+    path: (moment: SessionsCheckMomentRow) => string | undefined,
+    sessionId: () => Generator<unknown, string, unknown>,
+    moment: () => Generator<unknown, SessionsCheckMomentRow, unknown>,
+  ) =>
+    div(
+      {
+        class: ui.checkPicture,
+        hidden: function* () {
+          return path(yield* moment()) === undefined;
+        },
+      },
+      [
+        span({ class: ui.checkPictureLabel }, label),
+        img({
+          class: ui.checkPictureImage,
+          'data-lab': lab,
+          alt: label,
+          src: function* () {
+            const id = yield* sessionId();
+            const url = openedCheck() === id ? checkPictureUrl(CHECK_ARCHIVE_URL, origin(), path(yield* moment())) : undefined;
+            return url ? safeResourceUrl(url, { allowedOrigins: [CHECK_PICTURE_ORIGIN] }) : undefined;
+          },
+        }),
+      ],
+    );
+
+  const checkMoments = (row: () => Generator<unknown, SessionsCheckRow, unknown>) => {
+    const sessionId = function* () {
+      return (yield* row()).sessionId;
+    };
+    return ul(
+      {
+        class: ui.checkMoments,
+        'data-lab': 'suite-check-moments',
+        hidden: function* () {
+          return openedCheck() !== (yield* row()).sessionId;
+        },
+      },
+      forNode(
+        function* () {
+          return (yield* row()).moments;
+        },
+        { track: (moment) => moment.key },
+        (moment) =>
+          li({ class: ui.checkMoment, 'data-lab': 'suite-check-moment' }, [
+            p({ class: ui.rowTitle }, [
+              span(function* () {
+                return (yield* moment()).title;
+              }),
+              span({ class: ui.rowMeta }, function* () {
+                return (yield* moment()).detail;
+              }),
+            ]),
+            div({ class: ui.checkPictures }, [
+              picture('suite-check-base', i18n.t('suiteCheckBase'), (item) => item.base, sessionId, moment),
+              picture('suite-check-head', i18n.t('suiteCheckHead'), (item) => item.head, sessionId, moment),
+              picture('suite-check-diff', i18n.t('suiteCheckDiff'), (item) => item.diff, sessionId, moment),
+            ]),
+            ul(
+              { class: ui.rowChips },
+              forNode(
+                function* () {
+                  return (yield* moment()).measures;
+                },
+                { track: (line) => line },
+                (line) => li({ class: ui.unitTag, 'data-lab': 'suite-check-measure' }, line),
+              ),
+            ),
+          ]),
+      ),
+    );
+  };
+
   const checkSection = div(
     { class: ui.sideSection, 'data-lab': 'suite-check' },
     [
@@ -292,7 +379,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       ul(
         { class: ui.sessions },
         forNode(checkRows, { track: (row) => row.sessionId }, (row) =>
-          li({ class: ui.row, 'data-lab': 'suite-check-session' }, [
+          li({ class: [ui.row, ui.checkRow], 'data-lab': 'suite-check-session' }, [
             span({ class: ui.rowBody }, [
               span({ class: ui.rowTitle }, [
                 span(function* () {
@@ -316,6 +403,27 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
               }),
             ]),
             span({ class: ui.rowActions }, [
+              button(
+                'toggleCheckedMoments',
+                {
+                  type: 'button',
+                  class: [buttonUi.root, ui.inlineAction],
+                  'data-variant': 'secondary',
+                  'data-lab': 'suite-check-toggle',
+                  'aria-expanded': function* () {
+                    return openedCheck() === (yield* row()).sessionId ? 'true' : 'false';
+                  },
+                  hidden: function* () {
+                    return (yield* row()).moments.length === 0;
+                  },
+                  click: function* () {
+                    yield* archive.openedCheckSession.toggle((yield* row()).sessionId);
+                  },
+                },
+                function* () {
+                  return openedCheck() === (yield* row()).sessionId ? i18n.t('suiteCheckHide') : i18n.t('suiteCheckShow');
+                },
+              ),
               button(
                 'openCheckedSession',
                 {
@@ -349,6 +457,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
                 () => (approving() ? i18n.t('suiteApproving') : i18n.t('suiteApprove')),
               ),
             ]),
+            checkMoments(row),
           ]),
         ),
       ),

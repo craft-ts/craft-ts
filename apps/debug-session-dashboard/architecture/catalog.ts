@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "a53013b7774e94ca",
+  "graphHash": "adedaa950be94e9e",
   "routes": [
     "",
     ":recipeId",
@@ -147,6 +147,7 @@ export const architectureCatalog = {
     "coverage",
     "coverageSections",
     "coverageSummaries",
+    "current",
     "dashboardReplayStatus",
     "deleteSession",
     "deleteSessions",
@@ -216,6 +217,7 @@ export const architectureCatalog = {
     "openArchivedSession",
     "openEntryIndex",
     "openThumbnailManifest",
+    "openedCheckSession",
     "openings",
     "orchestrationCommands",
     "orchestrationIssues",
