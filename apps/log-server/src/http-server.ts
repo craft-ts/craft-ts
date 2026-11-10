@@ -830,6 +830,42 @@ async function handleRequest(
     return;
   }
 
+  // Some tabs of a session, copied into a session of their own.
+  if (request.method === 'POST' && url.pathname === '/sessions/extract') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionStore) {
+      sendJson(response, 404, { error: 'Session archive is unavailable.' }, headers);
+      return;
+    }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(await readBody(request, Math.min(maxBodySize, 64_000)));
+    } catch {
+      sendJson(response, 400, { error: 'Invalid session extraction payload.' }, headers);
+      return;
+    }
+    const sessionId = isRecord(payload) ? payload['sessionId'] : undefined;
+    const participantIds = isRecord(payload) ? payload['participantIds'] : undefined;
+    if (
+      typeof sessionId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId) ||
+      !Array.isArray(participantIds) ||
+      participantIds.length === 0 ||
+      participantIds.length > 50 ||
+      !participantIds.every((participantId) => typeof participantId === 'string' && participantId.length > 0 && participantId.length <= 200)
+    ) {
+      sendJson(response, 400, { error: 'Invalid session extraction payload.' }, headers);
+      return;
+    }
+    const id = options.sessionStore.extract(sessionId, participantIds as string[]);
+    if (id === undefined) {
+      sendJson(response, 404, { error: 'Unknown session or tab.' }, headers);
+      return;
+    }
+    sendJson(response, 201, { id }, headers);
+    return;
+  }
+
   // The suite: several sessions replayed one after the other, as after a change.
   if (url.pathname === '/sessions/suite-replay' && request.method === 'POST') {
     const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);

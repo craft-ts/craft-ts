@@ -162,6 +162,43 @@ describe('DebugSessionStore', () => {
     ]);
   });
 
+  it('copies some tabs into a finished session of their own, the source left as it is', () => {
+    // A tab left open (tab-a) keeps the session recording; a walk in tab-b joins it.
+    store.begin(id, fixture(), createdAt, 'tab-a');
+    const later = new Date(Date.parse(createdAt) + 86_400_000).toISOString();
+    store.begin(id, { ...fixture(), startUrl: 'http://localhost:4200/admin', viewport: { width: 722, height: 825 }, initialSnapshot: { 'state:counter': 7 }, events: fixture().events.map((event) => ({ ...event, timestamp: Date.parse(later) + 5 })) }, later, 'tab-b', { createdAt: later });
+    const before = store.get(id);
+
+    const extracted = store.extract(id, ['tab-b'])!;
+
+    expect(extracted).not.toBe(id);
+    expect(store.get(id)).toEqual(before);
+    expect(store.list().find((summary) => summary.id === extracted)).toMatchObject({
+      status: 'interrupted',
+      participantCount: 1,
+      eventCount: 1,
+      createdAt: later,
+      startUrl: 'http://localhost:4200/admin',
+      extractedFrom: { sessionId: id, participantIds: ['tab-b'] },
+    });
+    expect(store.get(extracted)).toMatchObject({
+      viewport: { width: 722, height: 825 },
+      initialSnapshot: { 'state:counter': 7 },
+      events: [{ id: 'event-1', sequence: 1, participantId: 'tab-b', globalElapsedMs: 5 }],
+      clips: [{ participantId: 'tab-b', eventIds: ['event-1'] }],
+      participants: [{ id: 'tab-b', status: 'interrupted' }],
+    });
+    // Finished: a tab that comes back opens a session of its own.
+    expect(store.begin(extracted, fixture(), later, 'tab-c')).not.toBe(extracted);
+    // Survives a restart.
+    store.close();
+    store = new DebugSessionStore(directory);
+    expect(store.list().find((summary) => summary.id === extracted)?.extractedFrom).toEqual({ sessionId: id, participantIds: ['tab-b'] });
+
+    expect(store.extract(id, ['tab-z'])).toBeUndefined();
+    expect(store.extract(id, [])).toBeUndefined();
+  });
+
   it('updates a participant visibility state without adding timeline events', () => {
     store.begin(id, fixture(), createdAt, 'tab-a');
 

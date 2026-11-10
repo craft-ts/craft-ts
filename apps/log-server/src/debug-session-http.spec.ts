@@ -429,6 +429,33 @@ describe('debug session local archive API', () => {
     expect(sessionStore.get(id)).toBeUndefined();
   });
 
+  it('copies some tabs of a session into a session of their own', async () => {
+    const id = '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5678';
+    const empty = {
+      format: 'craft-debug-session' as const,
+      version: 6 as const,
+      startUrl: 'http://localhost:4200/',
+      exportedAt: Date.now(),
+      truncated: false,
+      events: [],
+      clips: [],
+    };
+    sessionStore.begin(id, empty, new Date().toISOString(), 'tab-a');
+    sessionStore.begin(id, empty, new Date().toISOString(), 'tab-b');
+    const extract = (body: unknown) =>
+      fetch(`${baseUrl}/sessions/extract`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+    const response = await extract({ sessionId: id, participantIds: ['tab-b'] });
+    expect(response.status).toBe(201);
+    const { id: extracted } = (await response.json()) as { id: string };
+    expect(sessionStore.get(extracted)?.participants?.map((participant) => participant.id)).toEqual(['tab-b']);
+    expect(sessionStore.get(id)?.participants?.map((participant) => participant.id)).toEqual(['tab-a', 'tab-b']);
+
+    expect((await extract({ sessionId: id, participantIds: ['tab-z'] })).status).toBe(404);
+    expect((await extract({ sessionId: 'pas-un-id', participantIds: ['tab-b'] })).status).toBe(400);
+    expect((await extract({ sessionId: id, participantIds: [] })).status).toBe(400);
+  });
+
   it('rejects session deletion from an unlisted browser origin', async () => {
     const id = '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5678';
     sessionStore.begin(

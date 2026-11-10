@@ -81,7 +81,11 @@ export type StoredDebugSessionSummary = Readonly<{
   participantCount: number;
   test?: DebugSessionTestMetadata;
   resume?: ResumeSessionMetadata;
+  /** Tabs taken out of another session (see `extract`). */
+  extractedFrom?: DebugSessionExtraction;
 }>;
+
+export type DebugSessionExtraction = Readonly<{ sessionId: string; participantIds: readonly string[] }>;
 
 export type StoredDebugSessionParticipant = Readonly<{
   id: string;
@@ -216,6 +220,7 @@ export class DebugSessionStore {
           participants,
           test,
           resume,
+          extractedFrom,
         }) => ({
           id,
           startUrl,
@@ -230,6 +235,7 @@ export class DebugSessionStore {
           participantCount: participants.length,
           ...(test ? { test } : {}),
           ...(resume ? { resume } : {}),
+          ...(extractedFrom ? { extractedFrom } : {}),
         }),
       );
   }
@@ -604,6 +610,70 @@ export class DebugSessionStore {
     return deleted;
   }
 
+  /**
+   * Copies some tabs of a session into a session of their own, the source
+   * left as it is. A tab left open keeps its session recording, and every
+   * tab opened later on the same origin joins it: several walks of different
+   * people or moments end up in one session, which a suite cannot replay
+   * apart. Each tab is whole — its page loads, its own initial snapshot —
+   * so a tab replays on its own. The copy is finished (`completed` when
+   * every tab ended, `interrupted` otherwise): no tab joins it later.
+   * Returns the new id, or `undefined` when the session or a tab is unknown.
+   */
+  extract(id: string, participantIds: readonly string[]): string | undefined {
+    assertSessionId(id);
+    const source = this.sessions.get(id);
+    const wanted = new Set(participantIds);
+    if (!source || wanted.size === 0) return undefined;
+    const participants = source.participants
+      .filter((participant) => wanted.has(participant.id))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const [first] = participants;
+    if (!first || participants.length !== wanted.size) return undefined;
+    const sourceEvents = this.liveEvents.get(id) ?? this.readEvents(id);
+    const createdAt = first.createdAt;
+    const start = Date.parse(createdAt);
+    const events = sourceEvents
+      .filter((event) => wanted.has(String(event['participantId'])) && !isInitialSnapshot(event))
+      .sort((a, b) => Number(a['sequence']) - Number(b['sequence']))
+      .map((event, index) => ({
+        ...event,
+        sequence: index + 1,
+        globalElapsedMs: Math.max(0, Number(event['timestamp']) - start),
+      }));
+    const ended = participants.every((participant) => participant.status === 'completed');
+    const status = ended ? 'completed' : 'interrupted';
+    const updatedAt = participants.reduce((latest, participant) => (participant.updatedAt > latest ? participant.updatedAt : latest), createdAt);
+    const extractedId = randomUUID();
+    const stored: StoredSession = {
+      id: extractedId,
+      startUrl: first.startUrl,
+      createdAt,
+      updatedAt,
+      endedAt: updatedAt,
+      status,
+      version: 2,
+      recordingVersion: source.recordingVersion,
+      replayVersion: source.replayVersion,
+      eventCount: events.length,
+      truncated: source.truncated,
+      ...(source.test ? { test: source.test } : {}),
+      extractedFrom: { sessionId: id, participantIds: participants.map((participant) => participant.id) },
+      clips: source.clips.filter(
+        (clip) => isRecord(clip) && wanted.has(typeof clip['participantId'] === 'string' ? clip['participantId'] : 'default'),
+      ),
+      participants: participants.map((participant) =>
+        participant.status === 'recording' ? { ...participant, status } : participant,
+      ),
+      ...(first.viewport ? { viewport: first.viewport } : {}),
+      ...(first.initialSnapshot ? { initialSnapshot: first.initialSnapshot } : {}),
+    };
+    this.writeEvents(extractedId, events);
+    this.sessions.set(extractedId, stored);
+    this.persistIndex();
+    return extractedId;
+  }
+
   private removeSession(id: string): boolean {
     if (!this.sessions.has(id)) return false;
     this.sessions.delete(id);
@@ -913,9 +983,19 @@ function isStoredSession(value: unknown): value is StoredSession {
     (value['test'] === undefined || isDebugSessionTestMetadata(value['test'])) &&
     (value['resume'] === undefined ||
       isResumeSessionMetadata(value['resume'])) &&
+    (value['extractedFrom'] === undefined || isDebugSessionExtraction(value['extractedFrom'])) &&
     Array.isArray(value['clips']) &&
     (value['participants'] === undefined ||
       Array.isArray(value['participants']))
+  );
+}
+
+function isDebugSessionExtraction(value: unknown): value is DebugSessionExtraction {
+  return (
+    isRecord(value) &&
+    typeof value['sessionId'] === 'string' &&
+    Array.isArray(value['participantIds']) &&
+    value['participantIds'].every((participantId) => typeof participantId === 'string')
   );
 }
 
