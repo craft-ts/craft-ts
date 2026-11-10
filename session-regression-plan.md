@@ -305,7 +305,7 @@ Prévu à l'origine :
 ### Lot 3 — Base contre tête — ✅ fait en local, commité ; CI écartée
 
 Fait (`@craft-ts/playwright-sessions/suite`) :
-- `compareGoldenRuns` : base ×2 + tête ×1 par session. Verdicts `regression`
+- `compareGoldenRuns` : base ×2 (ou plus, `--noise-runs`) + tête ×1 par session. Verdicts `regression`
   (la base va au bout, pas la tête ; ou une action dont l'élément a disparu),
   `changed`, `unchanged`, `stale` (la base ne rejoue plus : à réenregistrer,
   ne prouve rien), `flaky` (les deux bases divergent). Par moment : mesures
@@ -341,11 +341,18 @@ Fait (2026-11-09) :
   `GET /sessions/check/image?origin=&path=`, chemin validé) et les mesures changées.
 - **Session sans action** : son seul moment est la page telle qu'elle s'ouvre. Sur la
   tête « logo seul », les 3 sessions sans action passent d'« inchangée » à « changement ».
-  Limite : une session rechargée plusieurs fois (12 chargements d'un onglet caché par le
-  serveur de dev) est rejouée en autant d'onglets, que le dashboard montre en grille :
-  l'image de l'onglet est celle de sa tuile (394×201 au lieu de 1646×833). La taille de
-  fenêtre, elle, est bien enregistrée au début de chaque session. Les deux runs ont la
-  même grille, donc la comparaison tient ; seule la résolution baisse.
+  Une session rechargée plusieurs fois (12 chargements d'un onglet caché par le serveur
+  de dev) est rejouée en autant d'onglets, que le dashboard montre en grille. Corrigé
+  (2026-11-10) : le runner montre l'onglet photographié seul, à sa taille enregistrée
+  (`showAlone` sur la surface du worker : les autres tuiles sortent de la grille, leurs
+  pages tournent toujours, à la même taille), puis rend la grille. 1646×834 au lieu de
+  la tuile de 394×201. Un dashboard sans `showAlone` donne encore la tuile.
+
+Fait (2026-11-10) : `--noise-runs <n>` (`noiseRuns` de `runGoldenCheck`, 2 par défaut, au
+moins 2) : la base est rejouée n fois, et le bruit est tout ce qui diffère entre la
+première et l'une des autres (mesures et pixels). Trois rejeux attrapent plus souvent une
+valeur qui ne bouge qu'un rejeu sur trois (un curseur, une animation) ; `flaky` dès qu'un
+des rejeux ne va pas au même point.
 
 Reste : servir une build à une autre origine que celle de l'enregistrement (un vrai cas :
 une preview ou un staging). Écarté : l'action CI (pas de crédit).
@@ -506,7 +513,8 @@ l'ingestion, rétention ; preview/staging en premier, jamais la prod par défaut
    reconstruit à partir du manifeste) ?
 2. **Ordre des lots 3 et 4** : la comparaison visuelle d'abord (proposé), ou le mode
    interaction d'abord si le lot 0 montre que le mode invocation laisse passer trop ?
-3. **Seuil de bruit** : base rejouée 2 fois (proposé) ou 3 pour les apps animées ?
+3. **Seuil de bruit** : tranché (2026-11-10) — 2 par défaut, `--noise-runs 3` pour une
+   app animée.
 4. **Applications cibles du pilote** : `demo-ecommerce` (comptes, admin, scénario de
    rôle refusé) paraît le meilleur terrain ; `demo` en second.
 
