@@ -47,6 +47,7 @@ type WorkerSurface = {
   plan(options: { maxPoints: number }): ReplayPlanPoint[];
   advanceTo(index: number): void;
   seekTo?(index: number): void;
+  showAlone?(participantId: string | undefined): void;
 };
 type WorkerWindow = { __craftReplayWorker?: WorkerSurface };
 
@@ -115,6 +116,21 @@ export function seekWorker(page: Page, index: number): Promise<boolean> {
     worker.seekTo(target);
     return true;
   }, index);
+}
+
+/**
+ * Shows one tab alone at its recorded size (`undefined`: the grid again). A
+ * dashboard too old to do it answers `false`.
+ */
+export function showWorkerTabAlone(page: Page, participantId: string | undefined): Promise<boolean> {
+  return page
+    .evaluate((id: string | null) => {
+      const worker = (window as unknown as WorkerWindow).__craftReplayWorker;
+      if (!worker?.showAlone) return false;
+      worker.showAlone(id ?? undefined);
+      return true;
+    }, participantId ?? null)
+    .catch(() => false);
 }
 
 export type AdvanceOutcome =

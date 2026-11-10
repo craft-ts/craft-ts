@@ -1,9 +1,10 @@
-import type { BrowserContext, Frame, Page } from '@playwright/test';
+import type { BrowserContext, Frame, Locator, Page } from '@playwright/test';
 import {
   readWorker,
   replayFrameLocator,
   seekWorker,
   settleReplayFrame,
+  showWorkerTabAlone,
   waitForAdvance,
   waitForWorker,
   workerPlan,
@@ -270,7 +271,7 @@ async function captureMoment(
   if (!(await frameLocator.isVisible())) return undefined;
   const frame = await settleReplayFrame(frameLocator, settle);
   if (!frame) return undefined;
-  const png = await frameLocator.screenshot({ type: 'png', animations: 'disabled', caret: 'hide', style: HIDE_REPLAY_CUES });
+  const png = await photographAlone(page, frameLocator, participantId);
   return {
     replayIndex: point.replayIndex,
     reasons: point.reasons,
@@ -280,6 +281,25 @@ async function captureMoment(
     png,
     ...(measure ? { digest: await measure(frame) } : {}),
   };
+}
+
+/**
+ * The tab's picture. A session replayed in several tabs (each page load is
+ * one) shows them in a grid, where each page is shrunk to its tile: the tab
+ * is shown alone for the picture, at the size it was recorded, then the grid
+ * comes back. A dashboard that cannot do it gives the tile.
+ */
+async function photographAlone(page: Page, frameLocator: Locator, participantId: string | undefined): Promise<Buffer> {
+  const photograph = () => frameLocator.screenshot({ type: 'png', animations: 'disabled', caret: 'hide', style: HIDE_REPLAY_CUES });
+  if ((await page.locator('iframe[data-replay-participant]').count()) < 2) return photograph();
+  const id = participantId ?? (await frameLocator.getAttribute('data-replay-participant')) ?? undefined;
+  if (id === undefined || !(await showWorkerTabAlone(page, id))) return photograph();
+  try {
+    await waitForWorker(page, (current) => (current.scale ?? 1) >= 0.99, Date.now() + 2_000);
+    return await photograph();
+  } finally {
+    await showWorkerTabAlone(page, undefined);
+  }
 }
 
 /** The recorded viewport at scale 1: a window big enough that the page is not shrunk. */

@@ -130,6 +130,11 @@ import {
 /** A recorded tab is the one the recording had in front (`focus`) or acts now (`action`). */
 export const tileFocus = defineStateAxis('tile-focus', ['true'] as const);
 export const tileAction = defineStateAxis('tile-action', ['true'] as const);
+/**
+ * A tab set aside while another is photographed alone (the regression
+ * suite): out of the grid and unseen, its page still running at its size.
+ */
+export const tileAside = defineStateAxis('tile-aside', ['true'] as const);
 /** How a tab's note is drawn over its frame. */
 export const veilMode = defineStateAxis('veil', ['dim', 'compact'] as const);
 /** A note that has been put away, still readable in the history. */
@@ -1011,6 +1016,13 @@ export const ui = craftStyles('dashboard', {
     when(tileAction.true, [
       borderColor(theme.importantBorder),
       bg(theme.importantSurface),
+    ]),
+    when(tileAside.true, [
+      position.absolute,
+      insetBlockStart(space(0)),
+      insetInlineStart(space(0)),
+      opacity(num(0)),
+      pointerEvents.none,
     ]),
   ],
   tileTitle: [

@@ -75,6 +75,12 @@ export type ReplayWorkerSurface = Readonly<{
    * (`advanceTo`) goes on while the picture is taken.
    */
   seekTo: (index: number) => void;
+  /**
+   * Shows one tab alone at the size it was recorded, the others set aside
+   * and still running; `undefined` brings the grid back. A session replayed
+   * in several tabs (each page load is one) is photographed tab by tab.
+   */
+  showAlone: (participantId: string | undefined) => void;
 }>;
 
 const SETTLED_STATES: readonly string[] = ['ready', 'paused', 'completed'];
@@ -122,6 +128,7 @@ function differenceDetail(): ReplayWorkerSnapshot['differenceDetail'] {
 export function installReplayWorkerSurface(
   playReplay: () => void,
   seekReplayToIndex: (index: number) => void,
+  showAlone: (participantId: string | undefined) => void,
 ): void {
   const surface: ReplayWorkerSurface = {
     snapshot,
@@ -134,6 +141,7 @@ export function installReplayWorkerSurface(
     seekTo: (index) => {
       if (['ready', 'paused'].includes(replayState())) seekReplayToIndex(index);
     },
+    showAlone,
   };
   exposeReplayWorkerSurface(surface);
 }

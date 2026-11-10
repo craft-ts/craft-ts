@@ -390,6 +390,8 @@ const STAGE = 'replay-stage';
 
 /** The first tab keeps the plain ids the end-to-end tests and the sheet know. */
 let primaryParticipantId: string | undefined;
+/** The tab shown alone, the others set aside (see `showReplayTileAlone`). */
+let aloneParticipantId: string | undefined;
 
 const cardId = (participantId: string) => `replay-frame-card-${participantId}`;
 const urlId = (participantId: string) => `replay-frame-url-${participantId}`;
@@ -439,6 +441,7 @@ export function renderFrames(
     renderer.setProperty(target, 'textContent', text);
   grid.replaceChildren();
   primaryParticipantId = specs[0]?.participantId;
+  aloneParticipantId = undefined;
   specs.forEach((spec, index) => {
     const { participantId } = spec;
     const card = element('section', ui.tile, 'replay-tile');
@@ -606,6 +609,28 @@ export function setFrameAddress(participantId: string, address: string): void {
   if (!element) return;
   element.textContent = address;
   element.title = address;
+}
+
+/**
+ * Shows one tab alone, as large as the stage lets it, the others set aside
+ * without being resized or stopped; `undefined` puts the grid back. The
+ * regression suite photographs a tab of a session replayed in several this
+ * way, at the size it was recorded. The caller lays the frames out again.
+ */
+export function showReplayTileAlone(participantId: string | undefined): void {
+  const grid = byId(GRID);
+  aloneParticipantId =
+    participantId !== undefined && byId(cardId(participantId)) ? participantId : undefined;
+  for (const card of Array.from(grid?.children ?? [])) {
+    if (aloneParticipantId !== undefined && card.id !== cardId(aloneParticipantId))
+      card.setAttribute('data-tile-aside', 'true');
+    else card.removeAttribute('data-tile-aside');
+  }
+}
+
+/** The tab shown alone, if one is. */
+export function replayTileAlone(): string | undefined {
+  return aloneParticipantId;
 }
 
 export type TilePaint = Readonly<{

@@ -13,6 +13,7 @@ import {
   observeStage,
   paintTiles,
   postToFrame,
+  replayTileAlone,
   setFrameAddress,
   setFramePlaceholder,
   setTileHidden,
@@ -132,6 +133,10 @@ export const { ReplayPlayback } = craftService(
         if (participantId === rawReactiveValue(selectedParticipantId)() || primaryScale === 1)
           primaryScale = scale;
       }
+      // A tab shown alone is the one the scale speaks of.
+      const alone = replayTileAlone();
+      if (alone !== undefined)
+        primaryScale = scaled.find((item) => item.participantId === alone)?.scale ?? primaryScale;
       setStates({ replayViewportScale: primaryScale });
     }
 

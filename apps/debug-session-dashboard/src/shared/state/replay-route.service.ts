@@ -13,6 +13,7 @@ import {
 import {
   installReplayPlatform,
   isReplayWorkerMode,
+  showReplayTileAlone,
 } from '../util/replay-browser';
 import { ReplaySession } from './replay-session';
 import { ReplayPlayback } from './replay-playback';
@@ -70,8 +71,13 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     // not ask for thumbnails of its own.
     const workerMode = isReplayWorkerMode();
     if (workerMode)
-      installReplayWorkerSurface(playback.playReplay, (index) =>
-        replaySession.seekReplayToIndex(index),
+      installReplayWorkerSurface(
+        playback.playReplay,
+        (index) => replaySession.seekReplayToIndex(index),
+        (participantId) => {
+          showReplayTileAlone(participantId);
+          playback.updateReplayViewport();
+        },
       );
 
     const archive = yield* SessionArchive();
