@@ -182,7 +182,7 @@ tête, dire régression / changement / inchangé, voir base et tête côte à c�
 un changement voulu ; la suite réelle de demo-ecommerce (11 sessions) passe. Restent : le
 lot 7 (non commencé), la CI (écartée faute de crédit), le packaging pour les apps
 craft-ts (mis de côté) et les points « Reste » ci-dessous, qui attendent tous un vrai cas
-(autre origine, `Date`, autre app). Les questions du §6 ne sont pas tranchées.
+(autre origine, autre app). Les questions du §6 ne sont pas tranchées.
 
 **Décision du 2026-11-07 : les sessions déjà archivées ne sont pas prises en compte.**
 On prépare d'abord le système ; les sessions qui l'alimenteront seront enregistrées
@@ -230,7 +230,7 @@ Prévu :
 - Dashboard : page **Suite** (sessions retenues, pourquoi, unités sans session).
 - Outil MCP `sessions.select` / `sessions.suite`.
 
-### Lot 2 — Mode « suite » du rejeu (É1) et déterminisme (É4) — ✅ fait, commité ; `Date` non figée
+### Lot 2 — Mode « suite » du rejeu (É1) et déterminisme (É4) — ✅ fait, commité ; heure civile corrigée (2026-11-10)
 
 Fait :
 - `createReplayController({ stateSource: 'recomputed' })`
@@ -267,9 +267,21 @@ Constats :
   capture (`HIDE_REPLAY_CUES`).
 - Le capteur de vignettes du log-server garde son propre pilote (le log-server
   est compilé et publié, il ne peut pas dépendre de `playwright-sessions`).
-- **Reste** : le gel de `Date` n'est pas appliqué (seul `Math.random` est à graine) :
-  la synchronisation des onglets passe par l'horloge murale ; à reprendre par
-  l'horloge virtuelle du rejeu. Sans effet visible sur la suite de demo-ecommerce.
+- **Heure civile au rejeu (2026-11-10)** — cas précis : la promotion de la semaine de
+  demo-ecommerce (fin datée par le serveur, compte à rebours à la seconde lu par
+  `CraftTemporalRuntime.dateNow()`, prix remisés tant qu'elle court). Constat : l'horloge
+  virtuelle du rejeu démarrait au temps écoulé de la session (`elapsedMs`), donc
+  `dateNow()` rendait le 1ᵉʳ janvier 1970 (`promoNow` = 3000 au lieu de 1794289982876) et
+  4 e2e de rejeu divergeaient. Corrigé : `VirtualCraftTemporalRuntime(initialTime,
+  { dateOrigin })` sépare l'heure civile du temps virtuel, et le rejeu la cale sur le
+  `timestamp` enregistré (`recordedDateOrigin`). Une minuterie réelle dérive de quelques
+  ms par tick alors que l'horloge virtuelle est exacte : deux dates lues de l'horloge
+  (millisecondes entre 2000 et 2100) sont la même à 2 s près (`REPLAY_CLOCK_TOLERANCE_MS`).
+  Reste : le code qui lit `Date` directement (interdit par `no-direct-temporal-globals`
+  dans les apps Craft) n'est pas couvert ; un état qui avance chaque seconde fait grossir
+  l'enregistrement en continu (le helper e2e `archiveSettled`, qui attend 600 ms sans
+  nouvel événement, devient instable sous charge) ; le tick enregistré hérite du
+  `correlationId` du dernier clic (sans effet : l'appel est `comparable: false`).
 
 Prévu à l'origine :
 
