@@ -757,11 +757,21 @@ function nativeMonotonicNow(): number {
  */
 export class VirtualCraftTemporalRuntime extends BaseCraftTemporalRuntime {
   private currentTime: number;
+  /** What `dateNow()` adds to the virtual time: civil time at `initialTime` minus `initialTime`. */
+  private readonly civilOffset: number;
 
-  constructor(initialTime = 0) {
+  /**
+   * `dateOrigin` is the civil time (epoch milliseconds) at `initialTime`: a
+   * replay starts its virtual clock at the recording's elapsed time, and its
+   * `dateNow()` must still read the hour of the recording, not 1970. Without
+   * it, civil time is the virtual time itself.
+   */
+  constructor(initialTime = 0, options: Readonly<{ dateOrigin?: number }> = {}) {
     super();
     assertFiniteTime(initialTime, 'initialTime');
+    if (options.dateOrigin !== undefined) assertFiniteTime(options.dateOrigin, 'dateOrigin');
     this.currentTime = initialTime;
+    this.civilOffset = options.dateOrigin === undefined ? 0 : options.dateOrigin - initialTime;
   }
 
   now(): number {
@@ -769,7 +779,7 @@ export class VirtualCraftTemporalRuntime extends BaseCraftTemporalRuntime {
   }
 
   override dateNow(): number {
-    return this.currentTime;
+    return this.currentTime + this.civilOffset;
   }
 
   async advanceBy(milliseconds: number): Promise<void> {

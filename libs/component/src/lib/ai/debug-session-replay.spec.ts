@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createSendContextSession,
+  RealCraftTemporalRuntime,
   type SendContextEvent,
   type SendContextReplayExport,
   ɵcaptureCraftReplayTarget,
@@ -12,6 +13,7 @@ import {
   createRecordedResponseResolver,
   createReplayController,
   cutUnfinishedTail,
+  recordedDateOrigin,
   getReplaySteps,
   splitPageReloads,
   installReplayNetworkGuard,
@@ -5735,6 +5737,61 @@ describe("stateSource: 'recomputed'", () => {
     };
     expect(await replayWith(1_000)).toBeUndefined();
     expect(await replayWith(0)).toMatchObject({ expected: { [TOTAL]: 3 }, actual: { [TOTAL]: 0 } });
+  });
+
+  it('reads the hour of the recording on the replay’s clock, not 1970', async () => {
+    // Elapsed times on the timeline, the wall clock in `timestamp`.
+    const at = (elapsedMs: number, timestamp: number) => ({ elapsedMs, timestamp }) as SendContextEvent;
+    const timeOf = (event: SendContextEvent) => event.elapsedMs ?? event.timestamp;
+    expect(recordedDateOrigin([at(5, 1_794_289_980_000), at(900, 1_794_289_980_895)], timeOf, 5)).toEqual({ dateOrigin: 1_794_289_980_000 });
+    expect(recordedDateOrigin([at(5, 1_794_289_980_000)], timeOf, 0)).toEqual({ dateOrigin: 1_794_289_979_995 });
+    expect(recordedDateOrigin([], timeOf, 0)).toEqual({});
+
+    // The code under replay asks the time while a recorded action runs.
+    document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+    const events = session().events.map((event) => ({ ...event, timestamp: event.timestamp + 1_794_289_979_000, elapsedMs: event.timestamp - 1_000 }));
+    let readAt: number | undefined;
+    const replay = createReplayController({ ...session(), events }, {
+      invokeRecordedMethod: () => { readAt = new RealCraftTemporalRuntime().dateNow(); },
+      readState: () => ({}),
+      restoreState: () => undefined,
+    });
+    (await replay.step()) ?? (await replay.step());
+    replay.stop();
+    // The recording started at 1 794 289 980 000: the action ran within its first seconds.
+    expect(readAt).toBeGreaterThanOrEqual(1_794_289_980_000);
+    expect(readAt! - 1_794_289_980_000).toBeLessThan(10_000);
+  });
+
+  it('takes two dates read from the clock a few milliseconds apart for the same moment, not two far apart', async () => {
+    const NOW = 'service:promoClock / state:promoNow / state:promoNow#1';
+    const replayWith = async (live: number) => {
+      document.body.innerHTML = '<button id="add">Add</button>';
+      const events = [
+        session().events[0]!,
+        // The state's own method is replayed: its value is the code's to produce.
+        {
+          id: 'tick-started', sequence: 2, timestamp: 1_001, kind: 'craft', phase: 'started', name: 'method:tick', operationId: 'tick',
+          payload: { host: 'method:tick', replayInvocation: { address: 'service:promoClock / state:promoNow / method:tick', args: [] } },
+        },
+        { id: 'tick', sequence: 3, timestamp: 1_002, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: NOW, primitiveKind: 'state' }, state: { [NOW]: 1_794_289_982_876 } },
+      ] as SendContextReplayExport['events'];
+      const replay = createReplayController({ ...session(), events }, {
+        stateSource: 'recomputed',
+        settleTimeoutMs: 0,
+        invokeRecordedMethod: () => undefined,
+        readState: () => ({ [NOW]: live }),
+        restoreState: () => undefined,
+      });
+      const difference = (await replay.step()) ?? (await replay.step());
+      replay.stop();
+      return difference;
+    };
+    // A real timer fires a little late: the same tick.
+    expect(await replayWith(1_794_289_982_870)).toBeUndefined();
+    // The elapsed time read as a date (1970), or another moment: a gap.
+    expect(await replayWith(3_000)).toBeDefined();
+    expect(await replayWith(1_794_289_992_876)).toBeDefined();
   });
 
   it('checks what came after the last action before declaring the replay complete', async () => {

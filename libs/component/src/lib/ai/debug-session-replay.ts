@@ -845,10 +845,42 @@ function withoutInstanceNumbers(address: string): string {
     .join(' / ');
 }
 
+/**
+ * The recording's civil time at `firstTime`: an event carries both its
+ * position on the replay's timeline and the wall clock it was recorded at
+ * (`timestamp`). Absent when no event says.
+ */
+export function recordedDateOrigin(
+  events: readonly SendContextEvent[],
+  timeOf: (event: SendContextEvent) => number,
+  firstTime: number,
+): Readonly<{ dateOrigin?: number }> {
+  const anchor = events.find(
+    (event) => typeof event.timestamp === 'number' && Number.isFinite(timeOf(event)),
+  );
+  return anchor ? { dateOrigin: anchor.timestamp - timeOf(anchor) + firstTime } : {};
+}
+
+/** Milliseconds since 1970 between 2000 and 2100: a date the code read from its clock. */
+const EPOCH_MS_RANGE = [946_684_800_000, 4_102_444_800_000] as const;
+/**
+ * How far two read dates may be apart and still be the same moment of the
+ * recording: a real timer fires a few milliseconds late each time and drifts,
+ * the replay's virtual clock does not.
+ */
+export const REPLAY_CLOCK_TOLERANCE_MS = 2_000;
+
+function isEpochMs(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= EPOCH_MS_RANGE[0] && value <= EPOCH_MS_RANGE[1];
+}
+
 function replaySnapshotValueMatches(
   expected: unknown,
   actual: unknown,
 ): boolean {
+  // A date read from the clock: the same moment within the timers' drift.
+  if (isEpochMs(expected) && isEpochMs(actual))
+    return Math.abs(expected - actual) <= REPLAY_CLOCK_TOLERANCE_MS;
   // Session exports replace repeated references and over-deep values with
   // these markers. They describe serialization limits, not the live value.
   if (
@@ -1093,7 +1125,11 @@ export function createReplayController(
         session.events[0] ??
         ({ timestamp: 0 } as SendContextEvent),
     );
-  const clock = new VirtualCraftTemporalRuntime(firstTime);
+  // The recording's civil time at `firstTime`: the code under replay reads
+  // the hour of the recording (`dateNow()`), not the elapsed time since 1970.
+  const clock = new VirtualCraftTemporalRuntime(firstTime, {
+    ...recordedDateOrigin(session.events, timeOf, firstTime),
+  });
   const restoreClock = activateCraftTemporalRuntime(clock);
   const restoreRandom =
     typeof session.randomSeed === 'number'

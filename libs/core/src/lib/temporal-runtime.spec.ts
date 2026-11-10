@@ -62,6 +62,17 @@ describe('VirtualCraftTemporalRuntime', () => {
     restore();
   });
 
+  it('reads civil time from a date origin, apart from the virtual time it advances', async () => {
+    const clock = new VirtualCraftTemporalRuntime(250, { dateOrigin: 1_794_289_980_000 });
+    expect([clock.now(), clock.dateNow()]).toEqual([250, 1_794_289_980_000]);
+    await clock.advanceBy(1_000);
+    expect([clock.now(), clock.dateNow()]).toEqual([1_250, 1_794_289_981_000]);
+    clock.reset(250);
+    expect(clock.dateNow()).toBe(1_794_289_980_000);
+    // Without an origin, civil time is the virtual time.
+    expect(new VirtualCraftTemporalRuntime(42).dateNow()).toBe(42);
+  });
+
   it('executes tasks by deadline and creation order', async () => {
     const clock = new VirtualCraftTemporalRuntime();
     const events: string[] = [];
