@@ -19,6 +19,7 @@ import {
 } from './debug-session-scenario';
 import { createDebugSessionNativeControlReplayPresentation } from './debug-session-native-control-replay';
 import { migrateDebugSessionExport } from './debug-session-format';
+import { followReplayCivilDate, realDateNow } from './replay-civil-date';
 export {
   supportsDebugSessionExportVersion,
   supportsDebugSessionReplayVersion,
@@ -1065,6 +1066,11 @@ export function createReplayController(
     scenario?: ReplayScenario;
     /** Maximum time to wait for an expected async invocation; defaults to 2500 ms. */
     settleTimeoutMs?: number;
+    /**
+     * `Date` in the page follows the hour of the recording while the replay
+     * runs (on by default, when the recording says its hour).
+     */
+    followRecordedDate?: boolean;
     /** Resolve routes and registered Craft targets in the running application. */
     resolveTarget?: ReplayTargetResolver;
   }> = {},
@@ -1127,10 +1133,18 @@ export function createReplayController(
     );
   // The recording's civil time at `firstTime`: the code under replay reads
   // the hour of the recording (`dateNow()`), not the elapsed time since 1970.
-  const clock = new VirtualCraftTemporalRuntime(firstTime, {
-    ...recordedDateOrigin(session.events, timeOf, firstTime),
-  });
-  const restoreClock = activateCraftTemporalRuntime(clock);
+  const dateOrigin = recordedDateOrigin(session.events, timeOf, firstTime);
+  const clock = new VirtualCraftTemporalRuntime(firstTime, dateOrigin);
+  const restoreTemporalRuntime = activateCraftTemporalRuntime(clock);
+  // Code that reads `Date` itself reads the hour of the recording too.
+  const restoreDate =
+    dateOrigin.dateOrigin !== undefined && options.followRecordedDate !== false
+      ? followReplayCivilDate(() => clock.dateNow())
+      : () => undefined;
+  const restoreClock = (): void => {
+    restoreDate();
+    restoreTemporalRuntime();
+  };
   const restoreRandom =
     typeof session.randomSeed === 'number'
       ? activateCraftRandomRuntime(
@@ -2581,7 +2595,7 @@ export function createReplayController(
     }
     let expectedCallIndex = 0;
     const settleDeadline =
-      Date.now() +
+      realDateNow() +
       Math.max(0, Math.min(options.settleTimeoutMs ?? 2500, 30_000));
     const observedCalls = () =>
       options
@@ -2591,7 +2605,7 @@ export function createReplayController(
           (candidate) => candidate.kind === 'craft' && isComparable(candidate),
         ) ?? [];
     const waitForObservedCall = async (index: number): Promise<boolean> => {
-      while (Date.now() < settleDeadline && observedCalls().length <= index) {
+      while (realDateNow() < settleDeadline && observedCalls().length <= index) {
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       return observedCalls().length > index;
@@ -2680,8 +2694,8 @@ export function createReplayController(
         }
         return observed;
       };
-      const deadline = Date.now() + 2_500;
-      while (Date.now() < deadline) {
+      const deadline = realDateNow() + 2_500;
+      while (realDateNow() < deadline) {
         const observed = findObserved();
         if (observed) return observed;
         await new Promise((resolve) => setTimeout(resolve, 20));
@@ -2699,8 +2713,8 @@ export function createReplayController(
         ? expected.payload
         : undefined;
       if (!expectedPayload) return undefined;
-      const deadline = Date.now() + 2_500;
-      while (Date.now() < deadline) {
+      const deadline = realDateNow() + 2_500;
+      while (realDateNow() < deadline) {
         const candidates =
           options
             .observedEvents?.()
@@ -2953,7 +2967,7 @@ export function createReplayController(
       let observed = observedAddresses();
       while (
         expectedCalls.some((address) => !observed.has(address)) &&
-        Date.now() < settleDeadline
+        realDateNow() < settleDeadline
       ) {
         await new Promise((resolve) => setTimeout(resolve, 20));
         observed = observedAddresses();

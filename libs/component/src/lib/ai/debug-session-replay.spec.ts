@@ -5763,6 +5763,28 @@ describe("stateSource: 'recomputed'", () => {
     expect(readAt! - 1_794_289_980_000).toBeLessThan(10_000);
   });
 
+  it('gives code that reads Date itself the hour of the recording, and the page its Date back after', async () => {
+    document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+    const events = session().events.map((event) => ({ ...event, timestamp: event.timestamp + 1_899_999_999_000, elapsedMs: event.timestamp - 1_000 }));
+    const NativeDate = Date;
+    const read: number[] = [];
+    const replay = createReplayController({ ...session(), events }, {
+      invokeRecordedMethod: () => { read.push(Date.now(), new Date().getTime(), Date.parse(String(new Date()))); },
+      readState: () => ({}),
+      restoreState: () => undefined,
+    });
+    (await replay.step()) ?? (await replay.step());
+    expect(new Date() instanceof NativeDate).toBe(true);
+    expect(new Date(0).getTime()).toBe(0);
+    replay.stop();
+    expect(read.length).toBeGreaterThan(0);
+    for (const value of read) expect(Math.abs(value - 1_900_000_000_000)).toBeLessThan(10_000);
+    expect(Date).toBe(NativeDate);
+    expect(Math.abs(Date.now() - new NativeDate().getTime())).toBeLessThan(1_000);
+    // A recording in 2030: the page is back on today.
+    expect(Date.now()).toBeLessThan(1_900_000_000_000 - 86_400_000);
+  });
+
   it('takes two dates read from the clock a few milliseconds apart for the same moment, not two far apart', async () => {
     const NOW = 'service:promoClock / state:promoNow / state:promoNow#1';
     const replayWith = async (live: number) => {

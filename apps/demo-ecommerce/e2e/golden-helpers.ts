@@ -154,23 +154,35 @@ export async function recordPurchaseWithReload(browser: Browser, baseURL: string
  * The recorder sends its events to the log server a little after they happen:
  * a tab closed right after the last answer arrived can leave that answer out
  * of the archive, and the replay then leaves the action that asked for it out.
- * Waits until the archived recording stops growing.
+ * Waits until the archived recording stops growing — but for the week's
+ * promotion counting down, which writes its clock every second for as long as
+ * the page is open: the recording never stops growing with it.
  */
 async function archiveSettled(server: string, baseURL: string, startedAt: string): Promise<void> {
   let last = -1;
   let stableSince = Date.now();
   await expect.poll(async () => {
     const response = await fetch(`${server}/sessions`);
-    const body = await response.json() as { sessions?: (ArchivedSession & { eventCount?: number })[] };
+    const body = await response.json() as { sessions?: ArchivedSession[] };
     const recording = (body.sessions ?? []).find((session) =>
       session.createdAt >= startedAt && !session.test && new URL(session.startUrl).origin === new URL(baseURL).origin);
-    const count = recording?.eventCount ?? -1;
+    const count = recording ? await eventsBesidesTheCountdown(server, recording.id) : -1;
     if (count !== last) {
       last = count;
       stableSince = Date.now();
     }
     return count >= 0 && Date.now() - stableSince >= 600;
   }, { timeout: 10_000, intervals: [150] }).toBe(true);
+}
+
+/** The promotion's clock: its state, the method that moves it, the task that calls it. */
+const COUNTDOWN = /promoClock|promo-countdown/;
+
+async function eventsBesidesTheCountdown(server: string, id: string): Promise<number> {
+  const response = await fetch(`${server}/sessions/${id}`);
+  if (!response.ok) return -1;
+  const session = await response.json() as { events?: unknown[] };
+  return (session.events ?? []).filter((event) => !COUNTDOWN.test(JSON.stringify(event))).length;
 }
 
 async function archivedSince(server: string, baseURL: string, startedAt: string): Promise<string> {
