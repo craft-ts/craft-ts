@@ -104,6 +104,10 @@ describe('findCraftSessionConfigs', () => {
     mkdirSync(join(root, 'node_modules/pkg/e2e'), { recursive: true });
     writeFileSync(join(root, 'node_modules/pkg/playwright.config.ts'), "export default { testDir: './e2e' };\n");
     writeFileSync(join(root, 'node_modules/pkg/e2e/fixtures.ts'), "import '@craft-ts/playwright-sessions';\n");
+    // A runner that replays the suite uses another entry, not the fixture: it records nothing.
+    mkdirSync(join(root, 'tools/check'), { recursive: true });
+    writeFileSync(join(root, 'tools/check/playwright.config.ts'), "export default { testDir: '.' };\n");
+    writeFileSync(join(root, 'tools/check/check.spec.ts'), "import { runGoldenCheck } from '@craft-ts/playwright-sessions/suite';\n");
     expect(findCraftSessionConfigs(root)).toEqual(['admin/playwright.config.ts', 'shop/playwright.config.ts']);
   });
 

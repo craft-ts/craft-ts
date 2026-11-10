@@ -11,7 +11,9 @@ type Suite = { title?: string; file?: string; specs?: Spec[]; suites?: Suite[] }
 type Spec = { title: string; file?: string; tests: Array<{ projectName: string; annotations: Array<{ type: string; description?: string }> }> };
 
 const SKIPPED_DIRECTORIES = new Set(['node_modules', 'dist', 'tmp', '.git', '.nx', '__sessions__']);
-const FIXTURE_USE = /@craft-ts\/playwright-sessions|\bcraftSession\(/;
+// The fixture itself (the package's root entry), not its other entries: a
+// runner that only replays a suite (`/suite`) records no session.
+const FIXTURE_USE = /@craft-ts\/playwright-sessions['"]|\bcraftSession\(/;
 
 /**
  * The Playwright configs of the workspace whose tests use the craft-session
