@@ -277,11 +277,20 @@ Constats :
   `timestamp` enregistré (`recordedDateOrigin`). Une minuterie réelle dérive de quelques
   ms par tick alors que l'horloge virtuelle est exacte : deux dates lues de l'horloge
   (millisecondes entre 2000 et 2100) sont la même à 2 s près (`REPLAY_CLOCK_TOLERANCE_MS`).
-  Reste : le code qui lit `Date` directement (interdit par `no-direct-temporal-globals`
-  dans les apps Craft) n'est pas couvert ; un état qui avance chaque seconde fait grossir
-  l'enregistrement en continu (le helper e2e `archiveSettled`, qui attend 600 ms sans
-  nouvel événement, devient instable sous charge) ; le tick enregistré hérite du
-  `correlationId` du dernier clic (sans effet : l'appel est `comparable: false`).
+  Suites (2026-11-10, même jour) :
+  - le code qui lit `Date` lui-même (une bibliothèque, une app sans la règle
+    `no-direct-temporal-globals`) lit aussi l'heure de l'enregistrement : pendant un
+    rejeu, `Date.now()` et `new Date()` suivent l'horloge civile du rejeu (l'heure où
+    elle est arrivée, plus le temps réel écoulé depuis : une échéance calculée avec
+    `Date` expire toujours). Le moteur garde ses propres échéances sur l'horloge réelle
+    (`realDateNow`), et rend `Date` à la page à la fin du rejeu (`followRecordedDate:
+    false` le coupe) ;
+  - un rappel programmé (`CraftTemporalRuntime.schedule`) s'exécute dans le flux qui
+    l'a programmé, pas dans celui du dernier clic : le compte à rebours lancé au
+    chargement n'est plus attribué au clic, une relance reste celle de son clic
+    (`ɵcarryAcrossTemporalTasks`, porteur de la corrélation) ;
+  - le helper e2e `archiveSettled` ne compte plus les événements du compte à rebours :
+    l'enregistrement d'une page ouverte grossit chaque seconde, le reste se stabilise.
 
 Prévu à l'origine :
 
@@ -332,7 +341,11 @@ Fait (2026-11-09) :
   `GET /sessions/check/image?origin=&path=`, chemin validé) et les mesures changées.
 - **Session sans action** : son seul moment est la page telle qu'elle s'ouvre. Sur la
   tête « logo seul », les 3 sessions sans action passent d'« inchangée » à « changement ».
-  Limite : sans taille de fenêtre enregistrée, l'image est petite (394×201).
+  Limite : une session rechargée plusieurs fois (12 chargements d'un onglet caché par le
+  serveur de dev) est rejouée en autant d'onglets, que le dashboard montre en grille :
+  l'image de l'onglet est celle de sa tuile (394×201 au lieu de 1646×833). La taille de
+  fenêtre, elle, est bien enregistrée au début de chaque session. Les deux runs ont la
+  même grille, donc la comparaison tient ; seule la résolution baisse.
 
 Reste : servir une build à une autre origine que celle de l'enregistrement (un vrai cas :
 une preview ou un staging). Écarté : l'action CI (pas de crédit).
