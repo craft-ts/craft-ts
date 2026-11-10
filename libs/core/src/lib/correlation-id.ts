@@ -6,11 +6,13 @@ import {
   signal,
   untracked,
   type Signal,
+  type WritableSignal,
 } from './host/craft-compat';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import {
   RealCraftTemporalRuntime,
+  ɵcarryAcrossTemporalTasks,
   type CraftTemporalRuntime,
   type TemporalTaskHandle,
 } from './temporal-runtime';
@@ -86,10 +88,45 @@ export function ɵcurrentCorrelationId(
   return untracked(() => service?.lastCorrelationId()) ?? undefined;
 }
 
+/**
+ * The flow of every live correlation service, so that a scheduled callback
+ * runs in the flow that scheduled it: a countdown started at load is not the
+ * last click's, a retry is still its own click's.
+ */
+const liveCorrelationFlows = new Set<WeakRef<WritableSignal<string | null>>>();
+
+ɵcarryAcrossTemporalTasks<
+  ReadonlyArray<readonly [WritableSignal<string | null>, string | null]>
+>({
+  capture() {
+    const flows: Array<readonly [WritableSignal<string | null>, string | null]> = [];
+    for (const reference of liveCorrelationFlows) {
+      const flow = reference.deref();
+      if (flow) flows.push([flow, untracked(flow)]);
+      else liveCorrelationFlows.delete(reference);
+    }
+    return flows;
+  },
+  run(flows, callback) {
+    const changed = flows.filter(([flow, id]) => untracked(flow) !== id);
+    const previous = changed.map(([flow]) => untracked(flow));
+    for (const [flow, id] of changed) flow.set(id);
+    try {
+      callback();
+    } finally {
+      changed.forEach(([flow, id], index) => {
+        // A flow the callback started itself stays.
+        if (untracked(flow) === id) flow.set(previous[index] ?? null);
+      });
+    }
+  },
+});
+
 export function createCorrelationIdService(
   temporalRuntime?: CraftTemporalRuntime,
 ): CorrelationIdServiceApi {
   const _lastCorrelationId = signal<string | null>(null);
+  liveCorrelationFlows.add(new WeakRef(_lastCorrelationId));
   const _inFlightIds = signal<ReadonlySet<string>>(new Set());
   const _mayCorrelatedIds = computed(() => [..._inFlightIds()]);
   const runtime = temporalRuntime ?? new RealCraftTemporalRuntime();

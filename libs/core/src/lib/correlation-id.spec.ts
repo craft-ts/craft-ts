@@ -15,6 +15,7 @@ import {
   type CorrelationIdYield,
   ɵcurrentCorrelationId,
 } from './correlation-id';
+import { VirtualCraftTemporalRuntime } from './temporal-runtime';
 
 describe('createCorrelationIdService', () => {
   beforeEach(() => {
@@ -92,6 +93,27 @@ describe('createCorrelationIdService', () => {
 
     await vi.advanceTimersByTimeAsync(500);
     expect(service.mayCorrelatedIds()).toEqual(['op-2']);
+  });
+
+  it('runs a scheduled callback in the flow that scheduled it, not the last click', async () => {
+    // A countdown started at load ticks after every click: its writes were
+    // recorded as the click's.
+    const service = createCorrelationIdService();
+    const clock = new VirtualCraftTemporalRuntime();
+    const seen: Array<string | undefined> = [];
+    const tick = () => {
+      seen.push(ɵcurrentCorrelationId(service));
+      clock.schedule(tick, 1_000);
+    };
+    clock.schedule(tick, 1_000);
+    const click = service.generateAndSet('click');
+    clock.schedule(() => seen.push(ɵcurrentCorrelationId(service)), 1_500);
+    const later = service.generateAndSet('enter');
+
+    await clock.advanceTo(2_000);
+
+    expect(seen).toEqual([undefined, click, undefined]);
+    expect(service.lastCorrelationId()).toBe(later);
   });
 });
 

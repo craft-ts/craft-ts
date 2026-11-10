@@ -265,6 +265,38 @@ export function activateCraftTemporalRuntime(
   };
 }
 
+/**
+ * An ambient value a scheduled callback runs with: the one in place when it
+ * was scheduled, not the one in place when it fires. A callback runs later,
+ * after other flows have started (a click, a navigation); it belongs to the
+ * flow that scheduled it. A carrier captures its value at `schedule` and puts
+ * it back around the callback.
+ */
+export interface ɵTemporalContextCarrier<T> {
+  capture(): T;
+  run(captured: T, callback: () => void): void;
+}
+
+const temporalContextCarriers = new Set<ɵTemporalContextCarrier<unknown>>();
+
+export function ɵcarryAcrossTemporalTasks<T>(
+  carrier: ɵTemporalContextCarrier<T>,
+): () => void {
+  const entry = carrier as ɵTemporalContextCarrier<unknown>;
+  temporalContextCarriers.add(entry);
+  return () => temporalContextCarriers.delete(entry);
+}
+
+function withScheduledContext(callback: () => void): () => void {
+  if (temporalContextCarriers.size === 0) return callback;
+  return [...temporalContextCarriers]
+    .map((carrier) => [carrier, carrier.capture()] as const)
+    .reduceRight<() => void>(
+      (next, [carrier, captured]) => () => carrier.run(captured, next),
+      callback,
+    );
+}
+
 export class CraftTimeoutError extends Error {
   readonly timeoutMs: number;
 
@@ -424,7 +456,7 @@ abstract class BaseCraftTemporalRuntime implements CraftTemporalRuntime {
       this.now() + delayMs,
       options.kind ?? 'schedule',
       options.owner,
-      callback,
+      withScheduledContext(callback),
       () => {
         removeAbortListener();
         this.tasks.delete(id);
