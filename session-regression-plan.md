@@ -595,6 +595,35 @@ server comme la suite (vrais clics, état recalculé).
 Limite : deux sessions, une seule personne. La forme des écarts (asynchrone,
 pas les gestes) est le résultat qui compte.
 
+## Sessions combinées (2026-11-10)
+
+Trois parcours enregistrés à la main ont fini dans une seule session (`495a2fb9`, 6 onglets) :
+l'identifiant de session est partagé par l'origine (`localStorage`) et le serveur n'en ouvre
+une nouvelle que quand la précédente n'enregistre plus ; un onglet de preview laissé ouvert
+depuis la veille l'a gardée ouverte, et chaque onglet ouvert ensuite l'a rejointe.
+
+- Fait : `POST /sessions/extract { sessionId, participantIds }` (log-server,
+  `DebugSessionStore.extract`) copie des onglets dans une session à eux, terminée, la
+  source intacte, avec `extractedFrom`. Un onglet est entier (ses chargements, son
+  instantané initial), il se rejoue seul. Les deux onglets humains → `db2b8915` (admin,
+  743/743 à chaque rejeu, 8 photos 722×826) et `7e649903` (admin puis panier, 413/413 sur
+  5 rejeux, écart 1 fois sur 6). Deux parcours d'un même onglet restent ensemble.
+- Constat : les ticks de la promo étaient enregistrés au nom d'un clic. Première piste
+  (un service global créé pendant un clic) : vraie en principe, corrigée — un service
+  global se construit hors de tout flux (`ɵrunOutsideScheduledContext`) —, mais ce n'était
+  pas la cause ici. La cause : le wrapper de corrélation posait la corrélation de début
+  (`getCurrentStartCorrelationId`, ce que l'enregistreur lit) pour toute la vie du
+  générateur ; suspendu en plein vol (la synchro du panier qui attend le serveur), il la
+  laissait au clic, et tout ce qui tournait entre-temps — un tick — était enregistré à son
+  nom. Corrigé : posée autour de chaque pas synchrone, rendue pendant la suspension.
+- Effet sur les attentes : l'appel que perd le bouton « Confirmer » débranché est
+  `cartLines.clear` (la synchro du serveur tourne dedans, elle n'est plus un appel racine
+  à part) ; les trois e2e qui l'affirment ont été mis à jour.
+- Conséquence : `db2b8915` et `7e649903`, enregistrées avec la fuite, attendent des ticks
+  sous des clics et s'écartent maintenant à chaque rejeu (596/743, 318/413) : à
+  réenregistrer, sans onglet de preview ouvert.
+- Reste : empêcher qu'un onglet oublié garde une session ouverte indéfiniment.
+
 ## Sources
 
 - [meticulous.ai](https://www.meticulous.ai/)
