@@ -83,7 +83,9 @@ test('rejoue un parcours enregistré en laissant le code recalculer l’état', 
   const disconnected = await replay('recomputed', 'interaction', DISCONNECT_CONFIRM_BUTTON, process.env['GOLDEN_DEBUG'] === '1' ? (line) => console.log('CONSOLE', line) : undefined);
   await testInfo.attach('disconnected.json', { body: JSON.stringify({ ...disconnected, captures: disconnected.captures.length }, null, 2), contentType: 'application/json' });
   expect(disconnected.status, JSON.stringify({ ...disconnected, captures: disconnected.captures.length })).toBe('diverged');
-  // The gap names the call the click no longer makes (with, depending on the
-  // recording's timing, the end of an earlier cart sync in the same interval).
-  expect(disconnected.difference?.actual).toMatchObject({ missing: expect.arrayContaining(['service:cart / mutation:syncServerCart / method:mutate']) });
+  // The gap names the call the click no longer makes: the cart emptied once
+  // the order is placed (its server sync runs inside it, not on its own) —
+  // with, depending on the recording's timing, the end of an earlier cart
+  // sync in the same interval.
+  expect(disconnected.difference?.actual).toMatchObject({ missing: expect.arrayContaining(['service:cart / state:cartLines / method:clear']) });
 });

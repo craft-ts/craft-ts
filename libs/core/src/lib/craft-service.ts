@@ -90,6 +90,7 @@ import {
   type Yieldable,
 } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
+import { ɵrunOutsideScheduledContext } from './temporal-runtime';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;
@@ -4223,7 +4224,25 @@ function getServiceRuntimeOverride(
   return injector.get(SERVICE_RUNTIME_OVERRIDES).get(serviceName);
 }
 
+/**
+ * Builds a service. A global one is built outside every flow: it lives as
+ * long as the app, so what it starts (a countdown, a polling) is not the
+ * work of the click or the navigation that happened to need it first.
+ */
 function createConcreteServiceInstance(
+  definition: ConcreteRuntimeDefinition,
+  injector: Injector,
+  bindingsOverride?: ConcreteServiceBindings,
+  providedConfig?: unknown,
+): unknown {
+  return definition.providedIn === 'global'
+    ? ɵrunOutsideScheduledContext(() =>
+        buildConcreteServiceInstance(definition, injector, bindingsOverride, providedConfig),
+      )
+    : buildConcreteServiceInstance(definition, injector, bindingsOverride, providedConfig);
+}
+
+function buildConcreteServiceInstance(
   definition: ConcreteRuntimeDefinition,
   injector: Injector,
   bindingsOverride?: ConcreteServiceBindings,

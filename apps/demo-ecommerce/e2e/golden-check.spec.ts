@@ -54,6 +54,6 @@ test('compare la base et la tête d’un changement sur une session enregistrée
   const broken = await check(changed('tête bouton débranché', DISCONNECT_CONFIRM_BUTTON));
   expect(broken.report.sessions[0]).toMatchObject({
     verdict: 'regression',
-    difference: { actual: { missing: expect.arrayContaining(['service:cart / mutation:syncServerCart / method:mutate']) } },
+    difference: { actual: { missing: expect.arrayContaining(['service:cart / state:cartLines / method:clear']) } },
   });
 });

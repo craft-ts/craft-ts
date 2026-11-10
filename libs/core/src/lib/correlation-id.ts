@@ -99,13 +99,10 @@ const liveCorrelationFlows = new Set<WeakRef<WritableSignal<string | null>>>();
   ReadonlyArray<readonly [WritableSignal<string | null>, string | null]>
 >({
   capture() {
-    const flows: Array<readonly [WritableSignal<string | null>, string | null]> = [];
-    for (const reference of liveCorrelationFlows) {
-      const flow = reference.deref();
-      if (flow) flows.push([flow, untracked(flow)]);
-      else liveCorrelationFlows.delete(reference);
-    }
-    return flows;
+    return liveFlows().map((flow) => [flow, untracked(flow)] as const);
+  },
+  outside() {
+    return liveFlows().map((flow) => [flow, null] as const);
   },
   run(flows, callback) {
     const changed = flows.filter(([flow, id]) => untracked(flow) !== id);
@@ -121,6 +118,16 @@ const liveCorrelationFlows = new Set<WeakRef<WritableSignal<string | null>>>();
     }
   },
 });
+
+function liveFlows(): WritableSignal<string | null>[] {
+  const flows: WritableSignal<string | null>[] = [];
+  for (const reference of liveCorrelationFlows) {
+    const flow = reference.deref();
+    if (flow) flows.push(flow);
+    else liveCorrelationFlows.delete(reference);
+  }
+  return flows;
+}
 
 export function createCorrelationIdService(
   temporalRuntime?: CraftTemporalRuntime,

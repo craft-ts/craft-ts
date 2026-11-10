@@ -274,6 +274,8 @@ export function activateCraftTemporalRuntime(
  */
 export interface ɵTemporalContextCarrier<T> {
   capture(): T;
+  /** The value outside every flow: where something that outlives them starts. */
+  outside(): T;
   run(captured: T, callback: () => void): void;
 }
 
@@ -295,6 +297,24 @@ function withScheduledContext(callback: () => void): () => void {
       (next, [carrier, captured]) => () => carrier.run(captured, next),
       callback,
     );
+}
+
+/**
+ * Runs `callback` outside every flow. Something that outlives the flow it
+ * happens to start in — a global service built the first time a click
+ * needs it — does not belong to that flow: a countdown it starts would
+ * otherwise be the click's for as long as the app runs.
+ */
+export function ɵrunOutsideScheduledContext<R>(callback: () => R): R {
+  if (temporalContextCarriers.size === 0) return callback();
+  let result: { value: R } | undefined;
+  [...temporalContextCarriers].reduceRight<() => void>(
+    (next, carrier) => () => carrier.run(carrier.outside(), next),
+    () => {
+      result = { value: callback() };
+    },
+  )();
+  return (result as { value: R }).value;
 }
 
 export class CraftTimeoutError extends Error {

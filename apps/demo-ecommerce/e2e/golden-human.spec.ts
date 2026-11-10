@@ -100,6 +100,6 @@ test('rejoue un achat avec un rechargement de page au milieu', {
     }
   });
   expect(disconnected.status, JSON.stringify({ ...disconnected, captures: disconnected.captures.length })).toBe('diverged');
-  expect(disconnected.difference?.actual).toMatchObject({ missing: expect.arrayContaining(['service:cart / mutation:syncServerCart / method:mutate']) });
+  expect(disconnected.difference?.actual).toMatchObject({ missing: expect.arrayContaining(['service:cart / state:cartLines / method:clear']) });
 });
 

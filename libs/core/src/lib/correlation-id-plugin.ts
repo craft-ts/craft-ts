@@ -100,15 +100,48 @@ const correlationIdFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   // computation, it is never an input to it.
   const startCorrelationId =
     untracked(() => service?.lastCorrelationId()) ?? null;
-  const previousStartId = getCurrentStartCorrelationId();
-  setCurrentStartCorrelationId(startCorrelationId);
-
-  try {
-    return yield* (
+  // The start id is this generator's only while it runs: set before each of
+  // its synchronous steps, given back after. Held across a suspension (a
+  // request awaited, a resource pending), it became the start id of
+  // everything that ran meanwhile — a countdown's tick recorded as the click
+  // whose cart sync was in flight.
+  const step = <R>(run: () => R): R => {
+    const previous = getCurrentStartCorrelationId();
+    setCurrentStartCorrelationId(startCorrelationId);
+    try {
+      return run();
+    } finally {
+      setCurrentStartCorrelationId(previous);
+    }
+  };
+  const iterator = step(() =>
+    (
       factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
-    ).apply(thisArg as object, args);
+    ).apply(thisArg as object, args),
+  );
+  let next = step(() => iterator.next());
+  let finished = false;
+  try {
+    for (;;) {
+      if (next.done) {
+        finished = true;
+        return next.value;
+      }
+      let sent: unknown;
+      try {
+        sent = yield next.value;
+      } catch (error) {
+        next = step(() => iterator.throw(error));
+        continue;
+      }
+      next = step(() => iterator.next(sent));
+    }
+  } catch (error) {
+    finished = true;
+    throw error;
   } finally {
-    setCurrentStartCorrelationId(previousStartId);
+    // Closed by its caller while suspended: close it too, as `yield*` did.
+    if (!finished) step(() => iterator.return(undefined));
   }
 };
 
