@@ -38,6 +38,8 @@ type SessionsCheckPlan = Readonly<{
   dashboardUrl: string;
   sessionIds: readonly string[];
   maxPoints: number;
+  /** Base replays per session (absent from a plan written before the option). */
+  noiseRuns?: number;
   out: string;
   base: SessionsCheckBuild;
   head: SessionsCheckBuild;
@@ -179,6 +181,7 @@ test('la suite de sessions, base contre tête', async ({ browser }) => {
     base: sessionIds.length ? build(check.base) : { name: check.base.name },
     head: sessionIds.length ? build(check.head) : { name: check.head.name },
     replay: { maxPoints: check.maxPoints, measure: measurePage, timeoutMs: 15 * 60_000 },
+    ...(check.noiseRuns === undefined ? {} : { noiseRuns: check.noiseRuns }),
     // The changes a person approved, read now: an approval made while the
     // replays ran counts for this report too.
     report: {

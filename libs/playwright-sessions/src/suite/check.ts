@@ -33,6 +33,11 @@ export type GoldenCheckInput = Readonly<{
   /** Shared by every replay (maxPoints, measure, …). */
   replay?: Omit<GoldenReplayOptions, 'dashboardUrl' | 'sessionId'>;
   compare?: CompareGoldenRunsOptions;
+  /**
+   * How many times each session is replayed on the base to tell the noise
+   * (2 by default, at least 2). An animated app may take 3.
+   */
+  noiseRuns?: number;
   /** The app named in the report, and the changes a person approved. */
   report?: GoldenCheckReportOptions;
   /** Told of each replay as it ends. */
@@ -40,16 +45,20 @@ export type GoldenCheckInput = Readonly<{
 }>;
 
 /**
- * Replays every session twice on the base (the noise) and once on the head,
- * and compares them. The base is served, replayed, stopped; then the head.
+ * Replays every session `noiseRuns` times on the base (the noise, twice by
+ * default) and once on the head, and compares them. The base is served,
+ * replayed, stopped; then the head.
  */
 export async function runGoldenCheck(input: GoldenCheckInput): Promise<GoldenCheckReport> {
-  const baseRuns = await replayOnBuild(input, input.base, 'base', 2);
+  const noiseRuns = input.noiseRuns ?? 2;
+  if (!Number.isInteger(noiseRuns) || noiseRuns < 2)
+    throw new Error(`noiseRuns attend un entier d’au moins 2 (reçu ${noiseRuns}) : le bruit se lit entre deux rejeux de la base.`);
+  const baseRuns = await replayOnBuild(input, input.base, 'base', noiseRuns);
   const headRuns = await replayOnBuild(input, input.head, 'head', 1);
   const sessions: GoldenSessionComparison[] = input.sessionIds.map((sessionId) => {
-    const [base, baseAgain] = baseRuns.get(sessionId)!;
+    const [base, baseAgain, ...more] = baseRuns.get(sessionId)!;
     const [head] = headRuns.get(sessionId)!;
-    return compareGoldenRuns({ base: [base!, baseAgain!], head: head! }, input.compare);
+    return compareGoldenRuns({ base: [base!, baseAgain!, ...more], head: head! }, input.compare);
   });
   return goldenCheckReport(sessions, { base: input.base.name, head: input.head.name }, input.report);
 }

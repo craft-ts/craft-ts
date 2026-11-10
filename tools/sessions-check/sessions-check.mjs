@@ -3,7 +3,7 @@
  * `node tools/sessions-check/sessions-check.mjs --base <ref>`: the app's
  * regression suite, base against head, on this machine. The archive (the log
  * server) proposes the golden set of the app; each of its sessions is replayed
- * twice on the base — a ref checked out in a temporary worktree — and once on
+ * twice (`--noise-runs`) on the base — a ref checked out in a temporary worktree — and once on
  * the head — the working tree, or another ref —, then compared
  * (`runGoldenCheck` of `@craft-ts/playwright-sessions/suite`). The report
  * (markdown, JSON, pictures) is written to `--out`.
@@ -43,6 +43,8 @@ export const SESSIONS_CHECK_USAGE = `Usage : node tools/sessions-check/sessions-
   --scope <dossier>   avec --changed : le dossier dont les changements comptent ; celui de l'app par défaut
   --list              avec --changed : dire quelles sessions seraient rejouées, sans rien rejouer
   --max-points <n>    moments photographiés par session (8 par défaut)
+  --noise-runs <n>    rejeux de la base par session pour mesurer le bruit (2 par défaut, au moins 2 ;
+                      3 pour une app animée)
   --out <dossier>     où écrire le rapport ; tmp/sessions-check/<app> par défaut (hors de git)
   --archive <url>     le serveur de logs (http://127.0.0.1:4319 par défaut)
   --dashboard <url>   le dashboard de rejeu (http://localhost:4210/ par défaut)
@@ -64,6 +66,7 @@ export function parseSessionsCheckArguments(argv) {
     scope: undefined,
     list: false,
     maxPoints: 8,
+    noiseRuns: 2,
     out: undefined,
     archive: 'http://127.0.0.1:4319',
     dashboard: 'http://localhost:4210/',
@@ -110,6 +113,12 @@ export function parseSessionsCheckArguments(argv) {
         const value = Number(valueOf(index++, name));
         if (!Number.isInteger(value) || value < 1) throw new Error('--max-points attend un entier positif.');
         options.maxPoints = value;
+        break;
+      }
+      case '--noise-runs': {
+        const value = Number(valueOf(index++, name));
+        if (!Number.isInteger(value) || value < 2) throw new Error('--noise-runs attend un entier d’au moins 2 : le bruit se lit entre deux rejeux de la base.');
+        options.noiseRuns = value;
         break;
       }
       case '--out':
@@ -183,6 +192,7 @@ export function sessionsCheckPlan(options, resolved) {
     dashboardUrl: options.dashboard,
     sessionIds: resolved.sessions.map((session) => session.sessionId),
     maxPoints: options.maxPoints,
+    noiseRuns: options.noiseRuns,
     ...(options.changed
       ? {
           changed: {
@@ -450,7 +460,7 @@ async function main(argv) {
   if (sessions.length === 0) throw new Error(`L’archive ne propose aucune session pour ${app.origin}.`);
   const plan = sessionsCheckPlan(options, { repository, baseCommit, headCommit, sessions });
   console.log(
-    `${sessions.length} session(s) ${kept ? `de la suite de l’app (${relative(process.cwd(), goldenSetFileOf(options.app, repository))})` : 'proposée(s) par l’archive'}${options.changed ? ', réduites à celles que le changement touche' : ''} · base ${plan.base.name} ×2 · tête ${plan.head.name} ×1`,
+    `${sessions.length} session(s) ${kept ? `de la suite de l’app (${relative(process.cwd(), goldenSetFileOf(options.app, repository))})` : 'proposée(s) par l’archive'}${options.changed ? ', réduites à celles que le changement touche' : ''} · base ${plan.base.name} ×${plan.noiseRuns} · tête ${plan.head.name} ×1`,
   );
   // What an earlier run left must not pass for this one. The plan is a file:
   // the units of every session are too much for an environment variable.

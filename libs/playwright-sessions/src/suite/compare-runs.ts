@@ -4,10 +4,12 @@ import { PNG } from 'pngjs';
 import type { GoldenCapture, GoldenReplayResult } from './golden-replay.js';
 
 /**
- * Compares one session of a golden set replayed on the base (twice) and on
- * the head (once). The two base runs tell the noise: what differs between them
- * — a measured value, a pixel — changes on its own and is never reported. What
- * differs between base and head outside that noise is the change.
+ * Compares one session of a golden set replayed on the base (twice or more)
+ * and on the head (once). The base runs tell the noise: what differs between
+ * any two of them — a measured value, a pixel — changes on its own and is
+ * never reported. What differs between base and head outside that noise is the
+ * change. An animated app takes more base runs: a value that moves one run in
+ * three is caught by three runs more often than by two.
  *
  * The verdict separates what the head broke from what it changed and from
  * what the session can no longer show:
@@ -18,7 +20,7 @@ import type { GoldenCapture, GoldenReplayResult } from './golden-replay.js';
  * - `unchanged`: both replay, and nothing differs outside the noise;
  * - `stale`: the base itself does not replay to the end — the session no
  *   longer matches the app and must be recorded again, it proves nothing;
- * - `flaky`: the two base runs disagree on how far they go.
+ * - `flaky`: the base runs disagree on how far they go.
  */
 export type GoldenVerdict = 'regression' | 'changed' | 'unchanged' | 'stale' | 'flaky';
 
@@ -37,11 +39,11 @@ export type MomentComparison = Readonly<{
    * ones: what an approval of this moment rests on. Empty when none.
    */
   measureFingerprint: string;
-  /** Measured values that differ between the two base runs. */
+  /** Measured values that differ between the base runs. */
   noisyMeasures: number;
   /** Share of the picture that differs, outside the noise (0–1). */
   pixelRatio: number;
-  /** Share of the picture that differs between the two base runs. */
+  /** Share of the picture that differs between the base runs. */
   noisyPixelRatio: number;
   /** The picture sizes differ: no pixel comparison. */
   sizeChanged?: true;
@@ -98,18 +100,26 @@ export type CompareGoldenRunsOptions = Readonly<{
   maxChanges?: number;
 }>;
 
+/** The base replayed twice or more: the noise is what its runs disagree on. */
+export type GoldenBaseRuns = readonly [GoldenReplayResult, GoldenReplayResult, ...GoldenReplayResult[]];
+
 export function compareGoldenRuns(
-  runs: Readonly<{ base: readonly [GoldenReplayResult, GoldenReplayResult]; head: GoldenReplayResult }>,
+  runs: Readonly<{ base: GoldenBaseRuns; head: GoldenReplayResult }>,
   options: CompareGoldenRunsOptions = {},
 ): GoldenSessionComparison {
-  const [base, baseAgain] = runs.base;
+  const [base, ...baseAgain] = runs.base;
   const head = runs.head;
   const common = { sessionId: base.sessionId, base: summary(base), head: summary(head) };
-  const baseCompleted = [base, baseAgain].map((run) => run.status === 'completed');
-  if (!baseCompleted[0] && !baseCompleted[1])
+  const baseCompleted = runs.base.map((run) => run.status === 'completed');
+  if (baseCompleted.every((completed) => !completed))
     return { ...common, verdict: 'stale', reason: `la base ne rejoue pas la session (${base.status}${base.message ? ` : ${base.message}` : ''}) : à réenregistrer`, moments: [] };
-  if (baseCompleted[0] !== baseCompleted[1] || base.replayIndex !== baseAgain.replayIndex)
-    return { ...common, verdict: 'flaky', reason: 'les deux rejeux de la base ne vont pas au même point', moments: [] };
+  if (baseCompleted.some((completed) => !completed) || baseAgain.some((run) => run.replayIndex !== base.replayIndex))
+    return {
+      ...common,
+      verdict: 'flaky',
+      reason: runs.base.length === 2 ? 'les deux rejeux de la base ne vont pas au même point' : `les ${runs.base.length} rejeux de la base ne vont pas tous au même point`,
+      moments: [],
+    };
   if (head.status !== 'completed')
     return {
       ...common,
@@ -121,7 +131,7 @@ export function compareGoldenRuns(
       moments: [],
     };
   const lost = head.unprovenInteractions.filter((note) => !base.unprovenInteractions.includes(note));
-  const moments = compareMoments(base.captures, baseAgain.captures, head.captures, options);
+  const moments = compareMoments(base.captures, baseAgain.map((run) => run.captures), head.captures, options);
   if (lost.length > 0)
     return { ...common, verdict: 'regression', reason: `${lost.length} action(s) dont l’élément n’existe plus dans la tête : ${lost[0]}`, moments };
   const changed = moments.filter((moment) => moment.status !== 'same');
@@ -154,12 +164,12 @@ function summary(run: GoldenReplayResult): RunSummary {
 
 function compareMoments(
   base: readonly GoldenCapture[],
-  baseAgain: readonly GoldenCapture[],
+  baseAgain: readonly (readonly GoldenCapture[])[],
   head: readonly GoldenCapture[],
   options: CompareGoldenRunsOptions,
 ): MomentComparison[] {
   const byIndex = (captures: readonly GoldenCapture[]) => new Map(captures.map((capture) => [capture.replayIndex, capture]));
-  const again = byIndex(baseAgain);
+  const again = baseAgain.map(byIndex);
   const heads = byIndex(head);
   const moments: MomentComparison[] = base.map((capture) => {
     const headCapture = heads.get(capture.replayIndex);
@@ -170,7 +180,8 @@ function compareMoments(
     };
     if (!headCapture)
       return { ...identity, status: 'missing-in-head', measureChanges: [], measureChangeCount: 0, measureFingerprint: '', noisyMeasures: 0, pixelRatio: 1, noisyPixelRatio: 0, basePng: capture.png };
-    return compareMoment(identity, capture, again.get(capture.replayIndex), headCapture, options);
+    const others = again.map((captures) => captures.get(capture.replayIndex)).filter((other) => other !== undefined);
+    return compareMoment(identity, capture, others, headCapture, options);
   });
   const known = new Set(base.map((capture) => capture.replayIndex));
   for (const capture of head)
@@ -194,15 +205,15 @@ function compareMoments(
 function compareMoment(
   identity: Pick<MomentComparison, 'replayIndex' | 'eventId' | 'reasons'>,
   base: GoldenCapture,
-  baseAgain: GoldenCapture | undefined,
+  baseAgain: readonly GoldenCapture[],
   head: GoldenCapture,
   options: CompareGoldenRunsOptions,
 ): MomentComparison {
   const maxChanges = options.maxChanges ?? 40;
   const baseMeasure = flattenMeasure(base.digest);
-  const againMeasure = baseAgain ? flattenMeasure(baseAgain.digest) : baseMeasure;
   const headMeasure = flattenMeasure(head.digest);
-  const noisy = differingPaths(baseMeasure, againMeasure);
+  // Each base run against the first: a value that moved in any of them is noise.
+  const noisy = new Set(baseAgain.flatMap((again) => [...differingPaths(baseMeasure, flattenMeasure(again.digest))]));
   const differing = [...differingPaths(baseMeasure, headMeasure)].filter((path) => !noisy.has(path));
   // A node added or removed is one change: its fields are not listed.
   const wholes = differing.filter((path) => baseMeasure.get(path) === PRESENT || headMeasure.get(path) === PRESENT);
@@ -210,7 +221,7 @@ function compareMoment(
     .filter((path) => !wholes.some((whole) => path !== whole && (path.startsWith(`${whole}.`) || path.startsWith(`${whole}[`))))
     .sort()
     .map((path) => ({ path, base: baseMeasure.get(path), head: headMeasure.get(path) }));
-  const pixels = comparePixels(base.png, baseAgain?.png ?? base.png, head.png, options.pixelThreshold ?? 0.1);
+  const pixels = comparePixels(base.png, baseAgain.map((again) => again.png), head.png, options.pixelThreshold ?? 0.1);
   const changed = changes.length > 0 || pixels.sizeChanged === true || pixels.ratio >= (options.minPixelRatio ?? 0.0005);
   return {
     ...identity,
@@ -260,23 +271,33 @@ function differingPaths(left: ReadonlyMap<string, string>, right: ReadonlyMap<st
   return paths;
 }
 
-/** Changed pixels between base and head, the pixels that differ between the two base runs left out. */
+/**
+ * Changed pixels between base and head, the pixels that differ between the
+ * first base run and any other left out. A base run of another size makes the
+ * whole picture noise. With no other base run, there is no noise.
+ */
 export function comparePixels(
   basePng: Buffer,
-  baseAgainPng: Buffer,
+  baseAgainPngs: readonly Buffer[],
   headPng: Buffer,
   threshold: number,
 ): Readonly<{ ratio: number; noisyRatio: number; sizeChanged?: true; diff?: Buffer }> {
   const base = PNG.sync.read(basePng);
-  const again = PNG.sync.read(baseAgainPng);
   const head = PNG.sync.read(headPng);
   if (base.width !== head.width || base.height !== head.height) return { ratio: 1, noisyRatio: 0, sizeChanged: true };
   const total = base.width * base.height;
   const noise = new Uint8Array(total * 4);
-  const comparableNoise = again.width === base.width && again.height === base.height;
-  if (comparableNoise)
-    pixelmatch(base.data, again.data, noise, base.width, base.height, { threshold, diffMask: true });
-  else noise.fill(255);
+  const runNoise = new Uint8Array(total * 4);
+  for (const againPng of baseAgainPngs) {
+    const again = PNG.sync.read(againPng);
+    if (again.width !== base.width || again.height !== base.height) {
+      noise.fill(255);
+      break;
+    }
+    runNoise.fill(0);
+    pixelmatch(base.data, again.data, runNoise, base.width, base.height, { threshold, diffMask: true });
+    for (let alpha = 3; alpha < runNoise.length; alpha += 4) if (runNoise[alpha]! > 0) noise[alpha] = 255;
+  }
   const diff = new PNG({ width: base.width, height: base.height });
   pixelmatch(base.data, head.data, diff.data, base.width, base.height, { threshold, diffMask: true });
   let changed = 0;

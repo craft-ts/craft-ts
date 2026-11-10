@@ -98,6 +98,24 @@ describe('compareGoldenRuns', () => {
     expect(compareGoldenRuns({ base: [base, stalled], head: base }).verdict).toBe('flaky');
   });
 
+  it('with a third base run, leaves out what moved in any of them', () => {
+    // A blinking caret (pixel 7, a colour) that the first two runs caught in the same state.
+    const caret = (color: string, black: number[]) => run([capture(4, picture(black), [...page, node('html/body/caret', [7, 0, 1, 1], color)])]);
+    const base = caret('black', [7]);
+    const head = caret('white', []);
+    expect(compareGoldenRuns({ base: [base, base], head }).verdict).toBe('changed');
+    const result = compareGoldenRuns({ base: [base, base, caret('white', [])], head });
+    expect(result.verdict).toBe('unchanged');
+    expect(result.moments[0]).toMatchObject({ noisyMeasures: 1, pixelRatio: 0 });
+    expect(result.moments[0]!.noisyPixelRatio).toBeCloseTo(1 / 200);
+  });
+
+  it('calls a third base run that stops elsewhere flaky', () => {
+    const base = run([]);
+    const result = compareGoldenRuns({ base: [base, base, run([], { replayIndex: 3 })], head: base });
+    expect(result).toMatchObject({ verdict: 'flaky', reason: 'les 3 rejeux de la base ne vont pas tous au même point' });
+  });
+
   it('reports a moment the head did not reach, and one it added', () => {
     const base = run([capture(0, picture(), page), capture(2, picture(), page)]);
     const head = run([capture(0, picture(), page), capture(3, picture(), page)]);

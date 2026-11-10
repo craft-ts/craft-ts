@@ -25,6 +25,9 @@ test('reads the command line, and refuses what it cannot check', () => {
   assert.equal(options.app, 'demo-ecommerce');
   assert.deepEqual(options.sessions, ['a', 'b']);
   assert.equal(options.maxPoints, 3);
+  assert.equal(options.noiseRuns, 2);
+  assert.equal(parseSessionsCheckArguments(['--base', 'main', '--noise-runs', '3']).noiseRuns, 3);
+  assert.throws(() => parseSessionsCheckArguments(['--base', 'main', '--noise-runs', '1']), /au moins 2/);
   assert.throws(() => parseSessionsCheckArguments([]), /--base est requis/);
   assert.throws(() => parseSessionsCheckArguments(['--base']), /--base attend une valeur/);
   assert.throws(() => parseSessionsCheckArguments(['--base', 'main', '--app', 'autre']), /Application inconnue/);
@@ -61,6 +64,7 @@ test('pins each ref to its commit, and names the working tree when no head is gi
     // Out of git by default.
     assert.equal(plan.out, join(repository, 'tmp', 'sessions-check', 'demo-ecommerce'));
     assert.deepEqual(plan.sessionIds, ['s1']);
+    assert.equal(plan.noiseRuns, 2);
     assert.equal(plan.changed, undefined);
     // `--changed`: the units to match, the app's graph, the app's folder.
     const changed = sessionsCheckPlan(parseSessionsCheckArguments(['--base', 'HEAD', '--changed']), {
