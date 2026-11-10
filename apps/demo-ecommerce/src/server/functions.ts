@@ -3,6 +3,7 @@ import { Effect, Schema } from 'effect';
 import { getCurrentSession, requireAdmin, requireStaff, signIn, signOut } from './auth';
 import { StoreRepository } from './database';
 import { ecommerceCodecs } from '../shared/scenario-catalog';
+import { promotedPrice, weeklyPromotion } from '../shared/promotion';
 
 const category = Schema.Struct({ id: Schema.String, name: Schema.String, description: Schema.String });
 const choiceGroup = Schema.Struct({ id: Schema.String, categoryId: Schema.String, min: Schema.Number, max: Schema.Number });
@@ -18,7 +19,9 @@ const adminErrors = { ...storeErrors, ...authErrors };
 export const getCatalog = serverFunction('ecommerce.catalog', Schema.toStandardSchemaV1(Schema.Struct({})), { exposure: 'client', output }).handler(() => Effect.gen(function* () {
   const repository = yield* StoreRepository;
   const { categories, products } = yield* repository.read();
-  return ecommerceCodecs.catalog.encode({ categories, products });
+  // La promotion de la semaine, à l'heure du serveur : la vitrine décompte
+  // le temps qu'il reste jusqu'à `endsAt`.
+  return ecommerceCodecs.catalog.encode({ categories, products, promotion: weeklyPromotion(Date.now()) });
 })).exposeErrors(storeErrors);
 
 export const searchCatalog = serverFunction('ecommerce.catalog.search', Schema.toStandardSchemaV1(Schema.Struct({ query: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
@@ -93,7 +96,11 @@ export const deleteCategory = serverFunction('ecommerce.category.delete', Schema
 
 export const checkout = serverFunction('ecommerce.checkout', Schema.toStandardSchemaV1(Schema.Struct({ lines: Schema.Array(cartLine) })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {
   const repository = yield* StoreRepository;
-  return ecommerceCodecs.order.encode(yield* repository.checkout(input.lines));
+  // Le prix payé est celui du serveur, à son heure : une promotion finie
+  // côté serveur ne s'applique plus, quoi qu'affiche la vitrine.
+  const now = Date.now();
+  const promotion = weeklyPromotion(now);
+  return ecommerceCodecs.order.encode(yield* repository.checkout(input.lines, (product) => promotedPrice(product, promotion, now)));
 })).exposeErrors(storeErrors);
 
 export const resetStore = serverFunction('ecommerce.reset', Schema.toStandardSchemaV1(Schema.Struct({ token: Schema.String })), { exposure: 'client', output }).handler(({ input }) => Effect.gen(function* () {

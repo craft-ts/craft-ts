@@ -93,6 +93,21 @@ describe('demo e-commerce pages', () => {
     await shows(text);
   });
 
+  it('shows the week’s promotion counting down, and the pastries at its price', async () => {
+    open('/catalogue');
+    await shows('La semaine des pâtisseries');
+    await shows('−20 % sur toutes les pâtisseries');
+    const countdown = () => element.querySelector('.promo-countdown')?.textContent ?? '';
+    await vi.waitFor(() => expect(countdown()).toMatch(/(\d+ j )?(\d{2} h )?\d{2} min \d{2} s/));
+    // One second later, the counter has moved.
+    const first = countdown();
+    await vi.waitFor(() => expect(countdown()).not.toBe(first), { timeout: 3_000 });
+    const card = (name: string) =>
+      [...element.querySelectorAll('.card')].find((candidate) => candidate.textContent?.includes(name))?.textContent ?? '';
+    await vi.waitFor(() => expect(card('Croissant pur beurre')).toContain('3,00\u00a0€2,40\u00a0€'));
+    expect(card('Espresso')).not.toContain('Promo');
+  });
+
   it('signs a member of the team in, then out', async () => {
     const [account] = demoAccounts;
     open('/connexion');

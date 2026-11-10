@@ -9,6 +9,7 @@ import type {
   StoreData,
 } from './model.ts';
 import type { AccountSession } from './accounts.ts';
+import type { Promotion } from './promotion.ts';
 import { initialStore } from './model.ts';
 
 /** A bidirectional contract between a business value and the JSON text sent by
@@ -85,9 +86,17 @@ const storeData = Schema.Struct({
   orders: Schema.Array(order),
   carts: Schema.optional(Schema.Array(serverCart)),
 }) satisfies Schema.Schema<StoreData>;
+const promotion = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  categoryId: Schema.String,
+  percentOff: Schema.Number,
+  endsAt: Schema.String,
+}) satisfies Schema.Schema<Promotion>;
 const catalog = Schema.Struct({
   categories: Schema.Array(category),
   products: Schema.Array(product),
+  promotion: Schema.optional(promotion),
 }) satisfies Schema.Schema<Catalog>;
 const accountSession = Schema.Struct({
   token: Schema.String,

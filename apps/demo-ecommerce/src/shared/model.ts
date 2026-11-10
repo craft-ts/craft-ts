@@ -1,3 +1,5 @@
+import type { Promotion } from './promotion.ts';
+
 export interface Category {
   readonly id: string;
   readonly name: string;
@@ -66,8 +68,12 @@ export interface StoreData {
   readonly carts?: readonly ServerCart[];
 }
 
-/** Ce que la vitrine a le droit de lire : les commandes restent côté administration. */
-export type Catalog = Pick<StoreData, 'categories' | 'products'>;
+/**
+ * Ce que la vitrine a le droit de lire : les commandes restent côté
+ * administration. La promotion de la semaine vient avec, calculée à l'heure
+ * du serveur.
+ */
+export type Catalog = Pick<StoreData, 'categories' | 'products'> & { readonly promotion?: Promotion };
 
 export const initialStore: StoreData = {
   categories: [
