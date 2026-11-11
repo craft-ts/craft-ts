@@ -35,7 +35,11 @@ const releaseCheckArtifacts = [
   'apps/demo-with-server-function/architecture/catalog.ts',
   'apps/demo-ssr/architecture/catalog.ts',
   'apps/quickstart-effect/architecture/catalog.ts',
+  'apps/log-server/tsconfig.tsbuildinfo',
   'libs/review-attestation/attestation-app/architecture/catalog.ts',
+  'packages/function-registry-mcp/tsconfig.tsbuildinfo',
+  'packages/log-mcp/tsconfig.tsbuildinfo',
+  'packages/session-trace/tsconfig.tsbuildinfo',
 ];
 
 function run(command, args, options = {}) {
@@ -798,6 +802,7 @@ async function main(args) {
   ]);
   run('npx', ['nx', 'build', 'docs-herbier']);
   run('node', ['tools/release.mjs', 'assert-manifests', release.version]);
+  run('git', ['restore', '--worktree', '--', ...releaseCheckArtifacts]);
   untrackGeneratedReleaseFiles(workspaceRoot);
   run('node', [
     'tools/release.mjs',
