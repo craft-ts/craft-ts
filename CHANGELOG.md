@@ -1,3 +1,108 @@
+## 0.11.0 (2026-11-11)
+
+### 🚀 Features
+
+- sessions:check, the suite base against head on this machine ([dc5616c62](https://github.com/craft-ts/craft-ts/commit/dc5616c62))
+- sessions:check --approve, and approved changes pass the check ([6eda63227](https://github.com/craft-ts/craft-ts/commit/6eda63227))
+- sessions:check --select writes the app's suite, and the check replays it ([81bd0dd9c](https://github.com/craft-ts/craft-ts/commit/81bd0dd9c))
+- **attest,playwright-sessions:** approve the very difference a session shows ([d27d7a15f](https://github.com/craft-ts/craft-ts/commit/d27d7a15f))
+- ⚠️  **component:** make forNode indexes reactive ([e135eeec9](https://github.com/craft-ts/craft-ts/commit/e135eeec9))
+- **component:** replay with the state recomputed and the actions dispatched ([d119e90c2](https://github.com/craft-ts/craft-ts/commit/d119e90c2))
+- **component:** replay a person's gestures, and the part of a session that finished ([4772db9d2](https://github.com/craft-ts/craft-ts/commit/4772db9d2))
+- **component:** dispatch on the recorded selector when the Craft address is gone ([3ea30af45](https://github.com/craft-ts/craft-ts/commit/3ea30af45))
+- **component:** follow a page reload in a replay, as a tab of its own ([59ae75ddb](https://github.com/craft-ts/craft-ts/commit/59ae75ddb))
+- **component,log-server,dashboard:** a session ends after half an hour without input ([60bfb472d](https://github.com/craft-ts/craft-ts/commit/60bfb472d))
+- **core:** name each invocation the way the behaviour catalog does ([2bb5b00c6](https://github.com/craft-ts/craft-ts/commit/2bb5b00c6))
+- **core:** a shortcut call runs a method; craftExpose exposes it ([77e97f6a4](https://github.com/craft-ts/craft-ts/commit/77e97f6a4))
+- **dashboard,playwright-sessions:** a tab of a replay in several is photographed alone ([cf90156ef](https://github.com/craft-ts/craft-ts/commit/cf90156ef))
+- **debug-dashboard:** rework the replay dashboard UX and fix its links ([ec4545e1a](https://github.com/craft-ts/craft-ts/commit/ec4545e1a))
+- **debug-dashboard:** rework UX and enforce lint rules ([825d26927](https://github.com/craft-ts/craft-ts/commit/825d26927))
+- **debug-dashboard:** show which behaviours no test proves, and the sessions that ran them ([5fa70be1b](https://github.com/craft-ts/craft-ts/commit/5fa70be1b))
+- **debug-dashboard:** write the e2e of a behaviour seen in a session ([d644ce4ce](https://github.com/craft-ts/craft-ts/commit/d644ce4ce))
+- **debug-session-dashboard:** show an app's regression suite and replay its sessions ([866a0d095](https://github.com/craft-ts/craft-ts/commit/866a0d095))
+- **debug-session-dashboard:** replay the whole suite from its page ([bfeb0a270](https://github.com/craft-ts/craft-ts/commit/bfeb0a270))
+- **debug-session-dashboard:** approve a change from the Suite page ([e27cd5b52](https://github.com/craft-ts/craft-ts/commit/e27cd5b52))
+- **debug-session-dashboard:** base and head side by side on the Suite page ([9fed459bc](https://github.com/craft-ts/craft-ts/commit/9fed459bc))
+- **demo-ecommerce:** the week's promotion, counting down to its end ([85bbe2679](https://github.com/craft-ts/craft-ts/commit/85bbe2679))
+- **dev-tools:** enforce yieldable state facades ([f9ce4459b](https://github.com/craft-ts/craft-ts/commit/f9ce4459b))
+- **dev-tools:** compute the folder layout from imports and enforce it ([d97281b08](https://github.com/craft-ts/craft-ts/commit/d97281b08))
+- **dev-tools:** owe a test for every user-triggerable behaviour ([81b1da134](https://github.com/craft-ts/craft-ts/commit/81b1da134))
+- **dev-tools:** prove behaviours from e2e reference traces ([3f26ece75](https://github.com/craft-ts/craft-ts/commit/3f26ece75))
+- **dev-tools:** prove behaviours from service and template tests ([144015a15](https://github.com/craft-ts/craft-ts/commit/144015a15))
+- **dev-tools:** count a step as a proof only when an assertion follows it ([b08f8ae70](https://github.com/craft-ts/craft-ts/commit/b08f8ae70))
+- **dev-tools:** break each proven behaviour and check its tests notice ([e0bb94b6d](https://github.com/craft-ts/craft-ts/commit/e0bb94b6d))
+- **dev-tools:** finish lot 1 of the behaviour tests in every app ([1b2478c4a](https://github.com/craft-ts/craft-ts/commit/1b2478c4a))
+- **dev-tools:** let template tests render the view they are given ([37d8f9873](https://github.com/craft-ts/craft-ts/commit/37d8f9873))
+- **dev-tools:** compare the unit proofs with the base branch's ([e8a90faf1](https://github.com/craft-ts/craft-ts/commit/e8a90faf1))
+- **dev-tools:** mutate the e2e tests too ([21047e9c9](https://github.com/craft-ts/craft-ts/commit/21047e9c9))
+- **dev-tools:** ask every behaviour for its proof, the first time too ([7d6ea8fc6](https://github.com/craft-ts/craft-ts/commit/7d6ea8fc6))
+- **graph-mcp:** name the recorded sessions a change touches ([666fbdb8d](https://github.com/craft-ts/craft-ts/commit/666fbdb8d))
+- **graph-mcp:** export the relevant sessions; a stylesheet reaches every session ([05ef34f17](https://github.com/craft-ts/craft-ts/commit/05ef34f17))
+- **log-server:** replay a session as the regression suite does, on request ([48d3d8636](https://github.com/craft-ts/craft-ts/commit/48d3d8636))
+- **log-server:** replay a list of sessions as the suite does ([7d3df5a51](https://github.com/craft-ts/craft-ts/commit/7d3df5a51))
+- **log-server:** leave out of the golden set the sessions the resume tooling opened, and those recorded before version 8 ([7ea5d7689](https://github.com/craft-ts/craft-ts/commit/7ea5d7689))
+- **log-server:** serve the last check and approve a change through it ([954029569](https://github.com/craft-ts/craft-ts/commit/954029569))
+- **log-server:** serve the pictures of the last check ([b4284316d](https://github.com/craft-ts/craft-ts/commit/b4284316d))
+- **log-server:** some tabs of a session copied into a session of their own ([c3a953887](https://github.com/craft-ts/craft-ts/commit/c3a953887))
+- **log-server,component:** closing the tab in use ends its session ([2b2f038ba](https://github.com/craft-ts/craft-ts/commit/2b2f038ba))
+- **playwright-sessions:** replay a golden set and compare base and head ([22357d476](https://github.com/craft-ts/craft-ts/commit/22357d476))
+- **playwright-sessions:** photograph the page a session without action opens on ([4b2559352](https://github.com/craft-ts/craft-ts/commit/4b2559352))
+- **playwright-sessions:** the base replayed n times to tell the noise ([530b1dede](https://github.com/craft-ts/craft-ts/commit/530b1dede))
+- **session-trace:** choose a golden set of recorded sessions by coverage ([56adfe253](https://github.com/craft-ts/craft-ts/commit/56adfe253))
+- **sessions-check,log-server:** the sessions of an app's suite kept in the repository ([53ecc79b8](https://github.com/craft-ts/craft-ts/commit/53ecc79b8))
+
+### 🩹 Fixes
+
+- a session with no action replays to its end ([0a9e8ffd0](https://github.com/craft-ts/craft-ts/commit/0a9e8ffd0))
+- **component:** record a call returning a Craft exception as failed ([39f926a4b](https://github.com/craft-ts/craft-ts/commit/39f926a4b))
+- **component:** wait as long for an action's element when dispatching it ([a897f8cd2](https://github.com/craft-ts/craft-ts/commit/a897f8cd2))
+- **component:** hold a replayed app's startup requests until its recorded answers arrive ([fdddbd65f](https://github.com/craft-ts/craft-ts/commit/fdddbd65f))
+- **component:** keep every kept operation's result when cutting a session's end ([0ab77a350](https://github.com/craft-ts/craft-ts/commit/0ab77a350))
+- **component:** wait for a state to land before calling a replay gap ([3c4999643](https://github.com/craft-ts/craft-ts/commit/3c4999643))
+- **component,demo-ecommerce:** a replay gives Date the hour of the recording ([a5a84804f](https://github.com/craft-ts/craft-ts/commit/a5a84804f))
+- **core:** prove a behaviour by what a user triggered, and tell lazy routes apart ([04351cee4](https://github.com/craft-ts/craft-ts/commit/04351cee4))
+- **core:** a shortcut onto a craftMethod exposes it instead of running it ([2bb561090](https://github.com/craft-ts/craft-ts/commit/2bb561090))
+- **core:** render lists read through a service shortcut, prove guards and async loaders ([a50e6c29f](https://github.com/craft-ts/craft-ts/commit/a50e6c29f))
+- **core:** keep a promised loader's success when called, turn it into a failure when it fails ([54771f7ee](https://github.com/craft-ts/craft-ts/commit/54771f7ee))
+- **core:** read the correlation id without tracking it ([2af6e9a27](https://github.com/craft-ts/craft-ts/commit/2af6e9a27))
+- **core:** keep the time a replay adapter gives a transport message ([7dadacedb](https://github.com/craft-ts/craft-ts/commit/7dadacedb))
+- **core:** a scheduled callback runs in the flow that scheduled it ([e3dcb42c7](https://github.com/craft-ts/craft-ts/commit/e3dcb42c7))
+- **core,component:** replay a click that navigates, a value set right before submit, a cut selector ([1d1664020](https://github.com/craft-ts/craft-ts/commit/1d1664020))
+- **core,component:** a replay reads the hour of the recording ([347a95d13](https://github.com/craft-ts/craft-ts/commit/347a95d13))
+- **core,demo-ecommerce:** a suspended flow no longer lends its click to what runs meanwhile ([05b0c9476](https://github.com/craft-ts/craft-ts/commit/05b0c9476))
+- **debug-dashboard:** start the dashboard again after the folder reorganization ([6a674c5bd](https://github.com/craft-ts/craft-ts/commit/6a674c5bd))
+- **debug-dashboard:** drop the placeholders the i18n migration left in 41 messages ([86574430f](https://github.com/craft-ts/craft-ts/commit/86574430f))
+- **debug-session-dashboard:** keep the replay's cues out of its pictures ([f25657f45](https://github.com/craft-ts/craft-ts/commit/f25657f45))
+- **debug-session-dashboard:** wait for a tab's app before asking for its replay bridge ([4bdc17723](https://github.com/craft-ts/craft-ts/commit/4bdc17723))
+- **debug-session-dashboard:** keep a session's unfinished end in the journal ([0eb1192a1](https://github.com/craft-ts/craft-ts/commit/0eb1192a1))
+- **debug-session-dashboard:** say a forced recovery happened when it restores a checkpoint ([e70ade1ac](https://github.com/craft-ts/craft-ts/commit/e70ade1ac))
+- **debug-session-dashboard:** open the comparison's replay frames on this dashboard ([7b6f461d4](https://github.com/craft-ts/craft-ts/commit/7b6f461d4))
+- **dev-tools:** rerun an e2e mutant when its test changes ([4f1dd628f](https://github.com/craft-ts/craft-ts/commit/4f1dd628f))
+- **dev-tools:** stop rules from flagging data and declarations, follow named cross-file calls ([1542678a2](https://github.com/craft-ts/craft-ts/commit/1542678a2))
+- **playwright-sessions:** a runner that only replays the suite is not a session config ([a94ca0431](https://github.com/craft-ts/craft-ts/commit/a94ca0431))
+- **release:** unblock release preflight checks ([7e9f4f0bf](https://github.com/craft-ts/craft-ts/commit/7e9f4f0bf))
+- **release:** avoid invalid generated project references ([680a1b5ea](https://github.com/craft-ts/craft-ts/commit/680a1b5ea))
+- **release:** restore generated architecture catalogs ([40717e5fd](https://github.com/craft-ts/craft-ts/commit/40717e5fd))
+- **release:** discard generated build metadata ([0e3e02acb](https://github.com/craft-ts/craft-ts/commit/0e3e02acb))
+- **tests:** align replay contracts and browser storage ([99cb25525](https://github.com/craft-ts/craft-ts/commit/99cb25525))
+- **ui:** a hidden tooltip no longer widens the page ([851171eee](https://github.com/craft-ts/craft-ts/commit/851171eee))
+
+### 🔥 Performance
+
+- **mcp:** batch agent work and expose bridge timings ([94bf75dc1](https://github.com/craft-ts/craft-ts/commit/94bf75dc1))
+
+### ⚠️  Breaking Changes
+
+- **component:** make forNode indexes reactive  ([e135eeec9](https://github.com/craft-ts/craft-ts/commit/e135eeec9))
+  forNode render callbacks receive InputValue<number> instead
+  of a number. Consume the current position with yield* index(). Tracking
+  callbacks continue to receive numeric indexes.
+
+### ❤️ Thank You
+
+- Claude Opus 5.5
+- Romain
+
 ## 0.10.0 (2026-10-31)
 
 ### 🚀 Features
