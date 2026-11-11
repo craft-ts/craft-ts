@@ -39,6 +39,7 @@ import {
   marginBlockEnd,
   marginBlockStart,
   marginInlineStart,
+  maxInlineSize,
   minInlineSize,
   num,
   opacity,
@@ -49,6 +50,7 @@ import {
   px,
   py,
   radii,
+  scale,
   set,
   shadow,
   space,
@@ -193,11 +195,17 @@ export const tooltipUi = craftStyles('docTooltip', {
     fontFamily(sansFont),
     ...font(text.xs),
     fontWeight(weight.medium),
-    whiteSpace.nowrap,
+    // A short tip stays on one line; a long one wraps.
+    inlineSize.maxContent,
+    maxInlineSize(unit.rem(18)),
+    whiteSpace.normal,
     pointerEvents.none,
     zIndex(int(40)),
     opacity(tipVars.show),
-    ...transitions([prop.opacity], { duration: duration.fast, easing: ease }),
+    // Hidden, it folds onto its middle: a transparent bubble by a control near
+    // the edge would still widen the page (a horizontal scroll).
+    scale(tipVars.show),
+    ...transitions([prop.opacity, prop.scale], { duration: duration.fast, easing: ease }),
     when(tooltipPlacement.left, [
       insetBlockStart(unit.px(0)),
       insetBlockEnd.auto,
