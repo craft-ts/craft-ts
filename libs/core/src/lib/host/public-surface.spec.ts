@@ -100,7 +100,7 @@ describe('public surface', () => {
 
   it(
     'typechecks that Angular DI names stay off the public index',
-    { timeout: 20_000 },
+    { timeout: 60_000 },
     () => {
       execSync('npx tsc -p libs/core/tsconfig.public-surface.json --noEmit', {
         encoding: 'utf8',

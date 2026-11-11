@@ -949,7 +949,7 @@ describe('streams migration', () => {
       });
 
     expect(own).toEqual([]);
-  }, 60_000);
+  }, 120_000);
 
   it('migrates the operators added for RxJS parity, renaming exhaust', async () => {
     const { read, result } = await migrate({

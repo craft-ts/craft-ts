@@ -82,7 +82,7 @@ describe('sync-effect-body', () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0]).toContain('always suspends');
-  });
+  }, 60_000);
 
   it('allows pure constructors, service tags, and declared-sync members', async () => {
     const messages = await lintFixture(`

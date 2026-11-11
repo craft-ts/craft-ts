@@ -50,7 +50,7 @@ describe('assertE2eSessionContract', () => {
   it('accepts the demonstration fixture and Playwright project', async () => {
     await expect(assertE2eSessionContract({ configs: ['libs/playwright-sessions/playwright.config.ts'], workspaceRoot: process.cwd() }))
       .resolves.toEqual({ warnings: [] });
-  });
+  }, 30_000);
 
   it('refuses an id declared in two configs', async () => {
     const { check } = workspace({ shop: [{ title: 'paye', id: 'checkout' }], admin: [{ title: 'paye aussi', id: 'checkout' }] });

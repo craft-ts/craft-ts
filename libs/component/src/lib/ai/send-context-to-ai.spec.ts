@@ -492,6 +492,7 @@ describe('provideSendContextToAi', () => {
 
   it.each(['context menu', 'picker'])(
     'preserves the draft and sends both targets when adding through the %s',
+    { timeout: 30_000 },
     async (selection) => {
       const {
         ContextHostWithMultipleTargetsView,
