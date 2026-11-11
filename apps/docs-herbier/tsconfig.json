@@ -9,12 +9,6 @@
   "include": ["src/**/*.ts", "vite.config.ts", "vite.ssr.config.ts"],
   "references": [
     {
-      "path": "../../libs/ui"
-    },
-    {
-      "path": "../../libs/docs-ui"
-    },
-    {
       "path": "../../libs/style"
     },
     {

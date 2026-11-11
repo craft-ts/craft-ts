@@ -13,10 +13,5 @@
       "@craft-ts/attest": ["../attest/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts"],
-  "references": [
-    {
-      "path": "../attest"
-    }
-  ]
+  "include": ["src/**/*.ts"]
 }
