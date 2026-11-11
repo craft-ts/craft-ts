@@ -345,6 +345,7 @@ const guideSidebar: readonly SidebarEntry[] = [
     items: [
       { text: 'craftComputed', link: '/guide/reactivity/craft-computed' },
       { text: 'craftEffect', link: '/guide/reactivity/craft-effect' },
+      { text: 'Lifecycle', link: '/guide/reactivity/lifecycle' },
       { text: 'craftMethod', link: '/guide/reactivity/craft-method' },
       { text: 'source$', link: '/guide/reactivity/source' },
       { text: 'on$', link: '/guide/reactivity/on' },
