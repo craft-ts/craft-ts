@@ -13,7 +13,7 @@ import { createSliceIndex, impactOf, PRODUCES_BACKWARD } from '@craft-ts/dev-too
  * (every node whose output may change with them) widens the set. Each node
  * names the coverage units a session shows when it runs that node —
  * `invocation:cart.add`, `interaction:CheckoutPage:button:confirm-order:click`,
- * `route-activation:ecommerce:panier`, `server-fn:ecommerce.checkout:ok` — and
+ * `route-activation:storefront:cart`, `server-fn:checkout.process:ok` — and
  * a session of the golden set is kept when one of its units is named.
  *
  * Cautious on purpose: a session replayed for nothing costs a replay, one left

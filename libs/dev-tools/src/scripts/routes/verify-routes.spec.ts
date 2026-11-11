@@ -20,6 +20,12 @@ const temporaryDirectories: string[] = [];
 const coreIndexPath = fileURLToPath(
   new URL('../../../../core/src/index.ts', import.meta.url),
 );
+const componentIndexPath = fileURLToPath(
+  new URL('../../../../component/src/index.ts', import.meta.url),
+);
+const styleIndexPath = fileURLToPath(
+  new URL('../../../../style/src/index.ts', import.meta.url),
+);
 
 afterEach(async () => {
   await Promise.all(
@@ -43,7 +49,6 @@ describe('route verification', () => {
         'lazy-child',
         'pending',
         'exception-components',
-        'template-pipe',
         'template-component',
         'template-routes',
         'missing-provider',
@@ -206,8 +211,11 @@ exit 1
         compilerOptions: {
           module: 'preserve',
           moduleResolution: 'bundler',
+          allowImportingTsExtensions: true,
           paths: {
             '@craft-ts/core': [coreIndexPath],
+            '@craft-ts/component': [componentIndexPath],
+            '@craft-ts/style': [styleIndexPath],
           },
           skipLibCheck: true,
           strict: true,

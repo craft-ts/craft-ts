@@ -61,7 +61,7 @@ describe('routes migration', () => {
     );
     expect(output).toMatch(/craftRoute\(["']["'], \{/);
     expect(output).toContain('...loadCraftComponent');
-    expect(output).toContain("withRetry(import('./profile-page'))");
+    expect(output).toMatch(/withRetry\(import\(["']\.\/profile-page["']\)\)/);
     expect(output).toContain(
       'type _CheckProfileDI = ValidateCascadeRoutesFile<never, Router, typeof routes>;',
     );

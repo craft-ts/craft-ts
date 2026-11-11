@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSendContextSession, type SendContextSession } from '@craft-ts/core';
 import { connectDebugSessionPersistence } from './debug-session-persistence';
 
@@ -58,6 +58,17 @@ const historyOf = (socket: FakeSocket) =>
   socket.sent.flatMap((message) => (message['type'] === 'session:events' ? (message['events'] as Message[]) : []));
 const input = (type = 'pointerdown') => window.dispatchEvent(new Event(type));
 const checkIdle = () => document.dispatchEvent(new Event('visibilitychange'));
+const memoryStorage = (): Storage => {
+  const values = new Map<string, string>();
+  return {
+    get length() { return values.size; },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => [...values.keys()][index] ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, String(value)),
+  };
+};
 
 describe('debug session persistence after a pause', () => {
   const originalWebSocket = globalThis.WebSocket;
@@ -78,6 +89,10 @@ describe('debug session persistence after a pause', () => {
 
   beforeEach(() => {
     FakeSocket.instances = [];
+    // Node 25 exposes a partial global localStorage implementation, so give
+    // the browser persistence code an explicit Storage implementation.
+    vi.stubGlobal('localStorage', memoryStorage());
+    vi.stubGlobal('sessionStorage', memoryStorage());
     localStorage.clear();
     sessionStorage.clear();
     globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket;
@@ -94,6 +109,7 @@ describe('debug session persistence after a pause', () => {
     for (const disconnect of disconnects.splice(0)) disconnect();
     globalThis.WebSocket = originalWebSocket;
     globalThis.fetch = originalFetch;
+    vi.unstubAllGlobals();
     history.replaceState(null, '', '/');
   });
 

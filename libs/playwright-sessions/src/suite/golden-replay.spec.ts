@@ -55,6 +55,7 @@ describe('replayGoldenSession', () => {
     const page = await context.newPage();
     Object.assign(page, {
       locator: () => ({
+        count: async () => 1,
         first: () => ({
           isVisible: async () => true,
           elementHandle: async () => ({ contentFrame: async () => frame }),
