@@ -31,6 +31,8 @@ export type SessionSummary = Readonly<{
   eventCount: number;
   truncated: boolean;
   participantCount?: number;
+  /** The session the same browser recorded before this one, which ended after a pause. */
+  continuesFrom?: string;
   recipeCount?: number;
   /** Unexpired saved points that can resume this session. */
   resumeCount?: number;

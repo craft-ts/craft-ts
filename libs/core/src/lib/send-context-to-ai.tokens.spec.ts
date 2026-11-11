@@ -156,6 +156,22 @@ describe('send context session', () => {
     });
   });
 
+  it('starts again from the page as it is now once cleared', () => {
+    // A recording started over after a pause replays from where the user came back.
+    const session = createSendContextSession();
+    const startedAt = location.href;
+    history.pushState(null, '', '/after-the-pause?step=2');
+    try {
+      expect(JSON.parse(session.exportSessionJson())['startUrl']).toBe(startedAt);
+      session.clear();
+      expect(JSON.parse(session.exportSessionJson())['startUrl']).toBe(
+        new URL('/after-the-pause?step=2', startedAt).href,
+      );
+    } finally {
+      history.pushState(null, '', startedAt);
+    }
+  });
+
   it('exports the initial snapshot once as a v2 field', () => {
     const session = createSendContextSession();
     session.capture('snapshot', 'emitted', {

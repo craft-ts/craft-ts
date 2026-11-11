@@ -991,6 +991,28 @@ export function provideCraftDebugSessionCapture(
           const disconnectPersistence = connectDebugSessionPersistence(
             createdSession,
             options.webSocketUrl,
+            {
+              // After a pause, the new session replays from the page as it is
+              // then, browser storage included.
+              restartRecording: () => {
+                createdSession.clear();
+                createdSession.startRecord('Application session');
+                if (!startupStorageSnapshot) return;
+                void captureBrowserStorageSnapshot()
+                  .then((snapshot) => {
+                    const redacted = redactBrowserStorageSnapshotForArchive(
+                      snapshot,
+                      createdSession,
+                    );
+                    createdSession.capture('storage', 'emitted', {
+                      name: INITIAL_BROWSER_STORAGE_EVENT,
+                      payload: { snapshotJson: JSON.stringify(redacted.snapshot) },
+                      ...(redacted.refs.length > 0 ? { refs: redacted.refs } : {}),
+                    });
+                  })
+                  .catch(() => undefined);
+              },
+            },
           );
           return () => {
             disconnectDialogCapture?.();

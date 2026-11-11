@@ -618,12 +618,18 @@ export function createSendContextSession(
   let restoreRandomRuntime: (() => void) | undefined;
   const startedAtMonotonic =
     typeof performance === 'undefined' ? 0 : performance.now();
-  const startUrl =
+  // Where a replay starts: the page as it is when the recording begins, taken
+  // again on `clear()` since what came before is no longer part of it.
+  const currentStartUrl = (): string =>
     typeof location === 'undefined' ? '' : redactReplayUrl(location.href);
-  const viewport =
+  const currentViewport = ():
+    | Readonly<{ width: number; height: number }>
+    | undefined =>
     typeof window === 'undefined'
       ? undefined
       : { width: window.innerWidth, height: window.innerHeight };
+  let startUrl = currentStartUrl();
+  let viewport = currentViewport();
   const eventsSubject = behaviorSubject<readonly SendContextEvent[]>([]);
   const snapshotSubject = behaviorSubject<SendContextSessionSnapshot>({
     events: [],
@@ -836,6 +842,8 @@ export function createSendContextSession(
       randomSeed = undefined;
       recordingRandomRuntime = undefined;
       wasTruncated = false;
+      startUrl = currentStartUrl();
+      viewport = currentViewport();
       publish();
     },
     exportJson(clipId) {

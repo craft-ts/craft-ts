@@ -60,6 +60,21 @@ export function isDerivedSession(session: SessionSummary): boolean {
   return session.resume !== undefined;
 }
 
+/**
+ * Where a session picks up from: the same browser's previous one, which ended
+ * after a pause. Empty when it began on its own.
+ */
+export function continuationLabel(
+  session: SessionSummary,
+  sessions: readonly SessionSummary[],
+): string {
+  if (!session.continuesFrom) return '';
+  const previous = sessions.find((item) => item.id === session.continuesFrom);
+  return previous
+    ? `Suite de la session du ${sessionDate.format(new Date(previous.createdAt))}`
+    : 'Suite d’une session supprimée';
+}
+
 /** The sessions recorded while resuming this one, newest first. */
 export function derivedSessionsOf(
   sessionId: string,

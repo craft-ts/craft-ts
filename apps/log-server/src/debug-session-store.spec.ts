@@ -199,6 +199,21 @@ describe('DebugSessionStore', () => {
     expect(store.extract(id, [])).toBeUndefined();
   });
 
+  it('keeps the session a browser recorded before this one, after a pause', () => {
+    store.begin(id, fixture(), createdAt, 'tab-a');
+    store.finish(id, 'completed');
+    const next = '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5679';
+
+    store.begin(next, { ...fixture(), continuesFrom: id }, createdAt, 'tab-a');
+
+    expect(store.list().find((summary) => summary.id === next)?.continuesFrom).toBe(id);
+    expect(store.get(next)?.continuesFrom).toBe(id);
+    store.close();
+    store = new DebugSessionStore(directory);
+    expect(store.list().find((summary) => summary.id === next)?.continuesFrom).toBe(id);
+    expect(() => store.begin(next, { ...fixture(), continuesFrom: 'not-an-id' }, createdAt, 'tab-b')).toThrow();
+  });
+
   it('updates a participant visibility state without adding timeline events', () => {
     store.begin(id, fixture(), createdAt, 'tab-a');
 

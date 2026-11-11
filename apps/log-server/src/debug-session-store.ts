@@ -83,6 +83,11 @@ export type StoredDebugSessionSummary = Readonly<{
   resume?: ResumeSessionMetadata;
   /** Tabs taken out of another session (see `extract`). */
   extractedFrom?: DebugSessionExtraction;
+  /**
+   * The session the same browser recorded before this one, when this one
+   * began because the user came back after a pause.
+   */
+  continuesFrom?: string;
 }>;
 
 export type DebugSessionExtraction = Readonly<{ sessionId: string; participantIds: readonly string[] }>;
@@ -131,6 +136,7 @@ export type PortableDebugSession = Readonly<{
   environment?: StoredEnvironmentProfile;
   test?: DebugSessionTestMetadata;
   resume?: ResumeSessionMetadata;
+  continuesFrom?: string;
 }>;
 
 const DEFAULT_MAX_SESSIONS = 100;
@@ -221,6 +227,7 @@ export class DebugSessionStore {
           test,
           resume,
           extractedFrom,
+          continuesFrom,
         }) => ({
           id,
           startUrl,
@@ -236,6 +243,7 @@ export class DebugSessionStore {
           ...(test ? { test } : {}),
           ...(resume ? { resume } : {}),
           ...(extractedFrom ? { extractedFrom } : {}),
+          ...(continuesFrom ? { continuesFrom } : {}),
         }),
       );
   }
@@ -353,6 +361,9 @@ export class DebugSessionStore {
       ...((current?.test ?? session.test) ? { test: current?.test ?? session.test } : {}),
       ...((current?.resume ?? session.resume)
         ? { resume: current?.resume ?? session.resume }
+        : {}),
+      ...((current?.continuesFrom ?? session.continuesFrom)
+        ? { continuesFrom: current?.continuesFrom ?? session.continuesFrom }
         : {}),
       clips,
       participants,
@@ -755,6 +766,7 @@ export class DebugSessionStore {
       participants: stored.participants,
       ...(stored.test ? { test: stored.test } : {}),
       ...(stored.resume ? { resume: stored.resume } : {}),
+      ...(stored.continuesFrom ? { continuesFrom: stored.continuesFrom } : {}),
     };
   }
 
@@ -925,13 +937,17 @@ export class DebugSessionStore {
   }
 }
 
-function assertSessionId(id: string): void {
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+function isSessionId(id: unknown): id is string {
+  return (
+    typeof id === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       id,
     )
-  )
-    throw new Error('Invalid session id.');
+  );
+}
+
+function assertSessionId(id: string): void {
+  if (!isSessionId(id)) throw new Error('Invalid session id.');
 }
 
 function assertParticipantId(id: string): void {
@@ -958,6 +974,7 @@ function assertPortableSession(
     (value['test'] !== undefined && !isDebugSessionTestMetadata(value['test'])) ||
     (value['resume'] !== undefined &&
       !isResumeSessionMetadata(value['resume'])) ||
+    (value['continuesFrom'] !== undefined && !isSessionId(value['continuesFrom'])) ||
     !Array.isArray(value['events']) ||
     !Array.isArray(value['clips']) ||
     typeof value['truncated'] !== 'boolean'
@@ -984,6 +1001,7 @@ function isStoredSession(value: unknown): value is StoredSession {
     (value['resume'] === undefined ||
       isResumeSessionMetadata(value['resume'])) &&
     (value['extractedFrom'] === undefined || isDebugSessionExtraction(value['extractedFrom'])) &&
+    (value['continuesFrom'] === undefined || isSessionId(value['continuesFrom'])) &&
     Array.isArray(value['clips']) &&
     (value['participants'] === undefined ||
       Array.isArray(value['participants']))
