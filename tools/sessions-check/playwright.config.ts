@@ -9,7 +9,7 @@ import { join } from 'node:path';
  */
 export default defineConfig({
   testDir: '.',
-  testMatch: 'sessions-check.spec.ts',
+  testMatch: 'sessions-check.playwright.ts',
   outputDir: join(tmpdir(), 'craft-sessions-check-results'),
   fullyParallel: false,
   workers: 1,
