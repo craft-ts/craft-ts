@@ -207,15 +207,16 @@ describe('Type-safe DI/Routes setup doc page', () => {
     );
     expect(content).toContain('type _CanRunApp = CanRun<_CheckAppDI>;');
     expect(content).toContain(
-      'loadCraftComponent(...) wires the lazy component and its dependency contract together.',
+      '`loadCraftComponent(...)` wires the lazy component and its dependency contract together.',
     );
     expect(content).not.toContain('componentDeps on each route');
     expect(content).toContain('provideCraftRouter(appRoutes.toRoutes()');
   });
 
   it('documents inferred component dependency contracts', () => {
-    expect(content).toContain('ComponentDepsOf');
-    expect(content).toContain('loadCraftComponent');
+    const scaling = readDoc('../guide/routing/scaling.md');
+    expect(scaling).toContain('ComponentDepsOf');
+    expect(scaling).toContain('loadCraftComponent');
   });
 
   it('points at the dedicated ESLint rules page', () => {

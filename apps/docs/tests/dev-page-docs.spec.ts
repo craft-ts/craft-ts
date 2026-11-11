@@ -51,12 +51,10 @@ describe('live page MCP docs', () => {
     expect(cursorSkill).toContain('Never guess');
   });
 
-  it('is the first home feature and is linked from agents and reference', () => {
+  it('is listed on the home page and linked from agents and reference', () => {
     expect(home).toContain('Agents drive the tab you already have open');
     expect(home).toContain('/guide/ai/dev-page');
-    expect(home).toMatch(
-      /features:\n {2}- title: Agents drive the tab you already have open/,
-    );
+    expect(home).toMatch(/- title: Agents drive the tab you already have open/);
     expect(agents).toContain('Live page MCP');
     expect(agents).toContain('Dev only');
     expect(agents).toContain('/guide/ai/dev-page');
