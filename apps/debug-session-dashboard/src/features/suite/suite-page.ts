@@ -263,7 +263,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
           src: function* () {
             const id = yield* sessionId();
             const url = openedCheck() === id ? checkPictureUrl(CHECK_ARCHIVE_URL, origin(), path(yield* moment())) : undefined;
-            return url ? safeResourceUrl(url, { allowedOrigins: [CHECK_PICTURE_ORIGIN] }) : undefined;
+            return safeResourceUrl(url, { allowedOrigins: [CHECK_PICTURE_ORIGIN] });
           },
         }),
       ],

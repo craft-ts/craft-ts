@@ -5,5 +5,16 @@
     "strict": true,
     "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../libs/style"
+    },
+    {
+      "path": "../../libs/core"
+    },
+    {
+      "path": "../../libs/component"
+    }
+  ]
 }

@@ -75,6 +75,7 @@ describe('the time of a captured message', () => {
     const adapter = craftReplayAdapter({
       id: 'app:stream',
       match: (url) => url.includes('/stream'),
+      record: () => undefined,
       replay: replayed,
     });
     captureCraftReplayTransportEvent(session, adapter, {

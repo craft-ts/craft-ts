@@ -51,6 +51,9 @@
       "path": "../../libs/component"
     },
     {
+      "path": "../../libs/review-attestation"
+    },
+    {
       "path": "../../libs/dev-tools"
     }
   ]

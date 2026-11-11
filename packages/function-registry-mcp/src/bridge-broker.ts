@@ -164,7 +164,7 @@ export class RegistryBridgeBroker {
   }
 
   async #request(
-    method: RegistryBrokerMethod,
+    method: Exclude<RegistryBrokerMethod, 'bridge/timings'>,
     params: Readonly<Record<string, unknown>> | undefined,
     timing: { pageReadyMs?: number; tabRoundTripMs?: number },
   ): Promise<unknown> {

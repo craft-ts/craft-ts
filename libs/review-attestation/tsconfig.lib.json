@@ -15,12 +15,6 @@
       "path": "../style/tsconfig.lib.json"
     },
     {
-      "path": "../core/tsconfig.lib.json"
-    },
-    {
-      "path": "../component/tsconfig.lib.json"
-    },
-    {
       "path": "../dev-tools/tsconfig.lib.json"
     }
   ]

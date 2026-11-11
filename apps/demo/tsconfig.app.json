@@ -9,10 +9,16 @@
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
   "references": [
     {
+      "path": "../../libs/stream/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/test-type/tsconfig.lib.json"
     },
     {
       "path": "../../libs/i18n/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/ui"
     },
     {
       "path": "../../libs/component/tsconfig.lib.json"
