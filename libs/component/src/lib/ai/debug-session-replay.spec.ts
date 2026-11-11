@@ -5756,7 +5756,7 @@ describe("stateSource: 'recomputed'", () => {
       readState: () => ({}),
       restoreState: () => undefined,
     });
-    (await replay.step()) ?? (await replay.step());
+    if (!(await replay.step())) await replay.step();
     replay.stop();
     // The recording started at 1 794 289 980 000: the action ran within its first seconds.
     expect(readAt).toBeGreaterThanOrEqual(1_794_289_980_000);
@@ -5773,7 +5773,7 @@ describe("stateSource: 'recomputed'", () => {
       readState: () => ({}),
       restoreState: () => undefined,
     });
-    (await replay.step()) ?? (await replay.step());
+    if (!(await replay.step())) await replay.step();
     expect(new Date() instanceof NativeDate).toBe(true);
     expect(new Date(0).getTime()).toBe(0);
     replay.stop();
@@ -6206,7 +6206,7 @@ describe('cutUnfinishedTail', () => {
     const { session: cut, cut: what } = cutUnfinishedTail(session(events, [{ capturedAt: 1_003 }, { capturedAt: 1_006 }]));
     expect(what).toEqual({ reason: 'missing-result', atSequence: 5, keptSteps: 1, droppedSteps: 2, operationId: 'h2' });
     expect(cut.events.map((entry) => entry.sequence)).toEqual([1, 2, 3, 4]);
-    expect((cut.clips[0] as { eventIds: string[] }).eventIds).toEqual(['e1', 'e2', 'e3', 'e4']);
+    expect((cut.clips[0] as { eventIds: readonly string[] }).eventIds).toEqual(['e1', 'e2', 'e3', 'e4']);
     expect(cut.snapshots).toEqual([{ capturedAt: 1_003 }]);
     // What is left plans without the missing result.
     expect(compileReplayPlan(cut).issues.filter((issue) => issue.code === 'missing-result')).toEqual([]);

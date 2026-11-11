@@ -21,6 +21,20 @@ import { demoAccounts } from '../shared/accounts';
 import { AppShell } from './app-shell';
 import { appRoutes } from './app.routes';
 
+function memoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => [...values.keys()][index] ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, String(value)),
+  };
+}
+
 /**
  * The shop as a visitor uses it, against the real server on a store of its
  * own (pages.global-setup.ts).
@@ -33,8 +47,16 @@ describe('demo e-commerce pages', () => {
   beforeEach(() => {
     CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
-    localStorage.clear();
-    sessionStorage.clear();
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: memoryStorage(),
+    });
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      value: memoryStorage(),
+    });
+    window.localStorage.clear();
+    window.sessionStorage.clear();
     CraftTestBed.configureTestingModule({
       providers: [
         // As app.config.ts provides them, without the dev tools.
