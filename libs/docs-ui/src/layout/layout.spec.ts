@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { content, p, renderCraftComponent } from '@craft-ts/component';
 import {
   registeredAtoms,
@@ -13,6 +13,27 @@ import { defaultLabels, DocLayout } from './layout.ts';
 import { NAVIGATED_EVENT } from '@craft-ts/ui';
 import { menuUi } from '@craft-ts/ui';
 import { glyphMask } from './glyph.art.style.ts';
+
+function memoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => [...values.keys()][index] ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, String(value)),
+  };
+}
+
+beforeEach(() => {
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: memoryStorage(),
+  });
+});
 
 afterEach(() => {
   document.documentElement.removeAttribute('data-mode');

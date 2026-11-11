@@ -83,7 +83,7 @@ describe('apps/docs corpus', () => {
     expect(files.length).toBeGreaterThan(100);
     // What `git grep '^:::'` finds in the tracked pages, before parsing anything.
     expect(counts.callout.get('tip')).toBe(42);
-    expect(counts.callout.get('warning')).toBe(38);
+    expect(counts.callout.get('warning')).toBe(37);
     expect(counts.details).toBe(26);
     expect(counts.callout.get('info')).toBe(3);
     expect(counts.callout.get('danger')).toBe(2);
