@@ -21,6 +21,15 @@ if (typeof window.matchMedia !== 'function') {
       dispatchEvent: () => false,
     }) as MediaQueryList;
 }
+if (typeof HTMLElement.prototype.scrollTo !== 'function') {
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    configurable: true,
+    value(this: HTMLElement, options: ScrollToOptions) {
+      if (options.top !== undefined) this.scrollTop = options.top;
+      if (options.left !== undefined) this.scrollLeft = options.left;
+    },
+  });
+}
 if (typeof globalThis.CSS?.escape !== 'function') {
   globalThis.CSS = {
     ...globalThis.CSS,
