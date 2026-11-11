@@ -37,6 +37,7 @@ describe('craft http trace', () => {
   it('never sends an unmatched Craft HTTP request to the live transport during replay', async () => {
     const next = vi.fn(async () => 'live response');
     ɵsetCraftReplayMode(true);
+    const restore = ɵinstallCraftHttpReplay([]);
     try {
       await expect(
         executeCraftHttpTrace(
@@ -47,6 +48,7 @@ describe('craft http trace', () => {
       ).rejects.toThrow('no recorded Craft HTTP result');
       expect(next).not.toHaveBeenCalled();
     } finally {
+      restore();
       ɵsetCraftReplayMode(false);
     }
   });
@@ -54,6 +56,7 @@ describe('craft http trace', () => {
   it('keeps the no-live-request guarantee in production mode', async () => {
     const next = vi.fn(async () => 'live response');
     ɵsetCraftReplayMode(true);
+    const restore = ɵinstallCraftHttpReplay([]);
     try {
       await expect(
         executeCraftHttpTrace(
@@ -64,8 +67,39 @@ describe('craft http trace', () => {
       ).rejects.toThrow('no recorded Craft HTTP result');
       expect(next).not.toHaveBeenCalled();
     } finally {
+      restore();
       ɵsetCraftReplayMode(false);
     }
+  });
+
+  it('holds a call made before the replay results are installed, then answers it from them', async () => {
+    // A page can mount and load before the dashboard sends the session: its
+    // call used to fail at once and leave the query empty for the whole replay.
+    const next = vi.fn(async () => 'live response');
+    ɵsetCraftReplayMode(true);
+    let restore = () => undefined as void;
+    try {
+      let settled = false;
+      const result = executeCraftHttpTrace(Injector.create({ providers: [] }), { method: 'POST', url: '/catalog' }, next)
+        .finally(() => { settled = true; });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      restore = ɵinstallCraftHttpReplay([{ context: { method: 'POST', url: '/catalog' }, elapsedMs: 0, phase: 'succeeded', response: 'recorded catalog' }]);
+      await expect(result).resolves.toBe('recorded catalog');
+      expect(next).not.toHaveBeenCalled();
+    } finally {
+      restore();
+      ɵsetCraftReplayMode(false);
+    }
+  });
+
+  it('fails a held call when the replay session ends without results, never going live', async () => {
+    const next = vi.fn(async () => 'live response');
+    ɵsetCraftReplayMode(true);
+    const result = executeCraftHttpTrace(Injector.create({ providers: [] }), { method: 'GET', url: '/catalog' }, next);
+    ɵsetCraftReplayMode(false);
+    await expect(result).rejects.toThrow('no recorded Craft HTTP result');
+    expect(next).not.toHaveBeenCalled();
   });
 
   it('wraps a CraftHttpClient request and preserves its result', async () => {

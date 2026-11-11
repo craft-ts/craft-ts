@@ -13,10 +13,11 @@ import {
   ɵinjectCorrelationIdServiceIn,
   getCurrentStartCorrelationId,
   type CorrelationIdMetadata,
+  ɵcurrentCorrelationId,
 } from './correlation-id';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import { craftPrivate } from './craft-primitive-gen';
-import type { Injector } from './host/craft-compat';
+import { untracked, type Injector } from './host/craft-compat';
 import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
 import { getCurrentCraftInjector } from './host/craft-injector';
 
@@ -326,10 +327,12 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
         tags: injector.get(ɵTRACK_TAGS_LIST),
         correlation: {
           lastCorrelationId:
-            ɵinjectCorrelationIdServiceIn(injector)?.lastCorrelationId() ??
+            ɵcurrentCorrelationId(ɵinjectCorrelationIdServiceIn(injector)) ??
             null,
           mayCorrelatedIds:
-            ɵinjectCorrelationIdServiceIn(injector)?.mayCorrelatedIds() ?? [],
+            untracked(() =>
+              ɵinjectCorrelationIdServiceIn(injector)?.mayCorrelatedIds(),
+            ) ?? [],
           startCorrelationId: getCurrentStartCorrelationId(),
         },
       }),

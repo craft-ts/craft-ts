@@ -5,7 +5,11 @@ import {
 } from './host/craft-compat';
 import { ɵcraftValueService } from './craft-service';
 import { isCraftDevelopment } from './craft-runtime-mode';
-import { isCraftReplaying } from './craft-replay';
+import {
+  isCraftReplaying,
+  ɵisCraftReplaySession,
+  ɵonCraftReplayModeChange,
+} from './craft-replay';
 
 export type CraftHttpTraceContext = Readonly<{
   method: string;
@@ -112,6 +116,7 @@ export function ɵinstallCraftHttpReplay(
     elapsedMs: 0,
   };
   activeHttpReplay = replay;
+  releaseHttpReplayWaiters();
   return () => {
     if (activeHttpReplay !== replay) return;
     for (const pending of replay.pending.splice(0))
@@ -270,18 +275,52 @@ export function executeCraftHttpTrace<Value>(
   return runInInjectionContext(injector, () => run(0));
 }
 
+/**
+ * Calls made during a replay session before its recorded results are
+ * installed. The app does not wait for its initializers before the first
+ * render: a page can mount, and its loaders call out, before the dashboard
+ * has sent the session. Rejecting them left a query in error for the whole
+ * replay (an empty catalogue, intermittently); they wait for the results
+ * instead, or for the session to end.
+ */
+const httpReplayWaiters: ((installed: boolean) => void)[] = [];
+let stopWatchingReplayMode: (() => void) | undefined;
+
+function releaseHttpReplayWaiters(installed = true): void {
+  for (const release of httpReplayWaiters.splice(0)) release(installed);
+  stopWatchingReplayMode?.();
+  stopWatchingReplayMode = undefined;
+}
+
+/** `true` once the results are installed, `false` if the session ended first. */
+function waitForHttpReplay(): Promise<boolean> {
+  stopWatchingReplayMode ??= ɵonCraftReplayModeChange((active) => {
+    if (!active) releaseHttpReplayWaiters(false);
+  });
+  return new Promise((resolve) => httpReplayWaiters.push(resolve));
+}
+
 function replayOrNext<Value>(
   context: CraftHttpTraceContext,
   next: () => Promise<Value>,
 ): Promise<Value> {
   const recorded = ɵconsumeCraftHttpReplayResult(context);
   if (recorded) return recorded as Promise<Value>;
-  if (isCraftReplaying()) {
-    return Promise.reject(
-      new Error(
-        `Replay stopped: no recorded Craft HTTP result for ${context.method} ${context.url}`,
-      ),
+  if (!activeHttpReplay && ɵisCraftReplaySession())
+    return waitForHttpReplay().then((installed) =>
+      installed ? replayOrNext(context, next) : noRecordedResult(context),
     );
-  }
+  if (isCraftReplaying()) return noRecordedResult(context);
   return next();
+}
+
+/** A call made during a replay never reaches the live transport. */
+function noRecordedResult<Value>(
+  context: CraftHttpTraceContext,
+): Promise<Value> {
+  return Promise.reject(
+    new Error(
+      `Replay stopped: no recorded Craft HTTP result for ${context.method} ${context.url}`,
+    ),
+  );
 }

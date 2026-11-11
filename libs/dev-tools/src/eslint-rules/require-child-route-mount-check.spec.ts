@@ -87,7 +87,7 @@ describe('require-child-route-mount-check', () => {
           {
             path: 'home',
             loadComponent: () => import('./home'),
-            componentDeps: {} as import('./home').GenDeps_Home,
+            componentDeps: {} as import('./home').ComponentDeps_Home,
           },
         ]);
       `,

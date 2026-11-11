@@ -5,11 +5,16 @@ import { provideCorrelationIdTracking } from './correlation-id-plugin';
 import {
   CorrelationId,
   ɵcorrelationIdForDomEvent,
+  getCurrentStartCorrelationId,
   injectCorrelationIdService,
 } from './correlation-id';
+import { craftService } from './craft-service';
+import { craftUse } from './craft-use';
+import { state } from './state';
+import { VirtualCraftTemporalRuntime } from './temporal-runtime';
 import { craftWatch } from './host/craft-signal';
 import { ɵinjectCraftDomEventHooks } from './dom-event-hook';
-import { FN_WRAPPER, type FnWrapper } from './fn-wrapper';
+import { FN_WRAPPER, provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 describe('provideCorrelationIdTracking', () => {
   beforeEach(() => {
@@ -94,6 +99,83 @@ describe('provideCorrelationIdTracking', () => {
     expect(current.value).toBe('inner-result');
   });
 
+  it('gives the start id back while the wrapped generator is suspended', () => {
+    // A cart sync suspended on its request kept the click as the start id of
+    // everything that ran meanwhile: each tick of a countdown was recorded as
+    // that click's, until the request came back.
+    CraftTestBed.configureTestingModule({
+      providers: [provideCorrelationIdTracking()],
+    });
+    const [wrapper] = CraftTestBed.runInInjectionContext(
+      () => CraftTestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
+    );
+    const service = CraftTestBed.runInInjectionContext(() =>
+      injectCorrelationIdService(),
+    );
+    const click = service?.generateAndSet('click');
+    const seen: Array<string | null> = [];
+    const pending = { awaiting: 'the server' };
+
+    function* inner(): Generator<unknown, string, unknown> {
+      seen.push(getCurrentStartCorrelationId());
+      const answer = yield pending;
+      seen.push(getCurrentStartCorrelationId());
+      return `done with ${String(answer)}`;
+    }
+
+    const iterator = wrapper(inner as never, undefined, []);
+    let current = iterator.next();
+    while (!current.done && current.value !== pending) current = iterator.next(service ?? null);
+    expect(current.value).toBe(pending);
+    // Suspended: whatever runs now is not the click's.
+    expect(getCurrentStartCorrelationId()).toBeNull();
+    service?.generateAndSet('enter');
+
+    current = iterator.next('the answer');
+    expect(current).toEqual({ done: true, value: 'done with the answer' });
+    expect(seen).toEqual([click, click]);
+    expect(getCurrentStartCorrelationId()).toBeNull();
+  });
+
+  it('gives the start id back when the wrapped generator throws or is closed', () => {
+    CraftTestBed.configureTestingModule({
+      providers: [provideCorrelationIdTracking()],
+    });
+    const [wrapper] = CraftTestBed.runInInjectionContext(
+      () => CraftTestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
+    );
+    const service = CraftTestBed.runInInjectionContext(() =>
+      injectCorrelationIdService(),
+    );
+    service?.generateAndSet('click');
+    const pending = {};
+    const cleanup: Array<string | null> = [];
+
+    function* inner(): Generator<unknown, string, unknown> {
+      try {
+        yield pending;
+        return 'unreached';
+      } finally {
+        cleanup.push(getCurrentStartCorrelationId());
+      }
+    }
+    const start = (): Generator<unknown, unknown, unknown> => {
+      const iterator = wrapper(inner as never, undefined, []);
+      let current = iterator.next();
+      while (!current.done && current.value !== pending) current = iterator.next(service ?? null);
+      return iterator;
+    };
+
+    const failing = start();
+    expect(() => failing.throw(new Error('request failed'))).toThrow('request failed');
+    expect(getCurrentStartCorrelationId()).toBeNull();
+
+    const closed = start();
+    expect(closed.return('closed')).toEqual({ done: true, value: 'closed' });
+    expect(getCurrentStartCorrelationId()).toBeNull();
+    expect(cleanup).toEqual([service?.lastCorrelationId(), service?.lastCorrelationId()]);
+  });
+
   // This wrapper runs inside EVERY craft factory execution, template bindings
   // included. A tracked read of `lastCorrelationId` here subscribes every
   // binding in the application to it — and the DOM event hook writes it on
@@ -159,5 +241,43 @@ describe('provideCorrelationIdTracking', () => {
     expect(runs).toBe(1);
 
     watch.destroy();
+  });
+});
+
+describe('the flow of a scheduled call, as a recorder reads it', () => {
+  beforeEach(() => {
+    CraftTestBed.resetTestingModule();
+  });
+
+  it('records the tick of a global countdown first needed by a click as no click', async () => {
+    const clock = new VirtualCraftTemporalRuntime();
+    const starts: Array<string | null> = [];
+    const recorder: FnWrapper = function* (factory, thisArg, args) {
+      starts.push(getCurrentStartCorrelationId());
+      return yield* factory.apply(thisArg, args);
+    };
+    const { RecordedCountdown } = craftService({ name: 'RecordedCountdown', providedIn: 'global' }, function* () {
+      const now = yield* state('now', 0, ({ set }) => ({ tick: (value: number) => set(value) }));
+      const tick = () => {
+        now.tick(clock.now());
+        clock.schedule(tick, 1_000);
+      };
+      clock.schedule(tick, 1_000);
+    });
+    CraftTestBed.configureTestingModule({
+      providers: [
+        provideCorrelationIdTracking(),
+        provideFnWrapper('Warning: dependency injection here is not type-safe and may fail at runtime', recorder),
+      ],
+    });
+    const service = CraftTestBed.runInInjectionContext(() => injectCorrelationIdService());
+    service?.generateAndSet('click');
+    CraftTestBed.runInInjectionContext(() => craftUse(RecordedCountdown()));
+    starts.length = 0;
+
+    await clock.advanceTo(2_000);
+
+    expect(starts.length).toBeGreaterThan(0);
+    expect(new Set(starts)).toEqual(new Set([null]));
   });
 });

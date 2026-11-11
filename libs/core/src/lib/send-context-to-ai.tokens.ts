@@ -13,6 +13,7 @@ import { providePrimitiveResourceRuntimeObserver } from './primitive-resource-ru
 import {
   ɵcorrelationIdForDomEvent,
   ɵinjectCorrelationIdService,
+  ɵcurrentCorrelationId,
 } from './correlation-id';
 import { ɵinjectCraftPrimitiveRegistry } from './craft-primitive-registry';
 import { ɵinjectPersistedStorageSnapshotRegistry } from './persisted-storage-snapshot';
@@ -617,12 +618,18 @@ export function createSendContextSession(
   let restoreRandomRuntime: (() => void) | undefined;
   const startedAtMonotonic =
     typeof performance === 'undefined' ? 0 : performance.now();
-  const startUrl =
+  // Where a replay starts: the page as it is when the recording begins, taken
+  // again on `clear()` since what came before is no longer part of it.
+  const currentStartUrl = (): string =>
     typeof location === 'undefined' ? '' : redactReplayUrl(location.href);
-  const viewport =
+  const currentViewport = ():
+    | Readonly<{ width: number; height: number }>
+    | undefined =>
     typeof window === 'undefined'
       ? undefined
       : { width: window.innerWidth, height: window.innerHeight };
+  let startUrl = currentStartUrl();
+  let viewport = currentViewport();
   const eventsSubject = behaviorSubject<readonly SendContextEvent[]>([]);
   const snapshotSubject = behaviorSubject<SendContextSessionSnapshot>({
     events: [],
@@ -835,6 +842,8 @@ export function createSendContextSession(
       randomSeed = undefined;
       recordingRandomRuntime = undefined;
       wasTruncated = false;
+      startUrl = currentStartUrl();
+      viewport = currentViewport();
       publish();
     },
     exportJson(clipId) {
@@ -1043,7 +1052,7 @@ export function provideSendContextSession(
         const activeSession = ɵinjectSendContextSession();
         if (activeSession?.activeClip) {
           const correlationId =
-            ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+            ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined;
           const routeUrl = ɵinjectCraftRouterRuntime()?.url;
           activeSession.capture('component-lifecycle', 'emitted', {
             name: `${trace.phase}:${trace.componentName ?? 'unknown'}`,
@@ -1182,7 +1191,7 @@ export function provideSendContextSession(
     provideCraftHttpTrace((context, next) => {
       const session = requireSession();
       const correlationId =
-        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+        ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined;
       const operationId = randomId('http');
       session.capture('http', 'started', {
         name: context.method,
@@ -1214,7 +1223,7 @@ export function provideSendContextSession(
     ...provideCraftRouterTrace((context, next) => {
       const session = requireSession();
       const correlationId =
-        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+        ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined;
       const operationId = randomId('navigation');
       session.capture('navigation', 'started', {
         name: context.eventName ?? context.stage,
@@ -1266,7 +1275,7 @@ export function provideSendContextSession(
     providePrimitiveResourceRuntimeObserver((context) => {
       const session = requireSession();
       const correlationId =
-        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+        ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined;
       session.capture('primitive', 'emitted', {
         name: context.kind,
         correlationId,
@@ -1317,7 +1326,9 @@ export function ɵstableReplaySelector(element: Element): string {
     );
     current = current.parentElement;
   }
-  return `body > ${parts.join(' > ')}`;
+  // A path cut before reaching `body` starts below it, not right under it.
+  const reachedBody = current === null || current === document.body;
+  return `body${reachedBody ? ' > ' : ' '}${parts.join(' > ')}`;
 }
 
 export function ɵreplayScrollAncestors(element: Element): readonly Readonly<{

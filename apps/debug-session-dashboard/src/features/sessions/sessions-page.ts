@@ -36,6 +36,7 @@ import type { SessionSummary } from '../../shared/data-access/session-archive.se
 import { page, ReplayState } from '../../shared/state/replay-state';
 import { SessionArchive } from '../../shared/data-access/session-archive.service';
 import {
+  continuationLabel,
   derivationLabel,
   derivedSessionsOf,
   isDerivedSession,
@@ -353,6 +354,20 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                 plural(item.eventCount, 'événement'),
               ].join(' · ');
             }),
+            // The same browser's previous session, when this one began after a pause.
+            span(
+              {
+                class: ui.rowLineage,
+                'data-lab': 'session-continuation',
+                hidden: function* () {
+                  const savedItem = yield* saved();
+                  return !savedItem.continuesFrom;
+                },
+              },
+              function* () {
+                return `↳ ${continuationLabel(yield* saved(), savedSessions())}`;
+              },
+            ),
             // Where it came from, for a session the resume tooling recorded.
             span(
               {

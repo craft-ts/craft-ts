@@ -1,4 +1,3 @@
-import type { GetDeps } from './branded-component/branded-component';
 import { inject, type InjectionToken, type Provider } from './host/craft-compat';
 
 export type ComponentRegister = { next(): number };
@@ -35,8 +34,3 @@ export const ɵinjectComponentRegister = (): ComponentRegister | null => {
 };
 
 export const ɵfallbackComponentRegister = createComponentRegister();
-
-export type GenDeps_ComponentRegister = GetDeps<{
-  deps: {};
-  provided: {};
-}>;

@@ -123,9 +123,23 @@ function provideCraftLogForwarding(): Provider {
   };
 }
 
+/**
+ * The query marker of a page the replay dashboard opened to replay a recording
+ * (`CRAFT_DEBUG_REPLAY_QUERY_PARAM` of `@craft-ts/component`, which this
+ * package cannot import).
+ */
+const REPLAY_LAUNCH_QUERY_PARAM = 'craft-debug-replay';
+
+function isReplayLaunch(): boolean {
+  return new URLSearchParams(globalThis.location.search).get(REPLAY_LAUNCH_QUERY_PARAM) === '1';
+}
+
 function provideCraftMcpPageBridge(url: string): Provider {
   return provideAppInitializer(() => {
     if (!isBrowser() || typeof globalThis.WebSocket === 'undefined') return;
+    // A replayed page is not a page an agent drives, and its socket would be
+    // traffic the recording does not hold: the replay blocks it as a gap.
+    if (isReplayLaunch()) return;
     const destroyRef = inject(DestroyRef);
     const router = ɵinjectCraftRouterRuntime();
     const navigate = async (path: string): Promise<void> => {

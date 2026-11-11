@@ -7,7 +7,7 @@ monitoring. Verify it independently with the per-component `RouteCheckedDI`:
 
 ```ts
 type _CheckPendingDI = RouteCheckedDI<
-  import('./user-skeleton').GenDeps_UserSkeletonComponent,
+  ComponentDepsOf<(typeof import('./user-skeleton'))['default']>,
   'UserUserIdParams',
   AppValues,
   'pending component: user/:userId'

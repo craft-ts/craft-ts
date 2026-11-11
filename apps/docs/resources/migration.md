@@ -112,7 +112,9 @@ the following before considering the migration done:
 - Resolve imperative workflow diagnostics instead of only removing comments.
 - Migrate guards, dynamic redirects, nested route collections, inherited route
   providers, and other route diagnostics that could not be inferred safely.
-- Confirm `componentDeps`, route provider names, and file-level DI checks.
+- Confirm `loadCraftComponent(...)` on Craft component routes, route provider
+  names, and file-level DI checks. Convert Angular components to Craft components
+  before migrating their routes so dependency contracts can be derived directly.
 - Review HTTP mutations and subscriptions whose lifecycle semantics could not be
   moved automatically.
 - Add app-specific graph lookups in `architecture.spec.ts`.

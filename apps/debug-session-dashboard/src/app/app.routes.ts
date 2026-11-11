@@ -31,6 +31,13 @@ export const { dashboardRoutes } = craftRoutes('dashboard', [
       ),
   },
   {
+    path: 'suite',
+    loadChildren: ({ withRetry }) =>
+      withRetry(import('../features/suite/suite.routes')).then(
+        (module) => module.suiteRoutes,
+      ),
+  },
+  {
     path: 'compare',
     loadChildren: ({ withRetry }) =>
       withRetry(import('../features/comparison/comparison.routes')).then(
@@ -63,6 +70,7 @@ type DashboardRoutePath =
   | 'recipes'
   | 'recipes/:recipeId'
   | 'coverage'
+  | 'suite'
   | 'compare'
   | 'e2e-replay'
   | 'import';

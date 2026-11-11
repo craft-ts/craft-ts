@@ -13,7 +13,7 @@ describe('RouteCheckedDI', () => {
       },
     );
 
-    type GenDeps_MyComp = GetDeps<{
+    type TestDeps_MyComp = GetDeps<{
       deps: {
         Counter: GetServiceDependencies<typeof Counter>;
       };
@@ -21,7 +21,7 @@ describe('RouteCheckedDI', () => {
       publicProperties: {};
     }>;
 
-    type CHECK = RouteCheckedDI<GenDeps_MyComp, 'Counter'>;
+    type CHECK = RouteCheckedDI<TestDeps_MyComp, 'Counter'>;
 
     expectTypeOf<CHECK>().toEqualTypeOf<true>();
     // Constraint check: CanRun<CHECK> must satisfy `extends true`.
@@ -36,7 +36,7 @@ describe('RouteCheckedDI', () => {
       },
     );
 
-    type GenDeps_MyComp = GetDeps<{
+    type TestDeps_MyComp = GetDeps<{
       deps: {
         Counter: GetServiceDependencies<typeof Counter>;
       };
@@ -45,7 +45,7 @@ describe('RouteCheckedDI', () => {
     }>;
 
     // Pass an empty union — Counter remains unresolved.
-    type CHECK = RouteCheckedDI<GenDeps_MyComp, never>;
+    type CHECK = RouteCheckedDI<TestDeps_MyComp, never>;
 
     expectTypeOf<CHECK>().toEqualTypeOf<
       ['The Counter service is not provided in this component']
@@ -60,7 +60,7 @@ describe('RouteCheckedDI', () => {
       },
     );
 
-    type GenDeps_MyComp = GetDeps<{
+    type TestDeps_MyComp = GetDeps<{
       deps: {
         Counter: GetServiceDependencies<typeof Counter>;
       };
@@ -68,7 +68,7 @@ describe('RouteCheckedDI', () => {
       publicProperties: {};
     }>;
 
-    type CHECK = RouteCheckedDI<GenDeps_MyComp, string>;
+    type CHECK = RouteCheckedDI<TestDeps_MyComp, string>;
 
     expectTypeOf<CHECK>().toEqualTypeOf<[
       'Available provider names widened to string; type-safe DI validation is unavailable',
@@ -76,7 +76,7 @@ describe('RouteCheckedDI', () => {
   });
 
   it('should report a missing input from publicProperties', () => {
-    type GenDeps_MyComp = GetDeps<{
+    type TestDeps_MyComp = GetDeps<{
       deps: {};
       provided: {};
       publicProperties: {
@@ -84,7 +84,7 @@ describe('RouteCheckedDI', () => {
       };
     }>;
 
-    type CHECK = RouteCheckedDI<GenDeps_MyComp, never>;
+    type CHECK = RouteCheckedDI<TestDeps_MyComp, never>;
 
     expectTypeOf<CHECK>().toEqualTypeOf<
       ['Input "userId" is not provided in this component']
@@ -101,7 +101,7 @@ describe('RouteCheckedDI', () => {
 
     type CounterDep = GetServiceDependencies<typeof Counter>;
 
-    type GenDeps_MyComp = GetDeps<{
+    type TestDeps_MyComp = GetDeps<{
       deps: {
         Counter: CounterDep;
       };
@@ -110,7 +110,7 @@ describe('RouteCheckedDI', () => {
     }>;
 
     // No name match, but the value type matches via ProvidedValues — should resolve.
-    type CHECK = RouteCheckedDI<GenDeps_MyComp, never, CounterDep>;
+    type CHECK = RouteCheckedDI<TestDeps_MyComp, never, CounterDep>;
 
     expectTypeOf<CHECK>().toEqualTypeOf<true>();
   });
@@ -123,7 +123,7 @@ describe('RouteCheckedDI', () => {
       },
     );
 
-    type GenDeps_MyComp = GetDeps<{
+    type TestDeps_MyComp = GetDeps<{
       deps: {
         Counter: GetServiceDependencies<typeof Counter>;
       };
@@ -131,7 +131,7 @@ describe('RouteCheckedDI', () => {
       publicProperties: {};
     }>;
 
-    type CHECK = RouteCheckedDI<GenDeps_MyComp, never, never, 'MyComponent'>;
+    type CHECK = RouteCheckedDI<TestDeps_MyComp, never, never, 'MyComponent'>;
 
     expectTypeOf<CHECK>().toEqualTypeOf<
       ['The Counter service is not provided in MyComponent']
@@ -142,7 +142,7 @@ describe('RouteCheckedDI', () => {
     // Mirrors the generator's emitted shape: route file exposes a cumulative
     // union of names (app + route), and the cascade check unions it with the
     // names DERIVED from the component's `GenDeps.provided`. If a provider is
-    // dropped from `@Component.providers` AND the `brand-angular-deps-match`
+    // dropped from `@Component.providers` AND the `legacy dependency synchronization`
     // ESLint rule has synced `GenDeps.provided` (i.e. the service is removed
     // from `provided`), the cascade check must surface the error.
     const { GlobalSvc } = craftService(
@@ -167,7 +167,7 @@ describe('RouteCheckedDI', () => {
     type RouteProvidedNames = 'RouteSvc';
 
     // ----- Case A: component PROPERLY provides CompSvc — cascade passes. -----
-    type GenDeps_Ok = GetDeps<{
+    type TestDeps_Ok = GetDeps<{
       deps: {
         GlobalSvc: GetServiceDependencies<typeof GlobalSvc>;
         RouteSvc: GetServiceDependencies<typeof RouteSvc>;
@@ -181,9 +181,9 @@ describe('RouteCheckedDI', () => {
 
     type OkProvidedNames =
       | RouteProvidedNames
-      | Extract<keyof GenDeps_Ok['provided'], string>;
+      | Extract<keyof TestDeps_Ok['provided'], string>;
     type CHECK_OK = RouteCheckedDI<
-      GenDeps_Ok,
+      TestDeps_Ok,
       OkProvidedNames,
       never,
       'OkComp'
@@ -194,7 +194,7 @@ describe('RouteCheckedDI', () => {
     // ----- Case B: GenDeps.provided no longer lists CompSvc (the user
     // removed the provider from @Component.providers AND ESLint synced the
     // GenDeps). The cascade check must now report CompSvc as missing.
-    type GenDeps_Broken = GetDeps<{
+    type TestDeps_Broken = GetDeps<{
       deps: {
         GlobalSvc: GetServiceDependencies<typeof GlobalSvc>;
         RouteSvc: GetServiceDependencies<typeof RouteSvc>;
@@ -206,9 +206,9 @@ describe('RouteCheckedDI', () => {
 
     type BrokenProvidedNames =
       | RouteProvidedNames
-      | Extract<keyof GenDeps_Broken['provided'], string>;
+      | Extract<keyof TestDeps_Broken['provided'], string>;
     type CHECK_BROKEN = RouteCheckedDI<
-      GenDeps_Broken,
+      TestDeps_Broken,
       BrokenProvidedNames,
       never,
       'BrokenComp'

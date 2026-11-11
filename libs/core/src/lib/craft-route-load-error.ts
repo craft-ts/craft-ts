@@ -26,7 +26,10 @@ import {
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
-import { ɵinjectCorrelationIdServiceIn } from './correlation-id';
+import {
+  ɵinjectCorrelationIdServiceIn,
+  ɵcurrentCorrelationId,
+} from './correlation-id';
 import { isCraftReplaying } from './craft-replay';
 import { ɵinjectSendContextSession } from './send-context-to-ai.tokens';
 
@@ -323,9 +326,9 @@ export function loadRouteWithRetry<T>(
           return {
             session: session?.activeClip ? session : null,
             correlationId:
-              ɵinjectCorrelationIdServiceIn(
-                dependencies!.injector,
-              )?.lastCorrelationId() ?? undefined,
+              ɵcurrentCorrelationId(
+                ɵinjectCorrelationIdServiceIn(dependencies!.injector),
+              ) ?? undefined,
           };
         })
       : { session: null, correlationId: undefined };

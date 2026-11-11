@@ -534,7 +534,7 @@ describe('craftRoutes', () => {
 
   it('does not import @angular/router at runtime', () => {
     const source = readFileSync(
-      join(process.cwd(), 'libs/core/src/lib/craft-routes.ts'),
+      join(import.meta.dirname, 'craft-routes.ts'),
       'utf8',
     );
     expect(source).not.toMatch(
@@ -2890,7 +2890,7 @@ describe('AppRoutes.META_DATA', () => {
       userId = craftSignal<string>(undefined as never);
     }
 
-    type GenDeps_UserComponent = GetDeps<{
+    type TestDeps_UserComponent = GetDeps<{
       deps: {};
       provided: {};
       publicProperties: {
@@ -2902,12 +2902,12 @@ describe('AppRoutes.META_DATA', () => {
       {
         path: '',
         component: UserComponent,
-        componentDeps: {} as GenDeps_UserComponent,
+        componentDeps: {} as TestDeps_UserComponent,
       },
       {
         path: 'query/:userId',
         component: UserComponent,
-        componentDeps: {} as GenDeps_UserComponent,
+        componentDeps: {} as TestDeps_UserComponent,
       },
     ]);
 
@@ -2926,7 +2926,7 @@ describe('AppRoutes.META_DATA', () => {
       userId = craftSignal<number>(undefined as never);
     }
 
-    type GenDeps_UserComponent = GetDeps<{
+    type TestDeps_UserComponent = GetDeps<{
       deps: {};
       provided: {};
       publicProperties: {
@@ -2938,12 +2938,12 @@ describe('AppRoutes.META_DATA', () => {
       {
         path: '',
         component: UserComponent,
-        componentDeps: {} as GenDeps_UserComponent,
+        componentDeps: {} as TestDeps_UserComponent,
       },
       {
         path: 'query/:userId',
         component: UserComponent,
-        componentDeps: {} as GenDeps_UserComponent,
+        componentDeps: {} as TestDeps_UserComponent,
       },
     ]);
 
@@ -2973,7 +2973,7 @@ describe('AppRoutes.META_DATA', () => {
       counter = craftUse(Counter());
     }
 
-    type GenDeps_UserComponent = GetDeps<{
+    type TestDeps_UserComponent = GetDeps<{
       deps: {
         Counter: GetServiceDependencies<typeof Counter>;
       };
@@ -2987,7 +2987,7 @@ describe('AppRoutes.META_DATA', () => {
       {
         path: 'query/:userId',
         component: UserComponent,
-        componentDeps: {} as GenDeps_UserComponent,
+        componentDeps: {} as TestDeps_UserComponent,
         providers: [provideCounter()],
       },
     ]);
@@ -3012,7 +3012,7 @@ describe('AppRoutes.META_DATA', () => {
       counter = craftUse(Counter());
     }
 
-    type GenDeps_UserComponent = GetDeps<{
+    type TestDeps_UserComponent = GetDeps<{
       deps: {
         Counter: GetServiceDependencies<typeof Counter>;
       };
@@ -3026,7 +3026,7 @@ describe('AppRoutes.META_DATA', () => {
       {
         path: 'query/:userId',
         component: UserComponent,
-        componentDeps: {} as GenDeps_UserComponent,
+        componentDeps: {} as TestDeps_UserComponent,
       },
     ]);
     const META_DATA = appRoutes.META_DATA;

@@ -18,6 +18,11 @@ export const behaviorCatalog = {
       "file": "apps/debug-session-dashboard/src/features/e2e-replay/e2e-replay-route.service.ts"
     },
     {
+      "id": "command:goldenSuiteArchive.suiteRun#success",
+      "kind": "command",
+      "file": "apps/debug-session-dashboard/src/shared/data-access/golden-suite.service.ts"
+    },
+    {
       "id": "command:resumeThread.thread#success",
       "kind": "command",
       "file": "apps/debug-session-dashboard/src/shared/data-access/resume-thread.service.ts"
@@ -51,6 +56,11 @@ export const behaviorCatalog = {
       "id": "command:thumbnailArchive.thumbnailManifest#success",
       "kind": "command",
       "file": "apps/debug-session-dashboard/src/shared/data-access/thumbnail-archive.service.ts"
+    },
+    {
+      "id": "mutation:goldenSuiteArchive.approveChange#success",
+      "kind": "mutation",
+      "file": "apps/debug-session-dashboard/src/shared/data-access/golden-suite.service.ts"
     },
     {
       "id": "mutation:sessionArchive.deleteSession#success",
@@ -116,6 +126,11 @@ export const behaviorCatalog = {
       "id": "route:sessions:",
       "kind": "route",
       "file": "apps/debug-session-dashboard/src/features/sessions/sessions.routes.ts"
+    },
+    {
+      "id": "route:suite:",
+      "kind": "route",
+      "file": "apps/debug-session-dashboard/src/features/suite/suite.routes.ts"
     }
   ]
 } as const;

@@ -265,6 +265,58 @@ export function activateCraftTemporalRuntime(
   };
 }
 
+/**
+ * An ambient value a scheduled callback runs with: the one in place when it
+ * was scheduled, not the one in place when it fires. A callback runs later,
+ * after other flows have started (a click, a navigation); it belongs to the
+ * flow that scheduled it. A carrier captures its value at `schedule` and puts
+ * it back around the callback.
+ */
+export interface ɵTemporalContextCarrier<T> {
+  capture(): T;
+  /** The value outside every flow: where something that outlives them starts. */
+  outside(): T;
+  run(captured: T, callback: () => void): void;
+}
+
+const temporalContextCarriers = new Set<ɵTemporalContextCarrier<unknown>>();
+
+export function ɵcarryAcrossTemporalTasks<T>(
+  carrier: ɵTemporalContextCarrier<T>,
+): () => void {
+  const entry = carrier as ɵTemporalContextCarrier<unknown>;
+  temporalContextCarriers.add(entry);
+  return () => temporalContextCarriers.delete(entry);
+}
+
+function withScheduledContext(callback: () => void): () => void {
+  if (temporalContextCarriers.size === 0) return callback;
+  return [...temporalContextCarriers]
+    .map((carrier) => [carrier, carrier.capture()] as const)
+    .reduceRight<() => void>(
+      (next, [carrier, captured]) => () => carrier.run(captured, next),
+      callback,
+    );
+}
+
+/**
+ * Runs `callback` outside every flow. Something that outlives the flow it
+ * happens to start in — a global service built the first time a click
+ * needs it — does not belong to that flow: a countdown it starts would
+ * otherwise be the click's for as long as the app runs.
+ */
+export function ɵrunOutsideScheduledContext<R>(callback: () => R): R {
+  if (temporalContextCarriers.size === 0) return callback();
+  let result: { value: R } | undefined;
+  [...temporalContextCarriers].reduceRight<() => void>(
+    (next, carrier) => () => carrier.run(carrier.outside(), next),
+    () => {
+      result = { value: callback() };
+    },
+  )();
+  return (result as { value: R }).value;
+}
+
 export class CraftTimeoutError extends Error {
   readonly timeoutMs: number;
 
@@ -424,7 +476,7 @@ abstract class BaseCraftTemporalRuntime implements CraftTemporalRuntime {
       this.now() + delayMs,
       options.kind ?? 'schedule',
       options.owner,
-      callback,
+      withScheduledContext(callback),
       () => {
         removeAbortListener();
         this.tasks.delete(id);
@@ -757,11 +809,21 @@ function nativeMonotonicNow(): number {
  */
 export class VirtualCraftTemporalRuntime extends BaseCraftTemporalRuntime {
   private currentTime: number;
+  /** What `dateNow()` adds to the virtual time: civil time at `initialTime` minus `initialTime`. */
+  private readonly civilOffset: number;
 
-  constructor(initialTime = 0) {
+  /**
+   * `dateOrigin` is the civil time (epoch milliseconds) at `initialTime`: a
+   * replay starts its virtual clock at the recording's elapsed time, and its
+   * `dateNow()` must still read the hour of the recording, not 1970. Without
+   * it, civil time is the virtual time itself.
+   */
+  constructor(initialTime = 0, options: Readonly<{ dateOrigin?: number }> = {}) {
     super();
     assertFiniteTime(initialTime, 'initialTime');
+    if (options.dateOrigin !== undefined) assertFiniteTime(options.dateOrigin, 'dateOrigin');
     this.currentTime = initialTime;
+    this.civilOffset = options.dateOrigin === undefined ? 0 : options.dateOrigin - initialTime;
   }
 
   now(): number {
@@ -769,7 +831,7 @@ export class VirtualCraftTemporalRuntime extends BaseCraftTemporalRuntime {
   }
 
   override dateNow(): number {
-    return this.currentTime;
+    return this.currentTime + this.civilOffset;
   }
 
   async advanceBy(milliseconds: number): Promise<void> {

@@ -82,9 +82,9 @@ Decision page: `/guide/concepts/choose-primitive`.
 5. **Forms** derive from `state` + `insertForm`. Validators are `cRequired`, `cEmail`, `cMinLength`, … Submit through `insertFormSubmit` + a `mutation`. Failures are `craftException` values. Search terms `form`, `formulaire`, `validation`, `submit`, `field`, and `FormData` map to these APIs; native `FormData` is an interoperability boundary, not the form state model.
 6. **Services:** `craftService({ name, scope }, function* () { ... })`. Consume
    the generated `X()` helper, typically `yield* X(...)`.
-7. **Routes:** `craftRoutes(name, [...])`, every component route has `componentDeps: {} as import('./x').GenDeps_X`, and every routed component has its own `RouteCheckedDI` / `CanRun` check. Checks do not cross a `loadChildren` boundary.
+7. **Routes:** `craftRoutes(name, [...])`, load Craft components with `loadCraftComponent`, and derive per-route contracts with `ComponentDepsOf`. Every routed component has a `RouteCheckedDI` / `CanRun` check. Checks do not cross a `loadChildren` boundary.
 8. **Templates:** `ifNode` / `matchNode` / `forNode` / `deferNode`, not `@if` / `@for`. Interactive helpers take a unique literal local name: `button('save', { type: 'button', ... }, 'Save')`. The name is `data-craft-name` and must be unique in the app (`assertInteractiveElementNamed`).
-9. **Let ESLint keep generated aliases.** After DI or route edits, run `eslint --fix`. Do not hand-edit `GenDeps_*` or `_Check*` / `_CanRun*` blocks.
+9. **Keep DI checks derived.** Use `ComponentDepsOf` instead of maintaining a separate component dependency alias. Keep `_Check*` / `_CanRun*` blocks in sync with route collections.
 
 Install `@craft-ts/dev-tools` and enable the `craft-ts/*` ESLint rules. They are the compiler's partner: a missing route check or a raw `inject()` should fail CI, not production. The generated README documents `npm run lint`, `typecheck`, `test`, `architecture`, `e2e`, and, for EffectTS v4, `effect-check`.
 

@@ -17,8 +17,9 @@ Every handler must use `craftExceptionHandler(function* (...) {})`. Internal
 redirects use `yield* redirectTo({ to, params, queryParams, viewTransition })`;
 opaque URLs or prebuilt `UrlTree` values use `redirectUrl(...)`.
 `renderComponent`, route-level `errorComponent` and `withErrorComponent` accept
-only `{ component | loadComponent, componentDeps }` descriptors. Bare handler
-functions, `redirect(...)` and bare error components are rejected.
+`{ component | loadComponent }` descriptors. Craft components carry their own dependency
+contracts; `componentDeps` is only for legacy Angular component classes. Bare handler functions,
+`redirect(...)` and bare error components are rejected.
 :::
 
 ## The common case
@@ -30,8 +31,6 @@ USER_DISABLED: craftExceptionHandler(function* ({ renderComponent }) {
       import('./user-disabled-error-page').then(
         (m) => m.UserDisabledErrorPage,
       ),
-    componentDeps:
-      {} as import('./user-disabled-error-page').GenDeps_UserDisabledErrorPage,
   });
 }),
 
@@ -78,8 +77,9 @@ const { profileQuery } = query('profileQuery', {
 craftRoute(
   'user/:userId',
   {
-    loadComponent: ({ withRetry }) => withRetry(import('./user-detail')),
-    componentDeps: {} as import('./user-detail').GenDeps_UserDetail,
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./user-detail')).then((m) => m.UserDetail),
+    ),
     canMatch: function* () {
       const ff = yield* FeatureFlags();
       return ff.userPageEnabled ? true : craftException({ _tag: 'FEATURE_OFF' });
@@ -146,7 +146,7 @@ Each handler receives a context and returns an outcome constructor:
 | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `yield* redirectTo(input)`    | Navigate to a registered internal route with typed params/query params/view transition.                  |
 | `redirectUrl(target)`         | Navigate to an opaque string URL or `UrlTree`.                                                           |
-| `renderComponent(descriptor)` | Render a DI-checked `{ component \| loadComponent, componentDeps }` descriptor.                          |
+| `renderComponent(descriptor)` | Render a DI-checked `{ component \| loadComponent }` descriptor; legacy Angular components may include `componentDeps`. |
 | `globalError()`               | Render the application-wide error component (see [global error component](./global-error-component.md)). |
 | `stay()`                      | Cancel the navigation; restore the previous URL (stay on the triggering page).                           |
 | `noop()`                      | Render the target anyway, with `resolve` data left `undefined`.                                          |
@@ -198,13 +198,11 @@ Here `payload` is inferred from `craftException({ _tag: 'RATE_LIMITED' }, { retr
   ACCOUNT_LOCKED: craftExceptionHandler(function* ({ renderComponent }) {
     return renderComponent({
       component: AccountLockedPage,
-      componentDeps: {} as import('./account-locked-page').GenDeps_AccountLockedPage,
     });
   }),
   MAINTENANCE: craftExceptionHandler(function* ({ renderComponent }) {
     return renderComponent({
       loadComponent: () => import('./maintenance-page').then((m) => m.MaintenancePage),
-      componentDeps: {} as import('./maintenance-page').GenDeps_MaintenancePage,
     });
   }),
   HttpError: craftExceptionHandler(function* ({ globalError }) { return globalError(); }),

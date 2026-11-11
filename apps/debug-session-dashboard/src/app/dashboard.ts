@@ -107,6 +107,24 @@ export const DebugSessionDashboard = craftComponent(
           },
           i18n.t("copy.copy202"),
         ),
+        button(
+          'navSuite',
+          {
+            type: 'button',
+            class: ui.navLink,
+            'data-lab': 'open-suite',
+            'aria-current': function* () {
+              return page() === 'suite' ? 'page' : undefined;
+            },
+            'data-nav-current': function* () {
+              return page() === 'suite' ? 'true' : undefined;
+            },
+            click: function* () {
+              yield* CraftRouter.navigate({ to: 'suite' });
+            },
+          },
+          i18n.t('suiteNav'),
+        ),
       ]),
       div({ class: ui.barTools }, [
         span({ class: ui.barBadge }, [

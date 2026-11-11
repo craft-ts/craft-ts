@@ -22,6 +22,7 @@ import {
   compileReplayPlan,
   environmentDifferences,
   getReplaySteps,
+  type ReplayTailCut,
 } from '@craft-ts/component';
 import type { ThumbnailManifest } from '../data-access/thumbnail-archive.service';
 import {
@@ -114,7 +115,7 @@ export const thumbnailManifest = thumbnailManifestBridge.value;
 /* ── the page ───────────────────────────────────────────────────────────── */
 
 const pageBridge = createReadBridge<
-  'sessions' | 'recipes' | 'coverage' | 'detail' | 'compare'
+  'sessions' | 'recipes' | 'coverage' | 'suite' | 'detail' | 'compare'
 >('page', 'sessions');
 export const page = pageBridge.value;
 const importOpenBridge = createReadBridge('importOpen', false);
@@ -289,7 +290,7 @@ type ReplayStateValues = {
   selectedParticipantId: string;
   loadError: string | undefined;
   thumbnailManifest: ThumbnailManifest | undefined;
-  page: 'sessions' | 'recipes' | 'coverage' | 'detail' | 'compare';
+  page: 'sessions' | 'recipes' | 'coverage' | 'suite' | 'detail' | 'compare';
   activeRouteSessionId: string | undefined;
   importOpen: boolean;
   sidePanelOpen: boolean;
@@ -785,7 +786,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
     );
     const replayableEventsState = yield* craftComputed(
       'replayableEventsState',
-      () => getReplaySteps(visibleEvents()),
+      () => getReplaySteps(replayedEvents(visibleEvents())),
     );
     replayableEventsBridge.bind(rawReactiveValue(replayableEventsState));
     const replayPlanState = yield* craftComputed(
@@ -794,7 +795,7 @@ export const { ReplayDashboardState: ReplayState } = craftService(
         const current = yield* sessionState();
         return current
           ? compileReplayPlan(
-              current,
+              replayedPart(current),
               undefined,
               isValidSelector,
             )
@@ -940,9 +941,12 @@ type ReplayRegisters = {
   seekStepping: boolean;
   /** The next start keeps the notes: it is a seek, not a new replay. */
   keepNotesOnStart: boolean;
+  /** The end of the open recording the replay leaves out, if it leaves one. */
+  tailCut: ReplayTailCut | undefined;
 };
 
 export const registers: ReplayRegisters = {
+  tailCut: undefined,
   loadedArchiveSessionId: undefined,
   loadedArchiveCreatedAtMs: undefined,
   differenceParticipantId: undefined,
@@ -1254,6 +1258,34 @@ export function replayParticipantIds(): readonly string[] {
     .map((participant) => participant.id);
 }
 
+/**
+ * The events a replay goes through: the end it leaves out (`tailCut`, an
+ * operation that never got its result) stays in the journal, where « Déboguer
+ * ici » can still relaunch what was in flight, but is never replayed.
+ */
+export function replayedEvents<Event extends Readonly<{ sequence: number }>>(
+  events: readonly Event[],
+): readonly Event[] {
+  const cut = registers.tailCut;
+  return cut ? events.filter((event) => event.sequence < cut.atSequence) : events;
+}
+
+/** A recording without the end its replay leaves out. */
+export function replayedPart(
+  recording: SendContextReplayExport,
+): SendContextReplayExport {
+  if (!registers.tailCut) return recording;
+  const events = replayedEvents(recording.events);
+  const lastKeptAt = events.at(-1)?.timestamp ?? Number.NEGATIVE_INFINITY;
+  return {
+    ...recording,
+    events,
+    ...(recording.snapshots
+      ? { snapshots: recording.snapshots.filter((snapshot) => snapshot.capturedAt <= lastKeptAt) }
+      : {}),
+  };
+}
+
 /** Each replayable tab's slice of the recording, on one shared timeline. */
 export function sessionsForReplay(): readonly ReplaySlice[] {
   const imported = session();
@@ -1261,7 +1293,7 @@ export function sessionsForReplay(): readonly ReplaySlice[] {
   const slices = replayParticipantIds().flatMap((participantId) => {
     const replay = sessionForParticipant(participantId);
     return replay && !replay.truncated
-      ? [{ participantId, session: replay }]
+      ? [{ participantId, session: replayedPart(replay) }]
       : [];
   });
   if (selectedParticipantId() !== 'all' || slices.length <= 1) return slices;

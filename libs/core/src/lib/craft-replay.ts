@@ -23,9 +23,26 @@ export function ɵisCraftRestoringState(): boolean {
   return replayDepth > 0;
 }
 
+const replayModeListeners = new Set<(active: boolean) => void>();
+
 /** Enables or disables replay mode for the lifetime of a replay session. */
 export function ɵsetCraftReplayMode(active: boolean): void {
+  if (replayMode === active) return;
   replayMode = active;
+  for (const listener of [...replayModeListeners]) listener(active);
+}
+
+/** `true` while a replay session runs (not during a one-off state restore). */
+export function ɵisCraftReplaySession(): boolean {
+  return replayMode;
+}
+
+/** Called each time a replay session starts or ends. */
+export function ɵonCraftReplayModeChange(
+  listener: (active: boolean) => void,
+): () => void {
+  replayModeListeners.add(listener);
+  return () => replayModeListeners.delete(listener);
 }
 
 /** Runs `restore` with {@link isCraftReplaying} reporting `true`. */

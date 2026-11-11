@@ -40,7 +40,7 @@ type Frame = {
   url(): string;
   evaluate<T, A = unknown>(fn: (arg: A) => T | Promise<T>, arg?: A): Promise<T>;
 };
-type Page = {
+export type Page = {
   goto(url: string, options?: unknown): Promise<unknown>;
   evaluate<T, A = unknown>(fn: (arg: A) => T | Promise<T>, arg?: A): Promise<T>;
   waitForFunction<A>(
@@ -51,8 +51,8 @@ type Page = {
   locator(selector: string): Locator;
   setViewportSize(size: { width: number; height: number }): Promise<void>;
 };
-type BrowserContext = { newPage(): Promise<Page> };
-type Browser = {
+export type BrowserContext = { newPage(): Promise<Page> };
+export type Browser = {
   version(): string;
   newContext(options?: unknown): Promise<BrowserContext>;
   close(): Promise<void>;
@@ -132,7 +132,8 @@ export function createPlaywrightCapturer(
   };
 }
 
-async function launch(playwright: PlaywrightModule): Promise<Browser> {
+/** Chromium headless, the machine's Chrome when Playwright's own is not installed. */
+export async function launch(playwright: PlaywrightModule): Promise<Browser> {
   try {
     return await playwright.chromium.launch({ headless: true });
   } catch (bundled) {
@@ -247,7 +248,12 @@ async function capture(
       params.maxWaitMs,
     );
     if (signal.aborted) return;
-    const png = await frameLocator.screenshot({ type: 'png', animations: 'disabled' });
+    // The dashboard's cues (a tab's veil, the click marker) are not the page.
+    const png = await frameLocator.screenshot({
+      type: 'png',
+      animations: 'disabled',
+      style: '[data-replay-cue] { visibility: hidden !important; }',
+    });
     const encoded = await encode(encoder, png, params.width, params.quality);
     const signature = Uint8Array.from(encoded.signature);
     const identical =

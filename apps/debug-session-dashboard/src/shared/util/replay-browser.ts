@@ -41,6 +41,8 @@ export type ReplayPlatform = Readonly<{
   uuid: () => string;
   /** The query string of the dashboard's own address. */
   search: () => string;
+  /** The dashboard's own address. */
+  href: () => string;
 }>;
 
 const INERT_TIMER: ReplayTimer = { cancel: () => undefined };
@@ -51,6 +53,7 @@ const INERT_PLATFORM: ReplayPlatform = {
   dateNow: () => 0,
   uuid: () => '',
   search: () => '',
+  href: () => '',
 };
 
 let platform: ReplayPlatform = INERT_PLATFORM;
@@ -118,6 +121,23 @@ export function isReplayWorkerMode(): boolean {
  */
 export function isReplayStateVerification(): boolean {
   return new URLSearchParams(platform.search()).get('replay-verify-state') === '1';
+}
+
+/**
+ * The replay lets the code produce the state it can and checks it instead of
+ * restoring it (`?replay-state=recomputed`): what the regression suite runs.
+ */
+export function isReplayStateRecomputed(): boolean {
+  return new URLSearchParams(platform.search()).get('replay-state') === 'recomputed';
+}
+
+/**
+ * The replay dispatches each recorded action on its element instead of
+ * calling the recorded methods (`?replay-mode=interaction`): the app's own
+ * handlers run, and must make the recorded calls.
+ */
+export function isReplayInteractionMode(): boolean {
+  return new URLSearchParams(platform.search()).get('replay-mode') === 'interaction';
 }
 
 /** Hands the worker's browser the control surface, on the page's global. */
@@ -315,8 +335,27 @@ export function hasFrame(participantId: string): boolean {
 }
 
 /** Whether the tab's frame holds a page that can be sent messages. */
+/** The address of this dashboard, as the browser shows it ('' before install). */
+export function dashboardHref(): string {
+  return platform.href();
+}
+
 export function frameHasWindow(participantId: string): boolean {
   return frameFor(participantId)?.contentWindow != null;
+}
+
+/**
+ * The frame still shows the empty page every frame starts on: a tab scheduled
+ * for later, or one whose app has not replaced it yet. Its `load` is not the
+ * app's, and the app's bridge cannot answer from it. A frame showing the app
+ * is on another origin, which this window cannot read.
+ */
+export function frameShowsBlankPage(participantId: string): boolean {
+  try {
+    return frameFor(participantId)?.contentWindow?.location.href === 'about:blank';
+  } catch {
+    return false;
+  }
 }
 
 export function requestFrameFullscreen(participantId: string): void {
@@ -351,6 +390,8 @@ const STAGE = 'replay-stage';
 
 /** The first tab keeps the plain ids the end-to-end tests and the sheet know. */
 let primaryParticipantId: string | undefined;
+/** The tab shown alone, the others set aside (see `showReplayTileAlone`). */
+let aloneParticipantId: string | undefined;
 
 const cardId = (participantId: string) => `replay-frame-card-${participantId}`;
 const urlId = (participantId: string) => `replay-frame-url-${participantId}`;
@@ -400,6 +441,7 @@ export function renderFrames(
     renderer.setProperty(target, 'textContent', text);
   grid.replaceChildren();
   primaryParticipantId = specs[0]?.participantId;
+  aloneParticipantId = undefined;
   specs.forEach((spec, index) => {
     const { participantId } = spec;
     const card = element('section', ui.tile, 'replay-tile');
@@ -441,6 +483,8 @@ export function renderFrames(
       'replay-visibility-overlay',
     );
     hide(visibilityOverlay, true);
+    // A cue of the replay, not of the page: a picture of the page leaves it out.
+    renderer.setAttribute(visibilityOverlay, 'data-replay-cue', '');
     renderer.setAttribute(
       visibilityOverlay,
       'aria-label',
@@ -491,6 +535,7 @@ export function renderFrames(
     renderer.setAttribute(marker, 'id', markerId(participantId));
     hide(marker, true);
     renderer.setAttribute(marker, 'aria-hidden', 'true');
+    renderer.setAttribute(marker, 'data-replay-cue', '');
     renderer.appendChild(
       marker,
       element('span', ui.markerRipple, 'click-marker-ripple'),
@@ -564,6 +609,28 @@ export function setFrameAddress(participantId: string, address: string): void {
   if (!element) return;
   element.textContent = address;
   element.title = address;
+}
+
+/**
+ * Shows one tab alone, as large as the stage lets it, the others set aside
+ * without being resized or stopped; `undefined` puts the grid back. The
+ * regression suite photographs a tab of a session replayed in several this
+ * way, at the size it was recorded. The caller lays the frames out again.
+ */
+export function showReplayTileAlone(participantId: string | undefined): void {
+  const grid = byId(GRID);
+  aloneParticipantId =
+    participantId !== undefined && byId(cardId(participantId)) ? participantId : undefined;
+  for (const card of Array.from(grid?.children ?? [])) {
+    if (aloneParticipantId !== undefined && card.id !== cardId(aloneParticipantId))
+      card.setAttribute('data-tile-aside', 'true');
+    else card.removeAttribute('data-tile-aside');
+  }
+}
+
+/** The tab shown alone, if one is. */
+export function replayTileAlone(): string | undefined {
+  return aloneParticipantId;
 }
 
 export type TilePaint = Readonly<{

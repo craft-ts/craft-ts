@@ -13,6 +13,7 @@ import {
 import {
   installReplayPlatform,
   isReplayWorkerMode,
+  showReplayTileAlone,
 } from '../util/replay-browser';
 import { ReplaySession } from './replay-session';
 import { ReplayPlayback } from './replay-playback';
@@ -30,6 +31,7 @@ import {
 } from '../data-access/session-archive.service';
 import { E2eComparison } from '../data-access/e2e-comparison.service';
 import { BehaviorCoverageArchive } from '../data-access/behavior-coverage.service';
+import { GoldenSuiteArchive } from '../data-access/golden-suite.service';
 import { ResumeThread } from '../data-access/resume-thread.service';
 import {
   ThumbnailArchive,
@@ -62,16 +64,26 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       dateNow: () => temporal.dateNow(),
       uuid: () => browserCrypto.randomUUID(),
       search: () => browserLocation.search(),
+      href: () => browserLocation.href(),
     });
 
     // Opened by the thumbnail worker: it replays and is photographed, it does
     // not ask for thumbnails of its own.
     const workerMode = isReplayWorkerMode();
-    if (workerMode) installReplayWorkerSurface(playback.playReplay);
+    if (workerMode)
+      installReplayWorkerSurface(
+        playback.playReplay,
+        (index) => replaySession.seekReplayToIndex(index),
+        (participantId) => {
+          showReplayTileAlone(participantId);
+          playback.updateReplayViewport();
+        },
+      );
 
     const archive = yield* SessionArchive();
     const e2eComparison = yield* E2eComparison();
     const behaviorCoverage = yield* BehaviorCoverageArchive();
+    const goldenSuite = yield* GoldenSuiteArchive();
     const thumbnails = yield* ThumbnailArchive();
     const resumeThread = yield* ResumeThread();
     const activeRoute = yield* CraftActivatedRoute();
@@ -176,6 +188,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       const comparison = routePaths.includes('compare');
       const recipes = routePaths.includes('recipes');
       const coverage = routePaths.includes('coverage');
+      const suite = routePaths.includes('suite');
       const e2eReplay = routePaths.includes('e2e-replay');
       const wasDetailPage = rawReactiveValue(page)() === 'detail';
       setStates({
@@ -185,7 +198,9 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
             ? 'recipes'
             : coverage
               ? 'coverage'
-              : id || importedSession || e2eReplay
+              : suite
+                ? 'suite'
+                : id || importedSession || e2eReplay
                 ? 'detail'
                 : 'sessions',
       });
@@ -198,6 +213,8 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       }
       // Read when the page opens: the archive looks through every session.
       if (coverage) behaviorCoverage.coverage.call(++coverageRequests);
+      // The same: the suite is computed from every recorded session.
+      if (suite) void goldenSuite.suiteOpenings.open();
       if (id) {
         requestedEventId = route.queryParams['event'] || undefined;
         const behavior = route.queryParams['behavior'];

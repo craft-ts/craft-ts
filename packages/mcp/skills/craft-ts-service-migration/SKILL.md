@@ -41,7 +41,7 @@ Use this skill when a task touches dependency injection, service architecture, o
    - Re-export cumulative route provider names only when child route files need them.
 
 6. Refresh generated artifacts:
-   - Run ESLint `--fix` for `brand-angular-gen-deps-required` and `brand-angular-deps-match`.
+   - Keep route DI checks tied to the migrated Craft component with `ComponentDepsOf`.
    - Check route files still have `componentDeps` and per-route `RouteCheckedDI` checks.
    - If direct Angular tokens disappeared, remove them from `ProvidedValues`; prefer `never`.
 
@@ -67,7 +67,6 @@ Ensure these rules are enabled for migrated projects:
 
 - `craft-ts/prefer-craft-service`: blocks new `@Injectable` / `@Service` app services.
 - `craft-ts/prefer-craft-http-client`: keeps HTTP access inside craft-compatible APIs.
-- `craft-ts/brand-angular-gen-deps-required` and `craft-ts/brand-angular-deps-match`: keep `GenDeps_*` current.
 - Route rules: `require-assert-exhaustive-route-exceptions`, `require-pending-component-di-check`, and `require-child-route-mount-check`.
 
 ## Review Checklist
@@ -77,7 +76,7 @@ Ensure these rules are enabled for migrated projects:
 - [ ] Framework dependencies use Craft-native APIs or have a tracked manual migration diagnostic.
 - [ ] Consumption sites use the generated `X()` helper.
 - [ ] Route checks use provider names, with `ProvidedValues = never` after migration.
-- [ ] `GenDeps_*` aliases are regenerated after dependency changes.
+- [ ] Route DI checks derive dependencies with `ComponentDepsOf`.
 - [ ] Tests use Craft service testing helpers and `CraftTestBed` where needed.
 
 ## When To Push Back

@@ -61,7 +61,10 @@ import {
   createResourceExceptionsRuntime,
   enrichResourceException,
 } from './resource-exception';
-import { ɵinjectCorrelationIdServiceIn } from './correlation-id';
+import {
+  ɵinjectCorrelationIdServiceIn,
+  ɵcurrentCorrelationId,
+} from './correlation-id';
 import {
   createNamedPrimitiveGen,
   type CraftPrimitiveGen,
@@ -1766,7 +1769,7 @@ function createQueryRef<
       ? ((async (param: ResourceLoaderParams<QueryParams>) => {
           const injector = getInjector();
           const correlationSvc = ɵinjectCorrelationIdServiceIn(injector);
-          const operationId = correlationSvc?.lastCorrelationId() ?? null;
+          const operationId = ɵcurrentCorrelationId(correlationSvc) ?? null;
           if (operationId) correlationSvc?.startOperation(operationId);
 
           // Unwrap the method-trigger nonce so the user loader and identifier logic

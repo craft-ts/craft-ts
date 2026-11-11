@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createSendContextSession,
+  RealCraftTemporalRuntime,
   type SendContextEvent,
   type SendContextReplayExport,
   ɵcaptureCraftReplayTarget,
@@ -11,7 +12,10 @@ import {
   validateDebugSessionExport,
   createRecordedResponseResolver,
   createReplayController,
+  cutUnfinishedTail,
+  recordedDateOrigin,
   getReplaySteps,
+  splitPageReloads,
   installReplayNetworkGuard,
   runReplayTest,
   runReplayTestOrThrow,
@@ -4377,6 +4381,8 @@ describe('debug session replay format', () => {
     } as const satisfies SendContextReplayExport;
     const replay = createReplayController(session, {
       mode: 'legacy-dom',
+      // The checkpoint diverges at once: no settle time to wait out.
+      settleTimeoutMs: 0,
       readState: () => actualState,
       forceRecovery: (recovery) => {
         actualState = recovery.state as typeof actualState;
@@ -5603,3 +5609,665 @@ describe('verifyRecordedState', () => {
     });
   });
 });
+
+describe("stateSource: 'recomputed'", () => {
+  const LINES = 'service:cart / state:lines / state:lines#1';
+  const TOTAL = 'service:cart / query:total#1';
+  const NAME = 'component:Checkout / state:name#1';
+  // A click replays `add`; the recording then holds the line it added, the
+  // total the query loaded from it, and a name typed into a field (a state no
+  // replayed method owns).
+  const session = (): SendContextReplayExport => ({
+    format: 'craft-debug-session',
+    version: 8,
+    startUrl: 'http://localhost/',
+    exportedAt: 1_000,
+    truncated: false,
+    clips: [],
+    events: [
+      { id: 'add-click', sequence: 1, timestamp: 1_000, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#add', action: 'click' } },
+      {
+        id: 'add-started', sequence: 2, timestamp: 1_001, kind: 'craft', phase: 'started', name: 'method:add', operationId: 'add',
+        payload: { host: 'method:add', replayInvocation: { address: 'service:cart / state:lines / method:add', args: [] } },
+      },
+      { id: 'lines-changed', sequence: 3, timestamp: 1_002, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: LINES, primitiveKind: 'state' }, state: { [LINES]: ['espresso'] } },
+      { id: 'total-changed', sequence: 4, timestamp: 1_003, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: TOTAL, primitiveKind: 'query' }, state: { [TOTAL]: 3 } },
+      { id: 'name-typed', sequence: 5, timestamp: 1_004, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: NAME, primitiveKind: 'state' }, state: { [NAME]: 'Ada' } },
+      { id: 'pay-click', sequence: 6, timestamp: 1_005, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#pay', action: 'click' } },
+    ],
+  });
+  const run = async (options: { stateSource?: 'recorded' | 'recomputed'; total: number }) => {
+    document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+    const live: Record<string, unknown> = { [LINES]: [], [TOTAL]: 0, [NAME]: '' };
+    const restored: string[] = [];
+    const replay = createReplayController(session(), {
+      ...(options.stateSource ? { stateSource: options.stateSource } : {}),
+      // The code under replay: `add` adds the line, the query recomputes.
+      invokeRecordedMethod: () => {
+        live[LINES] = ['espresso'];
+        live[TOTAL] = options.total;
+      },
+      readState: () => ({ ...live }),
+      restoreState: (state) => {
+        for (const [address, value] of Object.entries(state as Record<string, unknown>)) {
+          restored.push(address);
+          live[address] = value;
+        }
+      },
+    });
+    const first = await replay.step();
+    const second = first ? undefined : await replay.step();
+    replay.stop();
+    return { difference: first ?? second, restored, live };
+  };
+
+  it('lets the code produce what it can, and restores only what it cannot', async () => {
+    const result = await run({ stateSource: 'recomputed', total: 3 });
+    expect(result.difference).toBeUndefined();
+    expect(result.restored).toEqual([NAME]);
+    expect(result.live).toEqual({ [LINES]: ['espresso'], [TOTAL]: 3, [NAME]: 'Ada' });
+  });
+
+  it('reports a query that no longer computes the recorded value, with the expected state as recovery', async () => {
+    const result = await run({ stateSource: 'recomputed', total: 2 });
+    expect(result.difference).toMatchObject({
+      expected: { [LINES]: ['espresso'], [TOTAL]: 3 },
+      actual: { [LINES]: ['espresso'], [TOTAL]: 2 },
+      recovery: { state: { [LINES]: ['espresso'], [TOTAL]: 3 } },
+    });
+    // The recorded value never overwrote the computed one.
+    expect(result.live[TOTAL]).toBe(2);
+    expect(result.restored).not.toContain(TOTAL);
+  });
+
+  it('restores everything by default, as the interactive replay does', async () => {
+    const result = await run({ total: 2 });
+    expect(result.difference).toBeUndefined();
+    expect(result.restored).toEqual([LINES, TOTAL, NAME]);
+    expect(result.live[TOTAL]).toBe(3);
+  });
+
+  it('takes a page created under another instance number, and an id made opaque as a key, for the same state', async () => {
+    const PAGE = (n: number) => `component:Shell#2 / component:FormulaPage#${n} / query:storeQuery#1`;
+    const PICKS = 'service:shopUi / state:formulaPicks#1';
+    const replayWith = async (live: Record<string, unknown>) => {
+      document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+      const events = [
+        session().events[0]!,
+        // What the recording held: the page as #93, a pick keyed by its real id.
+        { id: 'snapshot', sequence: 2, timestamp: 1_001, kind: 'primitive', phase: 'emitted', name: 'query', state: { [PAGE(87)]: null, [PAGE(93)]: { products: 6 }, [PICKS]: { 'pause-cafe': { 'pause-pastry': ['cookie'] } } } },
+        session().events[5]!,
+      ] as SendContextReplayExport['events'];
+      const replay = createReplayController({ ...session(), events }, {
+        stateSource: 'recomputed',
+        settleTimeoutMs: 0,
+        invokeRecordedMethod: () => undefined,
+        readState: () => live,
+        restoreState: () => undefined,
+      });
+      const difference = (await replay.step()) ?? (await replay.step());
+      replay.stop();
+      return difference;
+    };
+    // The replay created the page as #87 and its data made the id opaque.
+    expect(await replayWith({ [PAGE(87)]: { products: 6 }, [PICKS]: { 'pause-cafe': { 'craft-ref:7784243abfa964df': ['cookie'] } } })).toBeUndefined();
+    // Another value is still a gap, whatever the instance number.
+    expect(await replayWith({ [PAGE(87)]: { products: 5 }, [PICKS]: { 'pause-cafe': { 'pause-pastry': ['cookie'] } } })).toBeDefined();
+  });
+
+  it('waits for a state that lands late (an answer decoded, a page loaded) before calling it a gap', async () => {
+    const replayWith = async (settleTimeoutMs: number) => {
+      document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+      const live: Record<string, unknown> = { [LINES]: [], [TOTAL]: 0, [NAME]: 'Ada' };
+      const replay = createReplayController(session(), {
+        stateSource: 'recomputed',
+        settleTimeoutMs,
+        // The query's answer comes back 300 ms after the call.
+        invokeRecordedMethod: () => {
+          live[LINES] = ['espresso'];
+          setTimeout(() => { live[TOTAL] = 3; }, 300);
+        },
+        readState: () => ({ ...live }),
+        restoreState: (state) => Object.assign(live, state as Record<string, unknown>),
+      });
+      const first = await replay.step();
+      const difference = first ?? (await replay.step());
+      replay.stop();
+      return difference;
+    };
+    expect(await replayWith(1_000)).toBeUndefined();
+    expect(await replayWith(0)).toMatchObject({ expected: { [TOTAL]: 3 }, actual: { [TOTAL]: 0 } });
+  });
+
+  it('reads the hour of the recording on the replay’s clock, not 1970', async () => {
+    // Elapsed times on the timeline, the wall clock in `timestamp`.
+    const at = (elapsedMs: number, timestamp: number) => ({ elapsedMs, timestamp }) as SendContextEvent;
+    const timeOf = (event: SendContextEvent) => event.elapsedMs ?? event.timestamp;
+    expect(recordedDateOrigin([at(5, 1_794_289_980_000), at(900, 1_794_289_980_895)], timeOf, 5)).toEqual({ dateOrigin: 1_794_289_980_000 });
+    expect(recordedDateOrigin([at(5, 1_794_289_980_000)], timeOf, 0)).toEqual({ dateOrigin: 1_794_289_979_995 });
+    expect(recordedDateOrigin([], timeOf, 0)).toEqual({});
+
+    // The code under replay asks the time while a recorded action runs.
+    document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+    const events = session().events.map((event) => ({ ...event, timestamp: event.timestamp + 1_794_289_979_000, elapsedMs: event.timestamp - 1_000 }));
+    let readAt: number | undefined;
+    const replay = createReplayController({ ...session(), events }, {
+      invokeRecordedMethod: () => { readAt = new RealCraftTemporalRuntime().dateNow(); },
+      readState: () => ({}),
+      restoreState: () => undefined,
+    });
+    (await replay.step()) ?? (await replay.step());
+    replay.stop();
+    // The recording started at 1 794 289 980 000: the action ran within its first seconds.
+    expect(readAt).toBeGreaterThanOrEqual(1_794_289_980_000);
+    expect(readAt! - 1_794_289_980_000).toBeLessThan(10_000);
+  });
+
+  it('gives code that reads Date itself the hour of the recording, and the page its Date back after', async () => {
+    document.body.innerHTML = '<button id="add">Add</button><button id="pay">Pay</button>';
+    const events = session().events.map((event) => ({ ...event, timestamp: event.timestamp + 1_899_999_999_000, elapsedMs: event.timestamp - 1_000 }));
+    const NativeDate = Date;
+    const read: number[] = [];
+    const replay = createReplayController({ ...session(), events }, {
+      invokeRecordedMethod: () => { read.push(Date.now(), new Date().getTime(), Date.parse(String(new Date()))); },
+      readState: () => ({}),
+      restoreState: () => undefined,
+    });
+    (await replay.step()) ?? (await replay.step());
+    expect(new Date() instanceof NativeDate).toBe(true);
+    expect(new Date(0).getTime()).toBe(0);
+    replay.stop();
+    expect(read.length).toBeGreaterThan(0);
+    for (const value of read) expect(Math.abs(value - 1_900_000_000_000)).toBeLessThan(10_000);
+    expect(Date).toBe(NativeDate);
+    expect(Math.abs(Date.now() - new NativeDate().getTime())).toBeLessThan(1_000);
+    // A recording in 2030: the page is back on today.
+    expect(Date.now()).toBeLessThan(1_900_000_000_000 - 86_400_000);
+  });
+
+  it('takes two dates read from the clock a few milliseconds apart for the same moment, not two far apart', async () => {
+    const NOW = 'service:promoClock / state:promoNow / state:promoNow#1';
+    const replayWith = async (live: number) => {
+      document.body.innerHTML = '<button id="add">Add</button>';
+      const events = [
+        session().events[0]!,
+        // The state's own method is replayed: its value is the code's to produce.
+        {
+          id: 'tick-started', sequence: 2, timestamp: 1_001, kind: 'craft', phase: 'started', name: 'method:tick', operationId: 'tick',
+          payload: { host: 'method:tick', replayInvocation: { address: 'service:promoClock / state:promoNow / method:tick', args: [] } },
+        },
+        { id: 'tick', sequence: 3, timestamp: 1_002, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: NOW, primitiveKind: 'state' }, state: { [NOW]: 1_794_289_982_876 } },
+      ] as SendContextReplayExport['events'];
+      const replay = createReplayController({ ...session(), events }, {
+        stateSource: 'recomputed',
+        settleTimeoutMs: 0,
+        invokeRecordedMethod: () => undefined,
+        readState: () => ({ [NOW]: live }),
+        restoreState: () => undefined,
+      });
+      const difference = (await replay.step()) ?? (await replay.step());
+      replay.stop();
+      return difference;
+    };
+    // A real timer fires a little late: the same tick.
+    expect(await replayWith(1_794_289_982_870)).toBeUndefined();
+    // The elapsed time read as a date (1970), or another moment: a gap.
+    expect(await replayWith(3_000)).toBeDefined();
+    expect(await replayWith(1_794_289_992_876)).toBeDefined();
+  });
+
+  it('checks what came after the last action before declaring the replay complete', async () => {
+    document.body.innerHTML = '<button id="add">Add</button>';
+    const events = session().events.filter((event) => event.id !== 'pay-click');
+    let total = 0;
+    const replay = createReplayController({ ...session(), events }, {
+      stateSource: 'recomputed',
+      invokeRecordedMethod: () => undefined,
+      readState: () => ({ [TOTAL]: total, [LINES]: [], [NAME]: '' }),
+      restoreState: () => undefined,
+    });
+    total = 0;
+    const first = await replay.step();
+    const difference = first ?? (await replay.step());
+    replay.stop();
+    expect(difference).toMatchObject({ expected: { [TOTAL]: 3 }, actual: { [TOTAL]: 0 } });
+  });
+});
+
+describe("mode: 'interaction'", () => {
+  const ADD = 'service:cart / state:lines / method:add';
+  const NAME = 'component:Checkout / state:name#1';
+  // A click on #add whose handler calls `add`, then a name typed into #name
+  // (a state no method owns), then a last click.
+  const session = (): SendContextReplayExport => ({
+    format: 'craft-debug-session',
+    version: 8,
+    startUrl: 'http://localhost/',
+    exportedAt: 1_000,
+    truncated: false,
+    clips: [],
+    events: [
+      { id: 'add-click', sequence: 1, timestamp: 1_000, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#add', action: 'click' } },
+      {
+        id: 'add-started', sequence: 2, timestamp: 1_001, kind: 'craft', phase: 'started', name: 'method:add', operationId: 'add',
+        payload: { host: 'method:add', replayInvocation: { address: `${ADD}#4`, args: [] } },
+      },
+      { id: 'name-input', sequence: 3, timestamp: 1_002, kind: 'dom', phase: 'emitted', name: 'input', payload: { selector: '#name', action: 'input', value: 'Ada' } },
+      { id: 'name-typed', sequence: 4, timestamp: 1_003, kind: 'primitive', phase: 'emitted', name: 'primitive-change', payload: { address: NAME, primitiveKind: 'state' }, state: { [NAME]: 'Ada' } },
+      { id: 'done-click', sequence: 5, timestamp: 1_004, kind: 'dom', phase: 'emitted', name: 'click', payload: { selector: '#done', action: 'click' } },
+    ],
+  });
+  type Harness = { wired: boolean; markup?: string; stateSource?: 'recomputed'; bound?: boolean };
+  const run = async ({ wired, markup, stateSource, bound = true }: Harness) => {
+    document.body.innerHTML = markup ?? '<button id="add">Add</button><input id="name"><button id="done">Done</button>';
+    const observed: SendContextEvent[] = [];
+    const live: Record<string, unknown> = { [NAME]: '' };
+    const invoked: string[] = [];
+    const warnings: string[] = [];
+    // The app's own handlers, as a component wires them.
+    document.querySelector('#add')?.addEventListener('click', () => {
+      if (!wired) return;
+      observed.push({
+        id: `observed-${observed.length}`, sequence: 100 + observed.length, timestamp: Date.now(), kind: 'craft', phase: 'started', name: 'method:add',
+        payload: { host: 'method:add', replayInvocation: { address: `${ADD}#9`, args: [] } },
+      });
+    });
+    document.querySelector('#name')?.addEventListener('input', (event) => {
+      if (bound) live[NAME] = (event.target as HTMLInputElement).value;
+    });
+    const replay = createReplayController(session(), {
+      mode: 'interaction',
+      settleTimeoutMs: 100,
+      interactionTargetTimeoutMs: 200,
+      ...(stateSource ? { stateSource } : {}),
+      observedEvents: () => observed,
+      invokeRecordedMethod: (event) => {
+        invoked.push(event.id);
+      },
+      readState: () => ({ ...live }),
+      restoreState: (state) => Object.assign(live, state as Record<string, unknown>),
+      onWarning: (message) => warnings.push(message),
+    });
+    const differences = [];
+    for (let step = 0; step < 3; step += 1) {
+      const difference = await replay.step();
+      if (difference) {
+        differences.push(difference);
+        break;
+      }
+    }
+    replay.stop();
+    return { difference: differences[0], invoked, warnings, live };
+  };
+
+  it('dispatches the action: the handler makes the recorded call, nothing is invoked for it', async () => {
+    const result = await run({ wired: true });
+    expect(result.difference).toBeUndefined();
+    expect(result.invoked).toEqual([]);
+    expect(result.warnings.filter((warning) => warning.includes('Interaction non prouvée'))).toEqual([]);
+    expect(result.live[NAME]).toBe('Ada');
+  });
+
+  it('stops on a button whose handler no longer makes the recorded call', async () => {
+    const result = await run({ wired: false });
+    expect(result.invoked).toEqual([]);
+    expect(result.difference).toMatchObject({
+      eventId: 'add-click',
+      expected: { calls: [ADD] },
+      actual: { calls: [], missing: [ADD] },
+    });
+  });
+
+  it('falls back on the invocation for an element it cannot find, and says so', async () => {
+    const result = await run({ wired: true, markup: '<input id="name"><button id="done">Done</button>' });
+    expect(result.difference).toBeUndefined();
+    expect(result.invoked).toEqual(['add-started']);
+    expect(result.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]') && warning.includes('#add'))).toBe(true);
+  });
+
+  it('clicks a button whose handler navigates, instead of driving the router for it', async () => {
+    // « Ajouter au panier » adds the line, then opens the cart: the recording
+    // plans that click as the navigation it led to.
+    document.body.innerHTML = '<button id="add">Add</button>';
+    const observed: SendContextEvent[] = [];
+    const clicks: string[] = [];
+    document.querySelector('#add')!.addEventListener('click', () => {
+      clicks.push('add');
+      observed.push({
+        id: 'observed-add', sequence: 100, timestamp: Date.now(), kind: 'craft', phase: 'started', name: 'method:add',
+        payload: { host: 'method:add', replayInvocation: { address: `${ADD}#9`, args: [] } },
+      });
+    });
+    const navigateToRecordedRoute = vi.fn();
+    const invoked: string[] = [];
+    const replay = createReplayController(
+      {
+        ...session(),
+        events: [
+          session().events[0]!,
+          session().events[1]!,
+          { id: 'to-cart', sequence: 3, timestamp: 1_002, kind: 'navigation', phase: 'started', name: 'NavigationStart', payload: { url: '/panier' } },
+        ],
+      },
+      {
+        mode: 'interaction',
+        settleTimeoutMs: 100,
+        interactionTargetTimeoutMs: 200,
+        observedEvents: () => observed,
+        invokeRecordedMethod: (event) => {
+          invoked.push(event.id);
+        },
+        navigateToRecordedRoute,
+      },
+    );
+    const difference = await replay.step();
+    replay.stop();
+    expect(difference).toBeUndefined();
+    expect(clicks).toEqual(['add']);
+    expect(invoked).toEqual([]);
+    expect(navigateToRecordedRoute).not.toHaveBeenCalled();
+  });
+
+  it('dispatches a choice with the recorded value, even if a render put the previous one back', async () => {
+    document.body.innerHTML = '<select id="category"><option value="coffee">Café</option><option value="pastries">Pâtisseries</option></select>';
+    const select = document.querySelector<HTMLSelectElement>('#category')!;
+    const read: string[] = [];
+    select.addEventListener('change', () => read.push(select.value));
+    const replay = createReplayController(
+      {
+        ...session(),
+        events: [
+          { id: 'pick', sequence: 1, timestamp: 1_000, kind: 'dom', phase: 'emitted', name: 'change', payload: { selector: '#category', action: 'change', value: 'pastries' } },
+        ],
+      },
+      {
+        mode: 'interaction',
+        settleTimeoutMs: 50,
+        interactionTargetTimeoutMs: 200,
+        observedEvents: () => [],
+        // The app renders while the replay waits: its options mark the
+        // state's choice, still the previous one.
+        onInteraction: () => {
+          select.value = 'coffee';
+        },
+      },
+    );
+    await replay.step();
+    replay.stop();
+    expect(read).toEqual(['pastries']);
+  });
+
+  it('with the state recomputed, checks what a typed field produced instead of restoring it', async () => {
+    const typed = await run({ wired: true, stateSource: 'recomputed' });
+    expect(typed.difference).toBeUndefined();
+    expect(typed.live[NAME]).toBe('Ada');
+    // A field no longer bound to its state: restoring would have hidden it.
+    const unbound = await run({ wired: true, stateSource: 'recomputed', bound: false });
+    expect(unbound.difference).toMatchObject({ expected: { [NAME]: 'Ada' }, actual: { [NAME]: '' } });
+    expect(unbound.live[NAME]).toBe('');
+  });
+  it('dispatches on the recorded selector when the Craft address is gone, and lets the call oracle judge', async () => {
+    const replayTarget = { runtimeId: 'craft-render-runtime-v1', componentPath: ['0000000000000000'], localTargetPath: [] };
+    const run = async (wired: boolean) => {
+      const events = session().events
+        .filter((event) => !event.id.startsWith('name-') && event.id !== 'done-click')
+        .map((event) => (event.id === 'add-click' ? { ...event, payload: { selector: '#add', action: 'click', replayTarget } } : event));
+      document.body.innerHTML = '<button id="add">Add</button>';
+      const observed: SendContextEvent[] = [];
+      document.querySelector('#add')!.addEventListener('click', () => {
+        if (wired) observed.push({ id: 'seen', sequence: 100, timestamp: Date.now(), kind: 'craft', phase: 'started', name: 'method:add', payload: { host: 'method:add', replayInvocation: { address: `${ADD}#9`, args: [] } } });
+      });
+      const warnings: string[] = [];
+      const invoked: string[] = [];
+      const replay = createReplayController({ ...session(), events }, {
+        mode: 'interaction', settleTimeoutMs: 100, interactionTargetTimeoutMs: 5_000,
+        observedEvents: () => observed,
+        invokeRecordedMethod: (event) => { invoked.push(event.id); },
+        readState: () => ({}), restoreState: () => undefined,
+        onWarning: (message) => warnings.push(message),
+      });
+      const startedAt = performance.now();
+      const difference = await replay.step();
+      replay.stop();
+      return { difference, warnings, invoked, waitedMs: performance.now() - startedAt };
+    };
+    const found = await run(true);
+    expect(found.difference).toBeUndefined();
+    expect(found.invoked).toEqual([]);
+    expect(found.warnings.some((warning) => warning.startsWith('[Cible retrouvée par sélecteur]'))).toBe(true);
+    expect(found.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]'))).toBe(false);
+    // A second of grace, not the whole wait.
+    expect(found.waitedMs).toBeLessThan(3_000);
+    // The element the selector names no longer makes the call: a gap.
+    expect((await run(false)).difference).toMatchObject({ actual: { missing: [ADD] } });
+  });
+
+  it('reads a selector the recorder cut at six levels as a path under body', async () => {
+    // The row's address carries its key, an id the recording made opaque; the
+    // recorder cut the path and anchored it to body, above `craft-root`.
+    const replayTarget = { runtimeId: 'craft-render-runtime-v1', componentPath: ['0000000000000000'], localTargetPath: [] };
+    const run = async (markup: string) => {
+      const events = session().events
+        .filter((event) => !event.id.startsWith('name-') && event.id !== 'done-click')
+        .map((event) => (event.id === 'add-click' ? { ...event, payload: { selector: 'body > div:nth-of-type(1) > section:nth-of-type(1) > button:nth-of-type(2)', action: 'click', replayTarget } } : event));
+      document.body.innerHTML = markup;
+      const observed: SendContextEvent[] = [];
+      const clicked: string[] = [];
+      for (const button of document.querySelectorAll('button'))
+        button.addEventListener('click', () => {
+          clicked.push(button.id);
+          if (button.id === 'edit') observed.push({ id: 'seen', sequence: 100, timestamp: Date.now(), kind: 'craft', phase: 'started', name: 'method:add', payload: { host: 'method:add', replayInvocation: { address: `${ADD}#9`, args: [] } } });
+        });
+      const warnings: string[] = [];
+      const replay = createReplayController({ ...session(), events }, {
+        mode: 'interaction', settleTimeoutMs: 100, interactionTargetTimeoutMs: 2_000,
+        observedEvents: () => observed,
+        invokeRecordedMethod: () => undefined,
+        readState: () => ({}), restoreState: () => undefined,
+        onWarning: (message) => warnings.push(message),
+      });
+      await replay.step();
+      replay.stop();
+      return { clicked, warnings };
+    };
+    const row = '<div><section><button id="other">Voir</button><button id="edit">Modifier</button></section></div>';
+    const found = await run(`<craft-root>${row}</craft-root>`);
+    expect(found.clicked).toEqual(['edit']);
+    expect(found.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]'))).toBe(false);
+    // Two elements under body answer the cut path: none is chosen.
+    const twice = await run(`<craft-root>${row}</craft-root><aside>${row}</aside>`);
+    expect(twice.clicked).toEqual([]);
+    expect(twice.warnings.some((warning) => warning.startsWith('[Interaction non prouvée]'))).toBe(true);
+  });
+
+  it('restores a field whose text was not recorded instead of typing it empty', async () => {
+    // A password typed, then a click: the recording holds the state, not the text.
+    const events = session().events
+      .filter((event) => !event.id.startsWith('add-'))
+      .map((event) => (event.id === 'name-input' ? { ...event, payload: { selector: '#name', action: 'input' } } : event));
+    document.body.innerHTML = '<button id="add">Add</button><input id="name" type="password"><button id="done">Done</button>';
+    const live: Record<string, unknown> = { [NAME]: '' };
+    let typed = 0;
+    document.querySelector('#name')!.addEventListener('input', (event) => {
+      typed += 1;
+      live[NAME] = (event.target as HTMLInputElement).value;
+    });
+    const warnings: string[] = [];
+    const replay = createReplayController({ ...session(), events }, {
+      mode: 'interaction',
+      stateSource: 'recomputed',
+      settleTimeoutMs: 50,
+      interactionTargetTimeoutMs: 100,
+      observedEvents: () => [],
+      invokeRecordedMethod: () => undefined,
+      readState: () => ({ ...live }),
+      restoreState: (state) => Object.assign(live, state as Record<string, unknown>),
+      onWarning: (message) => warnings.push(message),
+    });
+    const difference = (await replay.step()) ?? (await replay.step());
+    replay.stop();
+    expect(difference).toBeUndefined();
+    expect(typed).toBe(0);
+    expect(live[NAME]).toBe('Ada');
+    expect(warnings.filter((warning) => warning.startsWith('[Saisie non enregistrée]'))).toHaveLength(1);
+  });
+
+  it('replays each kind of gesture a person makes once, with what they typed or pressed', async () => {
+    document.body.innerHTML = [
+      '<input id="search">',
+      '<select id="size"><option value="s">S</option><option value="m">M</option></select>',
+      '<input id="gift" type="checkbox">',
+      '<div id="card">Carte</div>',
+      '<form id="form"><input id="qty"></form>',
+    ].join('');
+    const seen: string[] = [];
+    const on = (selector: string, type: string, describe: (event: Event) => string = () => '') =>
+      document.querySelector(selector)!.addEventListener(type, (event) => seen.push(`${selector} ${type} ${describe(event)}`.trim()));
+    const value = (event: Event) => (event.target as HTMLInputElement).value;
+    on('#search', 'input', value);
+    on('#search', 'keydown', (event) => (event as KeyboardEvent).key);
+    on('#size', 'change', value);
+    on('#gift', 'change', (event) => String((event.target as HTMLInputElement).checked));
+    on('#card', 'mouseenter');
+    on('#card', 'dblclick', (event) => `${(event as MouseEvent).clientX},${(event as MouseEvent).detail}`);
+    on('#qty', 'focus');
+    on('#form', 'submit', (event) => String(event.defaultPrevented));
+    document.querySelector('#form')!.addEventListener('submit', (event) => event.preventDefault(), true);
+    const gesture = (sequence: number, selector: string, action: string, extra: Record<string, unknown> = {}) => ({
+      id: `${action}-${sequence}`, sequence, timestamp: 1_000 + sequence, kind: 'dom' as const, phase: 'emitted' as const, name: action,
+      payload: { selector, action, ...extra },
+    });
+    const events = [
+      gesture(1, '#search', 'input', { value: 'esp' }),
+      gesture(2, '#search', 'keydown', { key: 'Enter', code: 'Enter' }),
+      gesture(3, '#size', 'change', { value: 'm' }),
+      gesture(4, '#gift', 'change', { checked: true }),
+      gesture(5, '#card', 'mouseenter', { clientX: 12, clientY: 4 }),
+      gesture(6, '#card', 'dblclick', { button: 0, clientX: 12, clientY: 4 }),
+      gesture(7, '#qty', 'focus'),
+      gesture(8, '#form', 'submit'),
+    ];
+    const warnings: string[] = [];
+    const replay = createReplayController(
+      { format: 'craft-debug-session', version: 8, startUrl: 'http://localhost/', exportedAt: 1_000, truncated: false, clips: [], events },
+      {
+        mode: 'interaction',
+        settleTimeoutMs: 50,
+        interactionTargetTimeoutMs: 100,
+        observedEvents: () => [],
+        invokeRecordedMethod: () => undefined,
+        readState: () => ({}),
+        restoreState: () => undefined,
+        onWarning: (message) => warnings.push(message),
+      },
+    );
+    for (let step = 0; step < events.length; step += 1) expect(await replay.step()).toBeUndefined();
+    replay.stop();
+    expect(seen).toEqual([
+      '#search input esp',
+      '#search keydown Enter',
+      '#size change m',
+      '#gift change true',
+      '#card mouseenter',
+      '#card dblclick 12,2',
+      '#qty focus',
+      '#form submit true',
+    ]);
+    expect(warnings.filter((warning) => warning.includes('Interaction non prouvée'))).toEqual([]);
+  });
+});
+
+describe('cutUnfinishedTail', () => {
+  type Event = SendContextReplayExport['events'][number];
+  let sequence = 0;
+  const event = (kind: string, phase: string, extra: Partial<Event> = {}): Event =>
+    ({ id: `e${++sequence}`, sequence, timestamp: 1_000 + sequence, kind, phase, name: kind, ...extra }) as Event;
+  const click = (selector: string) => event('dom', 'emitted', { name: 'click', payload: { selector, action: 'click' } });
+  const boot = () => event('participant', 'emitted', { name: 'state', participantId: 'tab', payload: { state: 'visible', initial: true } });
+  const session = (events: Event[], snapshots?: { capturedAt: number }[]): SendContextReplayExport => ({
+    format: 'craft-debug-session', version: 8, startUrl: 'http://localhost/', exportedAt: 0, truncated: false,
+    clips: [{ id: 'clip', eventIds: events.map((entry) => entry.id) }] as never,
+    events,
+    ...(snapshots ? { snapshots: snapshots as never } : {}),
+  });
+
+  it('gives a session that finished back as it is', () => {
+    sequence = 0;
+    const whole = session([boot(), click('#add'), event('http', 'started', { operationId: 'h1' }), event('http', 'succeeded', { operationId: 'h1' })]);
+    expect(cutUnfinishedTail(whole)).toEqual({ session: whole });
+  });
+
+  it('leaves out the action whose request never got its answer, and all that follows', () => {
+    sequence = 0;
+    const events = [
+      boot(), click('#add'), event('http', 'started', { operationId: 'h1' }), event('http', 'succeeded', { operationId: 'h1' }),
+      click('#pay'), event('http', 'started', { operationId: 'h2' }), event('hover', 'emitted', { payload: { action: 'leave', selector: '#pay' } }),
+    ];
+    const { session: cut, cut: what } = cutUnfinishedTail(session(events, [{ capturedAt: 1_003 }, { capturedAt: 1_006 }]));
+    expect(what).toEqual({ reason: 'missing-result', atSequence: 5, keptSteps: 1, droppedSteps: 2, operationId: 'h2' });
+    expect(cut.events.map((entry) => entry.sequence)).toEqual([1, 2, 3, 4]);
+    expect((cut.clips[0] as { eventIds: string[] }).eventIds).toEqual(['e1', 'e2', 'e3', 'e4']);
+    expect(cut.snapshots).toEqual([{ capturedAt: 1_003 }]);
+    // What is left plans without the missing result.
+    expect(compileReplayPlan(cut).issues.filter((issue) => issue.code === 'missing-result')).toEqual([]);
+  });
+
+  it('moves the cut back so that no kept request loses its answer', () => {
+    sequence = 0;
+    const events = [boot(), click('#a'), click('#order'), event('http', 'started', { operationId: 'order' }), boot(), event('http', 'succeeded', { operationId: 'order' })];
+    const { session: cut, cut: what } = cutUnfinishedTail(session(events));
+    expect(what).toMatchObject({ reason: 'page-reload', atSequence: 3, keptSteps: 1 });
+    expect(compileReplayPlan(cut).issues.filter((issue) => issue.code === 'missing-result')).toEqual([]);
+  });
+
+  it('keeps everything before the page was loaded again', () => {
+    sequence = 0;
+    const events = [boot(), click('#sign-in'), event('http', 'started', { operationId: 'h1' }), event('http', 'succeeded', { operationId: 'h1' }), boot(), click('#search')];
+    expect(cutUnfinishedTail(session(events)).cut).toEqual({ reason: 'page-reload', atSequence: 5, keptSteps: 1, droppedSteps: 1 });
+  });
+});
+
+describe('splitPageReloads', () => {
+  type Event = SendContextReplayExport['events'][number];
+  let sequence = 0;
+  const event = (kind: string, phase: string, extra: Partial<Event> = {}): Event =>
+    ({ id: `e${++sequence}`, sequence, timestamp: 1_000 + sequence, kind, phase, name: kind, participantId: 'tab', ...extra }) as Event;
+  const boot = (routeUrl: string) => [
+    event('participant', 'emitted', { name: 'state', payload: { state: 'visible', initial: true } }),
+    event('component-lifecycle', 'emitted', { name: 'create:Shell', payload: { transition: 'create', routeUrl } }),
+  ];
+  const click = (selector: string) => event('dom', 'emitted', { name: 'click', payload: { selector, action: 'click' } });
+  const participant = {
+    id: 'tab', title: 'Onglet', startUrl: 'http://localhost:4205/connexion', state: 'visible', status: 'completed',
+    createdAt: '2026-11-08T08:00:00.000Z', updatedAt: '2026-11-08T08:05:00.000Z', initialSnapshot: { a: 1 },
+  } as const;
+  const session = (events: Event[], participants: readonly unknown[] = [participant]): SendContextReplayExport =>
+    ({ format: 'craft-debug-session', version: 8, startUrl: participant.startUrl, exportedAt: 0, truncated: false, clips: [], participants, events }) as SendContextReplayExport;
+
+  it('replays each load of a tab as a tab of its own, the first closing when the page reloads', () => {
+    sequence = 0;
+    const events = [...boot('/connexion'), click('#sign-in'), ...boot('/catalogue'), click('#add')];
+    const split = splitPageReloads(session(events));
+    expect(split.participants).toEqual([
+      { ...participant, status: 'completed', updatedAt: new Date(1_004).toISOString() },
+      {
+        id: 'tab~rechargement-1', title: 'Onglet · rechargé', startUrl: 'http://localhost:4205/catalogue', state: 'visible',
+        status: 'completed', createdAt: new Date(1_004).toISOString(), updatedAt: participant.updatedAt,
+      },
+    ]);
+    expect(split.events.map((entry) => `${entry.sequence}:${entry.participantId}`)).toEqual([
+      '1:tab', '2:tab', '3:tab', '4:tab~rechargement-1', '5:tab~rechargement-1', '6:tab~rechargement-1',
+    ]);
+    // Nothing is left for the cut to remove: each tab loads once.
+    expect(cutUnfinishedTail(split).cut).toBeUndefined();
+  });
+
+  it('gives back a session whose tabs loaded once, or that has no participants', () => {
+    sequence = 0;
+    const once = session([...boot('/connexion'), click('#sign-in')]);
+    expect(splitPageReloads(once)).toBe(once);
+    const anonymous = session([...boot('/a'), ...boot('/b')], []);
+    expect(splitPageReloads(anonymous)).toBe(anonymous);
+  });
+});
+

@@ -39,9 +39,10 @@ This application uses `@craft-ts/core`.
 - MCP: `npx -y @craft-ts/mcp@beta` (`get_best_practices`, `search_documentation`)
 - Skills: `node_modules/@craft-ts/mcp/skills`
 
-yield* every Craft reader. Keep authored code within Craft's primitives and
-service model. craftRoutes files need componentDeps and
-a per-file DI check. The architecture/ suite is the graph contract: scaffold
+`yield*` every Craft reader. Keep authored code within Craft's primitives and
+service model. Mount Craft components with `loadCraftComponent(...)` and keep a
+per-file `RouteCheckedDI` / `CanRun` proof. Use `componentDeps` only for legacy Angular
+component routes. The `architecture/` suite is the graph contract: scaffold
 at bootstrap, run it during a feature. Do not add an architecture rule for
 the feature.
 ```
@@ -101,7 +102,7 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) layout
 | `craft-ts` | Any authored Craft code |
 | `craft-ts-architecture-tests` | Scaffold or run `architecture/`, or freeze a graph smell |
 | `translate-spec-to-craft-ts` | Spec / CRUD / filters / forms → primitives |
-| `craft-ts-routes` | `craftRoutes`, `componentDeps`, `TS2589` |
+| `craft-ts-routes` | `craftRoutes`, `loadCraftComponent`, `TS2589` |
 | `craft-ts-service-migration` | legacy services → `craftService` |
 | `migrate-to-craft-ts` | `craft-migrate` then manual diagnostics |
 

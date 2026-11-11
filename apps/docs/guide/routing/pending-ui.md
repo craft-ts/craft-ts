@@ -68,12 +68,9 @@ provideCraftRouter(
   withCraftViewTransitions(),                       // craft loading feature (see below)
   withErrorComponent({
     component: MyGlobalErrorScreen,
-    componentDeps: {} as import('./global-error').GenDeps_MyGlobalErrorScreen,
   }),
   withRouteLoadError({
     component: MyRouteLoadErrorScreen,
-    componentDeps:
-      {} as import('./route-load-error').GenDeps_MyRouteLoadErrorScreen,
     retry: { attempts: 1, delayMs: 250 },
   }),
   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
@@ -93,7 +90,6 @@ provideCraftLoading(
   withPendingComponent(MyBrandedSpinner),
   withErrorComponent({
     component: MyGlobalErrorScreen,
-    componentDeps: {} as import('./global-error').GenDeps_MyGlobalErrorScreen,
   }),
 ),
 ```
@@ -166,9 +162,11 @@ export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes(
     craftRoute(
       ':photoId',
       {
-        componentDeps:
-          {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
-        loadComponent: ({ withRetry }) => withRetry(import('./photo-detail')),
+        ...loadCraftComponent(({ withRetry }) =>
+          withRetry(import('./photo-detail')).then(
+            (m) => m.PhotoDetailComponent,
+          ),
+        ),
         withLoaderViewTransitionImage: viewTransitionPayload<{
           name: string;
           image: string | null;
@@ -242,7 +240,7 @@ monitoring, …). It is verified independently with the per-component, O(1)
 // auto-provided by the route, so list those service names as available; the
 // parent context (`AppValues` here) is the same one the route uses.
 type _CheckPendingDI = RouteCheckedDI<
-  import('./photo-skeleton').GenDeps_PhotoSkeletonComponent,
+  ComponentDepsOf<(typeof import('./photo-skeleton'))['default']>,
   'PhotosPhotoIdParams' | 'PhotosPhotoIdViewTransition',
   AppValues,
   'pending component: photos/:photoId'

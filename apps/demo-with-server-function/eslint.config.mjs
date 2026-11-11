@@ -60,7 +60,6 @@ export default [
       '**/src/client/simple-list-demo.ts',
     ],
     rules: {
-      'craft-ts/no-craft-use': 'off',
       'craft-ts/require-direct-craft-component-template': 'off',
     },
   },

@@ -148,159 +148,11 @@ describe('craft route commands', () => {
     expect(parent).toContain("withRetry(import('./users/users.routes'))");
     expect(parent).toContain('assertChildRouteMounts(appRoutes)');
     expect(feature).toContain("craftRoute(':userId'");
-    expect(feature).toContain('GenDeps_UserDetailComponent');
+    expect(feature).toContain('loadCraftComponent');
     expect(feature).toContain("withRetry(import('./user-detail'))");
     expect(feature).toContain('({ withRetry }: CraftRouteLazyLoadHelpers)');
     expect(feature).toContain("withParent<ParentRoutes<'users'>>()");
     expect(feature).toContain('ValidateCascadeRoutesFile<never, Router');
-  });
-
-  it('delegates component creation to the local Angular CLI', async () => {
-    const root = await fixture({ 'src/app/app.routes.ts': rootRoutes() });
-    await write(root, 'angular.json', '{}');
-    const ng = join(root, 'node_modules/.bin/ng');
-    await mkdir(dirname(ng), { recursive: true });
-    await writeFile(
-      ng,
-      `#!/bin/sh
-printf "%s\\n" "$@" > "$PWD/ng-args.txt"
-target="$(dirname "$3")/demo-page.ts"
-mkdir -p "$(dirname "$target")"
-printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ template: '' })" "export class DemoPage {}" > "$target"
-`,
-      'utf8',
-    );
-    await chmod(ng, 0o755);
-
-    const result = await runRouteAdd({
-      rootDir: root,
-      path: '/users/generated',
-      createComponent: 'src/app/users/DemoPage',
-      yes: true,
-      validate: false,
-      log: () => undefined,
-    });
-
-    expect(result.exitCode).toBe(0);
-    expect(
-      await readFile(join(root, 'src/app/users/demo-page.ts'), 'utf8'),
-    ).toContain('GenDeps_DemoPage');
-    expect(
-      await readFile(join(root, 'src/app/users/users.routes.ts'), 'utf8'),
-    ).toContain("componentDeps: {} as import('./demo-page').GenDeps_DemoPage");
-    expect(await readFile(join(root, 'ng-args.txt'), 'utf8')).toContain(
-      '--inline-template\n--inline-style',
-    );
-  });
-
-  it('delegates through Nx when the Angular project has no angular.json workspace', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'craft-route-nx-workspace-'));
-    temporaryDirectories.push(root);
-    await write(root, 'nx.json', '{}');
-    await write(
-      root,
-      'apps/demo/project.json',
-      JSON.stringify({ name: 'demo', sourceRoot: 'apps/demo/src' }),
-    );
-    await write(
-      root,
-      'apps/demo/tsconfig.app.json',
-      JSON.stringify({
-        compilerOptions: {
-          experimentalDecorators: true,
-          module: 'preserve',
-          moduleResolution: 'bundler',
-          target: 'ES2022',
-        },
-        include: ['src/**/*.ts'],
-      }),
-    );
-    await write(
-      root,
-      'apps/demo/src/craft.d.ts',
-      `
-        declare module '@craft-ts/core' {
-          export declare function craftRoutes(...args: any[]): any;
-          export declare function craftRoute(...args: any[]): any;
-          export declare function assertExhaustiveRouteExceptions(...args: any[]): void;
-          export declare function assertChildRouteMounts(...args: any[]): void;
-          export type CanRun<T> = T;
-          export type ParentRoutes<T> = T;
-          export type ValidateCascadeRoutesFile<A, B, C> = true;
-        }
-        declare module '@angular/router' { export class Router {} }
-        declare module '@angular/core' {
-          export declare function Component(metadata: unknown): ClassDecorator;
-        }
-      `,
-    );
-    await write(
-      root,
-      'apps/demo/src/app/app.routes.ts',
-      rootRoutes().trimStart(),
-    );
-    const binDirectory = join(root, 'node_modules/.bin');
-    await mkdir(binDirectory, { recursive: true });
-    await writeFile(
-      join(binDirectory, 'ng'),
-      '#!/bin/sh\necho "Angular CLI outside a workspace" >&2\nexit 1\n',
-      'utf8',
-    );
-    await writeFile(
-      join(binDirectory, 'nx'),
-      `#!/bin/sh
-printf "%s\\n" "$@" > "$PWD/nx-args.txt"
-target="apps/demo/src/app/$3/$3.ts"
-mkdir -p "$(dirname "$target")"
-printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ template: '' })" "export class TestGenerated {}" > "$target"
-`,
-      'utf8',
-    );
-    await writeFile(
-      join(binDirectory, 'eslint'),
-      `#!/bin/sh
-expected="$(cd "${join(root, 'apps/demo')}" && pwd -P)"
-if [ "$(pwd -P)" != "$expected" ]; then
-  echo "wrong eslint cwd: $PWD" >&2
-  exit 1
-fi
-echo '[{"filePath":"${join(root, 'apps/demo/src/app/app.routes.ts')}","messages":[{"ruleId":"@typescript-eslint/no-unused-vars","message":"Existing unrelated lint error","line":1,"column":1}]}]'
-exit 1
-`,
-      'utf8',
-    );
-    await writeFile(
-      join(binDirectory, 'ngc'),
-      `#!/bin/sh
-touch "${join(root, 'ngc-called')}"
-exit 0
-`,
-      'utf8',
-    );
-    await chmod(join(binDirectory, 'ng'), 0o755);
-    await chmod(join(binDirectory, 'nx'), 0o755);
-    await chmod(join(binDirectory, 'eslint'), 0o755);
-    await chmod(join(binDirectory, 'ngc'), 0o755);
-
-    const result = await runRouteAdd({
-      rootDir: root,
-      path: '/test',
-      createComponent: 'test-generated',
-      yes: true,
-      log: () => undefined,
-    });
-
-    expect(result.exitCode, JSON.stringify(result.diagnostics)).toBe(0);
-    expect(
-      await readFile(
-        join(root, 'apps/demo/src/app/test-generated/test-generated.ts'),
-        'utf8',
-      ),
-    ).toContain('GenDeps_TestGenerated');
-    expect(await readFile(join(root, 'nx-args.txt'), 'utf8')).toContain(
-      '--inline-template\n--inline-style',
-    );
-    expect(await readFile(join(root, 'ngc-called'), 'utf8')).toBe('');
   });
 
   it('is a no-op when the exact same route is added twice', async () => {
@@ -382,12 +234,13 @@ exit 0
       `,
       'src/app/app.routes.ts': `
         import { assertExhaustiveRouteExceptions, craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ts/core';
+        import { loadCraftComponent } from '@craft-ts/component';
         import type { Router } from '@angular/router';
         export const { appRoutes, AppIdParams } = craftRoutes('app', [
-          craftRoute('home', { componentDeps: {} as import('./page').GenDeps_PageComponent, loadComponent: ({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent) }),
-          craftRoute('users', { componentDeps: {} as import('./page').GenDeps_PageComponent, loadComponent: ({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent) }),
-          craftRoute('users/:id', { componentDeps: {} as import('./page').GenDeps_PageComponent, loadComponent: ({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent) }),
-          craftRoute('about', { componentDeps: {} as import('./page').GenDeps_PageComponent, loadComponent: ({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent) }),
+          craftRoute('home', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent)) }),
+          craftRoute('users', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent)) }),
+          craftRoute('users/:id', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent)) }),
+          craftRoute('about', { ...loadCraftComponent(({ withRetry }) => withRetry(import('./page')).then(m => m.PageComponent)) }),
         ]);
         assertExhaustiveRouteExceptions(appRoutes);
         type _CheckAppDI = ValidateCascadeRoutesFile<never, Router, typeof appRoutes>;
@@ -422,7 +275,7 @@ exit 0
     expect(child).toContain("craftRoute(''");
     expect(child).toContain("craftRoute(':id'");
     expect(child).toContain("import('../page')");
-    expect(child).toContain("import('../page').GenDeps_PageComponent");
+    expect(child).toContain('loadCraftComponent');
     expect(child).toContain('UsersIdParams');
     expect(parent).not.toContain('AppIdParams');
     expect(consumer).toContain(
@@ -547,7 +400,7 @@ function rootRoutes(): string {
 
 function component(name: string): string {
   return `
-    export class ${name} {}
-    export type GenDeps_${name} = {};
+    import { craftComponent, p } from '@craft-ts/component';
+    export const ${name} = craftComponent('${name}', {}, function* () { return p('${name}'); });
   `;
 }

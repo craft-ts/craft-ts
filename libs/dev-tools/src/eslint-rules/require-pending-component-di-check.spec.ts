@@ -13,7 +13,6 @@ const tempDirectories: string[] = [];
 
 const SKELETON = `
   export default class SkeletonComponent {}
-  export type GenDeps_SkeletonComponent = { deps: {} };
 `;
 
 // A collection with a view-transition pending route; `$extra` is appended after.
@@ -26,12 +25,12 @@ const ROUTES = (extra: string) => `
     type RouteCheckedDI,
     type ValidateCascadeRoutesFile,
   } from '@craft-ts/core';
+  import { loadCraftComponent } from '@craft-ts/component';
   import type { Router } from '@angular/router';
 
   export const { galleryRoutes } = craftRoutes('gallery', [
     craftRoute(':photoId', {
-      componentDeps: {} as import('./detail').GenDeps_DetailComponent,
-      loadComponent: () => import('./detail'),
+      ...loadCraftComponent(() => import('./detail').then((m) => m.default)),
       withLoaderViewTransitionImage: viewTransitionPayload<{ name: string }>(),
       pendingComponent: () => import('./skeleton'),
     }),
@@ -54,7 +53,7 @@ describe('require-pending-component-di-check', () => {
     const { messages } = await lintFixture(
       ROUTES(`
         type _CheckPending = RouteCheckedDI<
-          import('./skeleton').GenDeps_SkeletonComponent,
+          ComponentDepsOf<(typeof import('./skeleton'))['default']>,
           'GalleryPhotoIdParams' | 'GalleryPhotoIdViewTransition',
           Router,
           'pending'
@@ -74,7 +73,9 @@ describe('require-pending-component-di-check', () => {
     ]);
 
     const { output } = await lintFixture(source, { fix: true });
-    expect(output).toContain("import('./skeleton').GenDeps_SkeletonComponent");
+    expect(output).toContain(
+      "ComponentDepsOf<(typeof import('./skeleton'))['default']>",
+    );
     // path param + view-transition payload service names, derived from the route:
     expect(output).toContain(
       "'GalleryPhotoIdParams' | 'GalleryPhotoIdViewTransition'",
@@ -87,10 +88,10 @@ describe('require-pending-component-di-check', () => {
   it('ignores routes without a lazy pendingComponent', async () => {
     const { messages } = await lintFixture(`
       import { craftRoutes, craftRoute } from '@craft-ts/core';
+      import { loadCraftComponent } from '@craft-ts/component';
       export const { galleryRoutes } = craftRoutes('gallery', [
         craftRoute('', {
-          componentDeps: {} as import('./detail').GenDeps_DetailComponent,
-          loadComponent: () => import('./detail'),
+          ...loadCraftComponent(() => import('./detail').then((m) => m.default)),
         }),
       ]);
     `);

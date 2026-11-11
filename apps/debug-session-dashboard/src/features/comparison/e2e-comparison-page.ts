@@ -29,14 +29,11 @@ import {
   type E2eComparisonReport,
 } from '../../shared/data-access/e2e-comparison.service';
 import { ui } from '../../shared/ui/dashboard.style';
-import { seekE2eComparisonFrame } from '../../shared/util/replay-browser';
+import { dashboardHref, seekE2eComparisonFrame } from '../../shared/util/replay-browser';
 import { page } from '../../shared/state/replay-state';
 import { httpFailureReason } from '../../shared/data-access/session-archive.service';
 import { buttonUi } from '@craft-ts/ui/style';
 
-const DASHBOARD_URL =
-  import.meta.env['VITE_CRAFT_SESSION_DASHBOARD_URL'] ??
-  'http://localhost:4210/';
 
 function comparisonSummary(
   result: E2eComparisonReport | E2eComparisonError | undefined,
@@ -71,12 +68,21 @@ function replayFramesOf(
     !result.observedSource
   )
     return [];
-  const dashboard = new URL(result.dashboardUrl || DASHBOARD_URL);
-  const replayUrl = (source: string) =>
-    new URL(
-      `#${router.serializeUrl(router.createUrlTree({ to: 'e2e-replay', queryParams: { source } }))}`,
-      dashboard,
-    ).toString();
+  // The frames show this dashboard, at the route the router writes for them
+  // (`/#/e2e-replay?…`): a relative address, whatever port it runs on. A
+  // report naming another dashboard opens the frames there.
+  const dashboard = new URL(result.dashboardUrl || dashboardHref() || 'http://localhost/');
+  const replayUrl = (source: string) => {
+    const serialized = router.serializeUrl(
+      router.createUrlTree({ to: 'e2e-replay', queryParams: { source } }),
+    );
+    if (!result.dashboardUrl) return serialized;
+    const hashAt = serialized.indexOf('#');
+    if (hashAt < 0) return new URL(serialized, dashboard).toString();
+    const url = new URL(dashboard.href);
+    url.hash = serialized.slice(hashAt + 1);
+    return url.toString();
+  };
   return [
     {
       side: 'baseline',

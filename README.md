@@ -150,7 +150,6 @@ packages/
 ├── function-registry-mcp/  @craft-ts/function-registry-mcp — the page surface
 └── post-devto/             internal publishing helper
 tools/
-└── generators/    Nx generators and type-stress fixtures
 ```
 
 ### Local source references

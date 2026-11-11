@@ -34,8 +34,10 @@ export class StoreRepository extends Context.Service<
     readonly deleteCategory: (
       id: string,
     ) => Effect.Effect<StoreData, StoreError>;
+    /** `priceOf` : le prix d'un produit au moment de payer (la promotion en cours) ; son prix de carte par défaut. */
     readonly checkout: (
       lines: readonly CartLine[],
+      priceOf?: (product: Product) => number,
     ) => Effect.Effect<Order, StoreError>;
     readonly createCart: () => Effect.Effect<ServerCart, StoreError>;
     readonly addCartLine: (
@@ -239,7 +241,7 @@ export function createStoreLayer(path = defaultStorePath()) {
           value: { ...data, categories },
         };
       }),
-    checkout: (lines) =>
+    checkout: (lines, priceOf = (product) => product.price) =>
       update((data) => {
         if (!lines.length) throw new StoreError('Le panier est vide.');
         const products = new Map(
@@ -253,7 +255,7 @@ export function createStoreLayer(path = defaultStorePath()) {
           const product = products.get(line.productId);
           if (!product)
             throw new StoreError('Un produit du panier n’existe plus.');
-          total += product.price * line.quantity;
+          total += priceOf(product) * line.quantity;
           if (product.kind === 'simple')
             consumption.set(
               product.id,
@@ -313,7 +315,8 @@ export function createStoreLayer(path = defaultStorePath()) {
           id: `order-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           createdAt: new Date().toISOString(),
           lines,
-          total,
+          // Au centime : une remise (2,40 × 3) ne doit pas laisser 7,1999…
+          total: Math.round(total * 100) / 100,
         };
         return {
           data: {

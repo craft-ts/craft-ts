@@ -458,7 +458,7 @@ describe('setupCraftServiceTest', () => {
   });
 });
 
-export type GenDeps_CheckoutPage = GetDeps<{
+export type TestDeps_CheckoutPage = GetDeps<{
   deps: {};
   provided: {};
   publicProperties: GetPublicComponentProperties<CheckoutPage>;

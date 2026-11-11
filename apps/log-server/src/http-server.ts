@@ -26,13 +26,20 @@ import {
 } from './debug-session-store.js';
 import {
   compareSessionTraces,
+  isGoldenSetManifest,
   isSessionHistory,
   normalizeSessionTrace,
+  replayablePart,
+  selectGoldenSet,
   SESSION_HISTORY_FILE,
   type PortableSessionForTrace,
   type SessionHistory,
+  type SessionTrace,
 } from '@craft-ts/session-trace';
+import { goldenSetCandidates, openedByTooling } from './golden-set-candidates.js';
 import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
+import type { SuiteReplayer, SuiteReplayResult } from './suite-replay.js';
+import type { SessionsCheckAccess } from './sessions-check.js';
 import {
   parseResumeCheckpointInput,
   summarizeCheckpoint,
@@ -64,6 +71,10 @@ export type LogHttpServerOptions = {
   readonly behaviorApps?: readonly string[];
   /** Prepares and serves the thumbnails of archived sessions. */
   readonly thumbnails?: ThumbnailService;
+  /** Replays an archived session as the regression suite does (`POST /sessions/:id/suite-replay`). */
+  readonly suiteReplay?: SuiteReplayer;
+  /** The last base-against-head check of an app, and approving a change it found. */
+  readonly sessionsCheck?: SessionsCheckAccess;
   /** Where the dashboard leaves "resume here" for the AI; one per server by default. */
   readonly resumeRequests?: ResumeRequestBoard;
   /** Frozen resume points, on disk next to the sessions. */
@@ -223,6 +234,68 @@ async function handleRequest(
         ),
       },
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
+    );
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/sessions/golden-set') {
+    await handleGoldenSetRequest(request, response, options, maxBodySize, sessionCorsHeaders(request.headers.origin, allowedOrigins));
+    return;
+  }
+
+  // The last `sessions:check` of the app recorded at `origin`.
+  if (request.method === 'GET' && url.pathname === '/sessions/check') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionsCheck) {
+      sendJson(response, 503, { status: 'unavailable', message: 'Ce serveur ne tourne pas dans un dépôt qui a sessions:check.' }, headers);
+      return;
+    }
+    const last = options.sessionsCheck.report(url.searchParams.get('origin') ?? '');
+    sendJson(response, 200, last ? { app: last.app, report: last.report } : { report: null }, headers);
+    return;
+  }
+
+  // A picture of the last check: a moment of a session on the base, the head, or their difference.
+  if (request.method === 'GET' && url.pathname === '/sessions/check/image') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    const image = options.sessionsCheck?.image(url.searchParams.get('origin') ?? '', url.searchParams.get('path') ?? '');
+    if (!image) {
+      sendJson(response, 404, { error: 'Picture not found.' }, headers);
+      return;
+    }
+    // A new check rewrites the pictures under the same names: never cached.
+    response.writeHead(200, { ...headers, 'content-type': 'image/png', 'content-length': image.byteLength, 'cache-control': 'no-store' });
+    response.end(image);
+    return;
+  }
+
+  // A person approves the change the last check found in a session.
+  if (request.method === 'POST' && url.pathname === '/sessions/check/approve') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionsCheck) {
+      sendJson(response, 503, { status: 'unavailable', message: 'Ce serveur ne tourne pas dans un dépôt qui a sessions:check.' }, headers);
+      return;
+    }
+    let body: unknown;
+    try {
+      body = JSON.parse(await readBody(request, maxBodySize)) as unknown;
+    } catch {
+      body = undefined;
+    }
+    const origin = isRecord(body) ? body['origin'] : undefined;
+    const sessionId = isRecord(body) ? body['sessionId'] : undefined;
+    if (typeof origin !== 'string' || typeof sessionId !== 'string' || !/^[0-9a-f-]{8,36}$/i.test(sessionId)) {
+      sendJson(response, 400, { error: 'Expected { origin: string, sessionId: string }.' }, headers);
+      return;
+    }
+    const approval = await options.sessionsCheck.approve(origin, sessionId);
+    sendJson(
+      response,
+      approval.approved ? 200 : 409,
+      approval.approved
+        ? { approved: true, sessionId, output: approval.output, ...(approval.report ? { app: approval.report.app, report: approval.report.report } : { report: null }) }
+        : { approved: false, message: approval.message },
+      headers,
     );
     return;
   }
@@ -757,6 +830,95 @@ async function handleRequest(
     return;
   }
 
+  // Some tabs of a session, copied into a session of their own.
+  if (request.method === 'POST' && url.pathname === '/sessions/extract') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionStore) {
+      sendJson(response, 404, { error: 'Session archive is unavailable.' }, headers);
+      return;
+    }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(await readBody(request, Math.min(maxBodySize, 64_000)));
+    } catch {
+      sendJson(response, 400, { error: 'Invalid session extraction payload.' }, headers);
+      return;
+    }
+    const sessionId = isRecord(payload) ? payload['sessionId'] : undefined;
+    const participantIds = isRecord(payload) ? payload['participantIds'] : undefined;
+    if (
+      typeof sessionId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId) ||
+      !Array.isArray(participantIds) ||
+      participantIds.length === 0 ||
+      participantIds.length > 50 ||
+      !participantIds.every((participantId) => typeof participantId === 'string' && participantId.length > 0 && participantId.length <= 200)
+    ) {
+      sendJson(response, 400, { error: 'Invalid session extraction payload.' }, headers);
+      return;
+    }
+    const id = options.sessionStore.extract(sessionId, participantIds as string[]);
+    if (id === undefined) {
+      sendJson(response, 404, { error: 'Unknown session or tab.' }, headers);
+      return;
+    }
+    sendJson(response, 201, { id }, headers);
+    return;
+  }
+
+  // The suite: several sessions replayed one after the other, as after a change.
+  if (url.pathname === '/sessions/suite-replay' && request.method === 'POST') {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.suiteReplay) {
+      sendJson(response, 503, { status: 'unavailable', message: 'Rejeu de suite désactivé sur ce serveur.' }, headers);
+      return;
+    }
+    let ids: unknown;
+    try {
+      const body = JSON.parse(await readBody(request, maxBodySize)) as unknown;
+      ids = isRecord(body) ? body['sessionIds'] : undefined;
+    } catch {
+      ids = undefined;
+    }
+    if (
+      !Array.isArray(ids) ||
+      ids.length === 0 ||
+      ids.length > 100 ||
+      !ids.every((id) => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id))
+    ) {
+      sendJson(response, 400, { error: 'Expected { sessionIds: string[] } (1-100 session ids).' }, headers);
+      return;
+    }
+    const results: unknown[] = [];
+    for (const id of ids as string[]) {
+      results.push(
+        options.sessionStore?.get(id)
+          ? await options.suiteReplay(id)
+          : { sessionId: id, status: 'not-found', replayIndex: 0, total: 0, message: 'Session absente de l’archive.', unprovenInteractions: [], notes: [], durationMs: 0 },
+      );
+    }
+    sendJson(response, 200, suiteRunSummary(results as readonly SuiteReplayResult[]), headers);
+    return;
+  }
+
+  const suiteReplayMatch = /^\/sessions\/([0-9a-f-]{36})\/suite-replay$/i.exec(url.pathname);
+  if (suiteReplayMatch && request.method === 'POST') {
+    const id = suiteReplayMatch[1]!;
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.suiteReplay) {
+      sendJson(response, 503, { sessionId: id, status: 'unavailable', message: 'Rejeu de suite désactivé sur ce serveur.' }, headers);
+      return;
+    }
+    if (!options.sessionStore?.get(id)) {
+      sendJson(response, 404, { error: 'Session not found.' }, headers);
+      return;
+    }
+    // Answers once the replay ends: a session takes seconds, the caller waits.
+    const result = await options.suiteReplay(id);
+    sendJson(response, result.status === 'unavailable' ? 503 : 200, result, headers);
+    return;
+  }
+
   const thumbnailsMatch = /^\/sessions\/([0-9a-f-]{36})\/thumbnails$/i.exec(
     url.pathname,
   );
@@ -828,6 +990,32 @@ async function handleRequest(
       session,
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
     );
+    return;
+  }
+
+  // A copy kept elsewhere (an app's suite) put back under its own id.
+  if (request.method === 'PUT' && sessionMatch) {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionStore) {
+      sendJson(response, 404, { error: 'Session archive is unavailable.' }, headers);
+      return;
+    }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(await readBody(request, Math.max(maxBodySize, 128 * 1024 * 1024)));
+    } catch {
+      sendJson(response, 400, { error: 'Invalid session copy.' }, headers);
+      return;
+    }
+    const outcome =
+      isRecord(payload) && typeof payload['createdAt'] === 'string' && isPortableSession(payload['session'])
+        ? options.sessionStore.restore(sessionMatch[1]!, { createdAt: payload['createdAt'], session: payload['session'] })
+        : undefined;
+    if (outcome === undefined) {
+      sendJson(response, 400, { error: 'Invalid session copy.' }, headers);
+      return;
+    }
+    sendJson(response, outcome === 'restored' ? 201 : 200, { id: sessionMatch[1], outcome }, headers);
     return;
   }
 
@@ -953,6 +1141,14 @@ function handleSessionSocket(
 ): void {
   let activeSessionId: string | undefined;
   let activeParticipantId: string | undefined;
+  // The session ended without this tab, which nobody was using: it starts a
+  // new one at its next input. What it sends meanwhile is not kept.
+  const stopListening = store.onEnded((id) => {
+    if (id !== activeSessionId) return;
+    activeSessionId = undefined;
+    activeParticipantId = undefined;
+    if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ type: 'session:ended', id }));
+  });
   socket.on('message', (rawMessage) => {
     try {
       const message: unknown = JSON.parse(rawMessage.toString());
@@ -1101,6 +1297,7 @@ function handleSessionSocket(
     }
   });
   socket.on('close', () => {
+    stopListening();
     if (activeSessionId && activeParticipantId)
       store.finishParticipant(
         activeSessionId,
@@ -1184,7 +1381,7 @@ function sessionCorsHeaders(
     ...(origin && isAllowedOrigin(origin, allowedOrigins)
       ? { 'access-control-allow-origin': origin }
       : {}),
-    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'access-control-allow-headers': 'content-type',
     vary: 'Origin',
   };
@@ -1553,25 +1750,87 @@ function safeDecode(value: string): string | undefined {
  * Each stored session's normalised steps, computed once per version of the
  * session: a recording only grows while it runs, then stays as it is.
  */
-const sessionStepsCache = new Map<string, { updatedAt: string; steps: SessionSteps['steps'] }>();
+const sessionTraceCache = new Map<string, { updatedAt: string; trace: Pick<SessionTrace, 'steps' | 'hash'>; launchedByTooling: boolean }>();
 
-function storedSessionSteps(store: DebugSessionStore): SessionSteps[] {
+function storedSessionTraces(store: DebugSessionStore): { summary: ReturnType<DebugSessionStore['list']>[number]; trace: Pick<SessionTrace, 'steps' | 'hash'>; launchedByTooling: boolean }[] {
   const summaries = store.list();
   const present = new Set(summaries.map((summary) => summary.id));
-  for (const id of sessionStepsCache.keys()) if (!present.has(id)) sessionStepsCache.delete(id);
+  for (const id of sessionTraceCache.keys()) if (!present.has(id)) sessionTraceCache.delete(id);
   return summaries.flatMap((summary) => {
-    let cached = sessionStepsCache.get(summary.id);
+    let cached = sessionTraceCache.get(summary.id);
     if (cached?.updatedAt !== summary.updatedAt) {
       const session = store.get(summary.id);
       if (!session) return [];
-      cached = {
-        updatedAt: summary.updatedAt,
-        steps: normalizeSessionTrace(asPortableSession(session)).steps,
-      };
-      sessionStepsCache.set(summary.id, cached);
+      // A session covers what its replay goes through: an unfinished end (a
+      // tab closed mid-request, a page loaded again) proves nothing.
+      const { steps, hash } = normalizeSessionTrace(replayablePart({
+        ...asPortableSession(session),
+        // A reloaded page is replayed in a tab of its own when there are participants.
+        participants: isRecord(session) && Array.isArray(session['participants']) ? session['participants'] : [],
+      }).session);
+      cached = { updatedAt: summary.updatedAt, trace: { steps, hash }, launchedByTooling: openedByTooling(bootAddresses(session)) };
+      sessionTraceCache.set(summary.id, cached);
     }
-    return [{ id: summary.id, createdAt: summary.createdAt, steps: cached.steps }];
+    return [{ summary, trace: cached.trace, launchedByTooling: cached.launchedByTooling }];
   });
+}
+
+function storedSessionSteps(store: DebugSessionStore): SessionSteps[] {
+  return storedSessionTraces(store).map(({ summary, trace }) => ({ id: summary.id, createdAt: summary.createdAt, steps: trace.steps }));
+}
+
+/**
+ * Proposes an app's golden set from the archive. Read-only: the caller keeps
+ * the manifest (in the app's `.craft/golden-set.json`) and sends it back as
+ * `previous`, so the set does not churn and lost paths stay listed.
+ */
+async function handleGoldenSetRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  options: LogHttpServerOptions,
+  maxBodySize: number,
+  headers: Readonly<Record<string, string>>,
+): Promise<void> {
+  if (!options.sessionStore) {
+    sendJson(response, 404, { error: 'Session archive is unavailable.' }, headers);
+    return;
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(await readBody(request, maxBodySize));
+  } catch {
+    sendJson(response, 400, { error: 'Invalid golden-set payload.' }, headers);
+    return;
+  }
+  const origin = isRecord(payload) ? payload['origin'] : undefined;
+  const app = isRecord(payload) && typeof payload['app'] === 'string' ? payload['app'] : origin;
+  const maxSessions = isRecord(payload) ? payload['maxSessions'] : undefined;
+  const previous = isRecord(payload) ? payload['previous'] : undefined;
+  const priorityUnits = isRecord(payload) ? payload['priorityUnits'] : undefined;
+  if (
+    typeof origin !== 'string' ||
+    typeof app !== 'string' ||
+    (maxSessions !== undefined && (typeof maxSessions !== 'number' || !Number.isInteger(maxSessions) || maxSessions < 1 || maxSessions > 500)) ||
+    (previous !== undefined && !isGoldenSetManifest(previous)) ||
+    (priorityUnits !== undefined && (!Array.isArray(priorityUnits) || !priorityUnits.every((unit) => typeof unit === 'string')))
+  ) {
+    sendJson(response, 400, { error: 'Expected { origin, app?, maxSessions? (1-500), previous? (golden-set manifest), priorityUnits? (string[]) }.' }, headers);
+    return;
+  }
+  const { candidates, skipped } = goldenSetCandidates(
+    storedSessionTraces(options.sessionStore).map((stored) => {
+      const thumbnails = options.thumbnails?.get(stored.summary.id);
+      return thumbnails ? { ...stored, thumbnails } : stored;
+    }),
+    origin,
+  );
+  const selection = selectGoldenSet(candidates, {
+    app,
+    ...(maxSessions === undefined ? {} : { maxSessions }),
+    ...(previous === undefined ? {} : { previous }),
+    ...(priorityUnits === undefined ? {} : { priorityUnits: priorityUnits as string[] }),
+  });
+  sendJson(response, 200, { ...selection, candidates: candidates.length, skipped }, headers);
 }
 
 function asPortableSession(value: unknown): PortableSessionForTrace {
@@ -1625,3 +1884,28 @@ function sendJson(
   });
   response.end(JSON.stringify(body));
 }
+
+/**
+ * A suite run: passed when every session replayed to the end with its clicks
+ * proven (a replay that went through on invoked methods proved nothing).
+ */
+function suiteRunSummary(results: readonly SuiteReplayResult[]) {
+  const counts: Record<string, number> = {};
+  for (const result of results) counts[result.status] = (counts[result.status] ?? 0) + 1;
+  return {
+    passed: results.every((result) => result.status === 'completed' && result.unprovenInteractions.length === 0),
+    counts,
+    results,
+  };
+}
+
+/** The addresses the app booted at: its components record the route they were created on. */
+function bootAddresses(session: unknown): string[] {
+  const events = isRecord(session) && Array.isArray(session['events']) ? session['events'] : [];
+  return events.flatMap((event) => {
+    if (!isRecord(event) || event['kind'] !== 'component-lifecycle') return [];
+    const payload = isRecord(event['payload']) ? event['payload'] : {};
+    return typeof payload['routeUrl'] === 'string' ? [payload['routeUrl']] : [];
+  });
+}
+

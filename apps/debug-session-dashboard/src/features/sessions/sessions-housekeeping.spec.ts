@@ -30,7 +30,9 @@ it('deletes a session, then cleans the old and the incompatible ones', async () 
   await click('delete-incompatible-sessions');
   // What is left can be replayed, and is recent.
   await vi.waitFor(async () =>
-    expect(await archivedIds()).toEqual([inject('archivedSessionId')]),
+    expect(new Set(await archivedIds())).toEqual(
+      new Set([inject('archivedSessionId'), inject('handRecordedSessionId')]),
+    ),
   );
   expect(confirm).toHaveBeenCalledTimes(2);
 });

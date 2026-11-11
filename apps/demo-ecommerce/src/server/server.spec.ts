@@ -201,6 +201,23 @@ describe('e-commerce authentication', () => {
     ).toBe(3);
   });
 
+  it('sends the week’s promotion with the catalogue, and charges its price at checkout', async () => {
+    const { promotion } = await invoke(catalog, {});
+    expect(promotion).toMatchObject({ categoryId: 'pastries', percentOff: 20 });
+    // Ends on a Sunday at 23:59:59, within the coming week.
+    const end = new Date(promotion!.endsAt);
+    expect([end.getDay(), end.getHours(), end.getMinutes(), end.getSeconds()]).toEqual([0, 23, 59, 59]);
+    expect(end.getTime() - Date.now()).toBeLessThanOrEqual(7 * 24 * 60 * 60 * 1000);
+    // A croissant (3 €) at −20 %, three times: 7.20 €, to the cent; the espresso at its price.
+    const order = await invoke(placeOrder, {
+      lines: [
+        { productId: 'croissant', quantity: 3 },
+        { productId: 'espresso', quantity: 1 },
+      ],
+    });
+    expect(order.total).toBe(10.7);
+  });
+
   it('keeps orders out of the public catalogue', async () => {
     await invoke(placeOrder, {
       lines: [{ productId: 'croissant', quantity: 1 }],

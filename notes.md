@@ -77,29 +77,7 @@ And run the following launch configuration in VSCode:
 }
 ```
 
-## Mettre à jour les deps des composants
+## Contrats de dépendances des composants
 
-1- Faire le build de la lib dev-tools
-
-2- `node dist/libs/dev-tools/src/scripts/angular-brand-codemod.js --root apps/demo/src`
-
-## Stress test
-
-# Interactif — Nx pose les questions définies dans schema.json
-
-nx generate @craft-ts/generators:type-stress
-
-# Avec options directes
-
-nx generate @craft-ts/generators:type-stress \
- --features=20 --componentsPerFeature=15 \
- --globalServices=20 --httpExceptions=1
-
-# Dry-run pour voir les fichiers qui seraient créés sans écrire
-
-nx generate @craft-ts/generators:type-stress --features=10 --dry-run
-
-# Puis benchmarker
-
-nx run type-stress:benchmark
-nx run type-stress:trace
+Les contrats sont inférés depuis les composants Craft avec `ComponentDepsOf`; aucun alias généré
+n'est maintenu séparément.

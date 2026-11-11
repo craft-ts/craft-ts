@@ -3,8 +3,9 @@ import { CraftRouter, CraftRouterLink, craftComputed, craftService, craftSleep, 
 import { catalog, placeOrder, searchCatalog } from './api';
 import { categoryName, categoryTone, euros, eventValue, failureOf, groupRule, lineKey, productEmoji, stockLabel } from './shop-format';
 import { ProductIdPathParams } from './product-id-path-params';
-import { Cart, ShopUi, quantityInCart } from './shop-state';
+import { Cart, PromoClock, ShopUi, quantityInCart } from './shop-state';
 import type { Catalog, CartLine, Category, Product } from '../shared/model';
+import { isPromoted, isPromotionActive, promotedPrice, promotionCountdown, type Promotion } from '../shared/promotion';
 import { initialStore } from '../shared/model';
 
 const loadStore = function* (): Generator<unknown, Catalog, unknown> {
@@ -30,6 +31,7 @@ export const { StorefrontView, provideStorefrontView } = craftService({ name: 's
       return [...products.filter((product) => product.kind === 'formule'), ...products.filter((product) => product.kind === 'simple' && product.stock > 0)].slice(0, 3);
     })),
     categories: craftUse(craftComputed('storeCategories', function* () { return (yield* resource.value())?.categories ?? []; })),
+    promotion: craftUse(craftComputed('storePromotion', function* () { return (yield* resource.value())?.promotion; })),
   }));
   yield* query('placeOrderProcess', {
     method: (lines: readonly CartLine[]) => lines,
@@ -80,6 +82,58 @@ interface CartApi {
 // Lecture paresseuse d'une valeur du gabarit (élément de forNode, computed, générateur).
 type Read<T> = () => Generator<unknown, T, unknown>;
 
+/** Le prix d'un produit à l'heure de la vitrine : remisé tant que la promotion court. */
+interface Pricing {
+  readonly price: (product: Product) => Generator<unknown, number, unknown>;
+  readonly promoted: (product: Product) => Generator<unknown, boolean, unknown>;
+  readonly total: (lines: readonly CartLine[]) => Generator<unknown, number, unknown>;
+}
+function pricingOf(promotion: Read<Promotion | undefined>, products: Read<readonly Product[]>, now: Read<number>): Pricing {
+  return {
+    price: function* (product) { return promotedPrice(product, yield* promotion(), yield* now()); },
+    promoted: function* (product) { return isPromoted(product, yield* promotion(), yield* now()); },
+    total: function* (lines) {
+      const promo = yield* promotion();
+      const at = yield* now();
+      const catalogue = yield* products();
+      return lines.reduce((sum, line) => {
+        const product = catalogue.find((item) => item.id === line.productId);
+        return sum + (product ? promotedPrice(product, promo, at) : 0) * line.quantity;
+      }, 0);
+    },
+  };
+}
+
+/** La promotion de la semaine et le temps qu'il lui reste, à la seconde. */
+function promoBanner(promotion: Read<Promotion | undefined>, categories: Read<readonly Category[]>, now: Read<number>) {
+  const active = function* () { return isPromotionActive(yield* promotion(), yield* now()); };
+  return ifNode('promo-banner', function* () { return (yield* promotion()) !== undefined; }, () =>
+    aside({ class: 'promo-banner', 'aria-label': 'Promotion de la semaine', 'data-state': function* () { return (yield* active()) ? 'active' : 'ended'; } }, [
+      span({ class: 'promo-emoji', 'aria-hidden': 'true' }, '🥐'),
+      div({ class: 'promo-copy' }, [
+        strong(function* () { return (yield* promotion())?.title ?? ''; }),
+        span(function* () {
+          const value = yield* promotion();
+          return value ? `−${value.percentOff} % sur toutes les ${categoryName(yield* categories(), value.categoryId).toLowerCase()}` : '';
+        }),
+      ]),
+      div({ class: 'promo-timer', role: 'timer' }, [
+        span({ class: 'promo-label' }, function* () { return (yield* active()) ? 'Se termine dans' : 'La promotion est'; }),
+        span({ class: 'promo-countdown' }, function* () { const value = yield* promotion(); return value ? promotionCountdown(value, yield* now()) : ''; }),
+      ]),
+    ]));
+}
+
+/** Le prix, et le prix de carte barré quand il est remisé. */
+function priceTag(pricing: Pricing, product: Read<Product | undefined>, size: 'card' | 'large') {
+  return span({ class: 'price-tag' }, [
+    ifNode('promo-was', function* () { const value = yield* product(); return value !== undefined && (yield* pricing.promoted(value)); },
+      () => span({ class: 'price-was' }, function* () { const value = yield* product(); return value ? euros(value.price) : ''; })),
+    span({ class: size === 'large' ? 'price large' : 'price', 'data-promo': function* () { const value = yield* product(); return value && (yield* pricing.promoted(value)) ? 'true' : undefined; } },
+      function* () { const value = yield* product(); return value ? euros(yield* pricing.price(value)) : ''; }),
+  ]);
+}
+
 function productVisual(product: Read<Product | undefined>, size: 'card' | 'hero' | 'thumb') {
   return div({ class: 'visual', 'data-size': size, 'data-tone': function* () { const value = yield* product(); return value ? categoryTone(value.categoryId) : 'sage'; } }, [
     span({ class: 'visual-emoji', 'aria-hidden': 'true' }, function* () { const value = yield* product(); return value ? productEmoji(value) : '🍽️'; }),
@@ -90,7 +144,7 @@ function productVisual(product: Read<Product | undefined>, size: 'card' | 'hero'
  * Le bouton « Ajouter » devient un sélecteur de quantité dès que le produit est
  * dans le panier : on voit ce qu'on a déjà pris, et on ajuste sans quitter la page.
  */
-function addToCartControl(cart: CartApi, product: Read<Product | undefined>, size: 'compact' | 'large') {
+function addToCartControl(cart: CartApi, pricing: Pricing, product: Read<Product | undefined>, size: 'compact' | 'large') {
   return ifNode('in-cart', function* () {
     const value = yield* product();
     return value?.kind === 'simple' && quantityInCart(yield* cart.cartLines(), value.id) > 0;
@@ -123,16 +177,17 @@ function addToCartControl(cart: CartApi, product: Read<Product | undefined>, siz
     if (!value) return 'Ajouter';
     if (value.kind === 'formule') return 'Composer →';
     if (value.stock <= 0) return 'Épuisé';
-    return size === 'large' ? `Ajouter au panier · ${euros(value.price)}` : '+ Ajouter';
+    return size === 'large' ? `Ajouter au panier · ${euros(yield* pricing.price(value))}` : '+ Ajouter';
   }));
 }
 
-function productCard(cart: CartApi, categories: Read<readonly Category[]>, product: Read<Product>) {
+function productCard(cart: CartApi, pricing: Pricing, categories: Read<readonly Category[]>, product: Read<Product>) {
   const openProduct = function* () { yield* goToProduct(yield* product()); };
   return article({ class: 'card', 'data-sold-out': function* () { return isAvailable(yield* product()) ? undefined : 'true'; } }, [
     button('open-visual', { type: 'button', class: 'card-visual', 'aria-label': function* () { return `Voir ${(yield* product()).name}`; }, click: openProduct }, [
       productVisual(product, 'card'),
       ifNode('formula-tag', function* () { return (yield* product()).kind === 'formule'; }, () => span({ class: 'corner-tag' }, 'À composer')),
+      ifNode('promo-tag', function* () { return yield* pricing.promoted(yield* product()); }, () => span({ class: 'corner-tag', 'data-tone': 'promo' }, 'Promo')),
       ifNode('formula-count', function* () { const value = yield* product(); return value.kind === 'formule' && quantityInCart(yield* cart.cartLines(), value.id) > 0; },
         () => span({ class: 'corner-tag', 'data-tone': 'ink' }, function* () { return `${quantityInCart(yield* cart.cartLines(), (yield* product()).id)} au panier`; })),
     ]),
@@ -142,10 +197,10 @@ function productCard(cart: CartApi, categories: Read<readonly Category[]>, produ
       p({ class: 'card-text' }, function* () { return (yield* product()).description; }),
       div({ class: 'card-foot' }, [
         div([
-          span({ class: 'price' }, function* () { return euros((yield* product()).price); }),
+          priceTag(pricing, product, 'card'),
           span({ class: 'stock-hint', 'data-level': function* () { const value = yield* product(); return value.kind === 'simple' && value.stock <= 3 ? 'low' : undefined; } }, function* () { const value = yield* product(); return value.kind === 'simple' ? stockLabel(value.stock) : 'Formule'; }),
         ]),
-        addToCartControl(cart, product, 'compact'),
+        addToCartControl(cart, pricing, product, 'compact'),
       ]),
     ]),
   ]);
@@ -154,6 +209,8 @@ function productCard(cart: CartApi, categories: Read<readonly Category[]>, produ
 const HomePage = craftComponent('EcommerceHomePage', { providers: [provideStorefrontView()] }, function* () {
   const { storeQuery } = yield* StorefrontView();
   const cart = yield* Cart();
+  const { promoNow } = yield* PromoClock();
+  const pricing = pricingOf(storeQuery.promotion, storeQuery.products, promoNow);
   return main([
     section({ class: 'hero' }, [
       div({ class: 'hero-copy' }, [
@@ -167,13 +224,14 @@ const HomePage = craftComponent('EcommerceHomePage', { providers: [provideStoref
       ]),
       div({ class: 'hero-art', 'aria-hidden': 'true' }, [span('☕'), span('🥐'), span('🍪')]),
     ]),
+    promoBanner(storeQuery.promotion, storeQuery.categories, promoNow),
     ul({ class: 'perks' }, [
       li([strong('Préparé le matin même'), span('Viennoiseries sorties du four à 7 h.')]),
       li([strong('Retrait offert'), span('Votre commande vous attend au comptoir.')]),
       li([strong('Formules sur mesure'), span('Vous choisissez chaque élément.')]),
     ]),
     div({ class: 'section-head' }, [div([span({ class: 'eyebrow' }, 'À la carte'), heading({ level: 2, class: 'section-title' }, 'Les incontournables')]), a('home-all', { class: 'text-link' }, 'Tout voir →').pipe(CraftRouterLink({ to: 'catalogue' }))]),
-    div({ class: 'grid' }, forNode(storeQuery.featuredProducts, { track: (product) => product.id }, (product) => productCard(cart, storeQuery.categories, product))),
+    div({ class: 'grid' }, forNode(storeQuery.featuredProducts, { track: (product) => product.id }, (product) => productCard(cart, pricing, storeQuery.categories, product))),
   ]);
 });
 
@@ -182,6 +240,8 @@ const CataloguePage = craftComponent('EcommerceCataloguePage', { providers: [pro
   const { searchQuery } = yield* SearchView();
   const cart = yield* Cart();
   const shopUi = yield* ShopUi();
+  const { promoNow } = yield* PromoClock();
+  const pricing = pricingOf(storeQuery.promotion, storeQuery.products, promoNow);
   const visibleProducts = yield* craftComputed('visibleProducts', function* () {
     const filter = yield* shopUi.categoryFilter();
     const search = (yield* shopUi.searchTerm()).trim();
@@ -195,13 +255,14 @@ const CataloguePage = craftComponent('EcommerceCataloguePage', { providers: [pro
       div([span({ class: 'eyebrow' }, 'Le comptoir'), heading({ class: 'page-title' }, 'La boutique'), p({ class: 'subtitle' }, 'Tout est préparé avec soin. Ajoutez, ajustez les quantités, le panier suit.')]),
       input('catalog-search', { type: 'search', 'aria-label': 'Rechercher un produit', placeholder: 'Rechercher un produit', value: function* () { return yield* shopUi.searchTerm(); }, input(event) { const value = eventValue(event); return shopUi.searchTerm.search(value); } }),
     ]),
+    promoBanner(storeQuery.promotion, storeQuery.categories, promoNow),
     div({ class: 'chips', role: 'toolbar', 'aria-label': 'Filtrer par catégorie' }, [
       button('filter-all', { type: 'button', class: 'chip', 'aria-pressed': function* () { return (yield* shopUi.categoryFilter()) === 'all' ? 'true' : 'false'; }, *click() { yield* shopUi.categoryFilter.choose('all'); } }, 'Tout'),
       forNode(storeQuery.categories, { track: (category) => category.id }, (category) =>
         button('filter-category', { type: 'button', class: 'chip', 'aria-pressed': function* () { return (yield* shopUi.categoryFilter()) === (yield* category()).id ? 'true' : 'false'; }, *click() { yield* shopUi.categoryFilter.choose((yield* category()).id); } }, function* () { return (yield* category()).name; })),
     ]),
     ifNode(storeQuery.isLoading, () => div({ class: 'grid' }, [div({ class: 'card skeleton' }), div({ class: 'card skeleton' }), div({ class: 'card skeleton' })]),
-      () => div({ class: 'grid' }, forNode(visibleProducts, { track: (product) => product.id, empty: () => p({ class: 'empty-note' }, 'Rien dans cette catégorie pour le moment.') }, (product) => productCard(cart, storeQuery.categories, product)))),
+      () => div({ class: 'grid' }, forNode(visibleProducts, { track: (product) => product.id, empty: () => p({ class: 'empty-note' }, 'Rien dans cette catégorie pour le moment.') }, (product) => productCard(cart, pricing, storeQuery.categories, product)))),
   ]);
 });
 
@@ -209,6 +270,8 @@ const ProductPage = craftComponent('EcommerceProductPage', { providers: [provide
   const { storeQuery } = yield* StorefrontView();
   const { currentProduct: product, relatedProducts } = yield* ProductView();
   const cart = yield* Cart();
+  const { promoNow } = yield* PromoClock();
+  const pricing = pricingOf(storeQuery.promotion, storeQuery.products, promoNow);
   return main([
     a('back-catalog', { class: 'text-link back-link' }, '← La boutique').pipe(CraftRouterLink({ to: 'catalogue' })),
     ifNode(storeQuery.isLoading, () => div({ class: 'product-layout' }, [div({ class: 'visual skeleton', 'data-size': 'hero' }), div({ class: 'panel skeleton' })]),
@@ -220,7 +283,7 @@ const ProductPage = craftComponent('EcommerceProductPage', { providers: [provide
             heading({ class: 'page-title' }, function* () { return (yield* product())?.name ?? ''; }),
             p({ class: 'lead' }, function* () { return (yield* product())?.description ?? ''; }),
             div({ class: 'price-row' }, [
-              span({ class: 'price large' }, function* () { const value = yield* product(); return value ? euros(value.price) : ''; }),
+              priceTag(pricing, product, 'large'),
               span({ class: 'stock-hint', 'data-level': function* () { const value = yield* product(); if (value?.kind !== 'simple') return undefined; return value.stock <= 0 ? 'out' : value.stock <= 3 ? 'low' : 'ok'; } }, function* () { const value = yield* product(); return value?.kind === 'simple' ? stockLabel(value.stock) : 'Formule à composer'; }),
             ]),
             ifNode('formula-groups', function* () { return (yield* product())?.kind === 'formule'; }, () => ul({ class: 'formula-rules' }, function* () {
@@ -228,14 +291,14 @@ const ProductPage = craftComponent('EcommerceProductPage', { providers: [provide
               const categories = yield* storeQuery.categories();
               return value?.kind === 'formule' ? value.groups.map((group) => `${categoryName(categories, group.categoryId)} · ${groupRule(group)}`).join('  ·  ') : '';
             })),
-            addToCartControl(cart, product, 'large'),
+            addToCartControl(cart, pricing, product, 'large'),
             ul({ class: 'reassurance' }, [li('🕖 Préparé le matin même'), li('🛍 Retrait offert au comptoir'), li('🔒 Paiement de démonstration, sans carte')]),
           ]),
         ]),
         () => div({ class: 'empty-state' }, [span({ class: 'empty-emoji', 'aria-hidden': 'true' }, '🫙'), heading({ level: 2 }, 'Produit introuvable'), p({ class: 'muted' }, 'Il a peut-être quitté la carte. Jetez un œil au reste de la boutique.'), a('missing-shop', { class: 'button' }, 'Voir la boutique').pipe(CraftRouterLink({ to: 'catalogue' }))]))),
     ifNode('has-related', function* () { return (yield* relatedProducts()).length > 0; }, () => section({ class: 'related' }, [
       div({ class: 'section-head' }, [heading({ level: 2, class: 'section-title' }, 'Vous aimerez aussi')]),
-      div({ class: 'grid' }, forNode(relatedProducts, { track: (item) => item.id }, (item) => productCard(cart, storeQuery.categories, item))),
+      div({ class: 'grid' }, forNode(relatedProducts, { track: (item) => item.id }, (item) => productCard(cart, pricing, storeQuery.categories, item))),
     ])),
   ]);
 });
@@ -311,18 +374,19 @@ const FormulaPage = craftComponent('EcommerceFormulaPage', { providers: [provide
   ]);
 });
 
-function selectionSummary(line: CartLine, product: Product | undefined, products: readonly Product[]): string {
-  if (product?.kind !== 'formule' || !line.selections) return product?.kind === 'simple' ? euros(product.price) + ' l’unité' : '';
+function selectionSummary(line: CartLine, product: Product | undefined, products: readonly Product[], unitPrice: number): string {
+  if (product?.kind !== 'formule' || !line.selections) return product?.kind === 'simple' ? euros(unitPrice) + ' l’unité' : '';
   const names = line.selections.flatMap((selection) => selection.productIds).map((id) => products.find((item) => item.id === id)?.name ?? id);
   return names.length ? names.join(' · ') : 'Formule sans accompagnement';
 }
-const cartTotal = (lines: readonly CartLine[], products: readonly Product[]) =>
-  lines.reduce((sum, line) => sum + (products.find((product) => product.id === line.productId)?.price ?? 0) * line.quantity, 0);
 
 const CartPage = craftComponent('EcommerceCartPage', { providers: [provideStorefrontView()] }, function* () {
   const { storeQuery } = yield* StorefrontView();
   const cart = yield* Cart();
+  const { promoNow } = yield* PromoClock();
+  const pricing = pricingOf(storeQuery.promotion, storeQuery.products, promoNow);
   const productOf = function* (line: Read<CartLine>) { const value = yield* line(); return (yield* storeQuery.products()).find((product) => product.id === value.productId); };
+  const unitPrice = function* (line: Read<CartLine>) { const product = yield* productOf(line); return product ? yield* pricing.price(product) : 0; };
   return main([
     span({ class: 'eyebrow' }, 'Avant de se régaler'), heading({ class: 'page-title' }, 'Votre panier'),
     ifNode('cart-empty', function* () { return (yield* cart.cartCount()) === 0; },
@@ -332,7 +396,7 @@ const CartPage = craftComponent('EcommerceCartPage', { providers: [provideStoref
           productVisual(function* () { return yield* productOf(line); }, 'thumb'),
           div({ class: 'cart-line-info' }, [
             strong(function* () { return (yield* productOf(line))?.name ?? 'Produit retiré de la carte'; }),
-            span({ class: 'muted' }, function* () { return selectionSummary(yield* line(), yield* productOf(line), yield* storeQuery.products()); }),
+            span({ class: 'muted' }, function* () { return selectionSummary(yield* line(), yield* productOf(line), yield* storeQuery.products(), yield* unitPrice(line)); }),
             div({ class: 'stepper', 'data-size': 'compact' }, [
               button('line-decrease', { type: 'button', class: 'stepper-button', 'aria-label': 'Retirer un exemplaire', *click() { yield* cart.cartLines.shift(lineKey(yield* line()), -1); } }, '−'),
               span({ class: 'stepper-value' }, function* () { return String((yield* line()).quantity); }),
@@ -340,15 +404,15 @@ const CartPage = craftComponent('EcommerceCartPage', { providers: [provideStoref
             ]),
           ]),
           div({ class: 'cart-line-end' }, [
-            span({ class: 'price' }, function* () { return euros(((yield* productOf(line))?.price ?? 0) * (yield* line()).quantity); }),
+            span({ class: 'price' }, function* () { return euros((yield* unitPrice(line)) * (yield* line()).quantity); }),
             button('remove-line', { type: 'button', class: 'icon-button', 'aria-label': 'Retirer du panier', *click() { yield* cart.cartLines.remove(lineKey(yield* line())); } }, '✕'),
           ]),
         ]))),
         aside({ class: 'summary' }, [
           heading({ level: 2, class: 'summary-title' }, 'Récapitulatif'),
-          div({ class: 'summary-row' }, [span(function* () { return `Sous-total · ${yield* cart.cartCount()} article(s)`; }), span(function* () { return euros(cartTotal(yield* cart.cartLines(), yield* storeQuery.products())); })]),
+          div({ class: 'summary-row' }, [span(function* () { return `Sous-total · ${yield* cart.cartCount()} article(s)`; }), span(function* () { return euros(yield* pricing.total(yield* cart.cartLines())); })]),
           div({ class: 'summary-row' }, [span('Retrait en boutique'), span({ class: 'free' }, 'Offert')]),
-          div({ class: 'summary-total' }, [span('Total'), strong(function* () { return euros(cartTotal(yield* cart.cartLines(), yield* storeQuery.products())); })]),
+          div({ class: 'summary-total' }, [span('Total'), strong(function* () { return euros(yield* pricing.total(yield* cart.cartLines())); })]),
           a('to-checkout', { class: 'button button-block' }, 'Passer commande →').pipe(CraftRouterLink({ to: 'paiement' })),
           a('continue-shopping', { class: 'text-link center' }, 'Continuer mes achats').pipe(CraftRouterLink({ to: 'catalogue' })),
         ]),
@@ -359,6 +423,8 @@ const CartPage = craftComponent('EcommerceCartPage', { providers: [provideStoref
 const CheckoutPage = craftComponent('EcommerceCheckoutPage', { providers: [provideStorefrontView()] }, function* () {
   const { storeQuery, placeOrderProcess } = yield* StorefrontView();
   const cart = yield* Cart();
+  const { promoNow } = yield* PromoClock();
+  const pricing = pricingOf(storeQuery.promotion, storeQuery.products, promoNow);
   const placedOrder = yield* craftComputed('placedOrder', function* () { const result = yield* placeOrderProcess.value(); return result && !isCraftException(result) ? result : undefined; });
   return main([
     ifNode('order-placed', function* () { return (yield* placedOrder()) !== undefined; },
@@ -378,11 +444,11 @@ const CheckoutPage = craftComponent('EcommerceCheckoutPage', { providers: [provi
             p({ class: 'muted' }, 'atelier. · 12 rue des Lilas · ouvert de 7 h à 19 h. Votre commande est prête en 15 minutes.'),
             ul({ class: 'checkout-lines' }, forNode(cart.cartLines, { track: (line) => lineKey(line), empty: () => li({ class: 'muted' }, 'Votre panier est vide.') }, (line) => li([
               span(function* () { const value = yield* line(); const product = (yield* storeQuery.products()).find((item) => item.id === value.productId); return `${value.quantity} × ${product?.name ?? 'Produit retiré'}`; }),
-              span({ class: 'price' }, function* () { const value = yield* line(); const product = (yield* storeQuery.products()).find((item) => item.id === value.productId); return euros((product?.price ?? 0) * value.quantity); }),
+              span({ class: 'price' }, function* () { const value = yield* line(); const product = (yield* storeQuery.products()).find((item) => item.id === value.productId); return euros((product ? yield* pricing.price(product) : 0) * value.quantity); }),
             ]))),
           ]),
           aside({ class: 'summary' }, [
-            div({ class: 'summary-total' }, [span('À régler au comptoir'), strong(function* () { return euros(cartTotal(yield* cart.cartLines(), yield* storeQuery.products())); })]),
+            div({ class: 'summary-total' }, [span('À régler au comptoir'), strong(function* () { return euros(yield* pricing.total(yield* cart.cartLines())); })]),
             button('confirm-order', { type: 'button', class: 'button button-block', disabled: function* () { return (yield* placeOrderProcess.isLoading()) || (yield* cart.cartCount()) === 0; }, *click() {
               const lines = yield* cart.cartLines();
               if (lines.length) yield* placeOrderProcess.call(lines);

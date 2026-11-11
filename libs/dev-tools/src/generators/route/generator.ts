@@ -13,7 +13,6 @@ import {
   type Tree,
 } from '@nx/devkit';
 import { Project } from 'ts-morph';
-import { findAngularDecoratedClass } from '../../scripts/angular-brand-codemod.js';
 import {
   captureRouteEslintBaseline,
   listRouteCollections,

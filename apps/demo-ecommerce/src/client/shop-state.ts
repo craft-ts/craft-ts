@@ -1,4 +1,5 @@
 import {
+  CraftTemporalRuntime,
   craftComputed,
   craftService,
   craftUnique,
@@ -233,6 +234,26 @@ export const { Session } = craftService(
       const role = (yield* currentSession())?.user.role;
       return role === 'admin' || role === 'product-manager';
     });
+  },
+);
+
+/**
+ * L'heure qu'il est pour la vitrine, à la seconde : le compte à rebours de la
+ * promotion et les prix remisés en dépendent. Elle vient du runtime temporel
+ * de Craft (`dateNow`), jamais de `Date` directement.
+ */
+export const { PromoClock } = craftService(
+  { name: 'promoClock', providedIn: 'global' },
+  function* () {
+    const temporal = yield* CraftTemporalRuntime();
+    const promoNow = yield* state('promoNow', temporal.dateNow(), ({ set }) => ({
+      tick: (now: number) => set(now),
+    }));
+    const tick = () => {
+      promoNow.tick(temporal.dateNow());
+      temporal.schedule(tick, 1_000, { owner: 'promo-countdown' });
+    };
+    temporal.schedule(tick, 1_000, { owner: 'promo-countdown' });
   },
 );
 

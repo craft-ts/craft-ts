@@ -39,6 +39,7 @@ import {
   query,
   craftRoute,
 } from '@craft-ts/core';
+import { loadCraftComponent } from '@craft-ts/component';
 
 type User = { name: string };
 
@@ -61,8 +62,9 @@ const { Auth } = craftService(
 
 export const { demoRoutes } = craftRoutes('demo', [
   craftRoute('query/:userId', {
-    componentDeps: {} as import('./query').GenDeps_GlobalQuery,
-    loadComponent: ({ withRetry }) => withRetry(import('./query')),
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./query')).then((m) => m.GlobalQuery),
+    ),
     canActivate: function* () {
       const auth = yield* Auth.auth();
       const userValue = auth.value();
@@ -179,8 +181,9 @@ factory output):
 
 ```ts
 craftRoute('admin', {
-  componentDeps: {} as import('./admin').GenDeps_Admin,
-  loadComponent: ({ withRetry }) => withRetry(import('./admin')),
+  ...loadCraftComponent(({ withRetry }) =>
+    withRetry(import('./admin')).then((m) => m.Admin),
+  ),
   providers: [SomeCraftProvider], // plain array, untyped helpers
 }).withProviders(({ Data }) => [
   /* factory-built providers with tracking */

@@ -10,6 +10,31 @@ const RESUME_RECIPE_SESSION_PARAM = 'craft-debug-session-recipe-id';
 const RESUME_RECIPE_LAUNCH_PARAM = 'craft-resume-recipe-launch';
 const RESUME_SESSION_METADATA_KEY = 'craft-debug-session-resume';
 const RECIPE_RUN_MARKED_EVENT = 'craft-debug-session-recipe-run';
+/** Without input for this long, in every tab, the session ends. */
+export const DEFAULT_DEBUG_SESSION_IDLE_TIMEOUT_MS = 30 * 60_000;
+const ACTIVITY_WRITE_INTERVAL_MS = 5_000;
+const HUMAN_INPUT_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'pointermove'] as const;
+/** Inputs that start a new session in a tab whose session ended while it sat unused. */
+const WAKING_INPUT_EVENTS = new Set(['pointerdown', 'keydown', 'touchstart']);
+
+/**
+ * The last input seen in any tab of the origin, for the session it went to.
+ * `continuesFrom` is set once a session began after a pause in the previous one.
+ */
+type SharedActivity = Readonly<{ id: string; at: number; continuesFrom?: string }>;
+
+export type DebugSessionPersistenceOptions = Readonly<{
+  /** Defaults to {@link DEFAULT_DEBUG_SESSION_IDLE_TIMEOUT_MS}. */
+  idleTimeoutMs?: number;
+  /**
+   * Empties the recording and starts it again from the page as it is now, for
+   * the session that begins when the user comes back. Defaults to
+   * `clear()` then `startRecord()`.
+   */
+  restartRecording?: () => void;
+  /** For tests. */
+  now?: () => number;
+}>;
 
 type E2ESessionMarker = Readonly<{ id: string; test: Readonly<Record<string, unknown>> }>;
 type E2ESessionReady = (id: string) => unknown;
@@ -23,6 +48,7 @@ type CraftDebugSessionApi = Readonly<{
 export function connectDebugSessionPersistence(
   session: SendContextSession,
   webSocketUrl: string,
+  options: DebugSessionPersistenceOptions = {},
 ): () => void {
   if (typeof window === 'undefined' || typeof WebSocket === 'undefined')
     return () => undefined;
@@ -38,11 +64,22 @@ export function connectDebugSessionPersistence(
     typeof sessionScope === 'string' ? `:resume:${sessionScope}` : '';
   const storageKey = `${SHARED_SESSION_ID_KEY}:${location.origin}${resumeSuffix}`;
   const participantStorageKey = `${PARTICIPANT_ID_KEY}:${location.origin}${resumeSuffix}`;
+  const activityStorageKey = `${storageKey}:activity`;
+  const now = options.now ?? (() => Date.now());
+  const idleTimeoutMs = Math.max(1, options.idleTimeoutMs ?? DEFAULT_DEBUG_SESSION_IDLE_TIMEOUT_MS);
+  // A test or a guided resume is one bounded run: it never splits.
+  const rotates = !marker && !resume;
   let id: string | undefined;
+  /** The session this one picks up from, after a pause. */
+  let continuesFrom: string | undefined;
+  /** Ended for lack of input; the next input starts a new session. */
+  let dormant = false;
+  let lastInputAt = now();
+  let lastActivityWrite = Number.NEGATIVE_INFINITY;
   let participantId = readOrCreateParticipantId(participantStorageKey);
   let releaseParticipantLock: () => void = () => undefined;
   let persistenceStarted = false;
-  const createdAt = new Date(
+  let createdAt = new Date(
     session.activeClip?.startedAt ?? Date.now(),
   ).toISOString();
   let socket: WebSocket | undefined;
@@ -68,17 +105,75 @@ export function connectDebugSessionPersistence(
     }
   };
 
+  const readActivity = (): SharedActivity | undefined => {
+    try {
+      const value: unknown = JSON.parse(localStorage.getItem(activityStorageKey) ?? 'null');
+      return isRecord(value) &&
+        typeof value['id'] === 'string' &&
+        isUuid(value['id']) &&
+        typeof value['at'] === 'number' &&
+        Number.isFinite(value['at'])
+        ? {
+            id: value['id'],
+            at: value['at'],
+            ...(typeof value['continuesFrom'] === 'string' && isUuid(value['continuesFrom'])
+              ? { continuesFrom: value['continuesFrom'] }
+              : {}),
+          }
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const writeActivity = (force = false): void => {
+    if (!rotates || !id) return;
+    const at = now();
+    if (!force && at - lastActivityWrite < ACTIVITY_WRITE_INTERVAL_MS) return;
+    lastActivityWrite = at;
+    try {
+      localStorage.setItem(
+        activityStorageKey,
+        JSON.stringify({ id, at, ...(continuesFrom ? { continuesFrom } : {}) } satisfies SharedActivity),
+      );
+    } catch {
+      // Without storage each tab judges its own pause.
+    }
+  };
+
+  /** The shared session is still in use: some tab had input recently enough. */
+  const isLive = (sharedId: string, activity = readActivity()): boolean =>
+    activity?.id === sharedId && now() - activity.at < idleTimeoutMs;
+
+  /**
+   * The session a tab joins: the shared one while it is in use, otherwise a
+   * new one that continues it (the previous one ended after a pause).
+   */
+  const takeSharedId = (previous: string | undefined): string => {
+    const activity = readActivity();
+    const existing = localStorage.getItem(storageKey);
+    if (existing && isUuid(existing) && existing !== previous && (!rotates || isLive(existing, activity))) {
+      continuesFrom = activity?.id === existing ? activity.continuesFrom : undefined;
+      return existing;
+    }
+    const before = previous ?? (existing && isUuid(existing) ? existing : undefined);
+    const created = crypto.randomUUID();
+    continuesFrom = rotates ? before : undefined;
+    localStorage.setItem(storageKey, created);
+    return created;
+  };
+
   const readOrCreateSharedId = (): string => {
     try {
       if (marker?.id && isUuid(marker.id)) {
         localStorage.setItem(storageKey, marker.id);
         return marker.id;
       }
-      const existing = localStorage.getItem(storageKey);
-      if (existing && isUuid(existing)) return existing;
-      const created = crypto.randomUUID();
-      localStorage.setItem(storageKey, created);
-      return created;
+      const sharedId = takeSharedId(undefined);
+      // Read under the same lock as the choice, so tabs opened together agree.
+      id = sharedId;
+      writeActivity(true);
+      return sharedId;
     } catch {
       return crypto.randomUUID();
     }
@@ -150,6 +245,7 @@ export function connectDebugSessionPersistence(
       session: {
         ...exported,
         ...(resume ? { resume } : {}),
+        ...(continuesFrom ? { continuesFrom } : {}),
         events: [],
         clips: clipsForEvents([]),
       },
@@ -325,6 +421,21 @@ export function connectDebugSessionPersistence(
             connection.close(1000, 'session finish acknowledged');
             return;
           }
+          // The other tabs left and nobody used this one: the session ended
+          // without it. Its next input starts a new one.
+          if (
+            rotates &&
+            isRecord(message) &&
+            message['type'] === 'session:ended' &&
+            message['id'] === id
+          ) {
+            dormant = true;
+            if (retryTimer !== undefined) clearTimeout(retryTimer);
+            retryTimer = undefined;
+            socket = undefined;
+            connection.close(1000, 'session ended');
+            return;
+          }
           if (
             !isRecord(message) ||
             message['type'] !== 'session:ready' ||
@@ -339,6 +450,7 @@ export function connectDebugSessionPersistence(
             } catch {
               // The in-memory id is sufficient for this page if storage is denied.
             }
+            writeActivity(true);
           }
           // Under a Playwright test, the fixture keeps the effective id even if
           // the test closes this page before the end.
@@ -384,8 +496,15 @@ export function connectDebugSessionPersistence(
     if (closed) { finishResult?.('offline'); return finishPromise; }
     closed = true;
     if (retryTimer !== undefined) clearTimeout(retryTimer);
-    id ??= readOrCreateSharedId();
-    if (id) {
+    if (idleTimer !== undefined) clearInterval(idleTimer);
+    // A dormant tab already ended its part; saying it again would reopen it.
+    if (dormant) {
+      finishResult?.('offline');
+      finishResult = undefined;
+    } else {
+      id ??= readOrCreateSharedId();
+    }
+    if (id && !dormant) {
       const canReceiveAcknowledgement = socket?.readyState === WebSocket.OPEN;
       send({
         type: 'session:events',
@@ -463,6 +582,17 @@ export function connectDebugSessionPersistence(
     if (event.key !== storageKey || !event.newValue || !isUuid(event.newValue))
       return;
     if (event.newValue === id) return;
+    // Waiting for input: the new session is joined then, from that moment.
+    if (dormant) return;
+    // Another tab began a new session after a pause in this one: what this tab
+    // recorded belongs to the one that ended.
+    if (rotates && id && readActivity()?.continuesFrom === id) {
+      fallAsleep();
+      return;
+    }
+    // Only a session a tab says it uses: a tab of an older version, left
+    // open, writes its own id there without ever being used.
+    if (rotates && !isLive(event.newValue)) return;
     id = event.newValue;
     if (retryTimer !== undefined) clearTimeout(retryTimer);
     retryTimer = undefined;
@@ -471,6 +601,89 @@ export function connectDebugSessionPersistence(
     previous?.close(4001, 'shared session changed');
     connect();
   };
+
+  /** Ends this tab's part of the session; the server closes it once every tab has. */
+  function fallAsleep(): void {
+    if (dormant || closed || !id) return;
+    dormant = true;
+    send({
+      type: 'session:events',
+      id,
+      events: [],
+      clips: clipMetadata(),
+      participantId,
+      truncated: session.clips.some((clip) => clip.truncated),
+    });
+    send({ type: 'session:finish', id, participantId });
+    persistFinishWithKeepalive(id);
+    if (retryTimer !== undefined) clearTimeout(retryTimer);
+    retryTimer = undefined;
+    const previous = socket;
+    socket = undefined;
+    previous?.close(1000, 'session ended after a pause');
+  }
+
+  /**
+   * The user is back: the recording starts over from the page as it is, in the
+   * session another tab already began, or in a new one that continues the
+   * previous. Runs before the input reaches the page, so the input is the first
+   * thing the new recording sees.
+   */
+  function wakeUp(): void {
+    if (!dormant || closed) return;
+    const previous = id;
+    let next: string;
+    try {
+      next = takeSharedId(previous);
+    } catch {
+      next = crypto.randomUUID();
+      continuesFrom = previous;
+    }
+    dormant = false;
+    const answers = lastAnswers(session.events);
+    if (options.restartRecording) options.restartRecording();
+    else {
+      session.clear();
+      session.startRecord('Application session');
+    }
+    // The page loaded long before: a replay of this session starts it again,
+    // and its loading requests are answered by what the server said last.
+    for (const { id: _id, sequence: _sequence, timestamp: _timestamp, ...event } of answers)
+      session.emit(event);
+    lastParticipantState = participantState();
+    session.capture('participant', 'emitted', {
+      name: 'state',
+      payload: { state: lastParticipantState, initial: true },
+    });
+    id = next;
+    createdAt = new Date(session.activeClip?.startedAt ?? now()).toISOString();
+    lastSequence = 0;
+    syncing = false;
+    pendingHistory = [];
+    excludedReplayEventIds.clear();
+    writeActivity(true);
+    connect();
+  }
+
+  const onHumanInput = (event: Event): void => {
+    if (!rotates || closed) return;
+    lastInputAt = now();
+    if (dormant) {
+      if (WAKING_INPUT_EVENTS.has(event.type)) wakeUp();
+      return;
+    }
+    writeActivity();
+  };
+
+  const checkIdle = (): void => {
+    if (!rotates || dormant || closed || !id) return;
+    const activity = readActivity();
+    const lastInput = Math.max(lastInputAt, activity?.id === id ? activity.at : Number.NEGATIVE_INFINITY);
+    if (now() - lastInput >= idleTimeoutMs) fallAsleep();
+  };
+  const idleTimer: ReturnType<typeof setInterval> | undefined = rotates
+    ? setInterval(checkIdle, Math.min(60_000, idleTimeoutMs))
+    : undefined;
 
   const updateParticipantState = (): void => {
     const state = participantState();
@@ -494,6 +707,9 @@ export function connectDebugSessionPersistence(
 
   window.addEventListener('pagehide', finish, { once: true });
   window.addEventListener('storage', onStorage);
+  for (const type of HUMAN_INPUT_EVENTS)
+    window.addEventListener(type, onHumanInput, { capture: true, passive: true });
+  document.addEventListener('visibilitychange', checkIdle);
   window.addEventListener(RECIPE_RUN_MARKED_EVENT, onRecipeRunMarked);
   window.addEventListener('focus', onFocus);
   window.addEventListener('blur', onBlur);
@@ -510,6 +726,9 @@ export function connectDebugSessionPersistence(
   return () => {
     window.removeEventListener('pagehide', finish);
     window.removeEventListener('storage', onStorage);
+    for (const type of HUMAN_INPUT_EVENTS)
+      window.removeEventListener(type, onHumanInput, { capture: true });
+    document.removeEventListener('visibilitychange', checkIdle);
     window.removeEventListener(RECIPE_RUN_MARKED_EVENT, onRecipeRunMarked);
     window.removeEventListener('focus', onFocus);
     window.removeEventListener('blur', onBlur);
@@ -676,6 +895,28 @@ function guidedResumeMetadata(): Readonly<Record<string, unknown>> | undefined {
   } catch {
     return fromUrl();
   }
+}
+
+/**
+ * The last recorded answer to each distinct request the page sent, request
+ * then answer, in the order they were sent.
+ */
+function lastAnswers(events: readonly SendContextEvent[]): readonly SendContextEvent[] {
+  const finishes = new Map<string, SendContextEvent>();
+  for (const event of events)
+    if (event.kind === 'http' && event.operationId && (event.phase === 'succeeded' || event.phase === 'failed'))
+      finishes.set(event.operationId, event);
+  const latest = new Map<string, readonly [SendContextEvent, SendContextEvent]>();
+  for (const event of events) {
+    if (event.kind !== 'http' || event.phase !== 'started' || !event.operationId || !isRecord(event.payload)) continue;
+    if (event.payload['source'] !== 'browser-fetch') continue;
+    const finish = finishes.get(event.operationId);
+    if (!finish) continue;
+    const key = JSON.stringify([event.payload['method'], event.payload['url'], event.payload['body']]);
+    latest.delete(key);
+    latest.set(key, [event, finish]);
+  }
+  return [...latest.values()].flat();
 }
 
 function participantState(): 'visible' | 'hidden' | 'blurred' {

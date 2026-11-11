@@ -207,17 +207,15 @@ describe('Type-safe DI/Routes setup doc page', () => {
     );
     expect(content).toContain('type _CanRunApp = CanRun<_CheckAppDI>;');
     expect(content).toContain(
-      "componentDeps: {} as import('./test').GenDeps_TestComponent,",
+      'loadCraftComponent(...) wires the lazy component and its dependency contract together.',
     );
+    expect(content).not.toContain('componentDeps on each route');
     expect(content).toContain('provideCraftRouter(appRoutes.toRoutes()');
   });
 
-  it('documents the codemod script and the refresh workflow', () => {
-    expect(content).toContain(
-      '## 3. Generate dependency metadata',
-    );
-    expect(content).toContain('craft-brand --root src');
-    expect(content).toContain('run the dependency generator for the relevant source root');
+  it('documents inferred component dependency contracts', () => {
+    expect(content).toContain('ComponentDepsOf');
+    expect(content).toContain('loadCraftComponent');
   });
 
   it('points at the dedicated ESLint rules page', () => {

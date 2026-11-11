@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "90d98439f9ae1684",
+  "graphHash": "adedaa950be94e9e",
   "routes": [
     "",
     ":recipeId",
@@ -11,7 +11,8 @@ export const architectureCatalog = {
     "e2e-replay",
     "import",
     "recipes",
-    "sessions"
+    "sessions",
+    "suite"
   ],
   "services": [
     "CraftFieldCheckboxControl",
@@ -36,6 +37,7 @@ export const architectureCatalog = {
     "docToastQueue",
     "e2eComparison",
     "e2eReplayRoute",
+    "goldenSuiteArchive",
     "replayBridge",
     "replayDashboardState",
     "replayDebug",
@@ -105,12 +107,16 @@ export const architectureCatalog = {
     "ReplayTimeline",
     "ResumeDialog",
     "SessionsPage",
+    "SuitePage",
     "craftPending"
   ],
   "primitives": [
     "activeReplayEventIdState",
     "activeReplayParticipantId",
     "activeRouteSessionId",
+    "approveChange",
+    "approveFailed",
+    "approving",
     "approximate",
     "archived",
     "ariaDisabled",
@@ -126,8 +132,11 @@ export const architectureCatalog = {
     "captureError",
     "captureInProgress",
     "chat",
+    "check",
+    "checkRows",
     "checkpoints",
     "choice",
+    "chosenOrigin",
     "clearAllCache",
     "closeRemovedSession",
     "closed",
@@ -136,11 +145,9 @@ export const architectureCatalog = {
     "continuationsState",
     "copied",
     "coverage",
-    "coverageApps",
-    "coverageLoading",
     "coverageSections",
     "coverageSummaries",
-    "coverageUnreachable",
+    "current",
     "dashboardReplayStatus",
     "deleteSession",
     "deleteSessions",
@@ -155,6 +162,7 @@ export const architectureCatalog = {
     "differenceTitle",
     "disabled",
     "dismissedWarnings",
+    "effective",
     "environmentWarningHidden",
     "environmentWarningState",
     "error",
@@ -166,6 +174,7 @@ export const architectureCatalog = {
     "existingText",
     "expiredSessionCount",
     "expiredSessions",
+    "facts",
     "failArchivedSession",
     "failedHidden",
     "feedback",
@@ -174,6 +183,7 @@ export const architectureCatalog = {
     "firstDivergenceLabel",
     "firstDivergenceText",
     "followRoute",
+    "goldenSuite",
     "hasDifferenceState",
     "hidden",
     "hiddenFirstDivergence",
@@ -184,6 +194,9 @@ export const architectureCatalog = {
     "issuesText",
     "journalEventsState",
     "journalSummaryText",
+    "kept",
+    "lastCheck",
+    "lastRun",
     "loadError",
     "loadErrorHidden",
     "loadErrorText",
@@ -204,6 +217,8 @@ export const architectureCatalog = {
     "openArchivedSession",
     "openEntryIndex",
     "openThumbnailManifest",
+    "openedCheckSession",
+    "openings",
     "orchestrationCommands",
     "orchestrationIssues",
     "orchestrationState",
@@ -233,6 +248,7 @@ export const architectureCatalog = {
     "recordedSessions",
     "recordingCount",
     "recordingLabel",
+    "rejected",
     "renderedMarks",
     "replayActionOffsetsMsState",
     "replayDifferences",
@@ -241,11 +257,13 @@ export const architectureCatalog = {
     "replayPlanState",
     "replaySkeletonVisible",
     "replayState",
+    "replayUnreachable",
     "replayViewport",
     "replayViewportScale",
     "replayWarnings",
     "replayableEventsState",
     "replayableParticipantsState",
+    "replaying",
     "reportText",
     "restartDisabled",
     "resumeCheckpointList",
@@ -308,21 +326,30 @@ export const architectureCatalog = {
     "steps",
     "storageBytes",
     "submitDisabled",
+    "suite",
+    "suiteLoading",
+    "suiteOpenings",
+    "suiteOriginList",
+    "suiteRun",
+    "suiteUnreachable",
     "summary",
     "summaryHidden",
     "summaryText",
     "targetUrl",
     "thread",
     "thumbnailManifest",
+    "thumbnailWatcher",
     "timeProgress",
     "timeRemaining",
     "timelineExpanded",
     "timelineProgress",
     "title",
     "titleText",
+    "toRecapture",
     "toastMessage",
     "toasts",
     "toleranceMessage",
+    "uncovered",
     "view",
     "viewportLabel",
     "visibleEventPageState",
@@ -330,7 +357,8 @@ export const architectureCatalog = {
     "visibleSessions",
     "visibleWarnings",
     "warningHistory",
-    "warningHistoryOpen"
+    "warningHistoryOpen",
+    "watcher"
   ],
   "sources": [
     "refreshRequested$ (source$)",
@@ -366,6 +394,10 @@ export const architectureCatalog = {
     },
     {
       "method": "GET",
+      "url": "*/sessions/check?origin=*"
+    },
+    {
+      "method": "GET",
       "url": "*/sessions/checkpoints?*"
     },
     {
@@ -382,7 +414,7 @@ export const architectureCatalog = {
     },
     {
       "method": "GET",
-      "url": "<unresolved:resume-thread.service.ts:79>"
+      "url": "<unresolved:resume-thread.service.ts:81>"
     },
     {
       "method": "POST",
@@ -390,7 +422,15 @@ export const architectureCatalog = {
     },
     {
       "method": "POST",
+      "url": "*/sessions/check/approve"
+    },
+    {
+      "method": "POST",
       "url": "*/sessions/delete-many"
+    },
+    {
+      "method": "POST",
+      "url": "*/sessions/golden-set"
     },
     {
       "method": "POST",
@@ -399,6 +439,10 @@ export const architectureCatalog = {
     {
       "method": "POST",
       "url": "*/sessions/resume-requests"
+    },
+    {
+      "method": "POST",
+      "url": "*/sessions/suite-replay"
     },
     {
       "method": "POST",
@@ -543,7 +587,8 @@ export const architectureCatalog = {
         "apps/debug-session-dashboard/src/features/e2e-replay/e2e-replay.routes.ts",
         "apps/debug-session-dashboard/src/features/recipes/recipes.routes.ts",
         "apps/debug-session-dashboard/src/features/replay/replay.routes.ts",
-        "apps/debug-session-dashboard/src/features/sessions/sessions.routes.ts"
+        "apps/debug-session-dashboard/src/features/sessions/sessions.routes.ts",
+        "apps/debug-session-dashboard/src/features/suite/suite.routes.ts"
       ]
     }
   },
@@ -557,6 +602,7 @@ export const architectureCatalog = {
     "sessionPageActions": "global",
     "behaviorCoverageArchive": "global",
     "e2eComparison": "global",
+    "goldenSuiteArchive": "global",
     "resumeThread": "global",
     "sessionArchive": "global",
     "thumbnailArchive": "global",

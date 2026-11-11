@@ -36,6 +36,7 @@
       "@craft-ts/playwright-sessions": ["./libs/playwright-sessions/src/index.ts"],
       "@craft-ts/playwright-sessions/architecture": ["./libs/playwright-sessions/src/architecture.ts"],
       "@craft-ts/playwright-sessions/history": ["./libs/playwright-sessions/src/history.ts"],
+      "@craft-ts/playwright-sessions/suite": ["./libs/playwright-sessions/src/suite/index.ts"],
       "@craft-ts/dev-tools/contrast": [
         "./libs/dev-tools/src/scripts/contrast.ts"
       ],
@@ -44,6 +45,7 @@
       "@craft-ts/style-testing/visual-app/server": ["./libs/review-attestation/src/lib/visual-app/server.ts"],
       "@craft-ts/style-testing/visual-app/playwright": ["./libs/review-attestation/src/lib/visual-app/playwright.ts"],
       "@craft-ts/style-testing/review-attest": ["./libs/review-attestation/src/lib/review-attest.ts"],
+      "@craft-ts/style-testing/digest": ["./libs/review-attestation/src/lib/digest.ts"],
       "@craft-ts/style-testing": ["./libs/review-attestation/src/index.ts"],
       "@craft-ts/style-testing/review": [
         "./libs/review-attestation/src/lib/review/index.ts"
@@ -77,6 +79,8 @@
         "./libs/dev-tools/src/scripts/graph-coverage.ts"
       ],
       "@craft-ts/dev-tools/*": ["./libs/dev-tools/src/*"],
+      "@craft-ts/graph-mcp": ["./libs/graph-mcp/src/index.ts"],
+      "@craft-ts/log-mcp/golden-set": ["./packages/log-mcp/src/golden-set-tool.ts"],
       "@craft-ts/dev-tools/testing": ["./libs/dev-tools/src/testing.ts"],
       "@craft-ts/dev-tools/template-migration": [
         "./libs/dev-tools/src/template-migration.ts"

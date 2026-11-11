@@ -83,7 +83,7 @@ module.exports = {
   'craft-ts/prefer-direct-yieldable-callback': 'error',
   'craft-ts/prefer-direct-yieldable-destructuring': 'error',
   'craft-ts/prefer-deep-yieldable-for-item': 'warn',
-  'craft-ts/no-craft-use': 'error',
+  'craft-ts/no-craft-use': 'warn',
   'craft-ts/no-type-assertions-in-template': 'error',
   'craft-ts/no-explicit-craft-template-return-type': 'error',
   'craft-ts/no-extracted-craft-component-parts': 'error',

@@ -11,10 +11,6 @@ import {
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { Node, Project, ScriptTarget, SyntaxKind, ts } from 'ts-morph';
-import {
-  defineAngularBrandConfig,
-  transformSourceFile,
-} from '../angular-brand-codemod.js';
 import { listAngularProjects } from './route-command.js';
 
 const execFileAsync = promisify(execFile);
@@ -157,7 +153,6 @@ export async function runRouteVerification(
     const negative = fixtures.filter((fixture) => fixture.kind === 'negative');
 
     await writeFixtures(fixtureDirectory, positive);
-    await prepareAngularBrandFixture(fixtureDirectory);
 
     log(
       `[route verify] 5/7 Running ESLint on ${positive.length} positive fixtures...`,
@@ -354,76 +349,6 @@ async function writeFixtures(
       await writeFile(target, fixture.source.trimStart(), 'utf8');
     }),
   );
-}
-
-/** Generate the Angular GenDeps alias using the same codemod as the project. */
-async function prepareAngularBrandFixture(directory: string): Promise<void> {
-  const componentPath = join(directory, 'template-missing.component.ts');
-  if (!existsSync(componentPath)) return;
-  const project = new Project({
-    compilerOptions: {
-      experimentalDecorators: true,
-      module: ts.ModuleKind.Preserve,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-      target: ScriptTarget.ES2022,
-    },
-  });
-  const sourceFile = project.createSourceFile(
-    componentPath,
-    await readFile(componentPath, 'utf8'),
-    { overwrite: true },
-  );
-  transformSourceFile(sourceFile, {
-    config: defineAngularBrandConfig({
-      importAugmentations: [
-        {
-          match: {
-            module: './template-pipe',
-            symbols: ['VerifyTemplatePipe'],
-            metadata: ['imports'],
-          },
-          deps: [
-            {
-              key: serviceName,
-              symbol: serviceName,
-              module: './support',
-              typeText: `typeof ${serviceName}`,
-            },
-          ],
-          missingProvider: [
-            {
-              key: serviceName,
-              symbol: serviceName,
-              module: './support',
-              typeText: `typeof ${serviceName}`,
-            },
-          ],
-        },
-      ],
-    }),
-  });
-  const supportImport = sourceFile
-    .getImportDeclarations()
-    .find(
-      (declaration) => declaration.getModuleSpecifierValue() === './support',
-    );
-  if (supportImport) {
-    const hasServiceImport = supportImport
-      .getNamedImports()
-      .some((namedImport) => namedImport.getName() === serviceName);
-    if (!hasServiceImport)
-      supportImport.addNamedImports([{ name: serviceName }]);
-  } else {
-    sourceFile.addImportDeclaration({
-      moduleSpecifier: './support',
-      namedImports: [{ name: serviceName }],
-    });
-  }
-  sourceFile.insertText(
-    0,
-    '/* eslint-disable @typescript-eslint/no-empty-object-type */\n',
-  );
-  await writeFile(componentPath, sourceFile.getFullText(), 'utf8');
 }
 
 async function runFixtureLint(
@@ -1111,7 +1036,7 @@ type _CanRunLazyChild = CanRun<_CheckLazyChildDI>;
 
   const pending = `
 import type { Router } from './support';
-import { craftRoute, craftRoutes, type CanRun, type RouteCheckedDI, type ValidateCascadeRoutesFile } from '@craft-ts/core';
+import { craftRoute, craftRoutes, type CanRun, type ComponentDepsOf, type RouteCheckedDI, type ValidateCascadeRoutesFile } from '@craft-ts/core';
 import { ProvidedDeps } from './support';
 
 export const { pendingRoutes } = craftRoutes('pending', [
@@ -1125,7 +1050,7 @@ export const { pendingRoutes } = craftRoutes('pending', [
 type _CheckPendingDI = ValidateCascadeRoutesFile<never, Router, typeof pendingRoutes>;
 type _CanRunPending = CanRun<_CheckPendingDI>;
 type _CheckPendingComponentDI = RouteCheckedDI<
-  import('./pending-component').GenDeps_VerifyPendingComponent,
+  ComponentDepsOf<(typeof import('./pending-component'))['default']>,
   never,
   Router,
   'pending component: page'
@@ -1187,53 +1112,30 @@ type _CheckRouteErrorDI = RouteExceptionComponentCheckedDI<
 type _CanRunRouteError = CanRun<_CheckRouteErrorDI>;
 `;
 
-  const templatePipe = `
-import type { GetDeps } from '@craft-ts/core';
-
-export class VerifyTemplatePipe {
-  transform(value: string): string {
-    return value;
-  }
-}
-
-export type GenDeps_VerifyTemplatePipe = GetDeps<{
-  deps: {};
-  provided: {};
-  publicProperties: {};
-}>;
-`;
-
   const templateComponent = `
-/* eslint-disable @typescript-eslint/no-empty-object-type */
-import type { GetDeps, GetServiceDependencies } from '@craft-ts/core';
-import { VerifyTemplatePipe } from './template-pipe';
+import { craftComponent, p } from '@craft-ts/component';
 import { VerifyMissingService } from './support';
 
-export class TemplateMissingComponent {
-  readonly value = 'verify';
-}
-
-export type GenDeps_TemplateMissingComponent = GetDeps<{
-  deps: { VerifyMissingService: GetServiceDependencies<typeof VerifyMissingService> };
-  provided: {};
-  missingProvider: { VerifyMissingService: GetServiceDependencies<typeof VerifyMissingService> };
-  publicProperties: {};
-}>;
+const TemplateMissingComponent = craftComponent('TemplateMissingComponent', {}, function* () {
+  yield* VerifyMissingService();
+  return p('verify');
+});
+export default TemplateMissingComponent;
 `;
 
   const templateRoutes = `
 import type { Router } from './support';
-import { craftRoute, craftRoutes, type CanRun, type RouteCheckedDI } from '@craft-ts/core';
+import { loadCraftComponent } from '@craft-ts/component';
+import { craftRoute, craftRoutes, type CanRun, type ComponentDepsOf, type RouteCheckedDI } from '@craft-ts/core';
 
 export const { templateRoutes } = craftRoutes('template', [
   craftRoute('missing-template-provider', {
-    loadComponent: ({ withRetry }) => withRetry(import('./template-missing.component')).then(({ TemplateMissingComponent }) => TemplateMissingComponent),
-    componentDeps: {} as import('./template-missing.component').GenDeps_TemplateMissingComponent,
+    ...loadCraftComponent(({ withRetry }) => withRetry(import('./template-missing.component')).then((m) => m.default)),
   }),
 ]);
 
 type _CheckTemplateDI = RouteCheckedDI<
-  import('./template-missing.component').GenDeps_TemplateMissingComponent,
+  ComponentDepsOf<(typeof import('./template-missing.component'))['default']>,
   never,
   Router,
   'path: "missing-template-provider"'
@@ -1275,7 +1177,7 @@ type _CanRunMissingInput = CanRun<_CheckMissingInputDI>;
 
   const pendingMissing = `
 import type { Router } from './support';
-import { craftRoute, craftRoutes, type CanRun, type RouteCheckedDI, type ValidateCascadeRoutesFile } from '@craft-ts/core';
+import { craftRoute, craftRoutes, type CanRun, type ComponentDepsOf, type RouteCheckedDI, type ValidateCascadeRoutesFile } from '@craft-ts/core';
 import { ProvidedDeps } from './support';
 
 export const { pendingMissingRoutes } = craftRoutes('pendingMissing', [
@@ -1289,7 +1191,7 @@ export const { pendingMissingRoutes } = craftRoutes('pendingMissing', [
 type _CheckPendingMissingDI = ValidateCascadeRoutesFile<never, Router, typeof pendingMissingRoutes>;
 type _CanRunPendingMissing = CanRun<_CheckPendingMissingDI>;
 type _CheckPendingMissingComponentDI = RouteCheckedDI<
-  import('./pending-missing-component').GenDeps_VerifyPendingMissingComponent,
+  ComponentDepsOf<(typeof import('./pending-missing-component'))['default']>,
   never,
   Router,
   'pending component: pending-missing'
@@ -1367,26 +1269,17 @@ type _CanRunExceptionExtra = CanRun<_CheckExceptionExtraDI>;
 `;
 
   const pendingComponent = `
-import { GetDeps, GetServiceDependencies } from '@craft-ts/core';
-
-export default class VerifyPendingComponent {}
-export type GenDeps_VerifyPendingComponent = GetDeps<{
-  deps: {};
-  provided: {};
-  publicProperties: {};
-}>;
+import { craftComponent, p } from '@craft-ts/component';
+export default craftComponent('VerifyPendingComponent', {}, () => p('pending'));
 `;
 
   const pendingMissingComponent = `
-import type { GetDeps, GetServiceDependencies } from '@craft-ts/core';
-
-export default class VerifyPendingMissingComponent {}
-export type GenDeps_VerifyPendingMissingComponent = GetDeps<{
-  deps: { ${serviceName}: GetServiceDependencies<typeof import('./support').VerifyMissingService> };
-  provided: {};
-  missingProvider: { ${serviceName}: GetServiceDependencies<typeof import('./support').VerifyMissingService> };
-  publicProperties: {};
-}>;
+import { craftComponent, p } from '@craft-ts/component';
+import { VerifyMissingService } from './support';
+export default craftComponent('VerifyPendingMissingComponent', {}, function* () {
+  yield* VerifyMissingService();
+  return p('pending');
+});
 `;
 
   return [
@@ -1409,7 +1302,6 @@ export type GenDeps_VerifyPendingMissingComponent = GetDeps<{
       [],
       'positive',
     ),
-    fixture('template-pipe', 'template-pipe.ts', templatePipe, [], 'positive'),
     fixture(
       'template-component',
       'template-missing.component.ts',

@@ -34,7 +34,7 @@ export default [
       'craft-ts': craftRules,
     },
     rules: {
-      'craft-ts/no-craft-use': 'error',
+      'craft-ts/no-craft-use': 'warn',
       'craft-ts/prefer-direct-craft-service-exposure': 'error',
       'craft-ts/require-craft-service-input-scope': 'error',
       'craft-ts/require-direct-craft-component-template': 'error',

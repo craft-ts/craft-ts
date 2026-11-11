@@ -13,9 +13,9 @@ import { parseE2eComparisonResponse, portableEvents } from '../util/replay-model
 const SESSION_SERVER_URL: string =
   import.meta.env['VITE_CRAFT_SESSION_ARCHIVE_URL'] ??
   'http://127.0.0.1:4319';
+/** Where the replay frames open, when configured; otherwise this dashboard. */
 const DASHBOARD_URL: string =
-  import.meta.env['VITE_CRAFT_SESSION_DASHBOARD_URL'] ??
-  'http://localhost:4210/';
+  import.meta.env['VITE_CRAFT_SESSION_DASHBOARD_URL'] ?? '';
 
 export type E2eComparisonReport = Readonly<{
   testId: string;
@@ -24,6 +24,7 @@ export type E2eComparisonReport = Readonly<{
   baselineCount: number;
   baselineSource: string;
   observedSource: string;
+  /** Empty: the frames open on the dashboard that shows the comparison. */
   dashboardUrl: string;
   comparison: SessionTraceComparison;
 }>;

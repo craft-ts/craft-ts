@@ -1,5 +1,3 @@
-// Export programmatic API for codemod
-export * from './scripts/angular-brand-codemod.js';
 export * from './scripts/primitives/migrate-primitives.js';
 export * from './scripts/primitives/migrate-named-primitives.js';
 export * from './scripts/primitives/migrate-primitive-generators.js';
@@ -12,6 +10,7 @@ export * from './scripts/routes/migration-diagnostic.js';
 export * from './scripts/routes/route-command.js';
 export * from './scripts/routes/verify-routes.js';
 export * from './scripts/services/config.js';
+export * from './scripts/services/config-types.js';
 export * from './scripts/services/migrate-services.js';
 export * from './scripts/services/migration-diagnostic.js';
 export * from './scripts/components/migrate-components.js';

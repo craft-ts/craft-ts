@@ -6,7 +6,7 @@ describe('AppCheckedDI', () => {
   it('should return true if all missingProvider and routing inputs are provided', () => {
         class AppComponent {}
 
-    type GenDeps_AppComponent = GetDeps<{
+    type TestDeps_AppComponent = GetDeps<{
       deps: {};
       provided: {};
       missingProvider: {};
@@ -29,12 +29,12 @@ describe('AppCheckedDI', () => {
       },
     ];
 
-    type APP_CHECKED_DI = AppCheckedDI<GenDeps_AppComponent, APP_ROUTES>;
+    type APP_CHECKED_DI = AppCheckedDI<TestDeps_AppComponent, APP_ROUTES>;
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<true>();
   });
   it('should return an error if some routes deps are not provided', () => {
-    type GenDeps_AppComponent = GetDeps<{
+    type TestDeps_AppComponent = GetDeps<{
       deps: {};
       provided: {};
       missingProvider: {};
@@ -67,7 +67,7 @@ describe('AppCheckedDI', () => {
       },
     ];
 
-    type APP_CHECKED_DI = AppCheckedDI<GenDeps_AppComponent, APP_ROUTES>;
+    type APP_CHECKED_DI = AppCheckedDI<TestDeps_AppComponent, APP_ROUTES>;
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
       [
@@ -77,7 +77,7 @@ describe('AppCheckedDI', () => {
   });
 
   it('should return an error if some route inputs are not provided', () => {
-    type GenDeps_AppComponent = GetDeps<{
+    type TestDeps_AppComponent = GetDeps<{
       deps: {};
       provided: {};
       missingProvider: {};
@@ -110,7 +110,7 @@ describe('AppCheckedDI', () => {
       },
     ];
 
-    type APP_CHECKED_DI = AppCheckedDI<GenDeps_AppComponent, APP_ROUTES>;
+    type APP_CHECKED_DI = AppCheckedDI<TestDeps_AppComponent, APP_ROUTES>;
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
       ['Input "userId" is not provided in path: "some-path"']
@@ -118,7 +118,7 @@ describe('AppCheckedDI', () => {
   });
 
   it('should return an error if some inputs are not provided in AppComponent', () => {
-    type GenDeps_AppComponent = GetDeps<{
+    type TestDeps_AppComponent = GetDeps<{
       deps: {};
       provided: {};
       missingProvider: {};
@@ -144,7 +144,7 @@ describe('AppCheckedDI', () => {
       },
     ];
 
-    type APP_CHECKED_DI = AppCheckedDI<GenDeps_AppComponent, APP_ROUTES>;
+    type APP_CHECKED_DI = AppCheckedDI<TestDeps_AppComponent, APP_ROUTES>;
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
       ['Input "userId" is not provided in AppComponent']
@@ -159,7 +159,7 @@ describe('AppCheckedDI', () => {
       },
     );
 
-    type GenDeps_AppComponent = GetDeps<{
+    type TestDeps_AppComponent = GetDeps<{
       deps: {};
       provided: {};
       missingProvider: {};
@@ -189,7 +189,7 @@ describe('AppCheckedDI', () => {
       },
     ];
 
-    type APP_CHECKED_DI = AppCheckedDI<GenDeps_AppComponent, APP_ROUTES>;
+    type APP_CHECKED_DI = AppCheckedDI<TestDeps_AppComponent, APP_ROUTES>;
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
       [
@@ -208,7 +208,7 @@ describe('AppCheckedDI', () => {
       },
     );
 
-    type GenDeps_AppComponent = GetDeps<{
+    type TestDeps_AppComponent = GetDeps<{
       deps: {};
       provided: {};
       missingProvider: {};
@@ -232,7 +232,7 @@ describe('AppCheckedDI', () => {
       },
     ];
 
-    type APP_CHECKED_DI = AppCheckedDI<GenDeps_AppComponent, APP_ROUTES>;
+    type APP_CHECKED_DI = AppCheckedDI<TestDeps_AppComponent, APP_ROUTES>;
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
       [

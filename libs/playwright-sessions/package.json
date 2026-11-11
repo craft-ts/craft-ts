@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./architecture": "./src/architecture.ts",
-    "./history": "./src/history.ts"
+    "./history": "./src/history.ts",
+    "./suite": "./src/suite/index.ts"
   }
 }

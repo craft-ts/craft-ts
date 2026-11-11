@@ -162,6 +162,136 @@ describe('DebugSessionStore', () => {
     ]);
   });
 
+  it('copies some tabs into a finished session of their own, the source left as it is', () => {
+    // A tab left open (tab-a) keeps the session recording; a walk in tab-b joins it.
+    store.begin(id, fixture(), createdAt, 'tab-a');
+    const later = new Date(Date.parse(createdAt) + 86_400_000).toISOString();
+    store.begin(id, { ...fixture(), startUrl: 'http://localhost:4200/admin', viewport: { width: 722, height: 825 }, initialSnapshot: { 'state:counter': 7 }, events: fixture().events.map((event) => ({ ...event, timestamp: Date.parse(later) + 5 })) }, later, 'tab-b', { createdAt: later });
+    const before = store.get(id);
+
+    const extracted = store.extract(id, ['tab-b'])!;
+
+    expect(extracted).not.toBe(id);
+    expect(store.get(id)).toEqual(before);
+    expect(store.list().find((summary) => summary.id === extracted)).toMatchObject({
+      status: 'interrupted',
+      participantCount: 1,
+      eventCount: 1,
+      createdAt: later,
+      startUrl: 'http://localhost:4200/admin',
+      extractedFrom: { sessionId: id, participantIds: ['tab-b'] },
+    });
+    expect(store.get(extracted)).toMatchObject({
+      viewport: { width: 722, height: 825 },
+      initialSnapshot: { 'state:counter': 7 },
+      events: [{ id: 'event-1', sequence: 1, participantId: 'tab-b', globalElapsedMs: 5 }],
+      clips: [{ participantId: 'tab-b', eventIds: ['event-1'] }],
+      participants: [{ id: 'tab-b', status: 'interrupted' }],
+    });
+    // Finished: a tab that comes back opens a session of its own.
+    expect(store.begin(extracted, fixture(), later, 'tab-c')).not.toBe(extracted);
+    // Survives a restart.
+    store.close();
+    store = new DebugSessionStore(directory);
+    expect(store.list().find((summary) => summary.id === extracted)?.extractedFrom).toEqual({ sessionId: id, participantIds: ['tab-b'] });
+
+    expect(store.extract(id, ['tab-z'])).toBeUndefined();
+    expect(store.extract(id, [])).toBeUndefined();
+  });
+
+  it('keeps the session a browser recorded before this one, after a pause', () => {
+    store.begin(id, fixture(), createdAt, 'tab-a');
+    store.finish(id, 'completed');
+    const next = '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5679';
+
+    store.begin(next, { ...fixture(), continuesFrom: id }, createdAt, 'tab-a');
+
+    expect(store.list().find((summary) => summary.id === next)?.continuesFrom).toBe(id);
+    expect(store.get(next)?.continuesFrom).toBe(id);
+    store.close();
+    store = new DebugSessionStore(directory);
+    expect(store.list().find((summary) => summary.id === next)?.continuesFrom).toBe(id);
+    expect(() => store.begin(next, { ...fixture(), continuesFrom: 'not-an-id' }, createdAt, 'tab-b')).toThrow();
+  });
+
+  it('keeps a session put back for a month from then, however old it is', () => {
+    store.close();
+    store = new DebugSessionStore(directory, { maxAgeMs: 30 * 86_400_000 });
+    const longAgo = '2025-01-01T08:00:00.000Z';
+    store.begin(id, fixture(), new Date().toISOString(), 'tab-a');
+    store.finish(id, 'completed');
+    const copy = store.get(id)!;
+    store.delete(id);
+
+    expect(store.restore(id, { createdAt: longAgo, session: copy })).toBe('restored');
+    expect(store.get(id)).toEqual(copy);
+    expect(store.list()[0]).toMatchObject({ id, createdAt: longAgo, status: 'completed' });
+    expect(store.pruneExpired()).toBe(0);
+    store.close();
+    store = new DebugSessionStore(directory, { maxAgeMs: 30 * 86_400_000 });
+    expect(store.get(id)).toEqual(copy);
+    expect(store.restore(id, { createdAt: longAgo, session: copy })).toBe('kept');
+    expect(store.restore('23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5679', { createdAt: 'hier', session: copy })).toBeUndefined();
+  });
+
+  describe('when a tab leaves', () => {
+    const grace = 20;
+    const settle = () => new Promise((resolve) => setTimeout(resolve, grace * 3));
+    const at = (msAgo: number) => new Date(Date.now() - msAgo).toISOString();
+    const page = (events: PortableDebugSession['events'] = []) => ({ ...fixture(), events, initialSnapshot: undefined });
+    const click = (msAgo: number) => ({ id: `click-${msAgo}`, sequence: 1, timestamp: Date.now() - msAgo, kind: 'dom', phase: 'emitted' });
+    let ended: string[];
+
+    beforeEach(() => {
+      store.close();
+      store = new DebugSessionStore(directory, { reconnectGraceMs: grace, idleMs: 30 * 60_000 });
+      ended = [];
+      store.onEnded((sessionId) => ended.push(sessionId));
+    });
+
+    it('ends the session once it is gone, though a tab nobody uses is still open', async () => {
+      // A tab opened three days ago, never touched since.
+      store.begin(id, page(), at(3 * 86_400_000), 'forgotten');
+      store.begin(id, page([click(5_000)]), at(60_000), 'used');
+
+      store.finishParticipant(id, 'used', 'interrupted');
+      expect(store.list()[0]?.status).toBe('recording');
+      await settle();
+
+      expect(store.list()[0]?.status).toBe('interrupted');
+      expect(store.get(id)?.participants.map((participant) => [participant.id, participant.status])).toEqual([
+        ['forgotten', 'completed'],
+        ['used', 'interrupted'],
+      ]);
+      expect(ended).toEqual([id]);
+    });
+
+    it('keeps it through a reload, and while another tab is in use', async () => {
+      store.begin(id, page([click(5_000)]), at(60_000), 'reloaded');
+      store.finishParticipant(id, 'reloaded', 'completed');
+      store.begin(id, page(), at(0), 'reloaded');
+      await settle();
+      expect(store.list()[0]?.status).toBe('recording');
+
+      store.begin(id, page([click(120_000)]), at(600_000), 'other');
+      store.finishParticipant(id, 'reloaded', 'completed');
+      await settle();
+      expect(store.list()[0]?.status).toBe('recording');
+      expect(ended).toEqual([]);
+    });
+
+    it('opens a reload slower than the window into a session that continues the ended one', async () => {
+      store.begin(id, page([click(5_000)]), at(60_000), 'slow');
+      store.finishParticipant(id, 'slow', 'completed');
+      await settle();
+      expect(store.list()[0]?.status).toBe('completed');
+
+      const next = store.begin(id, page(), at(0), 'slow');
+      expect(next).not.toBe(id);
+      expect(store.list().find((summary) => summary.id === next)?.continuesFrom).toBe(id);
+    });
+  });
+
   it('updates a participant visibility state without adding timeline events', () => {
     store.begin(id, fixture(), createdAt, 'tab-a');
 

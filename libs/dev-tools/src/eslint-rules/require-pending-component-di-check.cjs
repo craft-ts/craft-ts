@@ -28,15 +28,15 @@ const CAN_RUN = 'CanRun';
  * Autofix generates the whole block:
  *
  *   type _Check<Feature>PendingDI = RouteCheckedDI<
- *     import('./x').GenDeps_<DefaultExportClass>,
+ *     ComponentDepsOf<(typeof import('./x'))['default']>,
  *     '<CollectionParam>Params' | '<Collection><Route>ViewTransition',  // route auto-provides these
  *     <ParentValues>,                                                   // borrowed from the cascade check
  *     'pending component: <path>'
  *   >;
  *   type _CanRun<Feature>Pending = CanRun<_Check<Feature>PendingDI>;
  *
- * The `GenDeps_*` alias is read from the skeleton module, the available service
- * names are derived from the route's path params + (when present) its
+ * The default Craft component's dependency contract is read directly with
+ * `ComponentDepsOf`. Available service names are derived from the route's path params + (when present) its
  * `withLoaderViewTransitionImage` payload, and the parent context is taken from
  * the collection's own `ValidateCascadeRoutesFile<…, typeof xRoutes>`. If that
  * cascade check is absent (so the context can't be inferred), the rule reports
@@ -78,11 +78,11 @@ module.exports = {
           return;
         }
 
-        const checkedFirstArgs = collectCheckedGenDeps(sourceFile);
+        const checkedFirstArgs = collectCheckedComponentDeps(sourceFile);
         const cascadeContexts = collectCascadeContexts(sourceFile);
 
         const issues = pendingRoutes.filter(
-          (route) => !checkedFirstArgs.has(normalize(route.genDepsRef)),
+          (route) => !checkedFirstArgs.has(normalize(route.componentDepsRef)),
         );
         if (issues.length === 0) {
           return;
@@ -101,7 +101,7 @@ module.exports = {
         }
 
         if (fixable) {
-          ensureImports(sourceFile, [CHECK_TYPE, CAN_RUN]);
+          ensureImports(sourceFile, [CHECK_TYPE, CAN_RUN, 'ComponentDepsOf']);
         }
 
         const fixedText = sourceFile.getFullText();
@@ -162,15 +162,10 @@ function collectCollections(sourceFile, filePath) {
         continue;
       }
 
-      const genDepsName = resolveGenDepsName(filePath, importSpecifier);
-      if (!genDepsName) {
-        continue;
-      }
-
       pendingRoutes.push({
         routesName,
         path: route.path,
-        genDepsRef: `import('${importSpecifier}').${genDepsName}`,
+        componentDepsRef: `ComponentDepsOf<(typeof import('${importSpecifier}'))['default']>`,
         availableNames: deriveAvailableNames(
           collectionName,
           route.path,
@@ -332,7 +327,7 @@ function getRoutesBindingName(call) {
 }
 
 // First type-argument text of every `RouteCheckedDI<First, …>` already present.
-function collectCheckedGenDeps(sourceFile) {
+function collectCheckedComponentDeps(sourceFile) {
   const checked = new Set();
   for (const reference of sourceFile.getDescendantsOfKind(
     SyntaxKind.TypeReference,
@@ -378,7 +373,7 @@ function appendCheck(sourceFile, issue, parentContext) {
   sourceFile.addStatements((writer) => {
     writer.blankLine();
     writer.writeLine(`type _Check${issue.suffix}PendingDI = ${CHECK_TYPE}<`);
-    writer.writeLine(`  ${issue.genDepsRef},`);
+    writer.writeLine(`  ${issue.componentDepsRef},`);
     writer.writeLine(`  ${available},`);
     writer.writeLine(`  ${parentContext.values},`);
     writer.writeLine(`  'pending component: ${issue.path}'`);
@@ -387,42 +382,6 @@ function appendCheck(sourceFile, issue, parentContext) {
       `type _CanRun${issue.suffix}Pending = ${CAN_RUN}<_Check${issue.suffix}PendingDI>;`,
     );
   });
-}
-
-function resolveGenDepsName(fromFilePath, importSpecifier) {
-  if (!importSpecifier.startsWith('.')) {
-    return undefined;
-  }
-  const resolvedBase = path.resolve(
-    path.dirname(fromFilePath),
-    importSpecifier,
-  );
-  const candidates = [
-    `${resolvedBase}.ts`,
-    `${resolvedBase}.tsx`,
-    path.join(resolvedBase, 'index.ts'),
-  ];
-  const targetPath = candidates.find((candidate) => fs.existsSync(candidate));
-  if (!targetPath) {
-    return undefined;
-  }
-
-  const targetText = fs.readFileSync(targetPath, 'utf8');
-  const names = [...targetText.matchAll(/export\s+type\s+(GenDeps_\w+)/g)].map(
-    (match) => match[1],
-  );
-  if (names.length === 0) {
-    return undefined;
-  }
-
-  const defaultClass = targetText.match(/export\s+default\s+class\s+(\w+)/);
-  if (defaultClass) {
-    const preferred = `GenDeps_${defaultClass[1]}`;
-    if (names.includes(preferred)) {
-      return preferred;
-    }
-  }
-  return names[0];
 }
 
 function ensureImports(sourceFile, names) {

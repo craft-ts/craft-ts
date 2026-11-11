@@ -1,10 +1,12 @@
-import { validateDebugSessionExport } from '@craft-ts/component';
+import { cutUnfinishedTail, splitPageReloads, validateDebugSessionExport, type ReplayTailCut } from '@craft-ts/component';
 import { craftExpose, craftService, rawReactiveValue } from '@craft-ts/core';
 import {
   after,
   firstSelectedFile,
   hasFrame,
   hasFrameGrid,
+  isReplayInteractionMode,
+  isReplayStateRecomputed,
   isReplayStateVerification,
   newUuid,
   renderFrames,
@@ -126,18 +128,26 @@ export const { ReplaySession } = craftService(
         });
         return;
       }
-      const recordedUrl = parseLocalTarget(result.session.startUrl);
+      // A page loaded again goes on in a tab of its own; the replay goes as far
+      // as the recording lets it: an end left unfinished (a tab closed
+      // mid-request) is left out, and said.
+      // The journal and « Déboguer ici » keep the whole recording; only what
+      // the replay consumes leaves the cut end out (see `replayedPart`).
+      const replayable = splitPageReloads(result.session);
+      const { cut } = cutUnfinishedTail(replayable);
+      registers.tailCut = cut;
+      const recordedUrl = parseLocalTarget(replayable.startUrl);
       setStates({
-        session: result.session,
-        sessionParticipants: Array.isArray(result.session.participants)
-          ? result.session.participants
+        session: replayable,
+        sessionParticipants: Array.isArray(replayable.participants)
+          ? replayable.participants
           : [],
         selectedParticipantId: 'all',
         eventTimelinePage: 0,
-        replayViewport: result.session.viewport,
-        events: result.session.events,
+        replayViewport: replayable.viewport,
+        events: replayable.events,
         difference: undefined,
-        status: `Session v${result.session.version} importée · ${result.session.events.length} événements${result.session.truncated ? ' · archive tronquée, replay selon l’historique conservé par onglet' : ''}`,
+        status: `Session v${replayable.version} importée · ${replayable.events.length} événements${replayable.truncated ? ' · archive tronquée, replay selon l’historique conservé par onglet' : ''}${cut ? ` · ${describeTailCut(cut)}` : ''}`,
         loadError: undefined,
         ...(recordedUrl.ok ? { targetUrl: recordedUrl.url.href } : {}),
       });
@@ -389,6 +399,8 @@ export const { ReplaySession } = craftService(
           startMode: mode,
           diagnostic: diagnosticReplay(),
           ...(isReplayStateVerification() ? { verifyState: true } : {}),
+          ...(isReplayStateRecomputed() ? { recomputeState: true } : {}),
+          ...(isReplayInteractionMode() ? { dispatchInteractions: true } : {}),
           timelineOriginMs: participantTimelineOriginMs,
           startOffsetMs,
         };
@@ -696,3 +708,15 @@ export const { ReplaySession } = craftService(
     yield* craftExpose('exportTarget', exportTarget);
   },
 );
+
+const TAIL_CUT_REASONS: Record<ReplayTailCut['reason'], string> = {
+  'missing-result': 'une opération n’a jamais reçu de résultat (onglet fermé en pleine requête ?)',
+  'page-reload': 'la page a été rechargée',
+  'reload-requested': 'l’app a demandé un rechargement',
+};
+
+/** The end a replay leaves out, as the journal says it. */
+export function describeTailCut(cut: ReplayTailCut): string {
+  return `fin non rejouée : ${cut.droppedSteps} action${cut.droppedSteps > 1 ? 's' : ''} sur ${cut.keptSteps + cut.droppedSteps}, ${TAIL_CUT_REASONS[cut.reason]}`;
+}
+

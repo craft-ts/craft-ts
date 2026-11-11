@@ -20,6 +20,16 @@ describe('send context session', () => {
     expect(ɵstableReplaySelector(document.documentElement)).toBe('html');
   });
 
+  it('records a deep element by a path that matches it, even cut short', () => {
+    // Eight levels under body, no name or id: the path keeps the last six.
+    document.body.innerHTML =
+      '<craft-root><div><main><section><div><div><div><button>Un</button><button>Deux</button></div></div></div></section></main></div></craft-root>';
+    const target = document.querySelectorAll('button')[1]!;
+    const selector = ɵstableReplaySelector(target);
+    expect(document.querySelector(selector)).toBe(target);
+    document.body.innerHTML = '';
+  });
+
   it('keeps an ordered circular timeline and marks evicted clips', () => {
     const session = createSendContextSession({
       retentionPolicy: { maxEvents: 2 },
@@ -144,6 +154,22 @@ describe('send context session', () => {
       width: window.innerWidth,
       height: window.innerHeight,
     });
+  });
+
+  it('starts again from the page as it is now once cleared', () => {
+    // A recording started over after a pause replays from where the user came back.
+    const session = createSendContextSession();
+    const startedAt = location.href;
+    history.pushState(null, '', '/after-the-pause?step=2');
+    try {
+      expect(JSON.parse(session.exportSessionJson())['startUrl']).toBe(startedAt);
+      session.clear();
+      expect(JSON.parse(session.exportSessionJson())['startUrl']).toBe(
+        new URL('/after-the-pause?step=2', startedAt).href,
+      );
+    } finally {
+      history.pushState(null, '', startedAt);
+    }
   });
 
   it('exports the initial snapshot once as a v2 field', () => {

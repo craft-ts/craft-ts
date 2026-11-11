@@ -130,6 +130,11 @@ import {
 /** A recorded tab is the one the recording had in front (`focus`) or acts now (`action`). */
 export const tileFocus = defineStateAxis('tile-focus', ['true'] as const);
 export const tileAction = defineStateAxis('tile-action', ['true'] as const);
+/**
+ * A tab set aside while another is photographed alone (the regression
+ * suite): out of the grid and unseen, its page still running at its size.
+ */
+export const tileAside = defineStateAxis('tile-aside', ['true'] as const);
 /** How a tab's note is drawn over its frame. */
 export const veilMode = defineStateAxis('veil', ['dim', 'compact'] as const);
 /** A note that has been put away, still readable in the history. */
@@ -463,6 +468,18 @@ export const ui = craftStyles('dashboard', {
     flexWrap.wrap,
     gap(space(2)),
     paddingBlockStart(space(1)),
+  ],
+  /** A behaviour's id in a row (`flow:… -> …`): code, which may break anywhere. */
+  unitTag: [
+    display.inlineFlex,
+    maxInlineSize(unit.pct(100)),
+    px(space(2)),
+    borderRadius(radii.sm),
+    bg(theme.code),
+    color(herbier.text.codePlain),
+    fontFamily(monospaceStack),
+    ...font(text.xs),
+    overflowWrap.anywhere,
   ],
   /** Above the list: which sessions it shows, and the housekeeping when there is some. */
   listTools: [
@@ -999,6 +1016,13 @@ export const ui = craftStyles('dashboard', {
     when(tileAction.true, [
       borderColor(theme.importantBorder),
       bg(theme.importantSurface),
+    ]),
+    when(tileAside.true, [
+      position.absolute,
+      insetBlockStart(space(0)),
+      insetInlineStart(space(0)),
+      opacity(num(0)),
+      pointerEvents.none,
     ]),
   ],
   tileTitle: [
@@ -1850,5 +1874,36 @@ export const ui = craftStyles('dashboard', {
     marginBlockEnd(space(1)),
     fontWeight(weight.semibold),
     ...font(text.sm),
+  ],
+  /** A checked session's row: its moments wrap under it when shown. */
+  checkRow: [flexWrap.wrap, py(space(2))],
+  /** The moments of a checked session: one under the other, full width of the row. */
+  checkMoments: [display.grid, gap(space(4)), flexBasis(unit.pct(100)), paddingBlockStart(space(2))],
+  checkMoment: [display.grid, gap(space(2))],
+  /** Base, head, difference: side by side once there is room. */
+  checkPictures: [
+    display.grid,
+    gap(space(3)),
+    gridTemplateColumns(tracks.list(tracks.minmax(space(0), tracks.fr(1)))),
+    when(bp.medium, [
+      gridTemplateColumns(
+        tracks.list(
+          tracks.minmax(space(0), tracks.fr(1)),
+          tracks.minmax(space(0), tracks.fr(1)),
+          tracks.minmax(space(0), tracks.fr(1)),
+        ),
+      ),
+    ]),
+  ],
+  checkPicture: [display.grid, alignContent.start, gap(space(1))],
+  checkPictureLabel: [...small],
+  checkPictureImage: [
+    display.block,
+    inlineSize(unit.pct(100)),
+    borderRadius(radii.sm),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.line),
+    bg(theme.selected),
   ],
 });

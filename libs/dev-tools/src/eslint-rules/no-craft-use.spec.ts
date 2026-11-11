@@ -7,145 +7,48 @@ const require = createRequire(import.meta.url);
 const rule = require('./no-craft-use.cjs');
 
 describe('no-craft-use', () => {
-  it('reports craftUse anywhere in a TypeScript file', async () => {
+  it('warns for craftUse in business code, including primitive construction', async () => {
     const result = await lintFixture(`
-      import { craftUse } from '@craft-ts/core';
+      import { craftComputed, craftUse } from '@craft-ts/core';
 
+      const total = craftUse(craftComputed('total', () => 1));
       const value = craftUse(source);
-      function* read() {
-        return craftUse(value);
-      }
     `);
 
     expect(result.messages).toEqual([
-      '`craftUse(...)` is forbidden in Craft TypeScript. Use a generator and delegate the reader with `yield*` instead.',
-      '`craftUse(...)` is forbidden in Craft TypeScript. Use a generator and delegate the reader with `yield*` instead.',
+      '`craftUse(...)` is mainly useful at synchronous test boundaries. In business code, prefer a named Craft primitive and `yield*` in its generator; keep `craftUse` for focused synchronous tests.',
+      '`craftUse(...)` is mainly useful at synchronous test boundaries. In business code, prefer a named Craft primitive and `yield*` in its generator; keep `craftUse` for focused synchronous tests.',
     ]);
   });
 
-  it('reports an aliased craftUse import', async () => {
-    const result = await lintFixture(`
-      import { craftUse as read } from '@craft-ts/core';
+  it('warns for an aliased craftUse import outside test files', async () => {
+    const result = await lintFixture(
+      `import { craftUse as read } from '@craft-ts/core';\nconst value = read(source);`,
+    );
 
-      const value = read(source);
-    `);
-
-    expect(result.messages).toEqual([
-      '`craftUse(...)` is forbidden in Craft TypeScript. Use a generator and delegate the reader with `yield*` instead.',
-    ]);
+    expect(result.messages).toHaveLength(1);
   });
 
-  it('allows unwrapping a named primitive outside a generator', async () => {
-    const result = await lintFixture(`
-      import { craftComputed, craftUse } from '@craft-ts/core';
-
-      const insertion = ({ resource }) => ({
-        hasValue: craftUse(craftComputed('hasValue', () => resource.hasValue())),
-      });
-    `);
+  it.each([
+    'src/cart.spec.ts',
+    'src/cart.test.ts',
+    'src/__tests__/cart.ts',
+  ])('allows craftUse in test file %s', async (filename) => {
+    const result = await lintFixture(
+      `import { craftUse } from '@craft-ts/core';\nconst value = craftUse(source);`,
+      filename,
+    );
 
     expect(result.messages).toEqual([]);
   });
 
-  it.each(['craftService', 'craftComponent', 'craftMethod', 'craftEffect'])(
-    'allows a derived-property insertion nested inside %s',
-    async (owner) => {
-      const result = await lintFixture(`
-        import { ${owner}, craftComputed, craftUse } from '@craft-ts/core';
+  it('still warns in business examples under the documentation snippet directory', async () => {
+    const result = await lintFixture(
+      `import { craftUse } from '@craft-ts/core';\nconst value = craftUse(source);`,
+      'tests/snippets/business-example.ts',
+    );
 
-        ${owner}('owner', function* () {
-          const cells = yield* state(
-            'cells',
-            [],
-            insertStatePipe(({ state }) => ({
-              paintedCount: craftUse(craftComputed('paintedCount', function* () {
-                return (yield* state()).length;
-              })),
-            })),
-          );
-        });
-      `);
-
-      expect(result.messages).toEqual([]);
-    },
-  );
-
-  it('allows a generator resource insertion nested inside a Craft owner', async () => {
-    const result = await lintFixture(`
-      import { craftService, craftComputed, mutation } from '@craft-ts/core';
-
-      craftService('owner', function* () {
-        yield* mutation('save', {}, function* ({ hasException }) {
-          return {
-            failed: yield* craftComputed('failed', function* () {
-              return yield* hasException();
-            }),
-          };
-        });
-      });
-    `);
-
-    expect(result.messages).toEqual([]);
-  });
-
-  it('reports craftUse in a direct resource insertion nested inside a Craft owner', async () => {
-    const result = await lintFixture(`
-      import { craftService, craftComputed, craftUse, mutation } from '@craft-ts/core';
-
-      craftService('owner', function* () {
-        yield* mutation('save', {}, ({ hasException }) => ({
-          failed: craftUse(craftComputed('failed', function* () {
-            return yield* hasException();
-          })),
-        }));
-      });
-    `);
-
-    expect(result.messages).toEqual([
-      '`craftUse(craftComputed(...))` is forbidden inside `craftService`. Declare the primitive in the generator body with `yield* craftComputed(...)` instead.',
-    ]);
-  });
-
-  it('still reports craftUse in the Craft owner body', async () => {
-    const result = await lintFixture(`
-      import { craftService, craftComputed, craftUse } from '@craft-ts/core';
-
-      craftService('owner', function* () {
-        const value = craftUse(craftComputed('value', () => 1));
-      });
-    `);
-
-    expect(result.messages).toEqual([
-      '`craftUse(craftComputed(...))` is forbidden inside `craftService`. Declare the primitive in the generator body with `yield* craftComputed(...)` instead.',
-    ]);
-  });
-
-  it('reports an aliased owner imported from @craft-ts/component', async () => {
-    const result = await lintFixture(`
-      import { craftComponent as component } from '@craft-ts/component';
-      import { craftEffect, craftUse } from '@craft-ts/core';
-
-      component('Owner', {}, () => {
-        craftUse(craftEffect('log', function* () {}));
-        return div();
-      });
-    `);
-
-    expect(result.messages).toEqual([
-      '`craftUse(craftEffect(...))` is forbidden inside `craftComponent`. Declare the primitive in the generator body with `yield* craftEffect(...)` instead.',
-    ]);
-  });
-
-  it('still reports a craftUse that reads a reactive value', async () => {
-    const result = await lintFixture(`
-      import { craftComputed, craftUse } from '@craft-ts/core';
-
-      const total = craftUse(craftComputed('total', () => 1)());
-    `);
-
-    expect(result.messages).toEqual([
-      '`craftUse(...)` is forbidden in Craft TypeScript. Use a generator and delegate the reader with `yield*` instead.',
-    ]);
+    expect(result.messages).toHaveLength(1);
   });
 
   it('does not report unrelated identifiers', async () => {
@@ -158,7 +61,7 @@ describe('no-craft-use', () => {
   });
 });
 
-async function lintFixture(source: string) {
+async function lintFixture(source: string, filePath = 'fixture.ts') {
   const eslint = new ESLint({
     overrideConfigFile: true,
     overrideConfig: [
@@ -172,12 +75,12 @@ async function lintFixture(source: string) {
           },
         },
         plugins: { local: { rules: { rule: rule as never } } },
-        rules: { 'local/rule': 'error' },
+        rules: { 'local/rule': 'warn' },
       },
     ],
   });
 
-  const [result] = await eslint.lintText(source, { filePath: 'fixture.ts' });
+  const [result] = await eslint.lintText(source, { filePath });
   return {
     messages: result.messages.map((message) => message.message),
   };

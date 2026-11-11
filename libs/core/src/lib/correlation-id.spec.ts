@@ -1,4 +1,5 @@
 import {
+  computed,
   Injector,
   runInInjectionContext,
 } from './host/craft-compat';
@@ -12,7 +13,11 @@ import {
   provideCorrelationIdService,
   setCurrentStartCorrelationId,
   type CorrelationIdYield,
+  ɵcurrentCorrelationId,
 } from './correlation-id';
+import { VirtualCraftTemporalRuntime, ɵrunOutsideScheduledContext } from './temporal-runtime';
+import { craftService } from './craft-service';
+import { craftUse } from './craft-use';
 
 describe('createCorrelationIdService', () => {
   beforeEach(() => {
@@ -28,6 +33,23 @@ describe('createCorrelationIdService', () => {
     const id = service.generateAndSet('click');
     expect(id.startsWith('click:')).toBe(true);
     expect(service.lastCorrelationId()).toBe(id);
+  });
+
+  it('reads the current id without making a computation depend on it', () => {
+    // A render that tracked it ran again on the next key, before its handler,
+    // and wrote the field's old value over the key just typed.
+    const service = createCorrelationIdService();
+    service.generateAndSet('click');
+    let runs = 0;
+    const recorded = computed(() => {
+      runs += 1;
+      return ɵcurrentCorrelationId(service);
+    });
+    const first = recorded();
+    service.generateAndSet('enter');
+    expect(recorded()).toBe(first);
+    expect(runs).toBe(1);
+    expect(ɵcurrentCorrelationId(null)).toBeUndefined();
   });
 
   it('generates distinct ids on successive calls', () => {
@@ -73,6 +95,67 @@ describe('createCorrelationIdService', () => {
 
     await vi.advanceTimersByTimeAsync(500);
     expect(service.mayCorrelatedIds()).toEqual(['op-2']);
+  });
+
+  it('runs a scheduled callback in the flow that scheduled it, not the last click', async () => {
+    // A countdown started at load ticks after every click: its writes were
+    // recorded as the click's.
+    const service = createCorrelationIdService();
+    const clock = new VirtualCraftTemporalRuntime();
+    const seen: Array<string | undefined> = [];
+    const tick = () => {
+      seen.push(ɵcurrentCorrelationId(service));
+      clock.schedule(tick, 1_000);
+    };
+    clock.schedule(tick, 1_000);
+    const click = service.generateAndSet('click');
+    clock.schedule(() => seen.push(ɵcurrentCorrelationId(service)), 1_500);
+    const later = service.generateAndSet('enter');
+
+    await clock.advanceTo(2_000);
+
+    expect(seen).toEqual([undefined, click, undefined]);
+    expect(service.lastCorrelationId()).toBe(later);
+  });
+
+  it('runs outside every flow, then gives the flow back', async () => {
+    const service = createCorrelationIdService();
+    const clock = new VirtualCraftTemporalRuntime();
+    const click = service.generateAndSet('click');
+    const seen: Array<string | undefined> = [];
+    const result = ɵrunOutsideScheduledContext(() => {
+      seen.push(ɵcurrentCorrelationId(service));
+      clock.schedule(() => seen.push(ɵcurrentCorrelationId(service)), 1_000);
+      return 'built';
+    });
+    expect(result).toBe('built');
+    expect(service.lastCorrelationId()).toBe(click);
+
+    await clock.advanceTo(1_000);
+
+    expect(seen).toEqual([undefined, undefined]);
+  });
+
+  it('builds a global service outside the flow that needed it first', async () => {
+    // A countdown of a global service, first injected by a click's page: each
+    // tick was recorded as that click's, for as long as the app ran.
+    const service = createCorrelationIdService();
+    const clock = new VirtualCraftTemporalRuntime();
+    const seen: Array<string | undefined> = [];
+    const { Countdown } = craftService({ name: 'Countdown', providedIn: 'global' }, function* () {
+      const tick = () => {
+        seen.push(ɵcurrentCorrelationId(service));
+        clock.schedule(tick, 1_000);
+      };
+      clock.schedule(tick, 1_000);
+    });
+    const click = service.generateAndSet('click');
+    CraftTestBed.runInInjectionContext(() => craftUse(Countdown()));
+    expect(service.lastCorrelationId()).toBe(click);
+
+    await clock.advanceTo(2_000);
+
+    expect(seen).toEqual([undefined, undefined]);
   });
 });
 

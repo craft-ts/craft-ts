@@ -81,7 +81,16 @@ export type StoredDebugSessionSummary = Readonly<{
   participantCount: number;
   test?: DebugSessionTestMetadata;
   resume?: ResumeSessionMetadata;
+  /** Tabs taken out of another session (see `extract`). */
+  extractedFrom?: DebugSessionExtraction;
+  /**
+   * The session the same browser recorded before this one, when this one
+   * began because the user came back after a pause.
+   */
+  continuesFrom?: string;
 }>;
+
+export type DebugSessionExtraction = Readonly<{ sessionId: string; participantIds: readonly string[] }>;
 
 export type StoredDebugSessionParticipant = Readonly<{
   id: string;
@@ -94,11 +103,18 @@ export type StoredDebugSessionParticipant = Readonly<{
   status: 'recording' | 'completed' | 'interrupted';
   createdAt: string;
   updatedAt: string;
+  /** When the page now in this tab began recording: a reload starts it again. */
+  pageStartedAt?: string;
   initialSnapshot?: Readonly<Record<string, unknown>>;
 }>;
 
 type StoredSession = Omit<StoredDebugSessionSummary, 'participantCount'> & {
   endedAt?: string;
+  /**
+   * When a copy kept elsewhere (an app's suite) put it back: its age counts
+   * from then, or a session recorded long ago would be pruned at once.
+   */
+  restoredAt?: string;
   viewport?: Readonly<{ width: number; height: number }>;
   environment?: StoredEnvironmentProfile;
   test?: DebugSessionTestMetadata;
@@ -127,16 +143,23 @@ export type PortableDebugSession = Readonly<{
   environment?: StoredEnvironmentProfile;
   test?: DebugSessionTestMetadata;
   resume?: ResumeSessionMetadata;
+  continuesFrom?: string;
 }>;
 
 const DEFAULT_MAX_SESSIONS = 100;
 const DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const DEFAULT_RECONNECT_GRACE_MS = 5_000;
+/** Long enough for a page reload to come back, even a slow one in development. */
+const DEFAULT_RECONNECT_GRACE_MS = 15_000;
+/** As the tabs judge it: without input this long, a tab is not in use. */
+const DEFAULT_IDLE_MS = 30 * 60_000;
+/** What a person does, as opposed to what a page does on its own. */
+const INPUT_EVENT_KINDS = new Set(['dom', 'hover', 'scroll']);
 
 export type DebugSessionStoreOptions = Readonly<{
   maxSessions?: number;
   maxAgeMs?: number;
   reconnectGraceMs?: number;
+  idleMs?: number;
 }>;
 
 /** Persists each live session as append-only events plus a small JSON index. */
@@ -155,6 +178,17 @@ export class DebugSessionStore {
   private readonly maxSessions: number;
   private readonly maxAgeMs: number;
   private readonly reconnectGraceMs: number;
+  private readonly idleMs: number;
+  private readonly endedListeners = new Set<(id: string) => void>();
+
+  /**
+   * Told when a session ends while some of its tabs are still connected (they
+   * were not in use): they start a new one at their next input.
+   */
+  onEnded(listener: (id: string) => void): () => void {
+    this.endedListeners.add(listener);
+    return () => this.endedListeners.delete(listener);
+  }
 
   /** The archive's age limit, exposed to the dashboard for its cleanup action. */
   get retentionDays(): number {
@@ -192,6 +226,7 @@ export class DebugSessionStore {
       options.reconnectGraceMs,
       DEFAULT_RECONNECT_GRACE_MS,
     );
+    this.idleMs = positiveInteger(options.idleMs, DEFAULT_IDLE_MS);
     mkdirSync(directory, { recursive: true });
     this.loadIndex();
     this.prune();
@@ -216,6 +251,8 @@ export class DebugSessionStore {
           participants,
           test,
           resume,
+          extractedFrom,
+          continuesFrom,
         }) => ({
           id,
           startUrl,
@@ -230,6 +267,8 @@ export class DebugSessionStore {
           participantCount: participants.length,
           ...(test ? { test } : {}),
           ...(resume ? { resume } : {}),
+          ...(extractedFrom ? { extractedFrom } : {}),
+          ...(continuesFrom ? { continuesFrom } : {}),
         }),
       );
   }
@@ -248,13 +287,15 @@ export class DebugSessionStore {
     const redirectedId = this.sessionRedirects.get(id);
     const previous = this.sessions.get(redirectedId ?? id);
     let effectiveId = redirectedId ?? id;
+    // The session this tab was in has ended (a reload slower than the
+    // reconnect window): the new one continues it.
+    let continuesEnded: string | undefined;
     if (previous && previous.status !== 'recording') {
       effectiveId = randomUUID();
+      continuesEnded = previous.id;
       this.sessionRedirects.set(id, effectiveId);
     }
-    const pendingFinish = this.finishTimers.get(effectiveId);
-    if (pendingFinish !== undefined) clearTimeout(pendingFinish);
-    this.finishTimers.delete(effectiveId);
+    // A pending end is left to run: it keeps the session while a tab is in use.
     const current = this.sessions.get(effectiveId);
     const incomingEvents = session.events.filter(
       (event) => !isInitialSnapshot(event),
@@ -318,6 +359,7 @@ export class DebugSessionStore {
       status: 'recording',
       createdAt: participant.createdAt ?? now,
       updatedAt: now,
+      pageStartedAt: validIsoDate(createdAt) ? createdAt : now,
     };
     const participants = mergeParticipant(
       current?.participants ?? [],
@@ -347,6 +389,9 @@ export class DebugSessionStore {
       ...((current?.test ?? session.test) ? { test: current?.test ?? session.test } : {}),
       ...((current?.resume ?? session.resume)
         ? { resume: current?.resume ?? session.resume }
+        : {}),
+      ...((current?.continuesFrom ?? session.continuesFrom ?? continuesEnded)
+        ? { continuesFrom: current?.continuesFrom ?? session.continuesFrom ?? continuesEnded }
         : {}),
       clips,
       participants,
@@ -521,9 +566,6 @@ export class DebugSessionStore {
         return participant;
       return { ...participant, status, updatedAt: now };
     });
-    const stillRecording = participants.some(
-      (participant) => participant.status === 'recording',
-    );
     const next = {
       ...current,
       participants,
@@ -532,35 +574,40 @@ export class DebugSessionStore {
       updatedAt: now,
     } satisfies StoredSession;
     this.sessions.set(id, next);
-    if (!stillRecording) {
-      const timer = setTimeout(() => {
-        this.finishTimers.delete(id);
-        const latest = this.sessions.get(id);
-        if (!latest || latest.status !== 'recording') return;
-        const finalStatus: StoredDebugSessionStatus = latest.participants.some(
-          (participant) => participant.status === 'recording',
-        )
-          ? 'recording'
-          : latest.participants.some(
-                (participant) => participant.status === 'interrupted',
-              )
-            ? 'interrupted'
-            : 'completed';
-        const endedAt = new Date().toISOString();
-        this.sessions.set(id, {
-          ...latest,
-          status: finalStatus,
-          updatedAt: endedAt,
-          endedAt,
-        });
-        this.liveEvents.delete(id);
-        this.eventKeys.delete(id);
-        this.nextEventSequence.delete(id);
-        this.persistIndex();
-      }, this.reconnectGraceMs);
-      timer.unref?.();
-      this.finishTimers.set(id, timer);
-    }
+    // Once the window is over: the session goes on only while a tab still in
+    // it is in use. A tab left open that nobody touches does not hold it.
+    const pending = this.finishTimers.get(id);
+    if (pending !== undefined) clearTimeout(pending);
+    const timer = setTimeout(() => {
+      this.finishTimers.delete(id);
+      const latest = this.sessions.get(id);
+      if (!latest || latest.status !== 'recording') return;
+      const events = this.liveEvents.get(id) ?? this.readEvents(id);
+      const since = Date.now() - this.idleMs;
+      const inUse = latest.participants.some(
+        (participant) => participant.status === 'recording' && lastActivityOf(participant, events) >= since,
+      );
+      if (inUse) return;
+      const endedAt = new Date().toISOString();
+      const ended = latest.participants.map((participant) =>
+        participant.status === 'recording' ? { ...participant, status: 'completed' as const, updatedAt: endedAt } : participant,
+      );
+      const left = latest.participants.some((participant) => participant.status === 'recording');
+      this.sessions.set(id, {
+        ...latest,
+        participants: ended,
+        status: ended.some((participant) => participant.status === 'interrupted') ? 'interrupted' : 'completed',
+        updatedAt: endedAt,
+        endedAt,
+      });
+      this.liveEvents.delete(id);
+      this.eventKeys.delete(id);
+      this.nextEventSequence.delete(id);
+      this.persistIndex();
+      if (left) for (const listener of this.endedListeners) listener(id);
+    }, this.reconnectGraceMs);
+    timer.unref?.();
+    this.finishTimers.set(id, timer);
     this.persistIndex();
     return 'recording';
   }
@@ -604,6 +651,121 @@ export class DebugSessionStore {
     return deleted;
   }
 
+  /**
+   * Copies some tabs of a session into a session of their own, the source
+   * left as it is. A tab left open keeps its session recording, and every
+   * tab opened later on the same origin joins it: several walks of different
+   * people or moments end up in one session, which a suite cannot replay
+   * apart. Each tab is whole — its page loads, its own initial snapshot —
+   * so a tab replays on its own. The copy is finished (`completed` when
+   * every tab ended, `interrupted` otherwise): no tab joins it later.
+   * Returns the new id, or `undefined` when the session or a tab is unknown.
+   */
+  extract(id: string, participantIds: readonly string[]): string | undefined {
+    assertSessionId(id);
+    const source = this.sessions.get(id);
+    const wanted = new Set(participantIds);
+    if (!source || wanted.size === 0) return undefined;
+    const participants = source.participants
+      .filter((participant) => wanted.has(participant.id))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const [first] = participants;
+    if (!first || participants.length !== wanted.size) return undefined;
+    const sourceEvents = this.liveEvents.get(id) ?? this.readEvents(id);
+    const createdAt = first.createdAt;
+    const start = Date.parse(createdAt);
+    const events = sourceEvents
+      .filter((event) => wanted.has(String(event['participantId'])) && !isInitialSnapshot(event))
+      .sort((a, b) => Number(a['sequence']) - Number(b['sequence']))
+      .map((event, index) => ({
+        ...event,
+        sequence: index + 1,
+        globalElapsedMs: Math.max(0, Number(event['timestamp']) - start),
+      }));
+    const ended = participants.every((participant) => participant.status === 'completed');
+    const status = ended ? 'completed' : 'interrupted';
+    const updatedAt = participants.reduce((latest, participant) => (participant.updatedAt > latest ? participant.updatedAt : latest), createdAt);
+    const extractedId = randomUUID();
+    const stored: StoredSession = {
+      id: extractedId,
+      startUrl: first.startUrl,
+      createdAt,
+      updatedAt,
+      endedAt: updatedAt,
+      status,
+      version: 2,
+      recordingVersion: source.recordingVersion,
+      replayVersion: source.replayVersion,
+      eventCount: events.length,
+      truncated: source.truncated,
+      ...(source.test ? { test: source.test } : {}),
+      extractedFrom: { sessionId: id, participantIds: participants.map((participant) => participant.id) },
+      clips: source.clips.filter(
+        (clip) => isRecord(clip) && wanted.has(typeof clip['participantId'] === 'string' ? clip['participantId'] : 'default'),
+      ),
+      participants: participants.map((participant) =>
+        participant.status === 'recording' ? { ...participant, status } : participant,
+      ),
+      ...(first.viewport ? { viewport: first.viewport } : {}),
+      ...(first.initialSnapshot ? { initialSnapshot: first.initialSnapshot } : {}),
+    };
+    this.writeEvents(extractedId, events);
+    this.sessions.set(extractedId, stored);
+    this.persistIndex();
+    return extractedId;
+  }
+
+  /**
+   * Puts back, under its own id, a finished session exported by `get` (with
+   * the date it began): the copy an app's suite keeps of it. A session the
+   * archive still holds is left as it is. Undefined when the copy is invalid.
+   */
+  restore(
+    id: string,
+    input: Readonly<{ createdAt: string; session: PortableDebugSession }>,
+  ): 'restored' | 'kept' | undefined {
+    assertSessionId(id);
+    if (this.sessions.has(id)) return 'kept';
+    try {
+      assertPortableSession(input.session);
+    } catch {
+      return undefined;
+    }
+    const { session } = input;
+    if (!validIsoDate(input.createdAt) || !Array.isArray(session.participants)) return undefined;
+    const events = session.events.filter((event) => !isInitialSnapshot(event));
+    const now = new Date().toISOString();
+    const updatedAt = new Date(session.exportedAt).toISOString();
+    const stored: StoredSession = {
+      id,
+      startUrl: session.startUrl,
+      createdAt: input.createdAt,
+      updatedAt,
+      endedAt: updatedAt,
+      restoredAt: now,
+      status: 'completed',
+      version: 2,
+      recordingVersion: session.version,
+      replayVersion: session.replayVersion ?? 1,
+      eventCount: events.length,
+      truncated: session.truncated,
+      ...(session.test ? { test: session.test } : {}),
+      ...(session.resume ? { resume: session.resume } : {}),
+      ...(session.continuesFrom ? { continuesFrom: session.continuesFrom } : {}),
+      clips: session.clips,
+      participants: session.participants.map((participant) =>
+        participant.status === 'recording' ? { ...participant, status: 'completed' as const } : participant,
+      ),
+      ...(session.viewport ? { viewport: session.viewport } : {}),
+      ...(session.initialSnapshot ? { initialSnapshot: session.initialSnapshot } : {}),
+    };
+    this.writeEvents(id, events);
+    this.sessions.set(id, stored);
+    this.prune();
+    this.persistIndex();
+    return this.sessions.has(id) ? 'restored' : undefined;
+  }
+
   private removeSession(id: string): boolean {
     if (!this.sessions.has(id)) return false;
     this.sessions.delete(id);
@@ -619,7 +781,7 @@ export class DebugSessionStore {
     const cutoff = Date.now() - this.maxAgeMs;
     let deleted = 0;
     for (const stored of this.sessions.values()) {
-      const createdAt = Date.parse(stored.createdAt);
+      const createdAt = Date.parse(stored.restoredAt ?? stored.createdAt);
       if (
         stored.status === 'recording' ||
         !Number.isFinite(createdAt) ||
@@ -685,6 +847,7 @@ export class DebugSessionStore {
       participants: stored.participants,
       ...(stored.test ? { test: stored.test } : {}),
       ...(stored.resume ? { resume: stored.resume } : {}),
+      ...(stored.continuesFrom ? { continuesFrom: stored.continuesFrom } : {}),
     };
   }
 
@@ -833,7 +996,7 @@ export class DebugSessionStore {
   private prune(): void {
     const sessions = [...this.sessions.values()].sort(
       (a, b) =>
-        b.updatedAt.localeCompare(a.updatedAt) ||
+        (b.restoredAt ?? b.updatedAt).localeCompare(a.restoredAt ?? a.updatedAt) ||
         b.createdAt.localeCompare(a.createdAt),
     );
     const cutoff = Date.now() - this.maxAgeMs;
@@ -842,7 +1005,7 @@ export class DebugSessionStore {
     );
     let changed = false;
     for (const stored of sessions) {
-      if (Date.parse(stored.createdAt) < cutoff || !keep.has(stored.id)) {
+      if (Date.parse(stored.restoredAt ?? stored.createdAt) < cutoff || !keep.has(stored.id)) {
         this.sessions.delete(stored.id);
         this.liveEvents.delete(stored.id);
         this.eventKeys.delete(stored.id);
@@ -855,13 +1018,17 @@ export class DebugSessionStore {
   }
 }
 
-function assertSessionId(id: string): void {
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+function isSessionId(id: unknown): id is string {
+  return (
+    typeof id === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       id,
     )
-  )
-    throw new Error('Invalid session id.');
+  );
+}
+
+function assertSessionId(id: string): void {
+  if (!isSessionId(id)) throw new Error('Invalid session id.');
 }
 
 function assertParticipantId(id: string): void {
@@ -888,6 +1055,7 @@ function assertPortableSession(
     (value['test'] !== undefined && !isDebugSessionTestMetadata(value['test'])) ||
     (value['resume'] !== undefined &&
       !isResumeSessionMetadata(value['resume'])) ||
+    (value['continuesFrom'] !== undefined && !isSessionId(value['continuesFrom'])) ||
     !Array.isArray(value['events']) ||
     !Array.isArray(value['clips']) ||
     typeof value['truncated'] !== 'boolean'
@@ -913,9 +1081,20 @@ function isStoredSession(value: unknown): value is StoredSession {
     (value['test'] === undefined || isDebugSessionTestMetadata(value['test'])) &&
     (value['resume'] === undefined ||
       isResumeSessionMetadata(value['resume'])) &&
+    (value['extractedFrom'] === undefined || isDebugSessionExtraction(value['extractedFrom'])) &&
+    (value['continuesFrom'] === undefined || isSessionId(value['continuesFrom'])) &&
     Array.isArray(value['clips']) &&
     (value['participants'] === undefined ||
       Array.isArray(value['participants']))
+  );
+}
+
+function isDebugSessionExtraction(value: unknown): value is DebugSessionExtraction {
+  return (
+    isRecord(value) &&
+    typeof value['sessionId'] === 'string' &&
+    Array.isArray(value['participantIds']) &&
+    value['participantIds'].every((participantId) => typeof participantId === 'string')
   );
 }
 
@@ -971,6 +1150,18 @@ export function isResumeSessionMetadata(
       (typeof value['participantId'] === 'string' &&
         value['participantId'].length <= 200))
   );
+}
+
+/** When a tab was last in use: its last input, or the start of the page it shows. */
+function lastActivityOf(
+  participant: StoredDebugSessionParticipant,
+  events: readonly Record<string, unknown>[],
+): number {
+  let latest = Date.parse(participant.pageStartedAt ?? '') || Number.NEGATIVE_INFINITY;
+  for (const event of events)
+    if (event['participantId'] === participant.id && INPUT_EVENT_KINDS.has(String(event['kind'])))
+      latest = Math.max(latest, Number(event['timestamp']) || Number.NEGATIVE_INFINITY);
+  return latest;
 }
 
 function mergeParticipant(

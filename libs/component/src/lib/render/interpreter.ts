@@ -73,6 +73,7 @@ import {
   ɵisCraftDevMode,
   ɵcraftBatch,
   craftUse,
+  ɵcurrentCorrelationId,
 } from '@craft-ts/core';
 import {
   executeCraftComponentFactory,
@@ -3891,7 +3892,7 @@ class PendingRenderedNode implements RenderedNode {
     if (!session?.activeClip) return;
     const correlationId = runInInjectionContext(
       this.context.injector,
-      () => ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined,
+      () => ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ?? undefined,
     );
 
     if (previous) {
@@ -5589,7 +5590,7 @@ class DeferRenderedNode implements RenderedNode {
                   correlationId: runInInjectionContext(
                     this.context.injector,
                     () =>
-                      ɵinjectCorrelationIdService()?.lastCorrelationId() ??
+                      ɵcurrentCorrelationId(ɵinjectCorrelationIdService()) ??
                       undefined,
                   ),
                 }

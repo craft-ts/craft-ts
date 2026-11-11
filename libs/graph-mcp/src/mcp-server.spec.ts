@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { DependencyGraph } from '@craft-ts/dev-tools/dependency-graph';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -145,12 +146,51 @@ describe('graph MCP server', () => {
       'graph.hotspots',
       'graph.report',
       'graph.violations',
+      'sessions.relevant',
     ]);
 
     const readonlyTools = (await (await connect(true)).listTools()).tools.map(
       ({ name }) => name,
     );
     expect(readonlyTools).not.toContain('graph.rebuild');
+  });
+
+  it('names the recorded sessions an uncommitted change touches, with a link that replays each', async () => {
+    const git = (...args: string[]) => execFileSync('git', ['-C', root, '-c', 'user.name=test', '-c', 'user.email=test@example.com', ...args], { stdio: 'pipe' });
+    git('init', '-q');
+    git('add', '.');
+    git('commit', '-q', '-m', 'base');
+    mkdirSync(join(root, '.craft'));
+    writeFileSync(join(root, '.craft', 'golden-set.json'), JSON.stringify({
+      format: 'craft-golden-set',
+      sessions: [
+        { sessionId: 'home-click', recordedAt: '2026-11-01', units: ['interaction:Home:button:go:click'] },
+        { sessionId: 'home-route', recordedAt: '2026-11-02', units: ['route:/home'] },
+        { sessionId: 'profile', recordedAt: '2026-11-03', units: ['interaction:Profile:a:edit:click'] },
+      ],
+    }));
+    // Line 2 is inside the Home component (lines 1-3); the route that loads it is impacted.
+    writeFileSync(join(root, 'src', 'home.ts'), 'export const Home = craftComponent(\n  injectUserService, changed,\n);\n// after\n');
+
+    const relevant = await call(await connect(), 'sessions.relevant');
+    expect(relevant).toMatchObject({
+      since: 'HEAD',
+      changed: [{ kind: 'component', label: 'Home' }],
+      untouched: 1,
+      sessions: [
+        { sessionId: 'home-click', hit: 'direct', units: ['interaction:Home:button:go:click'], because: ['component:Home'] },
+        { sessionId: 'home-route', hit: 'impact', units: ['route:/home'] },
+      ],
+    });
+    expect(relevant['sessions'][0].replay).toBe('http://localhost:4210/?replay-state=recomputed&replay-mode=interaction#/sessions/home-click');
+
+    // The service both pages depend on: every session runs a node it feeds, newest first.
+    const named = await call(await connect(), 'sessions.relevant', { files: ['src/user.service.ts'] });
+    expect(named['sessions'].map((session: { sessionId: string; hit: string }) => [session.sessionId, session.hit])).toEqual([
+      ['profile', 'impact'],
+      ['home-route', 'impact'],
+      ['home-click', 'impact'],
+    ]);
   });
 
   it('reports status, with unknown staleness when there is no tsconfig', async () => {

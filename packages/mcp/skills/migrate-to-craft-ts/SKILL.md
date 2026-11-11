@@ -116,7 +116,7 @@ cannot be inferred safely. Preserve unrelated user changes.
 - Keep `componentDeps` and per-route `RouteCheckedDI` checks.
 - Prefer provider names and `ProvidedValues = never` after direct Angular DI is
   removed.
-- Run ESLint fixes to regenerate `GenDeps_*` aliases after dependency changes.
+- Use `ComponentDepsOf` and `loadCraftComponent` so route checks derive their contract from the component.
 
 ## Verification Checklist
 

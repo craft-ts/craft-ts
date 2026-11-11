@@ -1,13 +1,21 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import ts from 'typescript';
-import {
-  CraftDevToolsConfig,
-  defineAngularBrandConfig,
-  defineCraftDevToolsConfig,
-  discoverAngularBrandConfigFilePath,
-} from '../angular-brand-codemod.js';
+import { defineCraftDevToolsConfig, type CraftDevToolsConfig } from './config-types.js';
+
+function discoverCraftDevToolsConfigFilePath(
+  searchFromDir: string,
+): string | undefined {
+  let currentDir = resolve(searchFromDir);
+  while (true) {
+    const candidate = join(currentDir, 'craft-dev-tools.config.ts');
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+    const parent = dirname(currentDir);
+    if (parent === currentDir) return undefined;
+    currentDir = parent;
+  }
+}
 
 export function loadCraftDevToolsConfig(
   searchFromDir: string,
@@ -15,7 +23,7 @@ export function loadCraftDevToolsConfig(
 ): CraftDevToolsConfig {
   const filePath = explicitPath
     ? resolve(explicitPath)
-    : discoverAngularBrandConfigFilePath(searchFromDir);
+    : discoverCraftDevToolsConfigFilePath(searchFromDir);
   if (!filePath) return {};
   if (!existsSync(filePath) || !statSync(filePath).isFile()) {
     throw new Error(`Craft dev-tools config file not found at "${filePath}".`);
@@ -44,7 +52,7 @@ export function loadCraftDevToolsConfig(
     module.exports,
     (specifier: string) =>
       specifier === '@craft-ts/dev-tools'
-        ? { defineAngularBrandConfig, defineCraftDevToolsConfig }
+        ? { defineCraftDevToolsConfig }
         : localRequire(specifier),
     module,
     filePath,
@@ -54,7 +62,5 @@ export function loadCraftDevToolsConfig(
   if (!exported || typeof exported !== 'object') {
     throw new Error(`Invalid Craft dev-tools config at "${filePath}".`);
   }
-  return 'brand' in exported || 'serviceMigration' in exported
-    ? (exported as CraftDevToolsConfig)
-    : { brand: exported };
+  return exported as CraftDevToolsConfig;
 }

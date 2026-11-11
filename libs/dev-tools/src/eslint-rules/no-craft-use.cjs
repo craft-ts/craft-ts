@@ -1,55 +1,25 @@
+const TEST_FILE = /(?:^|[\\/])__tests__(?:[\\/]|$)|\.(?:spec|test)\.[cm]?[jt]sx?$/;
+
 module.exports = {
   meta: {
-    type: 'problem',
+    type: 'suggestion',
     docs: {
       description:
-        'Forbid the synchronous craftUse escape hatch in Craft TypeScript files.',
+        'Discourage synchronous craftUse calls outside test files.',
     },
     schema: [],
     messages: {
-      forbidden:
-        '`craftUse(...)` is forbidden in Craft TypeScript. Use a generator and delegate the reader with `yield*` instead.',
-      insideCraftBody:
-        '`craftUse({{primitive}}(...))` is forbidden inside `{{owner}}`. Declare the primitive in the generator body with `yield* {{primitive}}(...)` instead.',
+      preferYield:
+        '`craftUse(...)` is mainly useful at synchronous test boundaries. In business code, prefer a named Craft primitive and `yield*` in its generator; keep `craftUse` for focused synchronous tests.',
     },
   },
 
   create(context) {
-    const craftUseNames = new Set(['craftUse']);
-    // A named primitive is a generator; outside a generator (an insertion
-    // factory, a plain arrow) `craftUse(craftComputed(...))` is the only way to
-    // consume it, and the one `require-primitive-generator-unwrap` asks for.
-    // It reads no reactive value, so it is not the escape hatch this forbids.
-    const primitiveNames = new Map([
-      ['craftComputed', 'craftComputed'],
-      ['craftMethod', 'craftMethod'],
-      ['craftEffect', 'craftEffect'],
-    ]);
-    // Inside these, a generator body is always within reach: the primitive
-    // belongs there, declared with `yield*`, rather than hidden in a nested
-    // callback (an insertion, a template prop) where it escapes the owner.
-    const ownerNames = new Map([
-      ['craftService', 'craftService'],
-      ['craftComponent', 'craftComponent'],
-      ['craftMethod', 'craftMethod'],
-      ['craftEffect', 'craftEffect'],
-    ]);
-    const insertionPipes = new Set([
-      'insertAsyncProcessPipe',
-      'insertMutationPipe',
-      'insertQueryParamsPipe',
-      'insertQueryPipe',
-      'insertStatePipe',
-    ]);
-    const insertionPrimitives = new Set([
-      'asyncProcess',
-      'asyncProcessEffect',
-      'mutationEffect',
-      'query',
-      'queryEffect',
-      'queryParams',
-      'state',
-    ]);
+    const filename = context.getFilename();
+    if (filename.startsWith('<') || TEST_FILE.test(filename)) return {};
+
+    const craftUseNames = new Set();
+    const calls = [];
 
     return {
       ImportDeclaration(node) {
@@ -62,23 +32,11 @@ module.exports = {
 
         for (const specifier of node.specifiers) {
           if (
-            specifier.type !== 'ImportSpecifier' ||
-            specifier.imported.type !== 'Identifier'
+            specifier.type === 'ImportSpecifier' &&
+            specifier.imported.type === 'Identifier' &&
+            specifier.imported.name === 'craftUse'
           ) {
-            continue;
-          }
-          if (specifier.imported.name === 'craftUse') {
             craftUseNames.add(specifier.local.name);
-          }
-          if (
-            ['craftComputed', 'craftMethod', 'craftEffect'].includes(
-              specifier.imported.name,
-            )
-          ) {
-            primitiveNames.set(specifier.local.name, specifier.imported.name);
-          }
-          if (ownerNames.has(specifier.imported.name)) {
-            ownerNames.set(specifier.local.name, specifier.imported.name);
           }
         }
       },
@@ -87,66 +45,14 @@ module.exports = {
           node.callee.type === 'Identifier' &&
           craftUseNames.has(node.callee.name)
         ) {
-          if (!unwrapsPrimitiveGenerator(node)) {
-            context.report({ node, messageId: 'forbidden' });
-            return;
-          }
-          const owner = enclosingOwner(node);
-          if (owner && !isInsidePrimitiveInsertion(node)) {
-            context.report({
-              node,
-              messageId: 'insideCraftBody',
-              data: {
-                owner,
-                primitive: primitiveNames.get(node.arguments[0].callee.name),
-              },
-            });
-          }
+          calls.push(node);
+        }
+      },
+      'Program:exit'() {
+        for (const node of calls) {
+          context.report({ node, messageId: 'preferYield' });
         }
       },
     };
-
-    function unwrapsPrimitiveGenerator(node) {
-      const [argument] = node.arguments;
-      return (
-        node.arguments.length === 1 &&
-        argument.type === 'CallExpression' &&
-        argument.callee.type === 'Identifier' &&
-        primitiveNames.has(argument.callee.name)
-      );
-    }
-
-    function enclosingOwner(node) {
-      const ancestors = context.sourceCode.getAncestors(node);
-      for (let index = ancestors.length - 1; index >= 0; index--) {
-        const ancestor = ancestors[index];
-        if (
-          ancestor.type === 'CallExpression' &&
-          ancestor.callee.type === 'Identifier' &&
-          ownerNames.has(ancestor.callee.name)
-        ) {
-          return ownerNames.get(ancestor.callee.name);
-        }
-      }
-      return undefined;
-    }
-
-    function isInsidePrimitiveInsertion(node) {
-      const ancestors = context.sourceCode.getAncestors(node);
-      return ancestors.some((ancestor) => {
-        if (ancestor.type !== 'CallExpression') return false;
-        const callee =
-          ancestor.callee.type === 'Identifier' ? ancestor.callee.name : '';
-        if (insertionPipes.has(callee)) return true;
-        if (!insertionPrimitives.has(callee)) return false;
-
-        return ancestor.arguments.some(
-          (argument, index) =>
-            index >= 2 &&
-            argument.range[0] <= node.range[0] &&
-            argument.range[1] >= node.range[1],
-        );
-      });
-    }
   },
 };

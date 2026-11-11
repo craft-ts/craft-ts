@@ -127,6 +127,21 @@ button { font: inherit; color: inherit; }
 .card-visual { position: relative; border: 0; padding: 0; background: none; cursor: pointer; display: block; width: 100%; }
 .corner-tag { position: absolute; top: 12px; left: 12px; background: rgba(255, 253, 249, 0.92); color: var(--forest); font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 999px; }
 .corner-tag[data-tone='ink'] { left: auto; right: 12px; background: var(--forest); color: #fff; }
+.corner-tag[data-tone='promo'] { left: auto; right: 12px; background: var(--clay); color: #fff; }
+
+/* ---- Promotion de la semaine ---- */
+.promo-banner { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; margin: 22px 0 0; padding: 16px 22px; border-radius: var(--radius); background: #f8ebe0; border: 1px solid #ecd2bd; color: var(--ink); }
+.promo-banner[data-state='ended'] { background: var(--sand); border-color: var(--line); color: var(--muted); }
+.promo-emoji { font-size: 30px; }
+.promo-copy { display: grid; gap: 2px; }
+.promo-copy strong { font: 600 19px 'Playfair Display', serif; color: var(--clay-dark); }
+.promo-banner[data-state='ended'] .promo-copy strong { color: var(--muted); }
+.promo-timer { display: grid; justify-items: end; gap: 2px; }
+.promo-label { font-size: 12px; color: var(--muted); }
+.promo-countdown { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--clay-dark); }
+.price-tag { display: inline-flex; align-items: baseline; gap: 8px; }
+.price-was { font-size: 13px; color: var(--muted); text-decoration: line-through; }
+.price[data-promo='true'] { color: var(--clay-dark); }
 .card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .card-title { border: 0; background: none; padding: 0; text-align: left; cursor: pointer; font: 600 21px 'Playfair Display', serif; color: var(--forest); line-height: 1.2; }
 .card-title:hover { color: var(--clay); }
@@ -351,6 +366,8 @@ button { font: inherit; color: inherit; }
   .hero { grid-template-columns: 1fr; padding: 44px 28px; }
   .hero-art { display: none; }
   .perks { grid-template-columns: 1fr; }
+  .promo-banner { grid-template-columns: auto 1fr; }
+  .promo-timer { grid-column: 1 / -1; justify-items: start; }
   .product-layout, .composer, .cart-layout, .admin-split, .cart-logs-layout { grid-template-columns: 1fr; gap: 24px; }
   .visual[data-size='hero'] { aspect-ratio: 4 / 3; }
   .summary, .editor-card, .cart-logs-summary { position: static; }

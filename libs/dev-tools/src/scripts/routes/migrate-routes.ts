@@ -15,10 +15,7 @@ import {
   VariableDeclaration,
   ts,
 } from 'ts-morph';
-import {
-  findAngularDecoratedClass,
-  transformSourceFile as generateAngularDependencies,
-} from '../angular-brand-codemod.js';
+import { findAngularDecoratedClass } from './angular-class-detection.js';
 import {
   RouteMigrationDiagnostic,
   RouteMigrationDiagnosticCode,
@@ -56,6 +53,7 @@ export type MigrateRoutesResult = {
 type ComponentResolution = {
   moduleSpecifier: string;
   componentName: string;
+  loadExportName?: string;
   sourceFile?: SourceFile;
 };
 
@@ -63,7 +61,8 @@ type TransformContext = {
   sourceFile: SourceFile;
   diagnostics: RouteMigrationDiagnostic[];
   usedCraftRoute: boolean;
-  generatedComponentFiles: Set<SourceFile>;
+  usedCraftComponentLoader: boolean;
+  blocked: boolean;
 };
 
 export async function runRoutesMigration(
@@ -96,7 +95,6 @@ export async function runRoutesMigration(
   });
 
   const diagnostics: RouteMigrationDiagnostic[] = [];
-  const generatedComponentFiles = new Set<SourceFile>();
   const files: MigratedRoutesFile[] = [];
   const legacyCollectionsBefore = sourceFiles.reduce(
     (count, sourceFile) => count + findLegacyRouteDeclarations(sourceFile).length,
@@ -108,7 +106,6 @@ export async function runRoutesMigration(
     const collections = migrateRoutesSourceFile(sourceFile, {
       ...options,
       diagnostics,
-      generatedComponentFiles,
     });
     files.push({
       filePath: sourceFile.getFilePath(),
@@ -124,11 +121,6 @@ export async function runRoutesMigration(
       );
       if (report) report.changed = true;
     }
-  }
-
-  for (const sourceFile of sourceFiles) {
-    const result = generateAngularDependencies(sourceFile);
-    if (result.changed) generatedComponentFiles.add(sourceFile);
   }
 
   for (const sourceFile of sourceFiles) {
@@ -163,10 +155,6 @@ export async function runRoutesMigration(
       .filter((file) => file.changed)
       .map((file) => project.getSourceFileOrThrow(file.filePath)),
   );
-  for (const sourceFile of generatedComponentFiles) {
-    if (sourceFile.wasForgotten()) continue;
-    changedSourceFiles.add(sourceFile);
-  }
   if (eslintConfig) changedSourceFiles.add(eslintConfig);
 
   if (options.write) {
@@ -317,14 +305,12 @@ export function migrateRoutesSourceFile(
     'collectionName' | 'parentMount' | 'parentNames'
   > & {
     diagnostics?: RouteMigrationDiagnostic[];
-    generatedComponentFiles?: Set<SourceFile>;
   } = {},
 ): string[] {
   const declarations = findLegacyRouteDeclarations(sourceFile);
   if (declarations.length === 0) return [];
 
   const diagnostics = options.diagnostics ?? [];
-  const generatedComponentFiles = options.generatedComponentFiles ?? new Set();
   const migratedCollections: string[] = [];
 
   for (const declaration of declarations) {
@@ -339,7 +325,8 @@ export function migrateRoutesSourceFile(
       sourceFile,
       diagnostics,
       usedCraftRoute: false,
-      generatedComponentFiles,
+      usedCraftComponentLoader: false,
+      blocked: false,
     };
 
     if (hasBlockingAngularRoute(array, context, '')) continue;
@@ -354,10 +341,16 @@ export function migrateRoutesSourceFile(
       });
     }
 
+    const arrayTextBefore = array.getText();
     for (const element of [...array.getElements()]) {
       if (Node.isObjectLiteralExpression(element)) {
         transformRoute(element, context, '');
       }
+    }
+
+    if (context.blocked) {
+      array.replaceWithText(arrayTextBefore);
+      continue;
     }
 
     const arrayText = array.getText();
@@ -376,6 +369,8 @@ export function migrateRoutesSourceFile(
 
     ensureValueImport(sourceFile, 'craftRoutes');
     if (context.usedCraftRoute) ensureValueImport(sourceFile, 'craftRoute');
+    if (context.usedCraftComponentLoader)
+      ensureValueImport(sourceFile, 'loadCraftComponent', '@craft-ts/component');
     if (options.parentMount) ensureTypeImport(sourceFile, 'ParentRoutes');
     addDiCheck(sourceFile, exportedName, collectionName, options.parentNames);
     removeUnusedAngularRoutesImport(sourceFile);
@@ -455,24 +450,49 @@ function transformRoute(
   const component = resolveComponent(route, context.sourceFile);
   if (!component) {
     diagnose(context, 'COMPONENT_NOT_RESOLVABLE', routeLabel, 'Le composant routé ou son module ne peut pas être résolu sans ambiguïté.');
+    context.blocked = true;
     return;
   }
 
-  if (!ensureGeneratedDeps(component, context)) {
-    diagnose(context, 'COMPONENT_NOT_RESOLVABLE', routeLabel, `GenDeps_${component.componentName} ne peut pas être généré de façon sûre.`);
+  const angularComponent = component.sourceFile
+    ? findAngularDecoratedClass(component.sourceFile)
+    : undefined;
+  if (angularComponent?.className === component.componentName) {
+    diagnose(
+      context,
+      'COMPONENT_NOT_RESOLVABLE',
+      routeLabel,
+      `Le composant Angular ${component.componentName} doit être converti en craftComponent avant la migration de cette route.`,
+    );
+    context.blocked = true;
+    return;
+  }
+  if (!isCraftComponent(component.sourceFile, component.componentName)) {
+    diagnose(
+      context,
+      'COMPONENT_NOT_RESOLVABLE',
+      routeLabel,
+      `Le contrat DI de ${component.componentName} ne peut pas être dérivé. Convertissez-le en craftComponent avant la migration de cette route.`,
+    );
+    context.blocked = true;
     return;
   }
 
-  if (!getProperty(route, 'componentDeps')) {
-    route.addPropertyAssignment({
-      name: 'componentDeps',
-      initializer: `{} as import(${JSON.stringify(component.moduleSpecifier)}).GenDeps_${component.componentName}`,
-    });
-  }
-  pathProperty?.remove();
-  const definition = route.getText();
+  const lazyLoader = getProperty(route, 'loadComponent');
+  const keptProperties = route
+    .getProperties()
+    .filter((property) => {
+      if (!Node.isPropertyAssignment(property)) return true;
+      const name = property.getName();
+      return name !== 'path' && name !== 'loadComponent' && name !== 'componentDeps';
+    })
+    .map((property) => property.getText());
+  const definition = lazyLoader
+    ? `{ ...loadCraftComponent(({ withRetry }) => withRetry(import(${JSON.stringify(component.moduleSpecifier)})).then((m) => m.${component.loadExportName ?? component.componentName})), ${keptProperties.join(', ')} }`
+    : `{ ${keptProperties.join(', ')} }`;
   route.replaceWithText(`craftRoute(${JSON.stringify(path)}, ${definition})`);
   context.usedCraftRoute = true;
+  if (lazyLoader) context.usedCraftComponentLoader = true;
 }
 
 function hasBlockingAngularRoute(
@@ -614,6 +634,7 @@ function resolveLazyComponent(
           componentName === 'default'
             ? (inferSingleComponentName(sourceFile) ?? componentName)
             : componentName,
+        loadExportName: componentName,
         sourceFile,
       };
     }
@@ -646,16 +667,54 @@ function inferSingleComponentName(
   sourceFile: SourceFile | undefined,
 ): string | undefined {
   if (!sourceFile) return undefined;
-  const genDeps = sourceFile
-    .getTypeAliases()
-    .filter(
-      (alias) => alias.isExported() && alias.getName().startsWith('GenDeps_'),
-    );
-  if (genDeps.length === 1) {
-    return genDeps[0].getName().slice('GenDeps_'.length);
-  }
   const angularClass = findAngularDecoratedClass(sourceFile);
-  return angularClass.skipped ? undefined : angularClass.className;
+  if (!angularClass.skipped && angularClass.className) return angularClass.className;
+  return sourceFile
+    .getVariableDeclarations()
+    .find((declaration) => {
+      const statement = declaration.getVariableStatement();
+      const initializer = declaration.getInitializer();
+      return (
+        statement?.isExported() &&
+        Node.isCallExpression(initializer) &&
+        initializer.getExpression().getText() === 'craftComponent'
+      );
+    })
+    ?.getName() ??
+    (sourceFile.getExportAssignments().some((assignment) => {
+      const expression = assignment.getExpression();
+      return (
+        assignment.isExportEquals() === false &&
+        Node.isCallExpression(expression) &&
+        expression.getExpression().getText() === 'craftComponent'
+      );
+    })
+      ? 'default'
+      : undefined);
+}
+
+function isCraftComponent(
+  sourceFile: SourceFile | undefined,
+  componentName: string,
+): boolean {
+  if (!sourceFile) return false;
+  const declaration = sourceFile.getVariableDeclaration(componentName);
+  const initializer = declaration?.getInitializer();
+  if (
+    Node.isCallExpression(initializer) &&
+    initializer.getExpression().getText() === 'craftComponent'
+  ) return true;
+  return (
+    componentName === 'default' &&
+    sourceFile.getExportAssignments().some((assignment) => {
+      const expression = assignment.getExpression();
+      return (
+        !assignment.isExportEquals() &&
+        Node.isCallExpression(expression) &&
+        expression.getExpression().getText() === 'craftComponent'
+      );
+    })
+  );
 }
 
 function resolveBareImport(
@@ -672,30 +731,12 @@ function resolveBareImport(
       return {
         moduleSpecifier,
         componentName,
+        loadExportName: 'default',
         sourceFile,
       };
     }
   }
   return undefined;
-}
-
-function ensureGeneratedDeps(
-  component: ComponentResolution,
-  context: TransformContext,
-): boolean {
-  const sourceFile = component.sourceFile;
-  if (!sourceFile) return false;
-  if (sourceFile.getTypeAlias(`GenDeps_${component.componentName}`)) return true;
-  const angularClass = findAngularDecoratedClass(sourceFile);
-  if (
-    angularClass.skipped ||
-    angularClass.className !== component.componentName
-  ) {
-    return false;
-  }
-  const result = generateAngularDependencies(sourceFile);
-  if (result.changed) context.generatedComponentFiles.add(sourceFile);
-  return Boolean(sourceFile.getTypeAlias(`GenDeps_${component.componentName}`));
 }
 
 function resolveModuleSourceFile(

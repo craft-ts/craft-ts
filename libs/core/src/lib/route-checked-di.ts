@@ -16,9 +16,9 @@ import type {
  * the set of provider names (and optionally provided value types) reachable
  * from this route's ancestors, it returns either `true` or the list of error
  * messages. Craft components expose that contract through
- * `ComponentDepsOf<typeof MyComponent>` or an explicit `componentDeps` map.
+ * `ComponentDepsOf<typeof MyComponent>`.
  *
- * Recommended placement (used by the type-stress generator): the check lives
+ * Recommended placement: the check lives
  * **in the route file** — i.e. alongside the `craftRoutes(...)` call that
  * wires the component to a path — rather than in the component file. This
  * keeps components pure and groups all DI validation for a feature in one
@@ -32,24 +32,21 @@ import type {
  *   export type AppProvidedValues = AppProvidedDependencyValuesOf<typeof appConfig>;
  *
  *   // feature-x.routes.ts
- *   import type { GenDeps_FeatureXCompYComponent } from './FeatureXCompYComponent';
+ *   import { loadCraftComponent } from '@craft-ts/component';
  *   import type { AppProvidedNames, AppProvidedValues } from '../../../app.config';
  *
  *   export const { featureXRoutes } = craftRoutes('featureX', [
  *     { path: 'item-0', providers: [provideFeatureXRouteService()],
- *       loadComponent: () => import('./FeatureXCompYComponent').then(m => m.FeatureXCompYComponent),
- *       componentDeps: {} as GenDeps_FeatureXCompYComponent },
+ *       ...loadCraftComponent(() => import('./feature-x-component')) },
  *   ]);
  *
  *   export type FeatureXRouteProvidedNames = AppProvidedNames | 'FeatureXRouteService';
  *   export type FeatureXRouteProvidedValues = AppProvidedValues;
  *
- *   // Cascade DI check — names are derived from the component dependency map.
- *   type FeatureXCompYComponentProvidedNames =
- *     | FeatureXRouteProvidedNames
- *     | Extract<keyof GenDeps_FeatureXCompYComponent['provided'], string>;
+ *   // Component dependencies are derived from the imported component.
+ *   type FeatureXCompYComponentProvidedNames = FeatureXRouteProvidedNames;
  *   type _Check = RouteCheckedDI<
- *     GenDeps_FeatureXCompYComponent,
+ *     ComponentDepsOf<(typeof import('./feature-x-component'))['default']>,
  *     FeatureXCompYComponentProvidedNames,
  *     FeatureXRouteProvidedValues,
  *     'FeatureXCompYComponent'
@@ -62,7 +59,7 @@ import type {
  *  - Con: Each ancestor (app, parent route) must explicitly re-export its
  *    cumulative provider names. The generator handles this; hand-written
  *    routes must thread the types manually.
- *  - Note: Keep the declared dependency map aligned with the route providers.
+ *  - Note: Component dependency contracts are inferred from the component itself.
  */
 
 // -----------------------------------------------------------------------------
@@ -201,7 +198,7 @@ type ResolvedMissing<
  * Returns `true` if everything is satisfied, or a tuple of error messages
  * (suitable as a constraint argument to `CanRun`).
  *
- * @template ComponentDeps - The component's `GenDeps_*` type (must expose
+ * @template ComponentDeps - The component's `ComponentDepsOf` type (must expose
  *   `missingProvider` and/or `publicProperties`).
  * @template AvailableProviderNames - Union of service names provided by app
  *   config + parent route providers + this component's own providers.

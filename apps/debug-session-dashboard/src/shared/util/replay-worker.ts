@@ -1,5 +1,6 @@
 import {
   planThumbnailCapturePoints,
+  type ReplayTailCut,
   type ThumbnailCapturePoint,
 } from '@craft-ts/component';
 import { exposeReplayWorkerSurface } from './replay-browser';
@@ -14,7 +15,9 @@ import {
   replayViewport,
   replayViewportScale,
   replayIndex,
+  replayWarnings,
   replayableEvents,
+  replayedEvents,
   seekTarget,
   session,
   status,
@@ -49,6 +52,16 @@ export type ReplayWorkerSnapshot = Readonly<{
   scale: number;
   activeParticipantId: string | undefined;
   viewport: Readonly<{ width: number; height: number }> | undefined;
+  /**
+   * The replay's notes so far (fallbacks, observations it could not pair):
+   * a suite reports an `[Interaction non prouvée]` instead of passing on it.
+   */
+  warnings: readonly string[];
+  /**
+   * The end of the recording the replay leaves out (a tab closed mid-request,
+   * a page loaded again): `total` counts only what is replayed.
+   */
+  tailCut: ReplayTailCut | undefined;
 }>;
 
 export type ReplayWorkerSurface = Readonly<{
@@ -56,6 +69,18 @@ export type ReplayWorkerSurface = Readonly<{
   plan: (options?: { maxPoints?: number }) => readonly ThumbnailCapturePoint[];
   /** Starts normal playback; the caller waits until the requested index. */
   advanceTo: (index: number) => void;
+  /**
+   * Runs the actions one at a time up to `index` and stays paused there: the
+   * same moment on every run, which a regression suite compares. Playback
+   * (`advanceTo`) goes on while the picture is taken.
+   */
+  seekTo: (index: number) => void;
+  /**
+   * Shows one tab alone at the size it was recorded, the others set aside
+   * and still running; `undefined` brings the grid back. A session replayed
+   * in several tabs (each page load is one) is photographed tab by tab.
+   */
+  showAlone: (participantId: string | undefined) => void;
 }>;
 
 const SETTLED_STATES: readonly string[] = ['ready', 'paused', 'completed'];
@@ -85,6 +110,8 @@ function snapshot(): ReplayWorkerSnapshot {
     scale: replayViewportScale(),
     activeParticipantId: activeReplayParticipantId(),
     viewport: replayViewport() ?? session()?.viewport,
+    warnings: replayWarnings(),
+    tailCut: registers.tailCut,
   };
 }
 
@@ -98,15 +125,23 @@ function differenceDetail(): ReplayWorkerSnapshot['differenceDetail'] {
   };
 }
 
-export function installReplayWorkerSurface(playReplay: () => void): void {
+export function installReplayWorkerSurface(
+  playReplay: () => void,
+  seekReplayToIndex: (index: number) => void,
+  showAlone: (participantId: string | undefined) => void,
+): void {
   const surface: ReplayWorkerSurface = {
     snapshot,
-    plan: (options) => planThumbnailCapturePoints(visibleEvents(), options),
+    plan: (options) => planThumbnailCapturePoints(replayedEvents(visibleEvents()), options),
     advanceTo: () => {
       // Keep the application on the recorded clock. Fast-forward seeking can
       // overlap async queries and compare a later checkpoint with stale data.
       if (['ready', 'paused'].includes(replayState())) playReplay();
     },
+    seekTo: (index) => {
+      if (['ready', 'paused'].includes(replayState())) seekReplayToIndex(index);
+    },
+    showAlone,
   };
   exposeReplayWorkerSurface(surface);
 }
