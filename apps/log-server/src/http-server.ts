@@ -1141,6 +1141,14 @@ function handleSessionSocket(
 ): void {
   let activeSessionId: string | undefined;
   let activeParticipantId: string | undefined;
+  // The session ended without this tab, which nobody was using: it starts a
+  // new one at its next input. What it sends meanwhile is not kept.
+  const stopListening = store.onEnded((id) => {
+    if (id !== activeSessionId) return;
+    activeSessionId = undefined;
+    activeParticipantId = undefined;
+    if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ type: 'session:ended', id }));
+  });
   socket.on('message', (rawMessage) => {
     try {
       const message: unknown = JSON.parse(rawMessage.toString());
@@ -1289,6 +1297,7 @@ function handleSessionSocket(
     }
   });
   socket.on('close', () => {
+    stopListening();
     if (activeSessionId && activeParticipantId)
       store.finishParticipant(
         activeSessionId,

@@ -421,6 +421,21 @@ export function connectDebugSessionPersistence(
             connection.close(1000, 'session finish acknowledged');
             return;
           }
+          // The other tabs left and nobody used this one: the session ended
+          // without it. Its next input starts a new one.
+          if (
+            rotates &&
+            isRecord(message) &&
+            message['type'] === 'session:ended' &&
+            message['id'] === id
+          ) {
+            dormant = true;
+            if (retryTimer !== undefined) clearTimeout(retryTimer);
+            retryTimer = undefined;
+            socket = undefined;
+            connection.close(1000, 'session ended');
+            return;
+          }
           if (
             !isRecord(message) ||
             message['type'] !== 'session:ready' ||
@@ -575,6 +590,9 @@ export function connectDebugSessionPersistence(
       fallAsleep();
       return;
     }
+    // Only a session a tab says it uses: a tab of an older version, left
+    // open, writes its own id there without ever being used.
+    if (rotates && !isLive(event.newValue)) return;
     id = event.newValue;
     if (retryTimer !== undefined) clearTimeout(retryTimer);
     retryTimer = undefined;

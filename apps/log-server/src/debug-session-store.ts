@@ -103,6 +103,8 @@ export type StoredDebugSessionParticipant = Readonly<{
   status: 'recording' | 'completed' | 'interrupted';
   createdAt: string;
   updatedAt: string;
+  /** When the page now in this tab began recording: a reload starts it again. */
+  pageStartedAt?: string;
   initialSnapshot?: Readonly<Record<string, unknown>>;
 }>;
 
@@ -146,12 +148,18 @@ export type PortableDebugSession = Readonly<{
 
 const DEFAULT_MAX_SESSIONS = 100;
 const DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const DEFAULT_RECONNECT_GRACE_MS = 5_000;
+/** Long enough for a page reload to come back, even a slow one in development. */
+const DEFAULT_RECONNECT_GRACE_MS = 15_000;
+/** As the tabs judge it: without input this long, a tab is not in use. */
+const DEFAULT_IDLE_MS = 30 * 60_000;
+/** What a person does, as opposed to what a page does on its own. */
+const INPUT_EVENT_KINDS = new Set(['dom', 'hover', 'scroll']);
 
 export type DebugSessionStoreOptions = Readonly<{
   maxSessions?: number;
   maxAgeMs?: number;
   reconnectGraceMs?: number;
+  idleMs?: number;
 }>;
 
 /** Persists each live session as append-only events plus a small JSON index. */
@@ -170,6 +178,17 @@ export class DebugSessionStore {
   private readonly maxSessions: number;
   private readonly maxAgeMs: number;
   private readonly reconnectGraceMs: number;
+  private readonly idleMs: number;
+  private readonly endedListeners = new Set<(id: string) => void>();
+
+  /**
+   * Told when a session ends while some of its tabs are still connected (they
+   * were not in use): they start a new one at their next input.
+   */
+  onEnded(listener: (id: string) => void): () => void {
+    this.endedListeners.add(listener);
+    return () => this.endedListeners.delete(listener);
+  }
 
   /** The archive's age limit, exposed to the dashboard for its cleanup action. */
   get retentionDays(): number {
@@ -207,6 +226,7 @@ export class DebugSessionStore {
       options.reconnectGraceMs,
       DEFAULT_RECONNECT_GRACE_MS,
     );
+    this.idleMs = positiveInteger(options.idleMs, DEFAULT_IDLE_MS);
     mkdirSync(directory, { recursive: true });
     this.loadIndex();
     this.prune();
@@ -267,13 +287,15 @@ export class DebugSessionStore {
     const redirectedId = this.sessionRedirects.get(id);
     const previous = this.sessions.get(redirectedId ?? id);
     let effectiveId = redirectedId ?? id;
+    // The session this tab was in has ended (a reload slower than the
+    // reconnect window): the new one continues it.
+    let continuesEnded: string | undefined;
     if (previous && previous.status !== 'recording') {
       effectiveId = randomUUID();
+      continuesEnded = previous.id;
       this.sessionRedirects.set(id, effectiveId);
     }
-    const pendingFinish = this.finishTimers.get(effectiveId);
-    if (pendingFinish !== undefined) clearTimeout(pendingFinish);
-    this.finishTimers.delete(effectiveId);
+    // A pending end is left to run: it keeps the session while a tab is in use.
     const current = this.sessions.get(effectiveId);
     const incomingEvents = session.events.filter(
       (event) => !isInitialSnapshot(event),
@@ -337,6 +359,7 @@ export class DebugSessionStore {
       status: 'recording',
       createdAt: participant.createdAt ?? now,
       updatedAt: now,
+      pageStartedAt: validIsoDate(createdAt) ? createdAt : now,
     };
     const participants = mergeParticipant(
       current?.participants ?? [],
@@ -367,8 +390,8 @@ export class DebugSessionStore {
       ...((current?.resume ?? session.resume)
         ? { resume: current?.resume ?? session.resume }
         : {}),
-      ...((current?.continuesFrom ?? session.continuesFrom)
-        ? { continuesFrom: current?.continuesFrom ?? session.continuesFrom }
+      ...((current?.continuesFrom ?? session.continuesFrom ?? continuesEnded)
+        ? { continuesFrom: current?.continuesFrom ?? session.continuesFrom ?? continuesEnded }
         : {}),
       clips,
       participants,
@@ -543,9 +566,6 @@ export class DebugSessionStore {
         return participant;
       return { ...participant, status, updatedAt: now };
     });
-    const stillRecording = participants.some(
-      (participant) => participant.status === 'recording',
-    );
     const next = {
       ...current,
       participants,
@@ -554,35 +574,40 @@ export class DebugSessionStore {
       updatedAt: now,
     } satisfies StoredSession;
     this.sessions.set(id, next);
-    if (!stillRecording) {
-      const timer = setTimeout(() => {
-        this.finishTimers.delete(id);
-        const latest = this.sessions.get(id);
-        if (!latest || latest.status !== 'recording') return;
-        const finalStatus: StoredDebugSessionStatus = latest.participants.some(
-          (participant) => participant.status === 'recording',
-        )
-          ? 'recording'
-          : latest.participants.some(
-                (participant) => participant.status === 'interrupted',
-              )
-            ? 'interrupted'
-            : 'completed';
-        const endedAt = new Date().toISOString();
-        this.sessions.set(id, {
-          ...latest,
-          status: finalStatus,
-          updatedAt: endedAt,
-          endedAt,
-        });
-        this.liveEvents.delete(id);
-        this.eventKeys.delete(id);
-        this.nextEventSequence.delete(id);
-        this.persistIndex();
-      }, this.reconnectGraceMs);
-      timer.unref?.();
-      this.finishTimers.set(id, timer);
-    }
+    // Once the window is over: the session goes on only while a tab still in
+    // it is in use. A tab left open that nobody touches does not hold it.
+    const pending = this.finishTimers.get(id);
+    if (pending !== undefined) clearTimeout(pending);
+    const timer = setTimeout(() => {
+      this.finishTimers.delete(id);
+      const latest = this.sessions.get(id);
+      if (!latest || latest.status !== 'recording') return;
+      const events = this.liveEvents.get(id) ?? this.readEvents(id);
+      const since = Date.now() - this.idleMs;
+      const inUse = latest.participants.some(
+        (participant) => participant.status === 'recording' && lastActivityOf(participant, events) >= since,
+      );
+      if (inUse) return;
+      const endedAt = new Date().toISOString();
+      const ended = latest.participants.map((participant) =>
+        participant.status === 'recording' ? { ...participant, status: 'completed' as const, updatedAt: endedAt } : participant,
+      );
+      const left = latest.participants.some((participant) => participant.status === 'recording');
+      this.sessions.set(id, {
+        ...latest,
+        participants: ended,
+        status: ended.some((participant) => participant.status === 'interrupted') ? 'interrupted' : 'completed',
+        updatedAt: endedAt,
+        endedAt,
+      });
+      this.liveEvents.delete(id);
+      this.eventKeys.delete(id);
+      this.nextEventSequence.delete(id);
+      this.persistIndex();
+      if (left) for (const listener of this.endedListeners) listener(id);
+    }, this.reconnectGraceMs);
+    timer.unref?.();
+    this.finishTimers.set(id, timer);
     this.persistIndex();
     return 'recording';
   }
@@ -1125,6 +1150,18 @@ export function isResumeSessionMetadata(
       (typeof value['participantId'] === 'string' &&
         value['participantId'].length <= 200))
   );
+}
+
+/** When a tab was last in use: its last input, or the start of the page it shows. */
+function lastActivityOf(
+  participant: StoredDebugSessionParticipant,
+  events: readonly Record<string, unknown>[],
+): number {
+  let latest = Date.parse(participant.pageStartedAt ?? '') || Number.NEGATIVE_INFINITY;
+  for (const event of events)
+    if (event['participantId'] === participant.id && INPUT_EVENT_KINDS.has(String(event['kind'])))
+      latest = Math.max(latest, Number(event['timestamp']) || Number.NEGATIVE_INFINITY);
+  return latest;
 }
 
 function mergeParticipant(

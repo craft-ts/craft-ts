@@ -38,6 +38,10 @@ class FakeSocket {
     this.emit('message', { data: JSON.stringify({ type: 'session:ready', id: id ?? sync?.['id'] }) });
   }
 
+  receive(message: Message): void {
+    this.emit('message', { data: JSON.stringify(message) });
+  }
+
   private emit(type: string, event: unknown): void {
     for (const listener of this.listeners.get(type) ?? []) listener(event);
   }
@@ -209,6 +213,49 @@ describe('debug session persistence after a pause', () => {
     second.accept();
     expect(syncOf(second)).toMatchObject({ id: next, session: { continuesFrom: firstId } });
     expect(historyOf(second).map((event) => event['name'])).not.toContain('before the pause');
+  });
+
+  it('waits for input once the server ended the session without this tab', () => {
+    // The other tab was closed; nobody used this one.
+    const session = record();
+    connect(session);
+    const first = lastSocket();
+    first.accept();
+    const firstId = syncOf(first)['id'] as string;
+
+    first.receive({ type: 'session:ended', id: firstId });
+    expect(first.readyState).toBe(3);
+    // Nothing said back: the session is over.
+    expect(first.sent.some((message) => message['type'] === 'session:finish')).toBe(false);
+    session.capture('performance', 'emitted', { name: 'browser.heartbeat' });
+    expect(FakeSocket.instances).toHaveLength(1);
+
+    input('pointerdown');
+    const second = lastSocket();
+    second.accept();
+    expect(syncOf(second)['session']).toMatchObject({ continuesFrom: firstId });
+    expect(syncOf(second)['id']).not.toBe(firstId);
+  });
+
+  it('does not follow an id a tab writes without saying it uses it', () => {
+    // A tab of an older version, left open, rejoins after a server restart.
+    connect(record());
+    const socket = lastSocket();
+    socket.accept();
+    const id = syncOf(socket)['id'];
+    const stray = crypto.randomUUID();
+    localStorage.setItem(sharedKey, stray);
+    window.dispatchEvent(new StorageEvent('storage', { key: sharedKey, newValue: stray }));
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(socket.readyState).toBe(FakeSocket.OPEN);
+
+    // One a tab uses is followed.
+    const used = crypto.randomUUID();
+    localStorage.setItem(activityKey, JSON.stringify({ id: used, at: clock }));
+    localStorage.setItem(sharedKey, used);
+    window.dispatchEvent(new StorageEvent('storage', { key: sharedKey, newValue: used }));
+    expect(lastSocket()).not.toBe(socket);
+    expect(id).not.toBe(used);
   });
 
   it('never splits a recording made by a test', () => {

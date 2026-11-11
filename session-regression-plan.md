@@ -626,7 +626,17 @@ depuis la veille l'a gardée ouverte, et chaque onglet ouvert ensuite l'a rejoin
 - Conséquence : `db2b8915` et `7e649903`, enregistrées avec la fuite, attendent des ticks
   sous des clics et s'écartent maintenant à chaque rejeu (596/743, 318/413) : à
   réenregistrer, sans onglet de preview ouvert.
-- Reste : empêcher qu'un onglet oublié garde une session ouverte indéfiniment.
+- Fait (2026-11-11) : un onglet oublié ne garde plus une session ouverte.
+  - Côté onglet : après 30 min sans saisie dans aucun onglet de l'origine, chaque onglet
+    termine sa part ; sa saisie suivante ouvre une nouvelle session (`continuesFrom`), qui
+    repart de la page telle qu'elle est et reprend la dernière réponse à chaque requête.
+  - Côté serveur : quand un onglet part (fermé, ou socket coupée sans `pagehide`, cas du
+    panneau Browser), la session attend 15 s qu'un rechargement revienne, puis ne reste
+    ouverte que si un onglet restant a eu une saisie, ou chargé sa page, dans les 30 min.
+    Sinon elle se termine et les onglets restants reçoivent `session:ended`. Un
+    rechargement plus lent ouvre une session qui continue la précédente.
+  - Un onglet ne suit plus un identifiant partagé qu'aucun onglet à jour ne dit utiliser
+    (un onglet d'une ancienne version l'écrit sans jamais servir).
 
 ## Sources
 
