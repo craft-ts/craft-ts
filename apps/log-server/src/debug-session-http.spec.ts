@@ -456,6 +456,34 @@ describe('debug session local archive API', () => {
     expect((await extract({ sessionId: id, participantIds: [] })).status).toBe(400);
   });
 
+  it('puts back a copy of a session under its own id, as the archive gives it', async () => {
+    const id = '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5678';
+    const recorded = {
+      format: 'craft-debug-session' as const,
+      version: 6 as const,
+      startUrl: 'http://localhost:4200/',
+      exportedAt: Date.now(),
+      truncated: false,
+      events: [{ id: 'click', sequence: 1, timestamp: Date.now(), kind: 'dom', phase: 'emitted' }],
+      clips: [],
+    };
+    const createdAt = new Date(Date.now() - 86_400_000).toISOString();
+    sessionStore.begin(id, recorded, createdAt, 'tab-a');
+    sessionStore.finish(id, 'completed');
+    const copy = sessionStore.get(id)!;
+    sessionStore.delete(id);
+    const put = (body: unknown) =>
+      fetch(`${baseUrl}/sessions/${id}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+    const restored = await put({ createdAt, session: copy });
+    expect(restored.status).toBe(201);
+    expect(sessionStore.get(id)).toEqual(copy);
+    expect(sessionStore.list()[0]).toMatchObject({ id, createdAt, status: 'completed' });
+    // Already there: left as it is.
+    expect((await put({ createdAt, session: copy })).status).toBe(200);
+    expect((await put({ createdAt, session: { format: 'autre' } })).status).toBe(400);
+  });
+
   it('rejects session deletion from an unlisted browser origin', async () => {
     const id = '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5678';
     sessionStore.begin(

@@ -993,6 +993,32 @@ async function handleRequest(
     return;
   }
 
+  // A copy kept elsewhere (an app's suite) put back under its own id.
+  if (request.method === 'PUT' && sessionMatch) {
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    if (!options.sessionStore) {
+      sendJson(response, 404, { error: 'Session archive is unavailable.' }, headers);
+      return;
+    }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(await readBody(request, Math.max(maxBodySize, 128 * 1024 * 1024)));
+    } catch {
+      sendJson(response, 400, { error: 'Invalid session copy.' }, headers);
+      return;
+    }
+    const outcome =
+      isRecord(payload) && typeof payload['createdAt'] === 'string' && isPortableSession(payload['session'])
+        ? options.sessionStore.restore(sessionMatch[1]!, { createdAt: payload['createdAt'], session: payload['session'] })
+        : undefined;
+    if (outcome === undefined) {
+      sendJson(response, 400, { error: 'Invalid session copy.' }, headers);
+      return;
+    }
+    sendJson(response, outcome === 'restored' ? 201 : 200, { id: sessionMatch[1], outcome }, headers);
+    return;
+  }
+
   const finishSessionMatch = /^\/sessions\/([0-9a-f-]{36})\/finish$/i.exec(
     url.pathname,
   );
@@ -1346,7 +1372,7 @@ function sessionCorsHeaders(
     ...(origin && isAllowedOrigin(origin, allowedOrigins)
       ? { 'access-control-allow-origin': origin }
       : {}),
-    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'access-control-allow-headers': 'content-type',
     vary: 'Origin',
   };

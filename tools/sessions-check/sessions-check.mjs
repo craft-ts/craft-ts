@@ -26,6 +26,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SESSIONS_CHECK_APPS } from './apps.mjs';
+import { goldenSessionsDirOf, syncGoldenSessions } from './golden-sessions.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repository = resolve(here, '../..');
@@ -52,7 +53,9 @@ export const SESSIONS_CHECK_USAGE = `Usage : node tools/sessions-check/sessions-
                       (son id, ou son début) : la différence précise entre au registre, pas la session
   --ledger <fichier>  le registre des approbations ; .craft/attestations.jsonl par défaut
   --select            choisir la suite de l'app et l'écrire dans <app>/.craft/golden-set.json : la suite en
-                      place reste stable, les comportements qu'aucun test ne prouve passent d'abord
+                      place reste stable, les comportements qu'aucun test ne prouve passent d'abord ;
+                      ses sessions sont copiées dans <app>/.craft/golden-sessions/ (refusées si quelque
+                      chose y ressemble à un secret), et remises dans l'archive avant chaque vérification
   --max-sessions <n>  avec --select : la taille maximale de la suite`;
 
 /** Reads the command line; throws a message for the person on a mistake. */
@@ -379,7 +382,26 @@ async function select(options) {
     return 1;
   }
   console.log(`\n${summarizeSelection(selection, relative(process.cwd(), file))}`);
+  // The sessions themselves, kept beside the manifest: the archive forgets.
+  const dir = goldenSessionsDirOf(SESSIONS_CHECK_APPS[options.app].scope, repository);
+  try {
+    const synced = await syncGoldenSessions({ archive: options.archive, dir, sessionIds: (manifestSessions(file) ?? []).map((session) => session.sessionId) });
+    console.log(summarizeGoldenSessionsSync(synced, relative(process.cwd(), dir)));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
   return 0;
+}
+
+/** What `syncGoldenSessions` did, in one line. */
+export function summarizeGoldenSessionsSync(synced, dir) {
+  const parts = [
+    synced.copied.length ? `${synced.copied.length} copiée(s) dans ${dir}` : '',
+    synced.restored ? `${synced.restored} remise(s) dans l’archive` : '',
+    synced.removed.length ? `${synced.removed.length} retirée(s) (plus dans la suite)` : '',
+  ].filter(Boolean);
+  return `Sessions de la suite : ${parts.length ? parts.join(' · ') : `à jour (${dir})`}.`;
 }
 
 /**
@@ -454,6 +476,14 @@ async function main(argv) {
   // The suite the app keeps (`--select`), or the archive's proposal.
   const kept = manifestSessions(goldenSetFileOf(options.app, repository));
   const golden = kept ?? (await goldenSessions(options.archive, app.origin));
+  // The archive may have forgotten some: the repository keeps them.
+  if (kept && replays)
+    console.log(
+      summarizeGoldenSessionsSync(
+        await syncGoldenSessions({ archive: options.archive, dir: goldenSessionsDirOf(app.scope, repository), sessionIds: kept.map((session) => session.sessionId) }),
+        relative(process.cwd(), goldenSessionsDirOf(app.scope, repository)),
+      ),
+    );
   const sessions = options.sessions
     ? options.sessions.map((sessionId) => golden.find((session) => session.sessionId === sessionId) ?? { sessionId, recordedAt: '', units: [] })
     : golden;

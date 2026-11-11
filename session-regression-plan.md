@@ -508,9 +508,13 @@ l'ingestion, rétention ; preview/staging en premier, jamais la prod par défaut
 
 ## 6. Questions ouvertes
 
-1. **Stockage des sessions sélectionnées** : committées dans le dépôt (simple, revue
-   en PR, mais poids et données) ou stockage à part (artefacts CI / dossier ignoré,
-   reconstruit à partir du manifeste) ?
+1. **Stockage des sessions sélectionnées** : tranché (2026-11-11) — committées dans le
+   dépôt, `<app>/.craft/golden-sessions/<id>.json.gz` (gzip de JSON à clés triées, ~1 Mo
+   pour les 11 de demo-ecommerce). `--select` les copie depuis l'archive et refuse tout
+   le lot si l'une contient une valeur sous une clé sensible, un e-mail hors domaines
+   réservés (`.demo`, `.test`…), un JWT ou un Bearer (`sensitiveFindings`). Avant chaque
+   vérification, celles que l'archive a oubliées y sont remises (`PUT /sessions/<id>`,
+   même id, âge compté depuis la remise : la purge à 30 jours ne les reprend pas aussitôt).
 2. **Ordre des lots 3 et 4** : la comparaison visuelle d'abord (proposé), ou le mode
    interaction d'abord si le lot 0 montre que le mode invocation laisse passer trop ?
 3. **Seuil de bruit** : tranché (2026-11-10) — 2 par défaut, `--noise-runs 3` pour une

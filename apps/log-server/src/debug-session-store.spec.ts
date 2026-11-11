@@ -214,6 +214,26 @@ describe('DebugSessionStore', () => {
     expect(() => store.begin(next, { ...fixture(), continuesFrom: 'not-an-id' }, createdAt, 'tab-b')).toThrow();
   });
 
+  it('keeps a session put back for a month from then, however old it is', () => {
+    store.close();
+    store = new DebugSessionStore(directory, { maxAgeMs: 30 * 86_400_000 });
+    const longAgo = '2025-01-01T08:00:00.000Z';
+    store.begin(id, fixture(), new Date().toISOString(), 'tab-a');
+    store.finish(id, 'completed');
+    const copy = store.get(id)!;
+    store.delete(id);
+
+    expect(store.restore(id, { createdAt: longAgo, session: copy })).toBe('restored');
+    expect(store.get(id)).toEqual(copy);
+    expect(store.list()[0]).toMatchObject({ id, createdAt: longAgo, status: 'completed' });
+    expect(store.pruneExpired()).toBe(0);
+    store.close();
+    store = new DebugSessionStore(directory, { maxAgeMs: 30 * 86_400_000 });
+    expect(store.get(id)).toEqual(copy);
+    expect(store.restore(id, { createdAt: longAgo, session: copy })).toBe('kept');
+    expect(store.restore('23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5679', { createdAt: 'hier', session: copy })).toBeUndefined();
+  });
+
   it('updates a participant visibility state without adding timeline events', () => {
     store.begin(id, fixture(), createdAt, 'tab-a');
 

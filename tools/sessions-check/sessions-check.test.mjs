@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -230,4 +230,68 @@ test('--select writes the suite next to the app, and the check replays it while 
   assert.match(summary, /1 laissée\(s\) de côté/);
   assert.match(summary, /À réenregistrer .* route:\/admin/);
   assert.match(summary, /aucun test ne prouve, choisis d’abord : 1/);
+});
+
+test('finds in a session what looks like a secret or a person, not the demo accounts', async () => {
+  const { sensitiveFindings } = await import('./golden-sessions.mjs');
+  const clean = {
+    events: [
+      { payload: { body: JSON.stringify({ email: 'camille@atelier.demo', password: '[REDACTED]', cartId: 'craft-ref:6e9264191c34a552' }) } },
+      { payload: { headers: { authorization: '[REDACTED]' }, url: 'http://localhost:4204/?token=[REDACTED]' } },
+    ],
+  };
+  assert.deepEqual(sensitiveFindings(clean), []);
+  const leaking = {
+    events: [
+      { payload: { body: JSON.stringify({ email: 'romain@gmail.com', password: 'hunter2' }) } },
+      { response: 'Bearer abcdefghijklmnop', state: { session: 'eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4' } },
+    ],
+  };
+  assert.deepEqual(
+    sensitiveFindings(leaking).map((finding) => finding.reason),
+    ['adresse e-mail romain@gmail.com', 'valeur non caviardée sous « password »', 'jeton Bearer', 'jeton JWT'],
+  );
+});
+
+test('keeps the sessions of the suite in the repository, and puts back what the archive forgot', async () => {
+  const { decodeGoldenSession, encodeGoldenSession, syncGoldenSessions } = await import('./golden-sessions.mjs');
+  const { existsSync, readdirSync } = await import('node:fs');
+  const id = (n) => `23e5a8e0-3f2c-4b09-a9fa-6b78ed0c567${n}`;
+  const session = (n, extra = {}) => ({ format: 'craft-debug-session', version: 7, startUrl: 'http://localhost:4204/', events: [{ id: `e${n}` }], clips: [], ...extra });
+  const archive = new Map([[id(1), session(1)], [id(2), session(2)], [id(3), session(3, { note: 'jean@gmail.com' })]]);
+  const puts = [];
+  const fetchImpl = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    const json = (status, body) => ({ ok: status < 400, status, json: async () => body });
+    if (path === '/sessions') return json(200, [...archive.keys()].map((key) => ({ id: key, createdAt: '2026-10-29T07:00:00.000Z' })));
+    const key = path.split('/')[2];
+    if (init.method === 'PUT') {
+      puts.push(key);
+      if (archive.has(key)) return json(200, { outcome: 'kept' });
+      archive.set(key, JSON.parse(init.body).session);
+      return json(201, { outcome: 'restored' });
+    }
+    return archive.has(key) ? json(200, archive.get(key)) : json(404, {});
+  };
+  const dir = mkdtempSync(join(tmpdir(), 'golden-sessions-'));
+  try {
+    // Deterministic: the same session gives the same bytes.
+    assert.deepEqual(encodeGoldenSession({ id: id(1), createdAt: 'x', session: { b: 1, a: 2 } }), encodeGoldenSession({ id: id(1), createdAt: 'x', session: { a: 2, b: 1 } }));
+
+    assert.deepEqual(await syncGoldenSessions({ archive: 'http://archive', dir, sessionIds: [id(1), id(2)], fetchImpl }), { copied: [id(1), id(2)], restored: 0, removed: [] });
+    assert.deepEqual(decodeGoldenSession(readFileSync(join(dir, `${id(1)}.json.gz`))), { format: 'craft-golden-session', version: 1, id: id(1), createdAt: '2026-10-29T07:00:00.000Z', session: session(1) });
+
+    // The archive emptied: the next check puts them back.
+    archive.clear();
+    assert.deepEqual(await syncGoldenSessions({ archive: 'http://archive', dir, sessionIds: [id(1)], fetchImpl }), { copied: [], restored: 1, removed: [id(2)] });
+    assert.deepEqual(archive.get(id(1)), session(1));
+    assert.deepEqual(readdirSync(dir), [`${id(1)}.json.gz`]);
+
+    archive.set(id(3), session(3, { note: 'jean@gmail.com' }));
+    await assert.rejects(syncGoldenSessions({ archive: 'http://archive', dir, sessionIds: [id(1), id(3)], fetchImpl }), /jean@gmail\.com/);
+    assert.equal(existsSync(join(dir, `${id(3)}.json.gz`)), false);
+    await assert.rejects(syncGoldenSessions({ archive: 'http://archive', dir, sessionIds: [id(4)], fetchImpl }), /introuvable/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

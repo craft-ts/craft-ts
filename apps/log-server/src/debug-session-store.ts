@@ -108,6 +108,11 @@ export type StoredDebugSessionParticipant = Readonly<{
 
 type StoredSession = Omit<StoredDebugSessionSummary, 'participantCount'> & {
   endedAt?: string;
+  /**
+   * When a copy kept elsewhere (an app's suite) put it back: its age counts
+   * from then, or a session recorded long ago would be pruned at once.
+   */
+  restoredAt?: string;
   viewport?: Readonly<{ width: number; height: number }>;
   environment?: StoredEnvironmentProfile;
   test?: DebugSessionTestMetadata;
@@ -685,6 +690,57 @@ export class DebugSessionStore {
     return extractedId;
   }
 
+  /**
+   * Puts back, under its own id, a finished session exported by `get` (with
+   * the date it began): the copy an app's suite keeps of it. A session the
+   * archive still holds is left as it is. Undefined when the copy is invalid.
+   */
+  restore(
+    id: string,
+    input: Readonly<{ createdAt: string; session: PortableDebugSession }>,
+  ): 'restored' | 'kept' | undefined {
+    assertSessionId(id);
+    if (this.sessions.has(id)) return 'kept';
+    try {
+      assertPortableSession(input.session);
+    } catch {
+      return undefined;
+    }
+    const { session } = input;
+    if (!validIsoDate(input.createdAt) || !Array.isArray(session.participants)) return undefined;
+    const events = session.events.filter((event) => !isInitialSnapshot(event));
+    const now = new Date().toISOString();
+    const updatedAt = new Date(session.exportedAt).toISOString();
+    const stored: StoredSession = {
+      id,
+      startUrl: session.startUrl,
+      createdAt: input.createdAt,
+      updatedAt,
+      endedAt: updatedAt,
+      restoredAt: now,
+      status: 'completed',
+      version: 2,
+      recordingVersion: session.version,
+      replayVersion: session.replayVersion ?? 1,
+      eventCount: events.length,
+      truncated: session.truncated,
+      ...(session.test ? { test: session.test } : {}),
+      ...(session.resume ? { resume: session.resume } : {}),
+      ...(session.continuesFrom ? { continuesFrom: session.continuesFrom } : {}),
+      clips: session.clips,
+      participants: session.participants.map((participant) =>
+        participant.status === 'recording' ? { ...participant, status: 'completed' as const } : participant,
+      ),
+      ...(session.viewport ? { viewport: session.viewport } : {}),
+      ...(session.initialSnapshot ? { initialSnapshot: session.initialSnapshot } : {}),
+    };
+    this.writeEvents(id, events);
+    this.sessions.set(id, stored);
+    this.prune();
+    this.persistIndex();
+    return this.sessions.has(id) ? 'restored' : undefined;
+  }
+
   private removeSession(id: string): boolean {
     if (!this.sessions.has(id)) return false;
     this.sessions.delete(id);
@@ -700,7 +756,7 @@ export class DebugSessionStore {
     const cutoff = Date.now() - this.maxAgeMs;
     let deleted = 0;
     for (const stored of this.sessions.values()) {
-      const createdAt = Date.parse(stored.createdAt);
+      const createdAt = Date.parse(stored.restoredAt ?? stored.createdAt);
       if (
         stored.status === 'recording' ||
         !Number.isFinite(createdAt) ||
@@ -915,7 +971,7 @@ export class DebugSessionStore {
   private prune(): void {
     const sessions = [...this.sessions.values()].sort(
       (a, b) =>
-        b.updatedAt.localeCompare(a.updatedAt) ||
+        (b.restoredAt ?? b.updatedAt).localeCompare(a.restoredAt ?? a.updatedAt) ||
         b.createdAt.localeCompare(a.createdAt),
     );
     const cutoff = Date.now() - this.maxAgeMs;
@@ -924,7 +980,7 @@ export class DebugSessionStore {
     );
     let changed = false;
     for (const stored of sessions) {
-      if (Date.parse(stored.createdAt) < cutoff || !keep.has(stored.id)) {
+      if (Date.parse(stored.restoredAt ?? stored.createdAt) < cutoff || !keep.has(stored.id)) {
         this.sessions.delete(stored.id);
         this.liveEvents.delete(stored.id);
         this.eventKeys.delete(stored.id);
