@@ -29,7 +29,10 @@ const workspaceRoot = resolve(dirname(scriptPath), '..');
 const supportedBumps = new Set(['patch', 'minor', 'major']);
 const releaseCheckArtifacts = [
   '.craft/review-app-style-graph.json',
+  'apps/debug-session-dashboard/architecture/catalog.ts',
   'apps/demo/architecture/catalog.ts',
+  'apps/demo-effect/architecture/catalog.ts',
+  'apps/demo-with-server-function/architecture/catalog.ts',
   'apps/demo-ssr/architecture/catalog.ts',
   'apps/quickstart-effect/architecture/catalog.ts',
   'libs/review-attestation/attestation-app/architecture/catalog.ts',
