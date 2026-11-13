@@ -1,0 +1,49 @@
+import {describe,it,expect,vi} from 'vitest';
+import {createCraftInjector} from './host/craft-injector';
+import {createEnvironmentInjector,DestroyRef,InjectionToken} from './host/craft-compat';
+describe('shared provider layout prototype',()=>{
+  it('shares token positions without sharing values or factory caches',()=>{
+    const root=createCraftInjector([]),key={},value={},factory={},calls=vi.fn((owner:any)=>({owner}));
+    const a=root.createChild([{token:value,useValue:'a'},{token:factory,useFactory:calls}],key);
+    const b=root.createChild([{token:value,useValue:'b'},{token:factory,useFactory:calls}],key);
+    expect(a.get(value)).toBe('a');expect(b.get(value)).toBe('b');
+    expect(a.get(factory)).toEqual({owner:a});expect(a.get(factory)).toBe(a.get(factory));
+    expect(b.get(factory)).toEqual({owner:b});expect(a.get(factory)).not.toBe(b.get(factory));
+    expect(calls).toHaveBeenCalledTimes(2);a.destroy();expect(b.get(value)).toBe('b');root.destroy();
+  });
+  it('recompiles a changed layout without changing previously mounted owners',()=>{
+    const root=createCraftInjector([]),key={},a={},b={};
+    const first=root.createChild([{token:a,useValue:1},{token:b,useValue:2}],key);
+    const second=root.createChild([{token:b,useValue:3},{token:a,useValue:4}],key);
+    const third=root.createChild([{token:a,useValue:5}],key);
+    expect([first.get(a),first.get(b),second.get(a),second.get(b),third.get(a)]).toEqual([1,2,4,3,5]);
+    expect(third.get(b,null)).toBeNull();first.destroy();expect(second.get(a)).toBe(4);root.destroy();
+  });
+  it('keeps duplicate overrides, multi, collection, null and undefined values',()=>{
+    const root=createCraftInjector([]),key={},multi={},list={},nil={},undef={},override={};
+    const parent=root.createChild([{token:multi,useValue:0,multi:true},{token:list,useValue:['p'],collection:true}],key);
+    const child=parent.createChild([
+      {token:multi,useValue:1,multi:true},{token:multi,useFactory:()=>2,multi:true},{token:multi,useValue:3,multi:true},
+      {token:list,useValue:['a','b'],collection:true},{token:list,useFactory:()=>['c'],collection:true},
+      {token:nil,useValue:null},{token:undef,useValue:undefined},
+      {token:override,useValue:'old'},{token:override,useValue:'new'},
+    ],key);
+    expect(child.get(multi)).toEqual([0,1,2,3]);expect(child.getOptional(list)).toEqual(['p','a','b','c']);
+    expect(child.get(nil,'fallback')).toBeNull();expect(child.get(undef,'fallback')).toBeUndefined();expect(child.get(override)).toBe('new');root.destroy();
+  });
+  it('keeps factory errors retryable, circular errors and per-root default ownership',()=>{
+    const root=createEnvironmentInjector([],createCraftInjector([])),key={},failure={},cycle={},error=new Error('factory');let calls=0;
+    const owner=root.createChild([{token:failure,useFactory:()=>{if(++calls===1)throw error;return 42;}},{token:cycle,useFactory:scope=>scope.get(cycle)}],key);
+    expect(()=>owner.get(failure)).toThrow(error);expect(owner.get(failure)).toBe(42);expect(calls).toBe(2);
+    expect(()=>owner.get(cycle)).toThrow('Circular');
+    const token=new InjectionToken('layoutDefault',{factory:()=>({})});
+    const sibling=root.createChild([],key);expect(owner.get(token)).toBe(sibling.get(token));root.destroy();
+  });
+  it('keeps environment self tokens and all cleanup callbacks after a failure',()=>{
+    const bare=createCraftInjector([]),key={},root=createEnvironmentInjector([],bare,'root',key);
+    const a=createEnvironmentInjector([],root,'a',key),b=createEnvironmentInjector([],root,'b',key),calls:string[]=[];
+    const error=new Error('cleanup');a.get(DestroyRef).onDestroy(()=>{calls.push('a');throw error;});b.get(DestroyRef).onDestroy(()=>calls.push('b'));
+    root.get(DestroyRef).onDestroy(()=>calls.push('root'));expect(()=>root.destroy()).toThrow(error);
+    expect(calls).toEqual(['a','b','root']);expect(a.destroyed&&b.destroyed).toBe(true);expect(()=>root.destroy()).not.toThrow();bare.destroy();
+  });
+});

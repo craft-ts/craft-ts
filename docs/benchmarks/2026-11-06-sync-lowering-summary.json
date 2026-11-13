@@ -1,0 +1,2072 @@
+{
+  "commit": "e135eeec9f29c8daf6031d32bec780f9c8d99d6e",
+  "environment": {
+    "node": "v22.23.0",
+    "cpu": "Apple M3",
+    "chromium": "153.0.8010.12"
+  },
+  "settings": {
+    "runs": 5,
+    "iterations": 4,
+    "warmup": 2,
+    "order": "seeded shuffled variants per scenario/run",
+    "snapshots": true,
+    "cases": [
+      {
+        "rows": 1000,
+        "indexes": false
+      },
+      {
+        "rows": 1000,
+        "indexes": true
+      },
+      {
+        "rows": 5000,
+        "indexes": false
+      },
+      {
+        "rows": 5000,
+        "indexes": true
+      }
+    ]
+  },
+  "mount": [
+    {
+      "rows": 1000,
+      "indexes": false,
+      "variant": "fine-reference",
+      "mountMs": {
+        "n": 5,
+        "median": 42.799999952316284,
+        "min": 40.39999997615814,
+        "max": 52.40000009536743
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 13.887645721435547,
+        "min": 13.871055603027344,
+        "max": 13.895195007324219
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.30000007152557373,
+          "max": 1.399999976158142
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 4.349999964237213,
+          "min": 3.100000023841858,
+          "max": 5.5
+        },
+        "reverse": {
+          "n": 20,
+          "median": 2.800000011920929,
+          "min": 2.299999952316284,
+          "max": 6
+        },
+        "filter": {
+          "n": 10,
+          "median": 4.450000047683716,
+          "min": 3.899999976158142,
+          "max": 5.100000023841858
+        },
+        "restore": {
+          "n": 10,
+          "median": 17.44999998807907,
+          "min": 14.700000047683716,
+          "max": 22.5
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": false,
+      "variant": "lower-generic",
+      "mountMs": {
+        "n": 5,
+        "median": 44.199999928474426,
+        "min": 41.300000071525574,
+        "max": 47
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 13.858356475830078,
+        "min": 13.84383773803711,
+        "max": 13.862350463867188
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.3999999761581421,
+          "max": 1.100000023841858
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 4.699999988079071,
+          "min": 2.6999999284744263,
+          "max": 6.200000047683716
+        },
+        "reverse": {
+          "n": 20,
+          "median": 2.5999999046325684,
+          "min": 2.100000023841858,
+          "max": 4
+        },
+        "filter": {
+          "n": 10,
+          "median": 4.500000059604645,
+          "min": 3.5999999046325684,
+          "max": 6.400000095367432
+        },
+        "restore": {
+          "n": 10,
+          "median": 16.30000001192093,
+          "min": 14.599999904632568,
+          "max": 19.100000023841858
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": false,
+      "variant": "fine-grouped",
+      "mountMs": {
+        "n": 5,
+        "median": 29.399999976158142,
+        "min": 24.799999952316284,
+        "max": 37.800000071525574
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 9.717330932617188,
+        "min": 9.715747833251953,
+        "max": 9.740928649902344
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.3999999761581421,
+          "max": 0.9000000953674316
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 2.149999976158142,
+          "min": 0.8999999761581421,
+          "max": 3.5
+        },
+        "reverse": {
+          "n": 20,
+          "median": 1.7000000476837158,
+          "min": 1.2000000476837158,
+          "max": 3.299999952316284
+        },
+        "filter": {
+          "n": 10,
+          "median": 2.950000047683716,
+          "min": 2.100000023841858,
+          "max": 5.5
+        },
+        "restore": {
+          "n": 10,
+          "median": 8.549999952316284,
+          "min": 7,
+          "max": 10.699999928474426
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": false,
+      "variant": "lower-fine",
+      "mountMs": {
+        "n": 5,
+        "median": 28.09999990463257,
+        "min": 27.800000071525574,
+        "max": 30.5
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 9.851097106933594,
+        "min": 9.85097885131836,
+        "max": 9.859481811523438
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.6000000238418579,
+          "min": 0.2999999523162842,
+          "max": 1.1999999284744263
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 2.549999952316284,
+          "min": 1.5,
+          "max": 3.5999999046325684
+        },
+        "reverse": {
+          "n": 20,
+          "median": 2.149999976158142,
+          "min": 1.2000000476837158,
+          "max": 3.600000023841858
+        },
+        "filter": {
+          "n": 10,
+          "median": 3,
+          "min": 2.1999999284744263,
+          "max": 3.600000023841858
+        },
+        "restore": {
+          "n": 10,
+          "median": 8.800000011920929,
+          "min": 7.399999976158142,
+          "max": 11.299999952316284
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": true,
+      "variant": "fine-reference",
+      "mountMs": {
+        "n": 5,
+        "median": 54.299999952316284,
+        "min": 48,
+        "max": 60.39999997615814
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 18.163299560546875,
+        "min": 17.912952423095703,
+        "max": 18.16525650024414
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5499999523162842,
+          "min": 0.30000007152557373,
+          "max": 1.399999976158142
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 3.549999952316284,
+          "min": 2.4000000953674316,
+          "max": 4.699999928474426
+        },
+        "reverse": {
+          "n": 20,
+          "median": 8.5,
+          "min": 7.100000023841858,
+          "max": 9.699999928474426
+        },
+        "filter": {
+          "n": 10,
+          "median": 10.699999988079071,
+          "min": 10,
+          "max": 18.200000047683716
+        },
+        "restore": {
+          "n": 10,
+          "median": 22.350000023841858,
+          "min": 20.100000023841858,
+          "max": 33.300000071525574
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": true,
+      "variant": "lower-generic",
+      "mountMs": {
+        "n": 5,
+        "median": 52.799999952316284,
+        "min": 51.700000047683716,
+        "max": 62.5
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 18.138687133789062,
+        "min": 17.758342742919922,
+        "max": 18.139755249023438
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.3999999761581421,
+          "max": 1.1999999284744263
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 3.25,
+          "min": 2.399999976158142,
+          "max": 4.399999976158142
+        },
+        "reverse": {
+          "n": 20,
+          "median": 8.300000011920929,
+          "min": 6.899999976158142,
+          "max": 13.399999976158142
+        },
+        "filter": {
+          "n": 10,
+          "median": 10.249999940395355,
+          "min": 8.600000023841858,
+          "max": 17.899999976158142
+        },
+        "restore": {
+          "n": 10,
+          "median": 23.600000023841858,
+          "min": 19.299999952316284,
+          "max": 30.899999976158142
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": true,
+      "variant": "fine-grouped",
+      "mountMs": {
+        "n": 5,
+        "median": 30.899999976158142,
+        "min": 29.399999976158142,
+        "max": 31.699999928474426
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 11.12411880493164,
+        "min": 11.123794555664062,
+        "max": 11.135765075683594
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5999999046325684,
+          "min": 0.3999999761581421,
+          "max": 0.6999999284744263
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 2.300000011920929,
+          "min": 1.7999999523162842,
+          "max": 3.100000023841858
+        },
+        "reverse": {
+          "n": 20,
+          "median": 3.949999988079071,
+          "min": 3.100000023841858,
+          "max": 6
+        },
+        "filter": {
+          "n": 10,
+          "median": 4.599999964237213,
+          "min": 3.799999952316284,
+          "max": 7.100000023841858
+        },
+        "restore": {
+          "n": 10,
+          "median": 13.300000011920929,
+          "min": 11.700000047683716,
+          "max": 14.900000095367432
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": true,
+      "variant": "lower-fine",
+      "mountMs": {
+        "n": 5,
+        "median": 32,
+        "min": 29.700000047683716,
+        "max": 34
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 11.268135070800781,
+        "min": 11.26751708984375,
+        "max": 11.269145965576172
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.2999999523162842,
+          "max": 0.6999999284744263
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 2.400000035762787,
+          "min": 1.6999999284744263,
+          "max": 3.100000023841858
+        },
+        "reverse": {
+          "n": 20,
+          "median": 4,
+          "min": 3.299999952316284,
+          "max": 5.899999976158142
+        },
+        "filter": {
+          "n": 10,
+          "median": 4.400000035762787,
+          "min": 3.700000047683716,
+          "max": 6.299999952316284
+        },
+        "restore": {
+          "n": 10,
+          "median": 13.850000023841858,
+          "min": 12.600000023841858,
+          "max": 15.899999976158142
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "fine-reference",
+      "mountMs": {
+        "n": 5,
+        "median": 132.39999997615814,
+        "min": 129.5,
+        "max": 139.19999992847443
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 59.30590057373047,
+        "min": 59.29676818847656,
+        "max": 59.30906677246094
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1,
+          "min": 0.9000000953674316,
+          "max": 1.2999999523162842
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 10,
+          "min": 8.199999928474426,
+          "max": 11.700000047683716
+        },
+        "reverse": {
+          "n": 20,
+          "median": 10.25,
+          "min": 8.699999928474426,
+          "max": 12.199999928474426
+        },
+        "filter": {
+          "n": 10,
+          "median": 27,
+          "min": 18.100000023841858,
+          "max": 36.300000071525574
+        },
+        "restore": {
+          "n": 10,
+          "median": 66.89999997615814,
+          "min": 64.39999997615814,
+          "max": 141.10000002384186
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "lower-generic",
+      "mountMs": {
+        "n": 5,
+        "median": 134.5,
+        "min": 130.29999995231628,
+        "max": 153.80000007152557
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 59.47994613647461,
+        "min": 59.47480392456055,
+        "max": 59.48052215576172
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.0999999046325684,
+          "min": 0.7999999523162842,
+          "max": 1.6999999284744263
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 10.099999964237213,
+          "min": 8.399999976158142,
+          "max": 13.200000047683716
+        },
+        "reverse": {
+          "n": 20,
+          "median": 10.700000047683716,
+          "min": 9.299999952316284,
+          "max": 15.199999928474426
+        },
+        "filter": {
+          "n": 10,
+          "median": 24.30000001192093,
+          "min": 17.5,
+          "max": 37.60000002384186
+        },
+        "restore": {
+          "n": 10,
+          "median": 69.75,
+          "min": 64,
+          "max": 95.10000002384186
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "fine-grouped",
+      "mountMs": {
+        "n": 5,
+        "median": 84.20000004768372,
+        "min": 79,
+        "max": 90.39999997615814
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 39.55411148071289,
+        "min": 38.43689727783203,
+        "max": 39.55522537231445
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1,
+          "min": 0.7999999523162842,
+          "max": 1.2999999523162842
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 4.099999964237213,
+          "min": 3.700000047683716,
+          "max": 4.399999976158142
+        },
+        "reverse": {
+          "n": 20,
+          "median": 5.949999988079071,
+          "min": 4.800000071525574,
+          "max": 8.400000095367432
+        },
+        "filter": {
+          "n": 10,
+          "median": 11.650000035762787,
+          "min": 8.800000071525574,
+          "max": 15.200000047683716
+        },
+        "restore": {
+          "n": 10,
+          "median": 39.450000047683716,
+          "min": 36,
+          "max": 82
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "lower-fine",
+      "mountMs": {
+        "n": 5,
+        "median": 82.5,
+        "min": 82.20000004768372,
+        "max": 87.5
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 40.37217712402344,
+        "min": 38.99525451660156,
+        "max": 40.37482833862305
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.0999999642372131,
+          "min": 0.8000000715255737,
+          "max": 1.399999976158142
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 4.200000047683716,
+          "min": 3.700000047683716,
+          "max": 5.399999976158142
+        },
+        "reverse": {
+          "n": 20,
+          "median": 6.399999976158142,
+          "min": 5.5,
+          "max": 16.200000047683716
+        },
+        "filter": {
+          "n": 10,
+          "median": 10.449999988079071,
+          "min": 9.5,
+          "max": 13.399999976158142
+        },
+        "restore": {
+          "n": 10,
+          "median": 41.60000002384186,
+          "min": 35.299999952316284,
+          "max": 44.10000002384186
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "fine-reference",
+      "mountMs": {
+        "n": 5,
+        "median": 196.70000004768372,
+        "min": 191.39999997615814,
+        "max": 213.09999990463257
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 79.79062271118164,
+        "min": 78.66527557373047,
+        "max": 79.79145431518555
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.100000023841858,
+          "min": 0.8999999761581421,
+          "max": 1.399999976158142
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 12.149999976158142,
+          "min": 11.099999904632568,
+          "max": 16.699999928474426
+        },
+        "reverse": {
+          "n": 20,
+          "median": 32.09999996423721,
+          "min": 29.799999952316284,
+          "max": 41
+        },
+        "filter": {
+          "n": 10,
+          "median": 46.75,
+          "min": 35.10000002384186,
+          "max": 72.60000002384186
+        },
+        "restore": {
+          "n": 10,
+          "median": 106.05000001192093,
+          "min": 94.60000002384186,
+          "max": 116.20000004768372
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "lower-generic",
+      "mountMs": {
+        "n": 5,
+        "median": 196.79999995231628,
+        "min": 187.80000007152557,
+        "max": 206.09999990463257
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 79.40497589111328,
+        "min": 79.40375137329102,
+        "max": 79.45824813842773
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.100000023841858,
+          "min": 0.8999999761581421,
+          "max": 1.2000000476837158
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 11.699999928474426,
+          "min": 10.299999952316284,
+          "max": 15.299999952316284
+        },
+        "reverse": {
+          "n": 20,
+          "median": 34.44999998807907,
+          "min": 30.59999990463257,
+          "max": 62.5
+        },
+        "filter": {
+          "n": 10,
+          "median": 58.85000002384186,
+          "min": 44.09999990463257,
+          "max": 79.39999997615814
+        },
+        "restore": {
+          "n": 10,
+          "median": 105.15000003576279,
+          "min": 97.10000002384186,
+          "max": 159
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "fine-grouped",
+      "mountMs": {
+        "n": 5,
+        "median": 97.20000004768372,
+        "min": 93.69999992847443,
+        "max": 102.90000009536743
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 45.927894592285156,
+        "min": 44.67237091064453,
+        "max": 45.92809295654297
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1,
+          "min": 0.7999999523162842,
+          "max": 1.100000023841858
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 4.200000047683716,
+          "min": 3.5,
+          "max": 4.600000023841858
+        },
+        "reverse": {
+          "n": 20,
+          "median": 15.5,
+          "min": 14.099999904632568,
+          "max": 19.59999990463257
+        },
+        "filter": {
+          "n": 10,
+          "median": 19.699999928474426,
+          "min": 16,
+          "max": 22.90000009536743
+        },
+        "restore": {
+          "n": 10,
+          "median": 47.80000001192093,
+          "min": 45.300000071525574,
+          "max": 54.39999997615814
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "lower-fine",
+      "mountMs": {
+        "n": 5,
+        "median": 101.20000004768372,
+        "min": 96.90000009536743,
+        "max": 104.70000004768372
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 46.74545669555664,
+        "min": 46.74531936645508,
+        "max": 46.7606086730957
+      },
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.9000000357627869,
+          "min": 0.7999999523162842,
+          "max": 1.1999999284744263
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 4.25,
+          "min": 3,
+          "max": 5.700000047683716
+        },
+        "reverse": {
+          "n": 20,
+          "median": 15.899999976158142,
+          "min": 14.299999952316284,
+          "max": 22.5
+        },
+        "filter": {
+          "n": 10,
+          "median": 17,
+          "min": 15.399999976158142,
+          "max": 21.799999952316284
+        },
+        "restore": {
+          "n": 10,
+          "median": 49.450000047683716,
+          "min": 46.90000009536743,
+          "max": 65.5
+        }
+      }
+    }
+  ],
+  "counts": [
+    {
+      "variant": "counts-lower-generic",
+      "counts": {
+        "injector.create": 1014,
+        "provider.recipe": 2018,
+        "env:CraftApp": 1,
+        "provider.record": 8121,
+        "get:APP_INITIALIZER": 1,
+        "get:service-runtime-overrides": 23040,
+        "get:CraftRootComponentServiceToken": 1,
+        "tagged:service:CraftRootComponent": 1,
+        "optional:A": 11,
+        "get:HostTagList": 19045,
+        "get:EnvironmentInjector": 5013,
+        "env:HostTag(service:CraftRootComponent)": 1,
+        "get:A": 6019,
+        "optional:anonymous": 43097,
+        "get:anonymous": 35056,
+        "identity.create": 1,
+        "identity.encode": 7004,
+        "ComponentRenderedNode": 1001,
+        "env:CraftComponent": 1001,
+        "get:CraftRuntimeModeServiceToken": 8004,
+        "tagged:service:CraftRuntimeMode": 1,
+        "env:HostTag(service:CraftRuntimeMode)": 1,
+        "optional:HostTagList": 1001,
+        "generator.run": 5006,
+        "FragmentRenderedNode": 1001,
+        "watch": 5004,
+        "factory.gen=false.adapted=false": 2001,
+        "identity.child": 6002,
+        "ElementRenderedNode": 2001,
+        "replay.register": 2001,
+        "factory.gen=true.adapted=false": 3002,
+        "compiler.run": 3002,
+        "compiler.service": 2,
+        "get:BenchServiceToken": 2,
+        "tagged:service:Bench": 1,
+        "env:HostTag(service:Bench)": 1,
+        "signal:object": 2,
+        "signal.brand": 8,
+        "computed": 5,
+        "tagged:state:model": 1,
+        "env:HostTag(state:model)": 1,
+        "tagged:method:action": 1,
+        "env:HostTag(method:action)": 1,
+        "get:CraftMethodReplayRegistryServiceToken": 5,
+        "tagged:service:CraftMethodReplayRegistry": 1,
+        "env:HostTag(service:CraftMethodReplayRegistry)": 1,
+        "signal:boolean": 1,
+        "get:AppSnapshotRegistryServiceToken": 15016,
+        "tagged:service:AppSnapshotRegistry": 1,
+        "env:HostTag(service:AppSnapshotRegistry)": 1,
+        "get:CraftPrimitiveRegistryServiceToken": 4,
+        "tagged:service:CraftPrimitiveRegistry": 1,
+        "env:HostTag(service:CraftPrimitiveRegistry)": 1,
+        "primitive:model": 1,
+        "tagged:computed:rows": 1,
+        "env:HostTag(computed:rows)": 1,
+        "primitive:rows": 1,
+        "tagged:computed:revision": 1,
+        "env:HostTag(computed:revision)": 1,
+        "primitive:revision": 1,
+        "compiler.delegate": 3002,
+        "get:ForSchedulerServiceToken": 3,
+        "missing:ForSchedulerServiceToken": 1,
+        "ReactiveTextRenderedNode": 2000
+      }
+    },
+    {
+      "variant": "counts-lower-fine",
+      "counts": {
+        "injector.create": 1014,
+        "provider.recipe": 1019,
+        "env:CraftApp": 1,
+        "provider.record": 8121,
+        "get:APP_INITIALIZER": 1,
+        "get:service-runtime-overrides": 11040,
+        "get:CraftRootComponentServiceToken": 1,
+        "tagged:service:CraftRootComponent": 1,
+        "optional:A": 11,
+        "get:HostTagList": 7045,
+        "get:EnvironmentInjector": 1013,
+        "env:HostTag(service:CraftRootComponent)": 1,
+        "get:A": 2019,
+        "optional:anonymous": 3097,
+        "get:anonymous": 19056,
+        "identity.create": 1,
+        "identity.encode": 5004,
+        "ComponentRenderedNode": 1,
+        "env:CraftComponent": 1,
+        "get:CraftRuntimeModeServiceToken": 8004,
+        "tagged:service:CraftRuntimeMode": 1,
+        "env:HostTag(service:CraftRuntimeMode)": 1,
+        "optional:HostTagList": 1001,
+        "generator.run": 1006,
+        "FragmentRenderedNode": 1,
+        "watch": 3004,
+        "factory.gen=false.adapted=false": 1,
+        "identity.child": 4002,
+        "ElementRenderedNode": 1,
+        "replay.register": 2001,
+        "factory.gen=true.adapted=false": 2,
+        "compiler.run": 2,
+        "compiler.service": 2,
+        "get:BenchServiceToken": 2,
+        "tagged:service:Bench": 1,
+        "env:HostTag(service:Bench)": 1,
+        "signal:object": 2,
+        "signal.brand": 8,
+        "computed": 5,
+        "tagged:state:model": 1,
+        "env:HostTag(state:model)": 1,
+        "tagged:method:action": 1,
+        "env:HostTag(method:action)": 1,
+        "get:CraftMethodReplayRegistryServiceToken": 5,
+        "tagged:service:CraftMethodReplayRegistry": 1,
+        "env:HostTag(service:CraftMethodReplayRegistry)": 1,
+        "signal:boolean": 1,
+        "get:AppSnapshotRegistryServiceToken": 3016,
+        "tagged:service:AppSnapshotRegistry": 1,
+        "env:HostTag(service:AppSnapshotRegistry)": 1,
+        "get:CraftPrimitiveRegistryServiceToken": 4,
+        "tagged:service:CraftPrimitiveRegistry": 1,
+        "env:HostTag(service:CraftPrimitiveRegistry)": 1,
+        "primitive:model": 1,
+        "tagged:computed:rows": 1,
+        "env:HostTag(computed:rows)": 1,
+        "primitive:rows": 1,
+        "tagged:computed:revision": 1,
+        "env:HostTag(computed:revision)": 1,
+        "primitive:revision": 1,
+        "compiler.delegate": 2,
+        "get:ForSchedulerServiceToken": 3,
+        "missing:ForSchedulerServiceToken": 1,
+        "env:CraftFinePlan": 1000
+      }
+    },
+    {
+      "variant": "counts-fine-reference",
+      "counts": {
+        "injector.create": 1014,
+        "provider.recipe": 2018,
+        "env:CraftApp": 1,
+        "provider.record": 8121,
+        "get:APP_INITIALIZER": 1,
+        "get:service-runtime-overrides": 23040,
+        "get:CraftRootComponentServiceToken": 1,
+        "tagged:service:CraftRootComponent": 1,
+        "optional:O": 11,
+        "get:HostTagList": 19045,
+        "get:EnvironmentInjector": 5013,
+        "env:HostTag(service:CraftRootComponent)": 1,
+        "get:O": 6019,
+        "optional:anonymous": 43097,
+        "get:anonymous": 35056,
+        "identity.create": 1,
+        "identity.encode": 7004,
+        "ComponentRenderedNode": 1001,
+        "env:CraftComponent": 1001,
+        "get:CraftRuntimeModeServiceToken": 8004,
+        "tagged:service:CraftRuntimeMode": 1,
+        "env:HostTag(service:CraftRuntimeMode)": 1,
+        "optional:HostTagList": 1001,
+        "generator.run": 5006,
+        "FragmentRenderedNode": 1001,
+        "watch": 5004,
+        "factory.gen=false.adapted=false": 2001,
+        "identity.child": 6002,
+        "ElementRenderedNode": 2001,
+        "replay.register": 2001,
+        "factory.gen=true.adapted=false": 3002,
+        "get:BenchServiceToken": 2,
+        "tagged:service:Bench": 1,
+        "env:HostTag(service:Bench)": 1,
+        "signal:object": 2,
+        "signal.brand": 8,
+        "computed": 5,
+        "tagged:state:model": 1,
+        "env:HostTag(state:model)": 1,
+        "tagged:method:action": 1,
+        "env:HostTag(method:action)": 1,
+        "get:CraftMethodReplayRegistryServiceToken": 5,
+        "tagged:service:CraftMethodReplayRegistry": 1,
+        "env:HostTag(service:CraftMethodReplayRegistry)": 1,
+        "signal:boolean": 1,
+        "get:AppSnapshotRegistryServiceToken": 15016,
+        "tagged:service:AppSnapshotRegistry": 1,
+        "env:HostTag(service:AppSnapshotRegistry)": 1,
+        "get:CraftPrimitiveRegistryServiceToken": 4,
+        "tagged:service:CraftPrimitiveRegistry": 1,
+        "env:HostTag(service:CraftPrimitiveRegistry)": 1,
+        "primitive:model": 1,
+        "tagged:computed:rows": 1,
+        "env:HostTag(computed:rows)": 1,
+        "primitive:rows": 1,
+        "tagged:computed:revision": 1,
+        "env:HostTag(computed:revision)": 1,
+        "primitive:revision": 1,
+        "get:ForSchedulerServiceToken": 3,
+        "missing:ForSchedulerServiceToken": 1,
+        "ReactiveTextRenderedNode": 2000
+      }
+    },
+    {
+      "variant": "counts-fine-grouped",
+      "counts": {
+        "injector.create": 1014,
+        "provider.recipe": 1019,
+        "env:CraftApp": 1,
+        "provider.record": 8121,
+        "get:APP_INITIALIZER": 1,
+        "get:service-runtime-overrides": 11040,
+        "get:CraftRootComponentServiceToken": 1,
+        "tagged:service:CraftRootComponent": 1,
+        "optional:E": 11,
+        "get:HostTagList": 7045,
+        "get:EnvironmentInjector": 1013,
+        "env:HostTag(service:CraftRootComponent)": 1,
+        "get:E": 2019,
+        "optional:anonymous": 3097,
+        "get:anonymous": 19056,
+        "identity.create": 1,
+        "identity.encode": 5004,
+        "ComponentRenderedNode": 1,
+        "env:CraftComponent": 1,
+        "get:CraftRuntimeModeServiceToken": 8004,
+        "tagged:service:CraftRuntimeMode": 1,
+        "env:HostTag(service:CraftRuntimeMode)": 1,
+        "optional:HostTagList": 1001,
+        "generator.run": 1006,
+        "FragmentRenderedNode": 1,
+        "watch": 3004,
+        "factory.gen=false.adapted=false": 1,
+        "identity.child": 4002,
+        "ElementRenderedNode": 1,
+        "replay.register": 2001,
+        "factory.gen=true.adapted=false": 2,
+        "get:BenchServiceToken": 2,
+        "tagged:service:Bench": 1,
+        "env:HostTag(service:Bench)": 1,
+        "signal:object": 2,
+        "signal.brand": 8,
+        "computed": 5,
+        "tagged:state:model": 1,
+        "env:HostTag(state:model)": 1,
+        "tagged:method:action": 1,
+        "env:HostTag(method:action)": 1,
+        "get:CraftMethodReplayRegistryServiceToken": 5,
+        "tagged:service:CraftMethodReplayRegistry": 1,
+        "env:HostTag(service:CraftMethodReplayRegistry)": 1,
+        "signal:boolean": 1,
+        "get:AppSnapshotRegistryServiceToken": 3016,
+        "tagged:service:AppSnapshotRegistry": 1,
+        "env:HostTag(service:AppSnapshotRegistry)": 1,
+        "get:CraftPrimitiveRegistryServiceToken": 4,
+        "tagged:service:CraftPrimitiveRegistry": 1,
+        "env:HostTag(service:CraftPrimitiveRegistry)": 1,
+        "primitive:model": 1,
+        "tagged:computed:rows": 1,
+        "env:HostTag(computed:rows)": 1,
+        "primitive:rows": 1,
+        "tagged:computed:revision": 1,
+        "env:HostTag(computed:revision)": 1,
+        "primitive:revision": 1,
+        "get:ForSchedulerServiceToken": 3,
+        "missing:ForSchedulerServiceToken": 1,
+        "entry.borrowed": 1000,
+        "component.fine-plan": 1000,
+        "env:CraftFinePlan": 1000,
+        "effect.factory.shared": 1000
+      }
+    }
+  ],
+  "validation": {
+    "mountNavigations": 80,
+    "loweringContracts": [
+      {
+        "variant": "fine-reference",
+        "result": {
+          "results": [
+            {
+              "compiled": false,
+              "initial": 5,
+              "updated": 8,
+              "host": 6,
+              "answer": 42,
+              "edges": [
+                "CompilerField",
+                "CompilerField",
+                "CompilerField",
+                "answer"
+              ],
+              "resolved": 1,
+              "orderValue": 11,
+              "trace": [
+                "receiver",
+                "getter",
+                "argument",
+                "body",
+                "enter:AppSnapshotRegistry",
+                "exit:AppSnapshotRegistry"
+              ],
+              "error": "craftUse(...) generators can only yield craft primitives, exposed dependency helpers, or craftService dependencies."
+            },
+            {
+              "compiled": true,
+              "initial": 5,
+              "updated": 8,
+              "host": 6,
+              "answer": 42,
+              "edges": [
+                "CompilerField",
+                "CompilerField",
+                "CompilerField",
+                "answer"
+              ],
+              "resolved": 1,
+              "orderValue": 11,
+              "trace": [
+                "receiver",
+                "getter",
+                "argument",
+                "body",
+                "enter:AppSnapshotRegistry",
+                "exit:AppSnapshotRegistry"
+              ],
+              "error": "craftUse(...) generators can only yield craft primitives, exposed dependency helpers, or craftService dependencies."
+            }
+          ],
+          "wrapper": 19,
+          "checks": 12
+        }
+      },
+      {
+        "variant": "lower-generic",
+        "result": {
+          "results": [
+            {
+              "compiled": false,
+              "initial": 5,
+              "updated": 8,
+              "host": 6,
+              "answer": 42,
+              "edges": [
+                "CompilerField",
+                "CompilerField",
+                "CompilerField",
+                "answer"
+              ],
+              "resolved": 1,
+              "orderValue": 11,
+              "trace": [
+                "receiver",
+                "getter",
+                "argument",
+                "body",
+                "enter:AppSnapshotRegistry",
+                "exit:AppSnapshotRegistry"
+              ],
+              "error": "craftUse(...) generators can only yield craft primitives, exposed dependency helpers, or craftService dependencies."
+            },
+            {
+              "compiled": true,
+              "initial": 5,
+              "updated": 8,
+              "host": 6,
+              "answer": 42,
+              "edges": [
+                "CompilerField",
+                "CompilerField",
+                "CompilerField",
+                "answer"
+              ],
+              "resolved": 1,
+              "orderValue": 11,
+              "trace": [
+                "receiver",
+                "getter",
+                "argument",
+                "body",
+                "enter:AppSnapshotRegistry",
+                "exit:AppSnapshotRegistry"
+              ],
+              "error": "craftUse(...) generators can only yield craft primitives, exposed dependency helpers, or craftService dependencies."
+            }
+          ],
+          "wrapper": 19,
+          "checks": 12
+        }
+      },
+      {
+        "variant": "fine-grouped",
+        "result": {
+          "results": [
+            {
+              "compiled": false,
+              "initial": 5,
+              "updated": 8,
+              "host": 6,
+              "answer": 42,
+              "edges": [
+                "CompilerField",
+                "CompilerField",
+                "CompilerField",
+                "answer"
+              ],
+              "resolved": 1,
+              "orderValue": 11,
+              "trace": [
+                "receiver",
+                "getter",
+                "argument",
+                "body",
+                "enter:AppSnapshotRegistry",
+                "exit:AppSnapshotRegistry"
+              ],
+              "error": "craftUse(...) generators can only yield craft primitives, exposed dependency helpers, or craftService dependencies."
+            },
+            {
+              "compiled": true,
+              "initial": 5,
+              "updated": 8,
+              "host": 6,
+              "answer": 42,
+              "edges": [
+                "CompilerField",
+                "CompilerField",
+                "CompilerField",
+                "answer"
+              ],
+              "resolved": 1,
+              "orderValue": 11,
+              "trace": [
+                "receiver",
+                "getter",
+                "argument",
+                "body",
+                "enter:AppSnapshotRegistry",
+                "exit:AppSnapshotRegistry"
+              ],
+              "error": "craftUse(...) generators can only yield craft primitives, exposed dependency helpers, or craftService dependencies."
+            }
+          ],
+          "wrapper": 19,
+          "checks": 12
+        }
+      },
+      {
+        "variant": "lower-fine",
+        "result": {
+          "results": [
+            {
+              "compiled": false,
+              "initial": 5,
+              "updated": 8,
+              "host": 6,
+              "answer": 42,
+              "edges": [
+                "CompilerField",
+                "CompilerField",
+                "CompilerField",
+                "answer"
+              ],
+              "resolved": 1,
+              "orderValue": 11,
+              "trace": [
+                "receiver",
+                "getter",
+                "argument",
+                "body",
+                "enter:AppSnapshotRegistry",
+                "exit:AppSnapshotRegistry"
+              ],
+              "error": "craftUse(...) generators can only yield craft primitives, exposed dependency helpers, or craftService dependencies."
+            },
+            {
+              "compiled": true,
+              "initial": 5,
+              "updated": 8,
+              "host": 6,
+              "answer": 42,
+              "edges": [
+                "CompilerField",
+                "CompilerField",
+                "CompilerField",
+                "answer"
+              ],
+              "resolved": 1,
+              "orderValue": 11,
+              "trace": [
+                "receiver",
+                "getter",
+                "argument",
+                "body",
+                "enter:AppSnapshotRegistry",
+                "exit:AppSnapshotRegistry"
+              ],
+              "error": "craftUse(...) generators can only yield craft primitives, exposed dependency helpers, or craftService dependencies."
+            }
+          ],
+          "wrapper": 19,
+          "checks": 12
+        }
+      }
+    ],
+    "fallbackContracts": 8,
+    "plannedContracts": 8,
+    "tests": {
+      "sourceTypeDiagnostics": {
+        "baseline-core": 13,
+        "baseline-component": 1,
+        "prototype-core": 13,
+        "prototype-component": 1
+      },
+      "typeDiagnosticsIdentical": true,
+      "componentTests": "passed",
+      "coreTargetedTests": "passed"
+    },
+    "targetNavigations": 40,
+    "targetContracts": 16,
+    "targetTests": {
+      "sourceTypeDiagnostics": {
+        "baseline-core": 13,
+        "baseline-component": 1,
+        "prototype-core": 13,
+        "prototype-component": 1
+      },
+      "typeDiagnosticsIdentical": true,
+      "componentTests": "passed",
+      "coreTargetedTests": "passed"
+    }
+  },
+  "provenance": [
+    {
+      "name": "fine-reference",
+      "sourceSha256": "2996b0179942211e31d4ae26b503dfb5084b7f4c5dcc271365f4e36c7fed0f64",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "apps/framework-benchmark/vite.config.mjs",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/component/src/lib/render/interpreter.ts"
+      ],
+      "bundle": {
+        "jsBytes": 193933,
+        "gzipBytes": 58556,
+        "files": 3
+      }
+    },
+    {
+      "name": "lower-generic",
+      "sourceSha256": "0d975426c2edcf041d89e48db96e878c3d304ddbbaf1edcedc70b46b5f5e1873",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/craft/fanout-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "apps/framework-benchmark/vite.config.mjs",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/core/src/lib/craft-service.ts",
+        "libs/core/src/lib/craft-generator-runtime.ts",
+        "libs/core/src/index.ts",
+        "libs/core/src/lib/craft-use.ts",
+        "libs/core/src/lib/reactive-read.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.contracts.prototype.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "libs/core/src/lib/take-app-snapshot.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.manifest.json",
+        "libs/core/src/lib/sync-lowering.registry.ts"
+      ],
+      "bundle": {
+        "jsBytes": 198473,
+        "gzipBytes": 59500,
+        "files": 3
+      }
+    },
+    {
+      "name": "fine-grouped",
+      "sourceSha256": "76a4a0d60fea2309c823407b7acc007f8be4c7f874bcb81cd6fd77dcd636a842",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "apps/framework-benchmark/vite.config.mjs",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "apps/framework-benchmark/src/craft/fine-plan.prototype.ts"
+      ],
+      "bundle": {
+        "jsBytes": 198719,
+        "gzipBytes": 59631,
+        "files": 3
+      }
+    },
+    {
+      "name": "lower-fine",
+      "sourceSha256": "aced4634b2c183cefc05b442bb2525eaab589c0fd0e877023246b40da32250b1",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/craft/fanout-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "apps/framework-benchmark/vite.config.mjs",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/core/src/lib/craft-service.ts",
+        "libs/core/src/lib/craft-generator-runtime.ts",
+        "libs/core/src/index.ts",
+        "libs/core/src/lib/craft-use.ts",
+        "libs/core/src/lib/reactive-read.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.contracts.prototype.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "libs/core/src/lib/take-app-snapshot.ts",
+        "apps/framework-benchmark/src/craft/fine-plan.prototype.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.manifest.json",
+        "libs/core/src/lib/sync-lowering.registry.ts"
+      ],
+      "bundle": {
+        "jsBytes": 203109,
+        "gzipBytes": 60583,
+        "files": 3
+      }
+    }
+  ],
+  "manifests": {
+    "lower-generic": [
+      {
+        "path": "apps/framework-benchmark/src/craft/main.ts",
+        "eligible": 8,
+        "skipped": 0,
+        "uses": 1,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 10
+      },
+      {
+        "path": "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "eligible": 0,
+        "skipped": 0,
+        "uses": 0,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 0
+      },
+      {
+        "path": "apps/framework-benchmark/src/craft/fanout-by-component.prototype.ts",
+        "eligible": 0,
+        "skipped": 0,
+        "uses": 1,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 0
+      },
+      {
+        "path": "libs/component/src/lib/render/interpreter.ts",
+        "eligible": 4,
+        "skipped": 0,
+        "uses": 1,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 2
+      },
+      {
+        "path": "libs/core/src/lib/craft-service.ts",
+        "eligible": 7,
+        "skipped": 3,
+        "uses": 0,
+        "aliases": 7,
+        "serviceYields": 3,
+        "reactiveYields": 0,
+        "dependencyYields": 1,
+        "delegates": 10
+      },
+      {
+        "path": "libs/core/src/lib/reactive-read.ts",
+        "eligible": 4,
+        "skipped": 0,
+        "uses": 0,
+        "aliases": 4,
+        "serviceYields": 0,
+        "reactiveYields": 2,
+        "dependencyYields": 0,
+        "delegates": 1
+      },
+      {
+        "path": "libs/core/src/lib/take-app-snapshot.ts",
+        "eligible": 1,
+        "skipped": 1,
+        "uses": 0,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 1
+      },
+      {
+        "path": "apps/framework-benchmark/src/craft/sync-lowering.contracts.prototype.ts",
+        "eligible": 8,
+        "skipped": 1,
+        "uses": 4,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 7
+      }
+    ],
+    "lower-fine": [
+      {
+        "path": "apps/framework-benchmark/src/craft/main.ts",
+        "eligible": 5,
+        "skipped": 0,
+        "uses": 1,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 7
+      },
+      {
+        "path": "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "eligible": 0,
+        "skipped": 0,
+        "uses": 0,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 0
+      },
+      {
+        "path": "apps/framework-benchmark/src/craft/fanout-by-component.prototype.ts",
+        "eligible": 0,
+        "skipped": 0,
+        "uses": 1,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 0
+      },
+      {
+        "path": "libs/component/src/lib/render/interpreter.ts",
+        "eligible": 4,
+        "skipped": 0,
+        "uses": 1,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 2
+      },
+      {
+        "path": "libs/core/src/lib/craft-service.ts",
+        "eligible": 7,
+        "skipped": 3,
+        "uses": 0,
+        "aliases": 7,
+        "serviceYields": 3,
+        "reactiveYields": 0,
+        "dependencyYields": 1,
+        "delegates": 10
+      },
+      {
+        "path": "libs/core/src/lib/reactive-read.ts",
+        "eligible": 4,
+        "skipped": 0,
+        "uses": 0,
+        "aliases": 4,
+        "serviceYields": 0,
+        "reactiveYields": 2,
+        "dependencyYields": 0,
+        "delegates": 1
+      },
+      {
+        "path": "libs/core/src/lib/take-app-snapshot.ts",
+        "eligible": 1,
+        "skipped": 1,
+        "uses": 0,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 1
+      },
+      {
+        "path": "apps/framework-benchmark/src/craft/sync-lowering.contracts.prototype.ts",
+        "eligible": 8,
+        "skipped": 1,
+        "uses": 4,
+        "aliases": 0,
+        "serviceYields": 0,
+        "reactiveYields": 0,
+        "dependencyYields": 0,
+        "delegates": 7
+      }
+    ]
+  },
+  "attribution": {
+    "variant": "counts-lower-fine",
+    "generators": 1006,
+    "targetWrappers": 1001
+  },
+  "target": [
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "fine-grouped",
+      "mountMs": {
+        "n": 5,
+        "median": 82.20000004768372,
+        "min": 81.5,
+        "max": 86.70000004768372
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 39.55588912963867,
+        "min": 39.55478286743164,
+        "max": 39.566375732421875
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "lower-fine",
+      "mountMs": {
+        "n": 5,
+        "median": 85.79999995231628,
+        "min": 83.70000004768372,
+        "max": 91.89999997615814
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 40.37575149536133,
+        "min": 40.372623443603516,
+        "max": 40.37940979003906
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "target-fast",
+      "mountMs": {
+        "n": 5,
+        "median": 80.30000007152557,
+        "min": 77.29999995231628,
+        "max": 82.79999995231628
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 39.52821350097656,
+        "min": 38.41117477416992,
+        "max": 39.533023834228516
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "lower-target",
+      "mountMs": {
+        "n": 5,
+        "median": 80.39999997615814,
+        "min": 80.09999990463257,
+        "max": 90.30000007152557
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 40.34406280517578,
+        "min": 38.96934509277344,
+        "max": 40.34889602661133
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "fine-grouped",
+      "mountMs": {
+        "n": 5,
+        "median": 101,
+        "min": 98.09999990463257,
+        "max": 107.60000002384186
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 45.93027877807617,
+        "min": 45.928802490234375,
+        "max": 45.93524169921875
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "lower-fine",
+      "mountMs": {
+        "n": 5,
+        "median": 104.10000002384186,
+        "min": 96.10000002384186,
+        "max": 135.69999992847443
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 46.751502990722656,
+        "min": 46.74535369873047,
+        "max": 46.76283264160156
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "target-fast",
+      "mountMs": {
+        "n": 5,
+        "median": 103.70000004768372,
+        "min": 94.39999997615814,
+        "max": 117.39999997615814
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 45.89128494262695,
+        "min": 45.88872146606445,
+        "max": 45.910953521728516
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "lower-target",
+      "mountMs": {
+        "n": 5,
+        "median": 107.20000004768372,
+        "min": 100.79999995231628,
+        "max": 132.19999992847443
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 46.720069885253906,
+        "min": 45.24425506591797,
+        "max": 46.72541046142578
+      }
+    }
+  ],
+  "targetCounts": [
+    {
+      "variant": "counts-lower-fine",
+      "generators": 1006,
+      "compiled": 2
+    },
+    {
+      "variant": "counts-lower-target",
+      "generators": 5,
+      "compiled": 2
+    },
+    {
+      "variant": "counts-fine-grouped",
+      "generators": 1006,
+      "compiled": 0
+    },
+    {
+      "variant": "counts-target-fast",
+      "generators": 5,
+      "compiled": 0
+    }
+  ],
+  "provenanceTarget": [
+    {
+      "name": "fine-grouped",
+      "sourceSha256": "ca61c6fd53289fc282b0bd197f63ab9652e5b32bd85adce89204ce1b41aa1caf",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "apps/framework-benchmark/vite.config.mjs",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "apps/framework-benchmark/src/craft/fine-plan.prototype.ts"
+      ],
+      "bundle": {
+        "jsBytes": 199595,
+        "gzipBytes": 59945,
+        "files": 3
+      }
+    },
+    {
+      "name": "lower-fine",
+      "sourceSha256": "b2e605f41b135ec25a33f50097166cf44d748b9d2cbd88b7804af15e2d003b97",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/craft/fanout-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "apps/framework-benchmark/vite.config.mjs",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/core/src/lib/craft-service.ts",
+        "libs/core/src/lib/craft-generator-runtime.ts",
+        "libs/core/src/index.ts",
+        "libs/core/src/lib/craft-use.ts",
+        "libs/core/src/lib/reactive-read.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.contracts.prototype.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "libs/core/src/lib/take-app-snapshot.ts",
+        "apps/framework-benchmark/src/craft/fine-plan.prototype.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.manifest.json",
+        "libs/core/src/lib/sync-lowering.registry.ts"
+      ],
+      "bundle": {
+        "jsBytes": 204148,
+        "gzipBytes": 60924,
+        "files": 3
+      }
+    },
+    {
+      "name": "target-fast",
+      "sourceSha256": "e5e5d01650fcc255789a544016c6374e83b6b917c0631f1f40663dc823d56e7d",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "apps/framework-benchmark/vite.config.mjs",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/core/src/lib/craft-target-runtime.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "apps/framework-benchmark/src/craft/fine-plan.prototype.ts"
+      ],
+      "bundle": {
+        "jsBytes": 199657,
+        "gzipBytes": 59956,
+        "files": 3
+      }
+    },
+    {
+      "name": "lower-target",
+      "sourceSha256": "43d6bc06f918ee2c280a86361d66c299e8247893e80298fe8b12e91d483f5b71",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/craft/fanout-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "apps/framework-benchmark/vite.config.mjs",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/core/src/lib/craft-service.ts",
+        "libs/core/src/lib/craft-generator-runtime.ts",
+        "libs/core/src/index.ts",
+        "libs/core/src/lib/craft-use.ts",
+        "libs/core/src/lib/reactive-read.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.contracts.prototype.ts",
+        "libs/core/src/lib/craft-target-runtime.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "libs/core/src/lib/take-app-snapshot.ts",
+        "apps/framework-benchmark/src/craft/fine-plan.prototype.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.manifest.json",
+        "libs/core/src/lib/sync-lowering.registry.ts"
+      ],
+      "bundle": {
+        "jsBytes": 204213,
+        "gzipBytes": 60947,
+        "files": 3
+      }
+    }
+  ],
+  "micro": [
+    {
+      "variant": "fine-grouped",
+      "middleware": false,
+      "direct": false,
+      "iterations": 10000,
+      "ms": {
+        "n": 9,
+        "median": 7.099999904632568,
+        "min": 6.899999976158142,
+        "max": 19.399999976158142
+      }
+    },
+    {
+      "variant": "fine-grouped",
+      "middleware": false,
+      "direct": true,
+      "iterations": 10000,
+      "ms": {
+        "n": 9,
+        "median": 7.100000023841858,
+        "min": 6.899999976158142,
+        "max": 13.100000023841858
+      }
+    },
+    {
+      "variant": "fine-grouped",
+      "middleware": true,
+      "direct": false,
+      "iterations": 10000,
+      "ms": {
+        "n": 9,
+        "median": 17.700000047683716,
+        "min": 14.700000047683716,
+        "max": 25.09999990463257
+      }
+    },
+    {
+      "variant": "fine-grouped",
+      "middleware": true,
+      "direct": true,
+      "iterations": 10000,
+      "ms": {
+        "n": 9,
+        "median": 17.700000047683716,
+        "min": 16.300000071525574,
+        "max": 20.699999928474426
+      }
+    },
+    {
+      "variant": "lower-fine",
+      "middleware": false,
+      "direct": false,
+      "iterations": 10000,
+      "ms": {
+        "n": 9,
+        "median": 7.100000023841858,
+        "min": 7,
+        "max": 14.100000023841858
+      }
+    },
+    {
+      "variant": "lower-fine",
+      "middleware": false,
+      "direct": true,
+      "iterations": 10000,
+      "ms": {
+        "n": 9,
+        "median": 5.700000047683716,
+        "min": 5.600000023841858,
+        "max": 10.5
+      }
+    },
+    {
+      "variant": "lower-fine",
+      "middleware": true,
+      "direct": false,
+      "iterations": 10000,
+      "ms": {
+        "n": 9,
+        "median": 18.300000071525574,
+        "min": 14.800000071525574,
+        "max": 20.799999952316284
+      }
+    },
+    {
+      "variant": "lower-fine",
+      "middleware": true,
+      "direct": true,
+      "iterations": 10000,
+      "ms": {
+        "n": 9,
+        "median": 15.399999976158142,
+        "min": 12.899999976158142,
+        "max": 24.200000047683716
+      }
+    }
+  ],
+  "provenanceMicro": [
+    {
+      "name": "fine-grouped",
+      "sourceSha256": "ca61c6fd53289fc282b0bd197f63ab9652e5b32bd85adce89204ce1b41aa1caf",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "apps/framework-benchmark/src/craft/fine-plan.prototype.ts"
+      ],
+      "bundle": {
+        "jsBytes": 194327,
+        "gzipBytes": 56646,
+        "files": 1
+      }
+    },
+    {
+      "name": "lower-fine",
+      "sourceSha256": "b2e605f41b135ec25a33f50097166cf44d748b9d2cbd88b7804af15e2d003b97",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "apps/framework-benchmark/src/craft/row-by-component.prototype.ts",
+        "apps/framework-benchmark/src/craft/fanout-by-component.prototype.ts",
+        "apps/framework-benchmark/src/common.js",
+        "libs/core/src/lib/craft-effect.ts",
+        "libs/core/src/lib/host/craft-compat.ts",
+        "libs/core/src/lib/host/craft-injector.ts",
+        "libs/core/src/lib/craft-render-identity.ts",
+        "libs/core/src/lib/craft-replay-target.ts",
+        "libs/core/src/lib/craft-service.ts",
+        "libs/core/src/lib/craft-generator-runtime.ts",
+        "libs/core/src/index.ts",
+        "libs/core/src/lib/craft-use.ts",
+        "libs/core/src/lib/reactive-read.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.contracts.prototype.ts",
+        "libs/component/src/lib/render/interpreter.ts",
+        "libs/core/src/lib/take-app-snapshot.ts",
+        "apps/framework-benchmark/src/craft/fine-plan.prototype.ts",
+        "apps/framework-benchmark/src/craft/sync-lowering.manifest.json",
+        "libs/core/src/lib/sync-lowering.registry.ts"
+      ],
+      "bundle": {
+        "jsBytes": 198844,
+        "gzipBytes": 57571,
+        "files": 1
+      }
+    }
+  ]
+}

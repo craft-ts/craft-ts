@@ -1,0 +1,62 @@
+// PROTOTYPE: manual factory for exactly the benchmark's static row structure.
+const prototypeRowTemplates = new WeakMap<Document, Map<boolean, Element>>();
+function prototypeExpandRow(node: any): any {
+  const value = node.__prototypePreparedRow;
+  return { ...node, children: value.indexes ? [
+    { kind: 'element', tag: 'span', props: { 'data-position': value.position }, children: [`${value.position + 1}. `] }, value.label,
+  ] : [value.label] };
+}
+class PrototypePreparedRow implements RenderedNode {
+  readonly kind = 'element';
+  private element: Element;
+  private label: Text;
+  private position: Element | undefined;
+  private positionText: Text | undefined;
+  private releases: Array<() => void> = [];
+  private previous: any;
+  constructor(node: any, parent: NativeParent, before: NativeNode | null, private context: RenderContext) {
+    const value = node.__prototypePreparedRow;
+    const document = parent.ownerDocument!;
+    let templates = prototypeRowTemplates.get(document);
+    if (!templates) prototypeRowTemplates.set(document, templates = new Map());
+    let template = templates.get(value.indexes);
+    if (!template) {
+      const holder = document.createElement('template');
+      holder.innerHTML = value.indexes ? '<div><span> </span> </div>' : '<div> </div>';
+      template = holder.content.firstElementChild!;
+      templates.set(value.indexes, template);
+    }
+    this.element = template.cloneNode(true) as Element;
+    this.label = this.element.lastChild as Text;
+    if (value.indexes) {
+      this.position = this.element.firstElementChild!;
+      this.positionText = this.position.firstChild as Text;
+    }
+    if (context.rootScope) context.renderer.setAttribute(this.element, 'data-craft-root', context.rootScope);
+    this.releases.push(ɵregisterCraftReplayTarget(this.element, context.identity.path, context.replayTargetStable !== false));
+    if (this.position) this.releases.push(ɵregisterCraftReplayTarget(this.position,
+      childCraftRenderIdentity(context.identity, 0).path, context.replayTargetStable !== false));
+    this.apply(value);
+    insertBefore(context.renderer, parent, this.element, before);
+  }
+  firstNode(): NativeNode { return this.element; }
+  lastNode(): NativeNode { return this.element; }
+  private apply(value: any): void {
+    if (!this.previous || this.previous.id !== value.id) this.context.renderer.setAttribute(this.element, 'data-row', String(value.id));
+    if (!this.previous || this.previous.label !== value.label) this.context.renderer.setValue(this.label, value.label);
+    if (this.position && (!this.previous || this.previous.position !== value.position)) {
+      this.context.renderer.setAttribute(this.position, 'data-position', String(value.position));
+      this.context.renderer.setValue(this.positionText!, `${value.position + 1}. `);
+    }
+    this.previous = value;
+  }
+  patch(node: CraftNode): boolean {
+    const value = (node as any).__prototypePreparedRow;
+    if (!value || value.indexes !== this.previous.indexes) return false;
+    this.apply(value);
+    return true;
+  }
+  destroy(): void {
+    ɵdestroyCraftOwner(this, [() => ɵrunCraftCleanups(this.releases.splice(0)), () => removeNode(this.context.renderer, this.element)]);
+  }
+}

@@ -1,8 +1,9 @@
 import {
+  DestroyRef,
   Injector,
   runInInjectionContext,
 } from './host/craft-compat';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   CRAFT_REGISTRATION_TARGET,
   createRegisterForRegistry,
@@ -317,5 +318,49 @@ describe('craftRegisterFor runtime', () => {
     release();
     expect(registries[0]!.signalFor('Child')()).toBeUndefined();
     expect(registries[1]!.signalFor('Child')()).toBeUndefined();
+  });
+});
+
+describe('craft target registration without wrappers', () => {
+  function registrationTarget(name: string) {
+    const target = () => undefined;
+    Object.defineProperty(target, CRAFT_REGISTRATION_TARGET, {
+      value: { kind: 'component', name },
+    });
+    return target;
+  }
+
+  it('returns the same no-op release and keeps its DestroyRef inscription', () => {
+    const injector = Injector.create({ providers: [] });
+    const destroyRef = injector.get(DestroyRef);
+    const onDestroy = vi.spyOn(destroyRef, 'onDestroy');
+
+    const first = ɵregisterCraftTarget(
+      injector,
+      registrationTarget('A'),
+      {},
+      'component:A#1',
+    );
+    const second = ɵregisterCraftTarget(
+      injector,
+      registrationTarget('B'),
+      {},
+      'component:B#2',
+    );
+    expect(first).toBe(second);
+    expect(onDestroy).toHaveBeenCalledTimes(2);
+    expect(onDestroy).toHaveBeenNthCalledWith(1, first);
+
+    const manual = ɵregisterCraftTarget(
+      injector,
+      registrationTarget('C'),
+      {},
+      'component:C#3',
+      false,
+    );
+    expect(manual).toBe(first);
+    expect(onDestroy).toHaveBeenCalledTimes(2);
+    expect(() => first()).not.toThrow();
+    expect(() => injector.destroy()).not.toThrow();
   });
 });

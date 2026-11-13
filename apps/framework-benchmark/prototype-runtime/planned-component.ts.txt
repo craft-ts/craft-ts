@@ -1,0 +1,58 @@
+// PROTOTYPE: explicitly opted-in, fixed row plan. Generic components fall back.
+function prototypeCanPlanComponent(node: any, context: RenderContext, parent: NativeParent): boolean {
+  const def = node.component[CRAFT_COMPONENT];
+  return !!node.component.__prototypePlannedComponent && !node.injector
+    && context.mode === 'create' && !context.ssr && !context.emitHydrationKeys && !!parent.ownerDocument?.defaultView
+    && !def.composition && !def.meta.providers?.length && !def.service.length && def.scopeOwners.length === 1
+    && !Object.keys(def.meta.host ?? {}).length
+    && Object.keys(node.props).every(k => k === 'row' || k === 'position');
+}
+class PrototypePlannedComponent implements RenderedNode {
+  readonly kind = 'component';
+  private readonly injector: EnvironmentInjector;
+  private readonly source: ReturnType<typeof signal<any>>;
+  private view!: PrototypePreparedRow;
+  private effectRef: EffectRef;
+  private release: () => void;
+  private traceState = {renderCount: 0};
+  private renderContext: RenderContext;
+  constructor(private node: any, parent: NativeParent, before: NativeNode | null, private context: RenderContext) {
+    const definition = node.component[CRAFT_COMPONENT];
+    const ownScope = scopeIdFor(definition.scopeDefinition, definition.name);
+    const componentContext = childContext(context, {
+      ownerScope: ownScope, rootScope: scopeTokens(context.rootScope, ownScope), componentName: definition.name,
+      declarationContext: node.declarationContext ?? context, directiveNames: [], traceState: this.traceState,
+    });
+    this.injector = createEnvironmentInjector([
+      ...provideHostName(`component:${definition.name}`), provideCraftRenderIdentity(componentContext.identity),
+      {provide: ElementRef, useValue: new ElementRef(isElementNode(parent) ? parent : parent.parentElement)},
+    ], context.injector as EnvironmentInjector, 'CraftComponent');
+    traceComponentLifecycle(this.injector,'create',definition.name,0);
+    this.source = signal(node.props);
+    this.renderContext = childContext(componentContext, {injector: this.injector, componentContext: []});
+    this.release = ɵregisterCraftTarget(this.injector,node.component,undefined,componentHostName(this.injector,definition.name));
+    this.effectRef = untracked(() => runInInjectionContext(this.injector, () => craftUse(craftEffect('component-render', () => {
+      this.traceState.renderCount++;
+      const rendered = executeTemplateTrace(this.injector, traceContext(this.renderContext,'component',this.traceState.renderCount===1?'initialRender':'update',definition.name), () => {
+        const props = this.source();
+        const row = craftUse(props.row()) as {id: number; label: string};
+        const position = this.node.component.__prototypePlannedComponent.indexes ? craftUse(props.position()) : 0;
+        return {kind:'element',tag:'div',props:{'data-row':row.id},children:[],__prototypePreparedRow:{id:row.id,label:row.label,position,indexes:this.node.component.__prototypePlannedComponent.indexes}} as any;
+      });
+      if (this.view) this.view.patch(rendered);
+      else this.view = new PrototypePreparedRow(rendered,parent,before,childNodeContext(this.renderContext,rendered,0));
+    },{manualCleanup:true}))));
+  }
+  firstNode(): NativeNode { return this.view.firstNode(); }
+  lastNode(): NativeNode { return this.view.lastNode(); }
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'component' || node.component !== this.node.component || !prototypeCanPlanComponent(node,this.context,this.view.firstNode().parentNode as NativeParent)) return false;
+    this.source.set(node.props); return true;
+  }
+  destroy(): void {
+    ɵdestroyCraftOwner(this,[
+      () => traceComponentLifecycle(this.injector,'destroy',this.node.component[CRAFT_COMPONENT].name,this.traceState.renderCount),
+      () => this.effectRef.destroy(), () => this.view.destroy(), () => this.injector.destroy(), () => this.release(),
+    ]);
+  }
+}

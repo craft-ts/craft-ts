@@ -1,0 +1,28 @@
+// PROTOTYPE: tokens are shared; provider records and values always belong to one owner.
+type PrototypeProviderLayout = {tokens: readonly object[]; indices: ReadonlyMap<object,number>};
+const prototypeProviderLayouts = new WeakMap<object,PrototypeProviderLayout>();
+function prototypeProviderTable(providers: readonly CraftProvider[], key: object): Map<object,ProviderRecord> {
+  let layout=prototypeProviderLayouts.get(key);
+  if (!layout || layout.tokens.length!==providers.length || providers.some((p,i)=>p.token!==layout!.tokens[i])) {
+    const tokens=providers.map(p=>p.token);
+    layout={tokens,indices:new Map(tokens.map((token,i)=>[token,i]))};
+    prototypeProviderLayouts.set(key,layout);
+  }
+  const indices=layout.indices;
+  const values: Array<ProviderRecord|undefined>=[];
+  let overflow: Map<object,ProviderRecord>|undefined;
+  // Native injector only uses get/set/clear. The table stays private.
+  const table={
+    get(token: object): ProviderRecord|undefined {
+      const index=indices.get(token);
+      return index===undefined ? overflow?.get(token) : values[index];
+    },
+    set(token: object,value: ProviderRecord): unknown {
+      const index=indices.get(token);
+      if(index===undefined) (overflow??=new Map()).set(token,value); else values[index]=value;
+      return table;
+    },
+    clear(): void {values.length=0;overflow?.clear();},
+  };
+  return table as unknown as Map<object,ProviderRecord>;
+}

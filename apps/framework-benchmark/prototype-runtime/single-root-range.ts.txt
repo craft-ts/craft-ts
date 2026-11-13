@@ -1,0 +1,48 @@
+// PROTOTYPE: an explicitly opted-in synchronous component may borrow its root.
+// Empty/multiple output is permanently promoted to the ordinary anchored range.
+class PrototypeSingleRootRange implements RenderedNode {
+  readonly kind = 'fragment';
+  private nodes: RenderedNode[] = [];
+  private fallback: FragmentRenderedNode | undefined;
+  constructor(private parent: NativeParent, private before: NativeNode | null, private context: RenderContext) {}
+  private get liveParent(): NativeParent { return this.nodes[0]?.firstNode().parentNode ?? this.parent; }
+  private promote(): FragmentRenderedNode {
+    if (this.fallback) return this.fallback;
+    const parent = this.liveParent;
+    const first = this.nodes[0]?.firstNode() ?? this.before;
+    const after = this.nodes.at(-1)?.lastNode().nextSibling ?? this.before;
+    const start = mountComment(parent, 'craft-component:start', first, this.context);
+    const end = mountComment(parent, 'craft-component:end', after, this.context);
+    const range = new FragmentRenderedNode(parent, start, end, this.context, []);
+    (range as any).children = this.nodes;
+    this.nodes = [];
+    return this.fallback = range;
+  }
+  firstNode(): NativeNode { return this.fallback?.firstNode() ?? this.nodes[0]?.firstNode() ?? this.promote().firstNode(); }
+  lastNode(): NativeNode { return this.fallback?.lastNode() ?? this.nodes[0]?.lastNode() ?? this.promote().lastNode(); }
+  patch(): boolean { return false; }
+  patchChildren(children: CraftNodeChildren): void {
+    if (this.fallback) { this.fallback.patchChildren(children); return; }
+    const next = normalizeChildren(children);
+    if (next.length !== 1 || next[0].kind !== 'element') { this.promote().patchChildren(children); return; }
+    const parent = this.liveParent;
+    const before = this.nodes[0]?.lastNode().nextSibling ?? this.before;
+    this.nodes = patchRenderedChildren(parent, this.nodes, children, before, this.context);
+  }
+  hasChildren(): boolean { return this.fallback?.hasChildren() ?? this.nodes.length > 0; }
+  appendChildren(children: CraftNodeChildren): void { this.promote().appendChildren(children); }
+  prependChildren(children: CraftNodeChildren): void { this.promote().prependChildren(children); }
+  updateContext(context: RenderContext): void { this.context = context; this.fallback?.updateContext(context); }
+  moveBefore(before: NativeNode): void {
+    if (this.fallback) { this.fallback.moveBefore(before); return; }
+    const node = this.nodes[0];
+    if (!node || node.firstNode() !== node.lastNode()) { this.promote().moveBefore(before); return; }
+    insertBefore(this.context.renderer, this.liveParent, node.firstNode(), before);
+  }
+  destroy(): void {
+    ɵdestroyCraftOwner(this, [() => {
+      if (this.fallback) this.fallback.destroy();
+      else ɵrunCraftCleanups(this.nodes.splice(0).map(node => () => node.destroy()));
+    }]);
+  }
+}

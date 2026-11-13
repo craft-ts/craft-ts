@@ -37,7 +37,16 @@ export interface CraftInjector {
 type ProviderRecord = {
   resolve(): unknown;
   readonly collection: boolean;
+  /** Set on a `useValue` record, whose `resolve` is the shared reader below. */
+  readonly provider?: CraftProvider;
 };
+
+// One method shared by every `useValue` record instead of one closure per
+// record. It reads the provider at each call, like the closure did.
+function readProvidedValue(this: ProviderRecord): unknown {
+  return (this.provider as Extract<CraftProvider, { useValue: unknown }>)
+    .useValue;
+}
 
 type TokenWithFactory = {
   readonly debugName?: string;
@@ -147,16 +156,17 @@ function createNativeCraftInjector(
   detachFromParent?: () => void,
 ): CraftInjector {
   const records = new Map<object, ProviderRecord>();
-  const defaultValues = new Map<object, unknown>();
-  const children = new Set<CraftInjector>();
+  // Allocated on first need: most injectors never build a default nor own a child.
+  let defaultValues: Map<object, unknown> | undefined;
+  let children: Set<CraftInjector> | undefined;
   let destroyed = false;
   const resolveDefault = (token: object): unknown | typeof ɵNOT_FOUND => {
-    if (defaultValues.has(token)) return defaultValues.get(token);
+    if (defaultValues?.has(token)) return defaultValues.get(token);
     // Built where it is kept: a default asked for by a child (a token defined
     // after this injector, in a lazy route) must not take the child's host,
     // providers or lifetime.
     const value = craftInjector.run(() => lookupDefaultFactory(token));
-    if (value !== ɵNOT_FOUND) defaultValues.set(token, value);
+    if (value !== ɵNOT_FOUND) (defaultValues ??= new Map()).set(token, value);
     return value;
   };
   const destroyCallbacks: Array<() => void> = [];
@@ -264,10 +274,10 @@ function createNativeCraftInjector(
         childProviders,
         craftInjector,
         () => {
-          children.delete(child);
+          children?.delete(child);
         },
       );
-      children.add(child);
+      (children ??= new Set()).add(child);
       return child;
     },
     destroy(): void {
@@ -276,7 +286,7 @@ function createNativeCraftInjector(
       }
       destroyed = true;
       const cleanups = [
-        ...Array.from(children, (child) => () => child.destroy()),
+        ...Array.from(children ?? [], (child) => () => child.destroy()),
         ...destroyCallbacks.splice(0),
       ];
       try {
@@ -284,9 +294,9 @@ function createNativeCraftInjector(
       } finally {
         // A long-lived application must not retain every view it once owned.
         detachFromParent?.();
-        children.clear();
+        children?.clear();
         records.clear();
-        defaultValues.clear();
+        defaultValues?.clear();
       }
     },
     get destroyed() {
@@ -320,11 +330,12 @@ function addProviderRecord(
   const token = provider.token;
   if (provider.multi || provider.collection) {
     const existing = records.get(token);
-    const nextValue = createProviderRecord(provider, injector).resolve;
+    const nextRecord = createProviderRecord(provider, injector);
+    const nextValue = () => nextRecord.resolve();
     const readNext = () =>
       provider.collection ? ((nextValue() as unknown[]) ?? []) : [nextValue()];
     if (existing?.collection) {
-      const previous = existing.resolve as () => unknown[];
+      const previous = () => existing.resolve() as unknown[];
       records.set(token, {
         collection: true,
         resolve: () => [...previous(), ...readNext()],
@@ -347,7 +358,8 @@ function createProviderRecord(
   if ('useValue' in provider) {
     return {
       collection: provider.multi === true || provider.collection === true,
-      resolve: () => provider.useValue,
+      provider,
+      resolve: readProvidedValue,
     };
   }
 

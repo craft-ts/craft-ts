@@ -1,0 +1,32 @@
+// PROTOTYPE — companion programs keep the public generator protocol intact.
+import {prototypeGetSync,prototypeConfigureSync} from './sync-lowering.registry';
+export {prototypeGetSync} from './sync-lowering.registry';
+type PrototypeSyncContext = Omit<Parameters<typeof runCraftGenerator>[0], 'iterator'>;
+var prototypeSyncContext: PrototypeSyncContext | undefined;
+export function prototypeRunSync(direct:Function,thisArg:unknown,args:readonly unknown[],context:PrototypeSyncContext):any {
+  const previous=prototypeSyncContext;prototypeSyncContext=context;
+  try{return Reflect.apply(direct,thisArg,args);}finally{prototypeSyncContext=previous;}
+}
+export function prototypeDelegateValue(value:any):any {
+  const context=prototypeSyncContext;
+  if(!context)throw new Error('Compiled delegation outside a synchronous Craft host');
+  // Unknown generators retain the original driver, errors and dependency protocol.
+  const iterator=isGenerator(value)?value:(function*(){return yield* value;})();
+  return runCraftGenerator({...context,iterator}).value;
+}
+export function prototypeDelegateCall(factory:Function,thisArg:unknown,args:readonly unknown[]):any {
+  const direct=prototypeGetSync(factory);
+  return direct?Reflect.apply(direct,thisArg,args):prototypeDelegateValue(Reflect.apply(factory,thisArg,args));
+}
+export function prototypeYieldService(request:any):any {
+  const context=prototypeSyncContext!;
+  const instance=resolveServiceYield(request,context.injector,context.hostScope);
+  context.onServiceResolved?.(instance);return instance;
+}
+export function prototypeYieldDependency(request:any):any {return request.resolve();}
+export function prototypeYieldReactive(request:any):any {
+  const context=prototypeSyncContext!;
+  for(const observer of ɵinjectReactiveReadObservers())observer({reader:context.reactiveReader,dependency:request.identity});
+  return ɵwithActiveReactiveReader(request.identity,request.read);
+}
+prototypeConfigureSync({prototypeDelegateCall,prototypeDelegateValue,prototypeYieldService,prototypeYieldDependency,prototypeYieldReactive});

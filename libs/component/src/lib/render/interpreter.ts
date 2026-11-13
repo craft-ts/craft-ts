@@ -11,7 +11,7 @@ import {
   provideCraftNodeEffectFactory,
   provideCraftFieldExceptionBoundary,
   CRAFT_FIELD_EXCEPTION_SOURCE,
-  craftEffect,
+  ɵcraftEffectRef,
   craftLazy,
   createBrowserDomAdapter,
   registerCraftSyncTemplateFlush,
@@ -74,6 +74,8 @@ import {
   ɵcraftBatch,
   craftUse,
   ɵcurrentCorrelationId,
+  ɵcraftPrivateCell,
+  type ɵCraftPrivateCell,
 } from '@craft-ts/core';
 import {
   executeCraftComponentFactory,
@@ -599,7 +601,7 @@ function createEffectInInjector(
 ): EffectRef {
   return untracked(() =>
     runInInjectionContext(injector, () =>
-      craftUse(craftEffect(name, effectFn, { manualCleanup: true })),
+      ɵcraftEffectRef(name, effectFn, { manualCleanup: true }),
     ),
   );
 }
@@ -2600,7 +2602,8 @@ interface ForRenderedEntry {
   readonly key: unknown;
   item: unknown;
   index: number;
-  readonly indexSignal: ReturnType<typeof signal<number>>;
+  // Read only through `indexReader`: a renderer-private cell.
+  readonly indexSignal: ɵCraftPrivateCell<number>;
   readonly indexReader: InputValue<number>;
   readonly view: FragmentRenderedNode;
   readonly traceState: TemplateTraceState;
@@ -2771,7 +2774,7 @@ class ForRenderedNode implements RenderedNode {
         }
       } else {
         const traceState = { renderCount: 0 };
-        const indexSignal = signal(index);
+        const indexSignal = ɵcraftPrivateCell(index);
         const indexReader = createForIndexReader(indexSignal);
         const entryContext = childContext(this.context, {
           identity: childCraftRenderIdentity(
@@ -4340,12 +4343,39 @@ function allocateCraftHostName(
   return `${kind}:${name}#${register.next()}`;
 }
 
+// The HostName/HostTagList declarations of a component, reused for the same
+// definition and name. They hold no instance state: the tag factory reads the
+// parent's tags and draws the instance ordinal when each injector resolves it,
+// and every injector keeps its own records and values. A new name rebuilds
+// the declarations.
+const componentHostDeclarations = new WeakMap<
+  object,
+  { readonly name: string; readonly providers: Provider[] }
+>();
+
+function componentHostProviders(definition: {
+  readonly name: string;
+}): Provider[] {
+  const cached = componentHostDeclarations.get(definition);
+  if (cached?.name === definition.name) return cached.providers;
+  const providers = provideHostName(`component:${definition.name}`);
+  componentHostDeclarations.set(definition, {
+    name: definition.name,
+    providers,
+  });
+  return providers;
+}
+
 class ComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
   private environmentInjector: EnvironmentInjector | undefined;
   private readonly propKeys: string[];
-  private readonly propSources: ReturnType<typeof signal<unknown>>[];
-  private readonly hostPropsSource;
+  // Renderer-private cells: application code receives the values they hold
+  // through the input shells, never the cells themselves.
+  private readonly propSources: ɵCraftPrivateCell<unknown>[];
+  private readonly hostPropsSource: ɵCraftPrivateCell<
+    ReturnType<typeof hostPropsFromComponentProps>
+  >;
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
   private composedTemplateEffect: EffectRef | undefined;
@@ -4415,7 +4445,7 @@ class ComponentRenderedNode implements RenderedNode {
     if (!composition) {
       const scopeInjector = createEnvironmentInjector(
         [
-          ...provideHostName(`component:${definition.name}`),
+          ...componentHostProviders(definition),
           provideCraftRenderIdentity(componentRenderContext.identity),
           ...(definition.meta.providers ?? []),
           {
@@ -4448,9 +4478,9 @@ class ComponentRenderedNode implements RenderedNode {
       ? []
       : Object.keys(props).filter((key) => !isHostProperty(key));
     this.propSources = this.propKeys.map((key) =>
-      signal((props as Record<string, unknown>)[key]),
+      ɵcraftPrivateCell((props as Record<string, unknown>)[key]),
     );
-    this.hostPropsSource = signal(
+    this.hostPropsSource = ɵcraftPrivateCell(
       hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
     );
 
@@ -4601,89 +4631,83 @@ class ComponentRenderedNode implements RenderedNode {
       runInInjectionContext(
         composition ? parentInjector : this.environmentInjector!,
         () =>
-          craftUse(
-            craftEffect(
-              'component-render',
-              composition
-                ? (onCleanup: (cleanup: () => void) => void) => {
-                    // Input-bound providers own a stable scope. Template and host
-                    // updates are tracked by the dedicated template effect below.
-                    // Preserve the reactive scope lifecycle of withProviders.
-                    if (!composition.componentProviders) {
-                      this.propSources.forEach((source) => source());
-                      this.hostPropsSource();
-                    }
-                    untracked(() =>
-                      this.refreshComposedComponent(
-                        definition,
-                        args,
-                        componentElement,
-                        parentInjector,
-                        additionalProviders,
-                        hostTarget,
-                        context,
-                        componentRenderContext,
-                        onCleanup,
-                      ),
-                    );
-                    this.providerTrackers.forEach((tracker) => tracker());
+          ɵcraftEffectRef(
+            'component-render',
+            composition
+              ? (onCleanup: (cleanup: () => void) => void) => {
+                  // Input-bound providers own a stable scope. Template and host
+                  // updates are tracked by the dedicated template effect below.
+                  // Preserve the reactive scope lifecycle of withProviders.
+                  if (!composition.componentProviders) {
+                    this.propSources.forEach((source) => source());
+                    this.hostPropsSource();
                   }
-                : () => {
-                    try {
-                      const callSiteHostProps = this.hostPropsSource();
-                      const hostProps = mergeHostProps(
-                        definition.meta.host ?? {},
-                        callSiteHostProps,
-                      );
-                      const renderContext = childContext(
-                        componentRenderContext,
-                        {
-                          injector: this.environmentInjector!,
-                          componentContext: this.resolvedServices,
-                        },
-                      );
-                      this.traceState.renderCount += 1;
-                      this.latestTemplate = executeTemplateTrace(
-                        renderContext.injector,
-                        traceContext(
-                          renderContext,
-                          'component',
-                          this.traceState.renderCount === 1
-                            ? 'initialRender'
-                            : 'update',
-                          definition.name,
-                        ),
-                        () =>
-                          withCraftRenderContext(renderContext, () => {
-                            this.resolvedServices.length = 0;
-                            return renderCraftComponentTemplate(
-                              definition,
-                              args,
-                              callSiteHostProps,
-                              renderContext.injector,
-                              (instance) =>
-                                this.resolvedServices.push(instance),
-                            );
-                          }),
-                      );
-                      this.view.patchChildren(this.latestTemplate);
-                      this.hostBindings?.patch(hostProps);
-                      context.exceptionBoundaryResolved?.();
-                    } catch (error) {
-                      if (
-                        isCraftGenShortCircuit(error) &&
-                        context.exceptionBoundary?.(error.exception)
-                      ) {
-                        this.view.patchChildren([]);
-                        return;
-                      }
-                      if (isCraftGenShortCircuit(error)) {
-                        throw new CraftUnhandledExceptionError(error.exception);
-                      }
-                      throw error;
+                  untracked(() =>
+                    this.refreshComposedComponent(
+                      definition,
+                      args,
+                      componentElement,
+                      parentInjector,
+                      additionalProviders,
+                      hostTarget,
+                      context,
+                      componentRenderContext,
+                      onCleanup,
+                    ),
+                  );
+                  this.providerTrackers.forEach((tracker) => tracker());
+                }
+              : () => {
+                  try {
+                    const callSiteHostProps = this.hostPropsSource();
+                    const hostProps = mergeHostProps(
+                      definition.meta.host ?? {},
+                      callSiteHostProps,
+                    );
+                    const renderContext = childContext(componentRenderContext, {
+                      injector: this.environmentInjector!,
+                      componentContext: this.resolvedServices,
+                    });
+                    this.traceState.renderCount += 1;
+                    this.latestTemplate = executeTemplateTrace(
+                      renderContext.injector,
+                      traceContext(
+                        renderContext,
+                        'component',
+                        this.traceState.renderCount === 1
+                          ? 'initialRender'
+                          : 'update',
+                        definition.name,
+                      ),
+                      () =>
+                        withCraftRenderContext(renderContext, () => {
+                          this.resolvedServices.length = 0;
+                          return renderCraftComponentTemplate(
+                            definition,
+                            args,
+                            callSiteHostProps,
+                            renderContext.injector,
+                            (instance) => this.resolvedServices.push(instance),
+                          );
+                        }),
+                    );
+                    this.view.patchChildren(this.latestTemplate);
+                    this.hostBindings?.patch(hostProps);
+                    context.exceptionBoundaryResolved?.();
+                  } catch (error) {
+                    if (
+                      isCraftGenShortCircuit(error) &&
+                      context.exceptionBoundary?.(error.exception)
+                    ) {
+                      this.view.patchChildren([]);
+                      return;
                     }
-                  },
-            ),
+                    if (isCraftGenShortCircuit(error)) {
+                      throw new CraftUnhandledExceptionError(error.exception);
+                    }
+                    throw error;
+                  }
+                },
           ),
       ),
     );
@@ -4712,7 +4736,7 @@ class ComponentRenderedNode implements RenderedNode {
     this.view.patchChildren([]);
     this.environmentInjector = createEnvironmentInjector(
       [
-        ...provideHostName(`component:${definition.name}`),
+        ...componentHostProviders(definition),
         provideCraftRenderIdentity(componentRenderContext.identity),
         ...(definition.meta.providers ?? []),
         ...(this.componentProviders ?? composition.providers ?? []),
@@ -4884,9 +4908,17 @@ class ComponentRenderedNode implements RenderedNode {
 
     this.composedTemplateEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
-        craftUse(
-          craftEffect('component-template', () => {
-            this.renderComposedTemplate(
+        ɵcraftEffectRef('component-template', () => {
+          this.renderComposedTemplate(
+            definition,
+            args,
+            renderInjector,
+            renderContext,
+            context,
+            hostTarget,
+          );
+          if (composition.catchNodePosition && !this.componentExceptionEffect) {
+            this.installComponentExceptionEffect(
               definition,
               args,
               renderInjector,
@@ -4894,21 +4926,8 @@ class ComponentRenderedNode implements RenderedNode {
               context,
               hostTarget,
             );
-            if (
-              composition.catchNodePosition &&
-              !this.componentExceptionEffect
-            ) {
-              this.installComponentExceptionEffect(
-                definition,
-                args,
-                renderInjector,
-                renderContext,
-                context,
-                hostTarget,
-              );
-            }
-          }),
-        ),
+          }
+        }),
       ),
     );
     this.syncTemplateFlushRelease?.();
@@ -4934,69 +4953,65 @@ class ComponentRenderedNode implements RenderedNode {
   ): void {
     this.componentExceptionEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
-        craftUse(
-          craftEffect(
-            'component-catch-node-resource-exceptions',
-            () => {
-              const exception = findResourceException(this.resolvedServices);
-              if (exception) {
-                if (
-                  renderContext.handledResourceExceptionCodes?.has(
-                    exception._tag,
-                  )
-                ) {
-                  if (this.componentFallbackVisible) {
-                    this.componentFallbackVisible = false;
-                    this.componentFallbackException = undefined;
-                    untracked(() =>
-                      this.renderComposedTemplate(
-                        definition,
-                        args,
-                        renderInjector,
-                        renderContext,
-                        context,
-                        hostTarget,
-                      ),
-                    );
-                  }
-                  return;
+        ɵcraftEffectRef(
+          'component-catch-node-resource-exceptions',
+          () => {
+            const exception = findResourceException(this.resolvedServices);
+            if (exception) {
+              if (
+                renderContext.handledResourceExceptionCodes?.has(exception._tag)
+              ) {
+                if (this.componentFallbackVisible) {
+                  this.componentFallbackVisible = false;
+                  this.componentFallbackException = undefined;
+                  untracked(() =>
+                    this.renderComposedTemplate(
+                      definition,
+                      args,
+                      renderInjector,
+                      renderContext,
+                      context,
+                      hostTarget,
+                    ),
+                  );
                 }
-                if (
-                  this.componentFallbackVisible &&
-                  this.componentFallbackException === exception
-                ) {
-                  return;
-                }
-                this.componentFallbackVisible = true;
-                this.componentFallbackException = exception;
-                untracked(() =>
-                  this.renderComposedException(
-                    definition,
-                    exception,
-                    renderInjector,
-                    renderContext,
-                    context,
-                    hostTarget,
-                    true,
-                  ),
-                );
-              } else if (this.componentFallbackVisible) {
-                this.componentFallbackVisible = false;
-                this.componentFallbackException = undefined;
-                untracked(() =>
-                  this.renderComposedTemplate(
-                    definition,
-                    args,
-                    renderInjector,
-                    renderContext,
-                    context,
-                    hostTarget,
-                  ),
-                );
+                return;
               }
-            },
-            { manualCleanup: true },
-          ),
+              if (
+                this.componentFallbackVisible &&
+                this.componentFallbackException === exception
+              ) {
+                return;
+              }
+              this.componentFallbackVisible = true;
+              this.componentFallbackException = exception;
+              untracked(() =>
+                this.renderComposedException(
+                  definition,
+                  exception,
+                  renderInjector,
+                  renderContext,
+                  context,
+                  hostTarget,
+                  true,
+                ),
+              );
+            } else if (this.componentFallbackVisible) {
+              this.componentFallbackVisible = false;
+              this.componentFallbackException = undefined;
+              untracked(() =>
+                this.renderComposedTemplate(
+                  definition,
+                  args,
+                  renderInjector,
+                  renderContext,
+                  context,
+                  hostTarget,
+                ),
+              );
+            }
+          },
+          { manualCleanup: true },
         ),
       ),
     );

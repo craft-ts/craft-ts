@@ -1,0 +1,23 @@
+import {describe,it,expect} from 'vitest';
+import {createEnvironmentInjector,EnvironmentInjector,DestroyRef,inject} from './host/craft-compat';
+import {createCraftInjector} from './host/craft-injector';
+import {prototypeCreateBindingFactory,prototypeCreateEffectRef} from './craft-effect';
+import {craftSignal} from './host/craft-signal';
+import {craftUse} from './craft-use';
+import {AppSnapshotRegistry} from './take-app-snapshot';
+import {ɵHOST_TAG_LIST} from './craft-service';
+describe('shared fine effect factory',()=>{
+  it('matches ordinary renderer effect tags and keeps effects independently disposable',()=>{
+    const bare=createCraftInjector([]),env=createEnvironmentInjector([{provide:ɵHOST_TAG_LIST,useValue:['app','route:spec']}],bare);
+    const owner=createEnvironmentInjector([{provide:ɵHOST_TAG_LIST,useValue:['app','component:spec']},{provide:EnvironmentInjector,useValue:env}],bare);
+    const registry=owner.run(()=>craftUse(AppSnapshotRegistry())),a=craftSignal(0),b=craftSignal(0),seenA:number[]=[],seenB:number[]=[];
+    const normal=owner.run(()=>prototypeCreateEffectRef('fine:a',()=>{a();},{manualCleanup:true}));const expected=registry.activeEffects().at(-1);normal.destroy();
+    const create=owner.run(()=>prototypeCreateBindingFactory(owner));
+    const first=owner.run(()=>create('fine:a',()=>{expect(inject(DestroyRef)).toBe(owner.get(DestroyRef));seenA.push(a());}));
+    const second=owner.run(()=>create('fine:b',()=>seenB.push(b())));
+    expect(registry.activeEffects()[0]).toEqual(expected);
+    owner.run(()=>a.set(1));expect(seenA).toEqual([0,1]);expect(seenB).toEqual([0]);
+    first.destroy();first.destroy();owner.run(()=>{a.set(2);b.set(1);});expect(seenA).toEqual([0,1]);expect(seenB).toEqual([0,1]);
+    second.destroy();expect(registry.activeEffects()).toHaveLength(0);owner.destroy();env.destroy();bare.destroy();
+  });
+});

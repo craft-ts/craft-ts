@@ -1,0 +1,16 @@
+/** PROTOTYPE: fixed-owner plain renderer bindings. No public craftEffect changes. */
+export function prototypeCreateBindingFactory(ownerInjector: Injector): (name:string,body:()=>void)=>EffectRef {
+  const registry=ɵinjectAppSnapshotRegistryIn(ownerInjector);
+  const nodeTags=ownerInjector.get(ɵHOST_TAG_LIST,[]);
+  const env=ownerInjector.get(EnvironmentInjector,null);
+  const envTags=env?.get(ɵHOST_TAG_LIST,null)??[];
+  const envOnly=envTags.filter(tag=>!nodeTags.includes(tag));
+  const prefix=nodeTags.length?[...nodeTags.slice(0,-1),...envOnly,nodeTags[nodeTags.length-1]]:[...envOnly];
+  return (name,body)=>{
+    const native=effect(body,{injector:ownerInjector,manualCleanup:true});
+    const from=[...prefix,`effect:${name}`];
+    const unregister=registry?.registerActiveEffectReader(()=>({source:`effect:${name}`,from}));
+    let destroyed=false;
+    return {destroy:()=>{if(destroyed)return;destroyed=true;runCraftCleanups([()=>unregister?.(),()=>native.destroy()]);}} as EffectRef;
+  };
+}

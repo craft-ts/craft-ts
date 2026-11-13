@@ -1,0 +1,41 @@
+import {describe,it,expect,vi} from 'vitest';
+import {createCraftInjector,getCurrentCraftInjector} from './host/craft-injector';
+import {createEnvironmentInjector,DestroyRef,InjectionToken} from './host/craft-compat';
+describe('more prototype provider contracts',()=>{
+  it('keeps undefined, null and live useValue providers distinct from absence',()=>{
+    const key={},nil={},provider={token:key,useValue:undefined as unknown};
+    const root=createCraftInjector([provider,{token:nil,useValue:null}]);
+    const child=root.createChild([]);
+    expect(child.get(key,'fallback')).toBeUndefined();expect(child.get(nil,'fallback')).toBeNull();
+    provider.useValue=42;expect(child.get(key)).toBe(42);
+    expect(child.get({},'fallback')).toBe('fallback');root.destroy();
+  });
+  it('keeps receiver binding and order in mixed multi/collection providers',()=>{
+    const multi={},factory=vi.fn(()=>2),list={};
+    const root=createCraftInjector([{token:multi,useValue:0,multi:true},{token:list,useValue:['p'],collection:true}]);
+    const child=root.createChild([
+      {token:multi,useValue:1,multi:true},{token:multi,useFactory:factory,multi:true},{token:multi,useValue:3,multi:true},
+      {token:list,useValue:['a','b'],collection:true},{token:list,useFactory:()=>['c'],collection:true},
+    ]);
+    expect(child.get(multi)).toEqual([0,1,2,3]);expect(child.getOptional(multi)).toEqual([0,1,2,3]);
+    expect(child.get(list)).toEqual(['p','a','b','c']);expect(child.getOptional(list)).toEqual(['p','a','b','c']);
+    expect(factory).toHaveBeenCalledTimes(1);root.destroy();
+  });
+  it('keeps owner context, undefined default caching and root separation',()=>{
+    let count=0;const contexts:unknown[]=[];
+    const token=new InjectionToken('defaultUndefined',{factory:()=>{count++;contexts.push(getCurrentCraftInjector());return undefined;}});
+    const bare=createCraftInjector([]),root=createEnvironmentInjector([],bare),a=root.createChild([]),b=root.createChild([]);
+    expect(a.get(token)).toBeUndefined();expect(b.getOptional(token)).toBeUndefined();expect(a.get(token)).toBeUndefined();
+    expect(count).toBe(1);expect(contexts).toEqual([root]);
+    const separate=createCraftInjector([]);expect(separate.get(token)).toBeUndefined();expect(count).toBe(2);separate.destroy();bare.destroy();
+  });
+  it('destroys all children after one cleanup throws and detaches removed children',()=>{
+    const root=createEnvironmentInjector([],createCraftInjector([])),calls:string[]=[];
+    const removed=createEnvironmentInjector([],root);removed.destroy();
+    const a=createEnvironmentInjector([],root),b=createEnvironmentInjector([],root),failure=new Error('failure');
+    a.get(DestroyRef).onDestroy(()=>{calls.push('a');throw failure;});b.get(DestroyRef).onDestroy(()=>calls.push('b'));
+    root.get(DestroyRef).onDestroy(()=>calls.push('root'));
+    expect(()=>root.destroy()).toThrow(failure);expect(calls).toEqual(['a','b','root']);
+    expect(()=>root.destroy()).not.toThrow();expect(()=>root.createChild([])).toThrow('destroyed');
+  });
+});

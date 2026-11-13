@@ -1,0 +1,14 @@
+// PROTOTYPE: dependency-free registration avoids adding a Core module cycle.
+const programs=new WeakMap<Function,Function>();
+let hooks:Record<string,Function>;
+export function prototypeConfigureSync(value:Record<string,Function>):void{hooks=value;}
+export function prototypeRegisterSync<T extends Function>(original:T,direct:Function):T{programs.set(original,direct);return original;}
+export function prototypeGetSync(factory:unknown):Function|undefined{return typeof factory==='function'?programs.get(factory):undefined;}
+export function prototypeAliasSync<T extends object>(proxy:T,target:unknown):T{
+  const direct=prototypeGetSync(target);if(direct&&typeof proxy==='function')programs.set(proxy,direct);return proxy;
+}
+export function prototypeDelegateCall(factory:Function,thisArg:unknown,args:readonly unknown[]):any{return hooks.prototypeDelegateCall(factory,thisArg,args);}
+export function prototypeDelegateValue(value:any):any{return hooks.prototypeDelegateValue(value);}
+export function prototypeYieldService(request:any):any{return hooks.prototypeYieldService(request);}
+export function prototypeYieldDependency(request:any):any{return hooks.prototypeYieldDependency(request);}
+export function prototypeYieldReactive(request:any):any{return hooks.prototypeYieldReactive(request);}

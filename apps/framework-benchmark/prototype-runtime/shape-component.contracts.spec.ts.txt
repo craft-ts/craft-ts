@@ -1,0 +1,29 @@
+import {afterEach,describe,it,expect} from 'vitest';
+import {craftSignal,craftUse} from '@craft-ts/core';
+import {craftComponent,div,span,forNode} from '../../index';
+import {renderCraftComponent} from '../testing';
+afterEach(()=>document.body.replaceChildren());
+describe('borrowed root cache invalidation',()=>{
+  it('replaces a cached root, then reorders, empties and restores the list',async()=>{
+    const rows=craftSignal([101,202,303].map(id=>({id,label:`Row ${id}`}))),other=craftSignal(false);
+    const template=(inputs:any)=>{const row:any=craftUse(inputs.row()),position:any=craftUse(inputs.position());return div({'data-row':row.id},[span({'data-position':position},`${position+1}. `),row.label]);};
+    const First=craftComponent('ShapeFirst',{},template),Second=craftComponent('ShapeSecond',{},template);
+    for(const row of [First,Second]) Object.defineProperty(row,'__prototypePlannedComponent',{value:{indexes:true}});
+    const App=craftComponent('ShapeReplaceRoot',{},()=>{
+      const Row=other()?Second:First;
+      const callback=Object.assign((row:any,position:any)=>Row({row,position}),{__craftPureItemPrototype:true,__prototypeRawInputs:true,__prototypeBorrowFor:Row});
+      return div({id:'shape-rows'},forNode(rows,{track:row=>row.id},callback));
+    });
+    const fixture=await renderCraftComponent(App as never);
+    const update=async(fn:()=>void)=>{fixture.injector.run(fn);await fixture.flush();};
+    const original=fixture.element.querySelector('[data-row="202"]');
+    await update(()=>other.set(true));
+    const replacement=fixture.element.querySelector('[data-row="202"]');expect(replacement).not.toBe(original);expect(original?.isConnected).toBe(false);
+    await update(()=>rows.update(value=>[...value].reverse()));
+    expect(fixture.element.querySelector('[data-row="202"]')).toBe(replacement);
+    expect([...fixture.element.querySelectorAll('[data-row]')].map(e=>e.textContent)).toEqual(['1. Row 303','2. Row 202','3. Row 101']);
+    await update(()=>rows.set([]));expect(replacement?.isConnected).toBe(false);
+    await update(()=>rows.set([{id:404,label:'fresh'}]));expect(fixture.element.querySelector('[data-row="404"]')?.textContent).toBe('1. fresh');
+    fixture.destroy();expect(fixture.element.isConnected).toBe(false);
+  });
+});

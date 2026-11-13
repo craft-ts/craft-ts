@@ -1,0 +1,71 @@
+import {describe,it,expect} from 'vitest';
+import {createCraftRenderIdentity,childCraftRenderIdentity,prototypeFingerprintPath} from './craft-render-identity';
+import {prototypeCreateEffectRef} from './craft-effect';
+import {createEnvironmentInjector,DestroyRef,EnvironmentInjector,inject} from './host/craft-compat';
+import {createCraftInjector} from './host/craft-injector';
+import {craftSignal,craftBatch} from './host/craft-signal';
+import {craftUse} from './craft-use';
+import {AppSnapshotRegistry} from './take-app-snapshot';
+import {ɵHOST_TAG_LIST} from './craft-service';
+import {ɵregisterCraftReplayTarget,ɵcaptureCraftReplayTarget} from './craft-replay-target';
+function reference(path: readonly string[]): string {
+  const serialized = JSON.stringify(path);
+  let a=0x811c9dc5,b=0x9e3779b9;
+  for (let i=0;i<serialized.length;i++) {const c=serialized.charCodeAt(i);a=Math.imul(a^c,0x01000193);b=Math.imul(b^c,0x85ebca6b);}
+  return `${(a>>>0).toString(16).padStart(8,'0')}${(b>>>0).toString(16).padStart(8,'0')}`;
+}
+describe('next mount prototype contracts',()=>{
+  it('produces byte-identical replay fingerprints for shared prefixes and arbitrary paths',()=>{
+    const atoms=['','/','%2F','é','東京','😀','a/b','0','-1','x y','"','\\','\n','\u0000','\uD800','\uDC00'];
+    for (let i=0;i<2000;i++) {
+      const path=Array.from({length:i%13},(_,j)=>atoms[(i*7+j*3)%atoms.length]);
+      // Replay accepts all strings including malformed UTF16, unlike hydration URI encoding.
+      expect(prototypeFingerprintPath(path)).toBe(reference(path));
+      if (path.every(s=>s!=='\uD800'&&s!=='\uDC00')) {
+        let parent=createCraftRenderIdentity(path.slice(0,3));
+        for (const atom of path.slice(3)) parent=childCraftRenderIdentity(parent,atom);
+        const child=childCraftRenderIdentity(parent,'','child');
+        expect(prototypeFingerprintPath(parent.path)).toBe(reference(parent.path));
+        expect(prototypeFingerprintPath(child.path)).toBe(reference(child.path));
+        expect(prototypeFingerprintPath(parent.path)).toBe(reference(parent.path));
+        const element=document.createElement('button');
+        const release=ɵregisterCraftReplayTarget(element,child.path);
+        expect(ɵcaptureCraftReplayTarget(element)?.componentPath).toEqual([reference(child.path)]);
+        release();
+      }
+    }
+  });
+  it('direct effects keep DI, environment-only report tags, batching and cleanup',()=>{
+    const bare=createCraftInjector([]);
+    const env=createEnvironmentInjector([{provide:ɵHOST_TAG_LIST,useValue:['app','route:spec']}],bare);
+    const owner=createEnvironmentInjector([{provide:ɵHOST_TAG_LIST,useValue:['app','component:spec']},{provide:EnvironmentInjector,useValue:env}],bare);
+    const registry=owner.run(()=>craftUse(AppSnapshotRegistry()));
+    const source=craftSignal(0),seen:number[]=[],cleanups:number[]=[];
+    const ref=owner.run(()=>prototypeCreateEffectRef('direct',cleanup=>{
+      expect(inject(DestroyRef)).toBe(owner.get(DestroyRef));
+      const n=source();seen.push(n);cleanup(()=>cleanups.push(n));
+    },{manualCleanup:true}));
+    owner.run(()=>craftBatch(()=>{source.set(1);source.set(2);}));
+    expect(seen).toEqual([0,2]);expect(cleanups).toEqual([0]);
+    expect(registry.activeEffects()).toEqual([{source:'effect:direct',from:['app','route:spec','component:spec','effect:direct']}]);
+    ref.destroy();ref.destroy();source.set(3);
+    expect(cleanups).toEqual([0,2]);expect(seen).toEqual([0,2]);expect(registry.activeEffects()).toEqual([]);
+    owner.destroy();env.destroy();bare.destroy();
+  });
+  it('direct effects preserve generator factories and host-bound calls',()=>{
+    const bare=createCraftInjector([]),owner=createEnvironmentInjector([],bare),calls:string[]=[];
+    const host={name:'bound'};
+    const ref=owner.run(()=>prototypeCreateEffectRef('bound',host,function*(){
+      expect(this).toBe(host);const destroy=inject(DestroyRef);expect(destroy).not.toBe(owner.get(DestroyRef));
+      destroy.onDestroy(()=>calls.push('scope'));
+      return cleanup=>{calls.push(this.name);cleanup(()=>calls.push('cleanup'));};
+    },{manualCleanup:true}));
+    ref.destroy();ref.destroy();expect(calls).toEqual(['bound','cleanup','scope']);owner.destroy();bare.destroy();
+  });
+  it('direct effects default to owner disposal',()=>{
+    const bare=createCraftInjector([]),owner=createEnvironmentInjector([],bare),calls:number[]=[];
+    const source=craftSignal(0);
+    owner.run(()=>prototypeCreateEffectRef('owned',()=>{calls.push(source());}));
+    source.set(1);owner.destroy();source.set(2);expect(calls).toEqual([0,1]);bare.destroy();
+  });
+});

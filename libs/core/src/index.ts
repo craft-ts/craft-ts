@@ -188,8 +188,12 @@ export {
   craftBatch as ɵcraftBatch,
   craftComputed as ɵcraftComputed,
   craftWatch as ɵcraftWatch,
+  ɵcraftPrivateCell,
 } from './lib/host/craft-signal';
-export type { CraftSignal as ɵCraftSignal } from './lib/host/craft-signal';
+export type {
+  CraftSignal as ɵCraftSignal,
+  ɵCraftPrivateCell,
+} from './lib/host/craft-signal';
 export {
   createBrowserDomAdapter,
   type CraftDomAdapter,

@@ -1,0 +1,42 @@
+// Browser-only probe, invoked outside timed measurements.
+(globalThis as any).__runPlannedContracts = async (recorded?: any) => {
+  const nodes = () => [...document.querySelectorAll<HTMLElement>('[data-row]')];
+  const expect = (ok: unknown, msg: string) => { if (!ok) throw new Error(msg); };
+  const targets = nodes().flatMap(row => [row,...row.querySelectorAll('[data-position]')]).map(element => ({
+    id: (element.closest('[data-row]') as HTMLElement).dataset.row,
+    position: element.hasAttribute('data-position'),
+    target: ɵcaptureCraftReplayTarget(element),
+    scope: element.getAttribute('data-craft-root'),
+  }));
+  const start = (globalThis as any).__craftContracts();
+  const initialTags = start.tags;
+  expect(start.reports === nodes().length * ((globalThis as any).__finePlanExpectedPerRow ?? 1) + 3,'planned effect/report count');
+  const verifyTargets = (list: typeof targets) => {
+    for (const item of list) {
+      const row = document.querySelector(`[data-row="${item.id}"]`);
+      const resolution = ɵresolveCraftReplayTarget(item.target!);
+      if (!row) expect(resolution.status === 'missing','removed replay target remains live');
+      else {
+        expect(resolution.status === 'resolved','planned target does not resolve');
+        if (resolution.status === 'resolved') expect(resolution.element === (item.position ? row.querySelector('[data-position]') : row),'planned target resolves wrong row');
+      }
+    }
+  };
+  verifyTargets(targets);
+  if (recorded) verifyTargets(recorded.targets);
+  const originals = new Map(nodes().map(row => [row.dataset.row,row]));
+  for (const action of ['update-one','update-tenth','reverse','filter','filter']) {
+    await (globalThis as any).__bench.run(action);
+    for (const row of nodes()) {
+      // Recreated rows after restore may have a different DOM object, but keep their logical address.
+      if (action !== 'filter') expect(originals.get(row.dataset.row) === row,'planned node replaced on update');
+    }
+    verifyTargets(targets);
+    if (recorded) verifyTargets(recorded.targets);
+  }
+  (globalThis as any).__craftDestroy();
+  expect(nodes().length === 0,'planned DOM leaked');
+  expect((globalThis as any).__craftContracts().reports === 0,'planned effects leaked');
+  for (const item of targets) expect(ɵresolveCraftReplayTarget(item.target!).status === 'missing','destroyed replay target remains');
+  return {targets,initialTags,reports:start.reports,checks:targets.length* (recorded ? 12:6)};
+};

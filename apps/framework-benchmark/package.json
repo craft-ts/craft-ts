@@ -1,0 +1,35 @@
+{
+  "name": "craft-framework-benchmark",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node run.mjs",
+    "bench:component-prototype": "node component-granularity.prototype.mjs",
+    "bench:mount-floor-prototypes": "node mount-floor.prototype.mjs",
+    "bench:mount-next-prototypes": "node mount-next.prototype.mjs",
+    "bench:mount-more-prototypes": "node mount-more.prototype.mjs",
+    "bench:mount-shape-prototypes": "node mount-shape.prototype.mjs",
+    "bench:fine-plan-prototype": "node fine-plan.prototype.mjs",
+    "bench:binding-manager-prototype": "node binding-manager.prototype.mjs",
+    "bench:sync-lowering-prototype": "node sync-lowering.prototype.mjs",
+    "bench:creation-plan-prototype": "node creation-plan.prototype.mjs",
+    "prototype:creation-plan": "node creation-plan.preview.mjs",
+    "prototype:binding-manager": "node binding-manager.preview.mjs",
+    "prototype:fine-plan": "node fine-plan.preview.mjs"
+  },
+  "dependencies": {
+    "@effect/platform-browser": "4.1.2",
+    "@foldkit/vite-plugin": "0.29.0",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@vitejs/plugin-vue": "6.0.10",
+    "effect": "4.1.2",
+    "foldkit": "0.170.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "solid-js": "1.9.18",
+    "svelte": "5.57.3",
+    "vite": "8.3.1",
+    "vite-plugin-solid": "2.11.15",
+    "vue": "3.5.44"
+  }
+}

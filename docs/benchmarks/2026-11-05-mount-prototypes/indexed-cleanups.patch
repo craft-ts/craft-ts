@@ -1,0 +1,59 @@
+--- a/libs/core/src/lib/host/craft-compat.ts
++++ b/libs/core/src/lib/host/craft-compat.ts
+@@ -188,8 +188,10 @@
+   return rootDefaultProviders;
+ }
+ 
++type DiagCleanupRegistration = { callback: () => void; next?: DiagCleanupRegistration };
+ type DestroyRefState = {
+-  callbacks: Array<() => void>;
++  callbacks: Set<DiagCleanupRegistration>;
++  byCallback: Map<() => void, { first: DiagCleanupRegistration; last: DiagCleanupRegistration }>;
+   closed: boolean;
+ };
+ const destroyRefState = new WeakMap<DestroyRef, DestroyRefState>();
+@@ -197,7 +199,7 @@
+ function getDestroyRefState(ref: DestroyRef): DestroyRefState {
+   let state = destroyRefState.get(ref);
+   if (!state) {
+-    state = { callbacks: [], closed: false };
++    state = { callbacks: new Set(), byCallback: new Map(), closed: false };
+     destroyRefState.set(ref, state);
+   }
+   return state;
+@@ -210,12 +212,18 @@
+       callback();
+       return () => undefined;
+     }
+-    state.callbacks.push(callback);
++    const entry: DiagCleanupRegistration = { callback };
++    const queue = state.byCallback.get(callback);
++    if (queue) { queue.last.next = entry; queue.last = entry; }
++    else state.byCallback.set(callback, { first: entry, last: entry });
++    state.callbacks.add(entry);
+     return () => {
+-      const index = state.callbacks.indexOf(callback);
+-      if (index >= 0) {
+-        state.callbacks.splice(index, 1);
+-      }
++      const queue = state.byCallback.get(callback);
++      if (!queue) return;
++      const first = queue.first;
++      state.callbacks.delete(first);
++      if (first.next) queue.first = first.next;
++      else state.byCallback.delete(callback);
+     };
+   }
+ }
+@@ -226,7 +234,10 @@
+     return;
+   }
+   state.closed = true;
+-  runCraftCleanups(state.callbacks.splice(0));
++  const callbacks = Array.from(state.callbacks, entry => entry.callback);
++  state.callbacks.clear();
++  state.byCallback.clear();
++  runCraftCleanups(callbacks);
+ }
+ 
+ const INJECTOR_TOKEN = new InjectionToken<CraftInjector>('Injector');
