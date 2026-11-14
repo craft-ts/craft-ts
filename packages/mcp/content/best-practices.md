@@ -85,6 +85,7 @@ Decision page: `/guide/concepts/choose-primitive`.
 7. **Routes:** `craftRoutes(name, [...])`, load Craft components with `loadCraftComponent`, and derive per-route contracts with `ComponentDepsOf`. Every routed component has a `RouteCheckedDI` / `CanRun` check. Checks do not cross a `loadChildren` boundary.
 8. **Templates:** `ifNode` / `matchNode` / `forNode` / `deferNode`, not `@if` / `@for`. Interactive helpers take a unique literal local name: `button('save', { type: 'button', ... }, 'Save')`. The name is `data-craft-name` and must be unique in the app (`assertInteractiveElementNamed`).
 9. **Keep DI checks derived.** Use `ComponentDepsOf` instead of maintaining a separate component dependency alias. Keep `_Check*` / `_CanRun*` blocks in sync with route collections.
+10. **Keep component factories declarative.** Do not declare `craftComputed(...)` in `craftComponent(...)`; put reactive derivations in a `craftService(...)` view model and let the component render its exposed readers.
 
 Install `@craft-ts/dev-tools` and enable the `craft-ts/*` ESLint rules. They are the compiler's partner: a missing route check or a raw `inject()` should fail CI, not production. The generated README documents `npm run lint`, `typecheck`, `test`, `architecture`, `e2e`, and, for EffectTS v4, `effect-check`.
 

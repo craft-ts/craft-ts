@@ -1,70 +1,77 @@
 // @vitest-environment jsdom
 import {
+  asyncProcess,
+  craftComputed,
+  craftException,
+  craftExpose,
+  craftMethod,
+  craftNodeDirective,
+  craftPrivate,
+  craftService,
+  craftSleep,
+  craftUse,
+  HOST_TAG_LIST,
+  injectCorrelationIdService,
+  insertDeepYieldable,
+  markYieldableValue,
+  mutation,
+  overrideService,
+  provideCorrelationIdTracking,
+  provideCraftDomEventHook,
+  provideCraftLazyLoadRetry,
+  provideSendContextSession,
+  provideTemplateTrace,
+  query,
+  SendContextSession as SendContextSessionService,
+  state,
+  ɵinjectCraftNodeEffectFactoryIn,
+  ɵresolveCraftDeferReplayTarget,
+  ɵsetCraftReplayMode,
+  type CraftDomEvent,
+  type CraftServiceInput,
+} from '@craft-ts/core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { craftComponent } from '../component';
+import { withComponentProviders, withHostProps } from '../composition';
+import { craftDirective } from '../directive';
+import {
+  computed,
+  createEnvironmentInjector,
   DestroyRef,
   ElementRef,
   EnvironmentInjector,
   inject,
   Injector,
-  createEnvironmentInjector,
-  computed,
   signal,
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
 } from '../host-runtime';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  craftComputed,
-  craftNodeDirective,
-  craftException,
-  craftMethod,
-  craftService,
-  craftUse,
-  asyncProcess,
-  craftSleep,
-  HOST_TAG_LIST,
-  insertDeepYieldable,
-  mutation,
-  markYieldableValue,
-  overrideService,
-  provideCraftDomEventHook,
-  provideCraftLazyLoadRetry,
-  provideSendContextSession,
-  SendContextSession as SendContextSessionService,
-  ɵresolveCraftDeferReplayTarget,
-  ɵsetCraftReplayMode,
-  provideCorrelationIdTracking,
-  provideTemplateTrace,
-  injectCorrelationIdService,
-  ɵinjectCraftNodeEffectFactoryIn,
-  query,
-  rawReactiveValue,
-  state,
-  type CraftDomEvent,
-  craftExpose,
-  craftPrivate,
-  type CraftServiceInput,
-} from '@craft-ts/core';
-import { mountCraftComponent } from '../bridge';
-import { craftComponent } from '../component';
-import { craftDirective } from '../directive';
-import { withComponentProviders, withHostProps } from '../composition';
 
-import { eventAction } from '../event-action';
-import { content, renderContent } from '../project';
+import { catchNode } from '../catch-node';
 import { deferNode } from '../defer-node';
+import { eventAction } from '../event-action';
 import { forNode } from '../for-node';
 import {
   provideForScheduler,
   scheduleFor,
   type ForScheduler,
 } from '../for-scheduling';
+import {
+  button,
+  div,
+  h2,
+  input,
+  li,
+  p,
+  section,
+  span,
+  ul,
+} from '../hyperscript';
 import { ifNode } from '../if-node';
-import { catchNode } from '../catch-node';
-import { a, button, div, h2, input, li, p, section, span, ul } from '../hyperscript';
+import { content, renderContent } from '../project';
 import { craftTemplate, renderTemplate } from '../template';
-import type { ContentSlot, RequiredContent } from '../types';
-import type { HostRequiredLogic, HostTemplate, Input, InputValue, Output } from '../types';
 import { renderCraftComponent } from '../testing';
+import type { ContentSlot, Input, InputValue, Output } from '../types';
 import { mountInterpretedComponent } from './interpreter';
 
 const renderCraftComponentForSpec = renderCraftComponent as unknown as (
@@ -402,17 +409,21 @@ describe('functional component interpreter', () => {
     const first = { id: 1, label: 'one' };
     const second = { id: 2, label: 'two' };
     const items = signal([first, second]);
-    const itemTemplate = vi.fn((item: InputValue<{ id: number; label: string }>, index: InputValue<number>) =>
-      li(
-        {
-          'data-id': function* () {
-            return (yield* item()).id;
+    const itemTemplate = vi.fn(
+      (
+        item: InputValue<{ id: number; label: string }>,
+        index: InputValue<number>,
+      ) =>
+        li(
+          {
+            'data-id': function* () {
+              return (yield* item()).id;
+            },
           },
-        },
-        function* () {
-          return `${yield* index()}:${(yield* item()).label}`;
-        },
-      ),
+          function* () {
+            return `${yield* index()}:${(yield* item()).label}`;
+          },
+        ),
     );
     const { GranularEachCollectionView, provideGranularEachCollectionView } =
       craftService(
@@ -1637,18 +1648,17 @@ describe('functional component interpreter', () => {
   });
 
   it('updates raw state computed bindings after a DOM input event', async () => {
-    const {
-      RawStateInputView,
-      provideRawStateInputView,
-    } = craftService(
+    const { RawStateInputView, provideRawStateInputView } = craftService(
       { name: 'rawStateInputView', providedIn: 'toProvide' },
       function* () {
-        const searchInput = yield* state('searchInput', '', ({ state, set }) => ({
-          setSearchInput: (value: string) => set(value),
-          tooShort: computed(
-            () => rawReactiveValue(state)().trim().length < 2,
-          ),
-        }));
+        const searchInput = yield* state(
+          'searchInput',
+          '',
+          ({ state, set }) => ({
+            setSearchInput: (value: string) => set(value),
+            tooShort: computed(() => craftUse(state()).trim().length < 2),
+          }),
+        );
         const debouncedSearch = yield* asyncProcess('debouncedSearch', {
           params: function* () {
             return (yield* searchInput()).trim();
@@ -1672,10 +1682,7 @@ describe('functional component interpreter', () => {
     const component = craftComponent(
       'rawStateInput',
       {
-        providers: [
-          provideRawStateInputView(),
-          provideCorrelationIdTracking(),
-        ],
+        providers: [provideRawStateInputView(), provideCorrelationIdTracking()],
       },
       () => {
         return section([
@@ -1688,19 +1695,22 @@ describe('functional component interpreter', () => {
               );
             },
           }),
-          ifNode(
-            RawStateInputView.searchInput.tooShort,
-            () => p('Enter at least two characters'),
+          ifNode(RawStateInputView.searchInput.tooShort, () =>
+            p('Enter at least two characters'),
           ),
           p(function* () {
-            const result: unknown = yield* RawStateInputView.searchQuery.value();
+            const result: unknown =
+              yield* RawStateInputView.searchQuery.value();
             return typeof result === 'string' ? result : '';
           }),
         ]);
       },
     );
-    const { nativeElement: element, flush, destroy } =
-      await renderCraftComponent(component);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     expect(element.textContent).toContain('Enter at least two characters');
     const search = element.querySelector('input')!;
@@ -3029,7 +3039,9 @@ describe('functional component interpreter', () => {
       },
     );
     const providers = [provideCraftLazyLoadRetry({ attempts: 1, delayMs: 0 })];
-    const recorded = await renderCraftComponentForSpec(component, { providers });
+    const recorded = await renderCraftComponentForSpec(component, {
+      providers,
+    });
     await vi.waitFor(() => {
       expect(
         recorded.nativeElement.querySelector('.retry-defer-loaded')
@@ -3053,7 +3065,9 @@ describe('functional component interpreter', () => {
 
     ɵsetCraftReplayMode(true);
     try {
-      const replayed = await renderCraftComponentForSpec(component, { providers });
+      const replayed = await renderCraftComponentForSpec(component, {
+        providers,
+      });
       expect(imports).toBe(2);
       const resolution = ɵresolveCraftDeferReplayTarget(targetId);
       expect(resolution.status).toBe('resolved');
@@ -3177,7 +3191,7 @@ describe('functional component interpreter', () => {
           return deferNode(loader, {
             trigger: 'interaction',
             resolve: (value) => p({ class: 'recorded-defer-loaded' }, value),
-              placeholder: () => button({ id: 'loadRecordedDefer' }, 'Load'),
+            placeholder: () => button({ id: 'loadRecordedDefer' }, 'Load'),
           });
         },
       );
@@ -3350,8 +3364,7 @@ describe('functional component interpreter', () => {
         vi.unstubAllGlobals();
         if (idleDescriptor)
           Object.defineProperty(window, 'requestIdleCallback', idleDescriptor);
-        else
-          Reflect.deleteProperty(window, 'requestIdleCallback');
+        else Reflect.deleteProperty(window, 'requestIdleCallback');
       }
     },
   );

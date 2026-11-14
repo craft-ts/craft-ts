@@ -47,6 +47,7 @@ const noManualCraftRouting = require('./no-manual-craft-routing.cjs');
 const preferCraftRouteOverPageState = require('./prefer-craft-route-over-page-state.cjs');
 const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noRawForIndex = require('./no-raw-for-index.cjs');
+const noCraftComputedInComponent = require('./no-craft-computed-in-component.cjs');
 const noExplicitCraftTemplateReturnType = require('./no-explicit-craft-template-return-type.cjs');
 const noExtractedCraftComponentParts = require('./no-extracted-craft-component-parts.cjs');
 const requireDirectCraftComponentTemplate = require('./require-direct-craft-component-template.cjs');
@@ -207,6 +208,7 @@ const plugin = {
     'prefer-craft-route-over-page-state': preferCraftRouteOverPageState,
     'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-raw-for-index': noRawForIndex,
+    'no-craft-computed-in-component': noCraftComputedInComponent,
     'no-explicit-craft-template-return-type': noExplicitCraftTemplateReturnType,
     'no-extracted-craft-component-parts': noExtractedCraftComponentParts,
     'require-direct-craft-component-template':

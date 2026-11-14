@@ -3,8 +3,8 @@ import {
   CraftTemporalRuntime,
   craftExpose,
   craftService,
+  craftUse,
   query,
-  rawReactiveValue,
   state,
 } from '@craft-ts/core';
 import { isRecord } from '../util/replay-model';
@@ -71,36 +71,46 @@ export const { ResumeThread } = craftService(
   function* () {
     const temporal = yield* CraftTemporalRuntime();
 
-    const thread = yield* query('thread', {
-      method: (lookup: ResumeThreadLookup) => lookup,
-      loader: function* ({ params: lookup }) {
-        const url =
-          'requestId' in lookup
-            ? `${SESSION_ARCHIVE_URL}/sessions/resume-requests/${encodeURIComponent(lookup.requestId)}`
-            : `${SESSION_ARCHIVE_URL}/sessions/resume-requests/latest?${new URLSearchParams({ sessionId: lookup.sessionId })}`;
-        return yield* CraftHttpClient.get(({ response }) => ({
-          url,
-          success: response(threadDecoder),
-        }));
+    const thread = yield* query(
+      'thread',
+      {
+        method: (lookup: ResumeThreadLookup) => lookup,
+        loader: function* ({ params: lookup }) {
+          const url =
+            'requestId' in lookup
+              ? `${SESSION_ARCHIVE_URL}/sessions/resume-requests/${encodeURIComponent(lookup.requestId)}`
+              : `${SESSION_ARCHIVE_URL}/sessions/resume-requests/latest?${new URLSearchParams({ sessionId: lookup.sessionId })}`;
+          return yield* CraftHttpClient.get(({ response }) => ({
+            url,
+            success: response(threadDecoder),
+          }));
+        },
       },
-    }, () => ({}));
+      () => ({}),
+    );
 
     const watcher = yield* state(
       'watcher',
       { lookup: undefined as ResumeThreadLookup | undefined, run: 0 },
       ({ update }) => ({
         startForSession: (sessionId: string) =>
-          update((current) => ({ lookup: { sessionId }, run: current.run + 1 })),
+          update((current) => ({
+            lookup: { sessionId },
+            run: current.run + 1,
+          })),
         startForRequest: (requestId: string) =>
-          update((current) => ({ lookup: { requestId }, run: current.run + 1 })),
+          update((current) => ({
+            lookup: { requestId },
+            run: current.run + 1,
+          })),
         stop: () =>
           update((current) => ({ lookup: undefined, run: current.run + 1 })),
       }),
     );
-    const watcherValue = rawReactiveValue(watcher);
+    const watcherValue = watcher;
 
     const poll = (run: number): void => {
-      const current = watcherValue();
+      const current = craftUse(watcherValue());
       if (run !== current.run || current.lookup === undefined) return;
       thread.call(current.lookup);
       temporal.schedule(() => poll(run), POLL_EVERY_MS, {
@@ -110,11 +120,11 @@ export const { ResumeThread } = craftService(
 
     yield* craftExpose('watchSession', (sessionId: string) => {
       watcher.startForSession(sessionId);
-      poll(watcherValue().run);
+      poll(craftUse(watcherValue()).run);
     });
     yield* craftExpose('watchRequest', (requestId: string) => {
       watcher.startForRequest(requestId);
-      poll(watcherValue().run);
+      poll(craftUse(watcherValue()).run);
     });
     yield* craftExpose('stop', () => {
       watcher.stop();

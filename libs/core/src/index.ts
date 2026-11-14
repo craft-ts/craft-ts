@@ -251,7 +251,6 @@ export {
   nameInsertedReactiveValue,
   provideReactiveReadObserver,
   rawReactiveFacade,
-  rawReactiveValue,
   ɵactiveReactiveReader,
   ɵwithActiveReactiveReader,
 } from './lib/reactive-read';

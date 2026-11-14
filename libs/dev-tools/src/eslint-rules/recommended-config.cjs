@@ -1,5 +1,6 @@
 module.exports = {
   'craft-ts/no-raw-for-index': 'error',
+  'craft-ts/no-craft-computed-in-component': 'error',
   'craft-ts/require-fixed-component-provider-list': 'error',
   'craft-ts/craft-method-name-match': 'warn',
   'craft-ts/craft-computed-name-match': 'warn',

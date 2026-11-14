@@ -3,10 +3,10 @@ import {
   CraftTemporalRuntime,
   craftExpose,
   craftService,
+  craftUse,
   insertReactOnMutation,
   mutation,
   query,
-  rawReactiveValue,
   state,
 } from '@craft-ts/core';
 import { isRecord } from '../util/replay-model';
@@ -77,13 +77,22 @@ function isThumbnailEntry(value: unknown): value is ThumbnailEntry {
 /** The archive answers a manifest; anything else is "nothing prepared". */
 const manifestDecoder = {
   decode(input: unknown): ThumbnailManifest {
-    const status = isRecord(input) ? thumbnailStatusOf(input['status']) : undefined;
+    const status = isRecord(input)
+      ? thumbnailStatusOf(input['status'])
+      : undefined;
     if (
       !isRecord(input) ||
       typeof input['sessionId'] !== 'string' ||
       status === undefined
     )
-      return { sessionId: '', key: '', status: 'none', total: 0, done: 0, entries: [] };
+      return {
+        sessionId: '',
+        key: '',
+        status: 'none',
+        total: 0,
+        done: 0,
+        entries: [],
+      };
     return {
       sessionId: input['sessionId'],
       key: typeof input['key'] === 'string' ? input['key'] : '',
@@ -149,8 +158,7 @@ export const { ThumbnailArchive } = craftService(
       }),
     );
 
-
-    const manifestValue = rawReactiveValue(thumbnailManifest.value);
+    const manifestValue = thumbnailManifest.value;
     // The recording followed, and a run number that retires older polls.
     const watcher = yield* state(
       'thumbnailWatcher',
@@ -162,12 +170,12 @@ export const { ThumbnailArchive } = craftService(
           update((current) => ({ id: undefined, run: current.run + 1 })),
       }),
     );
-    const watcherValue = rawReactiveValue(watcher);
+    const watcherValue = watcher;
 
     const poll = (run: number): void => {
-      const { id: watching, run: pollRun } = watcherValue();
+      const { id: watching, run: pollRun } = craftUse(watcherValue());
       if (run !== pollRun || watching === undefined) return;
-      const current = manifestValue();
+      const current = craftUse(manifestValue());
       const settled =
         current !== undefined &&
         current.sessionId === watching &&
@@ -184,7 +192,7 @@ export const { ThumbnailArchive } = craftService(
 
     const startPolling = (id: string): void => {
       watcher.start(id);
-      poll(watcherValue().run);
+      poll(craftUse(watcherValue()).run);
     };
 
     yield* craftExpose('watch', (id: string, force = false) => {

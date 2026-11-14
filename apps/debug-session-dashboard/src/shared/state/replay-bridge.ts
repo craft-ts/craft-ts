@@ -1,4 +1,4 @@
-import { craftExpose, craftService, rawReactiveValue } from '@craft-ts/core';
+import { craftExpose, craftService, craftUse } from '@craft-ts/core';
 import {
   after,
   cancelAfter,
@@ -23,15 +23,15 @@ import {
   type ReplayDifference,
   type ReplayFrameConnection,
 } from '../util/replay-model';
-import {
-  ReplayState,
-  participantTitle,
-  REPLAY_ERROR_NOTE_PREFIX,
-  seekHooks,
-  recordReplayDifference,
-  resolveLatestReplayDifference,
-} from './replay-state';
 import { ReplayPlayback } from './replay-playback';
+import {
+  participantTitle,
+  recordReplayDifference,
+  REPLAY_ERROR_NOTE_PREFIX,
+  ReplayState,
+  resolveLatestReplayDifference,
+  seekHooks,
+} from './replay-state';
 
 export const { ReplayBridge } = craftService(
   { name: 'replayBridge', providedIn: 'global' },
@@ -83,7 +83,11 @@ export const { ReplayBridge } = craftService(
       if (!connection || !frameHasWindow(participantId)) return;
       // A tab that opens later starts on an empty page whose `load` can come
       // after the replay began: asking it for the bridge failed the replay.
-      if (connection.status === 'scheduled' || frameShowsBlankPage(participantId)) return;
+      if (
+        connection.status === 'scheduled' ||
+        frameShowsBlankPage(participantId)
+      )
+        return;
       const parsed = parseLocalTarget(connection.href);
       if (!parsed.ok) return;
       const previousTimer = handshakeTimers.get(participantId);
@@ -168,7 +172,7 @@ export const { ReplayBridge } = craftService(
         updateGlobalProgress(participantId, connection.resumeIndex);
       setFramePlaceholder(participantId, '');
       updateGlobalReplayState();
-      if (rawReactiveValue(connected)())
+      if (craftUse(connected()))
         setStatus(
           `Replay · ready${scheduledCount() > 0 ? ` · ${scheduledCount()} onglet(s) s’ouvriront au moment enregistré` : ` · ${frameConnections.size} onglet(s) préparé(s)`}.`,
         );
@@ -293,7 +297,7 @@ export const { ReplayBridge } = craftService(
       const viewport = parseViewport(data['width'], data['height']);
       if (!viewport) return;
       replayViewports.set(participantId, viewport);
-      if (rawReactiveValue(selectedParticipantId)() === participantId)
+      if (craftUse(selectedParticipantId()) === participantId)
         setStates({ replayViewport: viewport });
       updateReplayViewport();
       hideClickMarker(participantId);
@@ -313,31 +317,33 @@ export const { ReplayBridge } = craftService(
       recordReplayDifference(connection.participantId, first);
       if (first.transport?.transportId.startsWith('network:')) {
         const api = first.transport.transportId.slice('network:'.length);
-        const currentEvents = rawReactiveValue(events)();
+        const currentEvents = craftUse(events());
         const id = `replay-network-coverage-${connection.participantId}-${first.transport.instanceId}`;
         if (!currentEvents.some((event) => event.id === id)) {
-          setStates({ events: [
-            ...currentEvents,
-            {
-              id,
-              sequence:
-                Math.max(0, ...currentEvents.map((event) => event.sequence)) +
-                1,
-              timestamp: dateNow(),
-              kind: 'transport',
-              phase: 'failed',
-              name: `network-coverage:${api}`,
-              participantId: connection.participantId,
-              payload: { api, reason: 'no-recorded-response' },
-            },
-          ] });
+          setStates({
+            events: [
+              ...currentEvents,
+              {
+                id,
+                sequence:
+                  Math.max(0, ...currentEvents.map((event) => event.sequence)) +
+                  1,
+                timestamp: dateNow(),
+                kind: 'transport',
+                phase: 'failed',
+                name: `network-coverage:${api}`,
+                participantId: connection.participantId,
+                payload: { api, reason: 'no-recorded-response' },
+              },
+            ],
+          });
         }
       }
       if (typeof data['index'] === 'number')
         updateGlobalProgress(connection.participantId, data['index']);
       if (typeof data['state'] === 'string')
         setStates({ replayState: data['state'] });
-      if (!coverageFailure && rawReactiveValue(replayState)() !== 'playing')
+      if (!coverageFailure && craftUse(replayState()) !== 'playing')
         freezeReplayVisibilityClock();
       if (coverageFailure) {
         setStates({
@@ -345,7 +351,7 @@ export const { ReplayBridge } = craftService(
         });
         return;
       }
-      if (rawReactiveValue(autoSkipDifferences)() && first.skip) {
+      if (craftUse(autoSkipDifferences()) && first.skip) {
         setStates({
           status: `Décalage à l’événement ${first.eventId ?? '?'} · reprise automatique au checkpoint ${first.skip.checkpointEventId}.`,
         });
@@ -378,10 +384,9 @@ export const { ReplayBridge } = craftService(
       connection.status = nextState;
       updateGlobalReplayState();
       setStatus(
-        rawReactiveValue(replayState)() === 'completed' ||
-          nextState === 'completed'
-          ? `Replay terminé · ${rawReactiveValue(replayIndex)()} / ${total}`
-          : `Replay · étape ${rawReactiveValue(replayIndex)()} / ${total}`,
+        craftUse(replayState()) === 'completed' || nextState === 'completed'
+          ? `Replay terminé · ${craftUse(replayIndex())} / ${total}`
+          : `Replay · étape ${craftUse(replayIndex())} / ${total}`,
       );
       registers.seekStepping = false;
       seekHooks.drive();
@@ -406,9 +411,9 @@ export const { ReplayBridge } = craftService(
       );
       const total = replayableEvents().length;
       setStatus(
-        rawReactiveValue(replayState)() === 'completed'
-          ? `Replay terminé · ${rawReactiveValue(replayIndex)()} / ${total}`
-          : `Replay · ${data['state'] === 'playing' ? 'lecture' : 'étape'} ${rawReactiveValue(replayIndex)()} / ${total}`,
+        craftUse(replayState()) === 'completed'
+          ? `Replay terminé · ${craftUse(replayIndex())} / ${total}`
+          : `Replay · ${data['state'] === 'playing' ? 'lecture' : 'étape'} ${craftUse(replayIndex())} / ${total}`,
       );
       seekHooks.settle();
     }
@@ -437,7 +442,7 @@ export const { ReplayBridge } = craftService(
           // An address that cannot be read still recovered the replay.
         }
       setStates({
-        status: `Reprise forcée · ${destination} · étape ${rawReactiveValue(replayIndex)()}`,
+        status: `Reprise forcée · ${destination} · étape ${craftUse(replayIndex())}`,
       });
     }
 
@@ -452,8 +457,8 @@ export const { ReplayBridge } = craftService(
       connection.status = 'paused';
       const from = data['from'];
       const skipped = {
-        from: typeof from === 'number' ? from : rawReactiveValue(replayIndex)(),
-        to: rawReactiveValue(replayIndex)(),
+        from: typeof from === 'number' ? from : craftUse(replayIndex()),
+        to: craftUse(replayIndex()),
         checkpointEventId: String(data['checkpointEventId'] ?? 'inconnu'),
       };
       updateGlobalReplayState();
@@ -485,7 +490,7 @@ export const { ReplayBridge } = craftService(
       const errorNote = `${REPLAY_ERROR_NOTE_PREFIX}${String(
         data['message'] ?? 'erreur inconnue',
       )}`;
-      const notes = rawReactiveValue(replayWarnings)();
+      const notes = craftUse(replayWarnings());
       setStates({
         replayWarnings: notes.includes(errorNote)
           ? notes
@@ -513,8 +518,8 @@ export const { ReplayBridge } = craftService(
     function onWarning(data: Readonly<Record<string, unknown>>): void {
       const warning = String(data['message'] ?? 'Événement de replay ignoré.');
       if (!warningIndexes.has(warning))
-        warningIndexes.set(warning, rawReactiveValue(replayIndex)());
-      const warnings = rawReactiveValue(replayWarnings)();
+        warningIndexes.set(warning, craftUse(replayIndex()));
+      const warnings = craftUse(replayWarnings());
       if (!warnings.includes(warning)) {
         setStates({ replayWarnings: [...warnings, warning].slice(-50) });
       }

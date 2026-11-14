@@ -4,6 +4,7 @@ import {
   craftComponent,
   div,
   forNode,
+  heading,
   ifNode,
   img,
   input,
@@ -14,28 +15,27 @@ import {
   small,
   span,
   ul,
-  heading,
 } from '@craft-ts/component';
 import {
-  craftService,
-  asyncProcess,
   afterRecomputation,
-  CraftHttpClient,
-  craftComputed,
-  craftException,
-  craftGen,
-  craftSleep,
-  query,
+  asyncProcess,
   // Insertion helpers must return an Angular computed signal.
   // eslint-disable-next-line craft-ts/no-direct-craft-reactivity
   ɵcomputed as computed,
+  craftComputed,
+  craftException,
+  craftGen,
+  CraftHttpClient,
+  craftService,
+  craftSleep,
+  craftUse,
+  query,
   rawReactiveFacade,
-  rawReactiveValue,
   retry,
   state,
 } from '@craft-ts/core';
-import { StatusComponent } from '../../../ui/status.component';
 import { eventValue } from '../../../event-value';
+import { StatusComponent } from '../../../ui/status.component';
 import { example } from '../../shared/example.style';
 import { bookSearch } from './debounced-web-search.style';
 
@@ -149,225 +149,216 @@ const searchBooks = craftGen(function* (term: string) {
   }));
 });
 
-export const { DebouncedWebSearchView } =
-  craftService(
-    { name: 'debouncedWebSearchView', providedIn: 'global' },
-    function* () {
-      const searchFailure = yield* state(
-        'searchFailure',
-        'The search could not be completed. Try again later.',
-      );
+export const { DebouncedWebSearchView } = craftService(
+  { name: 'debouncedWebSearchView', providedIn: 'global' },
+  function* () {
+    const searchFailure = yield* state(
+      'searchFailure',
+      'The search could not be completed. Try again later.',
+    );
 
-      const searchInput = yield* state('searchInput', '', ({ state, set }) => ({
-        setSearchInput: (value: string) => set(value),
-        currentTerm: computed(() => rawReactiveValue(state)()?.trim() ?? ''),
-        tooShort: computed(() => rawReactiveValue(state)().trim().length < 2),
-      }));
+    const searchInput = yield* state('searchInput', '', ({ state, set }) => ({
+      setSearchInput: (value: string) => set(value),
+      currentTerm: computed(() => craftUse(state())?.trim() ?? ''),
+      tooShort: computed(() => craftUse(state()).trim().length < 2),
+    }));
 
-      // asyncProcess owns the debounce. The new temporal runtime makes the wait
-      // cancellable and replaceable by a virtual clock in tests.
-      const debouncedSearch = yield* asyncProcess(
-        'debouncedSearch',
-        {
-          method: afterRecomputation(searchInput.currentTerm, (term) => term),
-          loader: function* ({ params }) {
-            if (!params) return { term: '' };
+    // asyncProcess owns the debounce. The new temporal runtime makes the wait
+    // cancellable and replaceable by a virtual clock in tests.
+    const debouncedSearch = yield* asyncProcess(
+      'debouncedSearch',
+      {
+        method: afterRecomputation(searchInput.currentTerm, (term) => term),
+        loader: function* ({ params }) {
+          if (!params) return { term: '' };
 
-            yield* craftSleep(350, { owner: 'open-library-search-debounce' });
-            return { term: params };
-          },
+          yield* craftSleep(350, { owner: 'open-library-search-debounce' });
+          return { term: params };
         },
-        ({ resource }) => ({
-          isDebouncing: computed(() => rawReactiveValue(resource.isLoading)()),
-          statusValue: computed(() => {
-            const status = rawReactiveFacade(resource).status();
-            return status === 'error' ? 'exception' : status;
-          }),
+      },
+      ({ resource }) => ({
+        isDebouncing: computed(() => craftUse(resource.isLoading())),
+        statusValue: computed(() => {
+          const status = rawReactiveFacade(resource).status();
+          return status === 'error' ? 'exception' : status;
         }),
-      );
+      }),
+    );
 
-      // query owns the server state. It only sees values emitted after the
-      // debounce and retries transient CraftHttpClient failures.
-      yield* query(
-        'searchQuery',
-        {
-          params: function* () {
-            const _debouncedSearchvalue = yield* debouncedSearch.value();
-            return _debouncedSearchvalue?.term;
-          },
-          loader: function* ({ params }) {
-            if (!params) return EMPTY_RESULTS;
-
-            return yield* searchBooks(params).pipe(
-              retry({
-                times: 3,
-                while: ['TransientHttpError'],
-                backoff: 'exponential',
-                delayMs: 250,
-              }),
-            );
-          },
+    // query owns the server state. It only sees values emitted after the
+    // debounce and retries transient CraftHttpClient failures.
+    yield* query(
+      'searchQuery',
+      {
+        params: function* () {
+          const _debouncedSearchvalue = yield* debouncedSearch.value();
+          return _debouncedSearchvalue?.term;
         },
-        ({ resource, hasException }) => {
-          const rawResource = rawReactiveFacade(resource);
-          const rawHasException = rawReactiveValue(hasException);
-          const rawSearchFailure = rawReactiveValue(searchFailure);
-          const hasResults = computed(() => {
-            const value = rawResource.value();
-            return isSearchResults(value) && value.books.length > 0;
-          });
+        loader: function* ({ params }) {
+          if (!params) return EMPTY_RESULTS;
 
-          return {
-            hasResults,
-            resultCount: computed(() => {
-              const value = rawResource.value();
-              return String(isSearchResults(value) ? value.total : 0);
+          return yield* searchBooks(params).pipe(
+            retry({
+              times: 3,
+              while: ['TransientHttpError'],
+              backoff: 'exponential',
+              delayMs: 250,
             }),
-            resultBooks: computed(() => {
-              const value = rawResource.value();
-              return isSearchResults(value) ? value.books : [];
-            }),
-            hasSearchError: computed(() => rawHasException()),
-            searchFailureMessage: computed(() => rawSearchFailure()),
-            showResults: computed(
-              () =>
-                !rawResource.isLoading() && !rawHasException() && hasResults(),
-            ),
-            showEmpty: computed(
-              () =>
-                rawReactiveValue(searchInput)().trim().length >= 2 &&
-                !rawResource.isLoading() &&
-                !rawHasException() &&
-                !hasResults(),
-            ),
-          };
-        },
-      );
-
-      yield* craftComputed('showDebouncing', function* () {
-        const _debouncedSearchisDebouncing =
-          yield* debouncedSearch.isDebouncing();
-        const _searchInput = yield* searchInput();
-        return _searchInput.trim().length >= 2 && _debouncedSearchisDebouncing;
-      });
-    },
-  );
-
-const DebouncedWebSearch = craftComponent(
-  'DebouncedWebSearch',
-  {},
-  () =>
-    section({ class: example.card }, [
-      heading({ class: example.title }, 'Debounced web search'),
-      p(
-        { class: example.text, 'data-exampleText': 'muted' },
-        'Type a book title. The input waits 350 ms in an asyncProcess before the query calls the public Open Library API.',
-      ),
-      input('search', {
-        class: example.input,
-        'data-exampleField': 'wide',
-        type: 'search',
-        value: DebouncedWebSearchView.searchInput,
-        placeholder: 'Try “angular”, “dune” or “design patterns”…',
-        'aria-label': 'Search books',
-        *input(event) {
-          yield* DebouncedWebSearchView.searchInput.setSearchInput(
-            eventValue(event),
           );
         },
-      }),
-      div({ class: example.row }, [
-        span([
-          'Debounce: ',
-          StatusComponent({
-            status: DebouncedWebSearchView.debouncedSearch.statusValue,
+      },
+      ({ resource, hasException }) => {
+        const rawResource = rawReactiveFacade(resource);
+        const rawHasException = hasException;
+        const rawSearchFailure = searchFailure;
+        const hasResults = computed(() => {
+          const value = rawResource.value();
+          return isSearchResults(value) && value.books.length > 0;
+        });
+
+        return {
+          hasResults,
+          resultCount: computed(() => {
+            const value = rawResource.value();
+            return String(isSearchResults(value) ? value.total : 0);
           }),
-        ]),
-        span([
-          'HTTP query: ',
-          StatusComponent({
-            status: DebouncedWebSearchView.searchQuery.status,
+          resultBooks: computed(() => {
+            const value = rawResource.value();
+            return isSearchResults(value) ? value.books : [];
           }),
-        ]),
+          hasSearchError: computed(() => craftUse(rawHasException())),
+          searchFailureMessage: computed(() => craftUse(rawSearchFailure())),
+          showResults: computed(
+            () =>
+              !rawResource.isLoading() &&
+              !craftUse(rawHasException()) &&
+              hasResults(),
+          ),
+          showEmpty: computed(
+            () =>
+              craftUse(searchInput()).trim().length >= 2 &&
+              !rawResource.isLoading() &&
+              !craftUse(rawHasException()) &&
+              !hasResults(),
+          ),
+        };
+      },
+    );
+
+    yield* craftComputed('showDebouncing', function* () {
+      const _debouncedSearchisDebouncing =
+        yield* debouncedSearch.isDebouncing();
+      const _searchInput = yield* searchInput();
+      return _searchInput.trim().length >= 2 && _debouncedSearchisDebouncing;
+    });
+  },
+);
+
+const DebouncedWebSearch = craftComponent('DebouncedWebSearch', {}, () =>
+  section({ class: example.card }, [
+    heading({ class: example.title }, 'Debounced web search'),
+    p(
+      { class: example.text, 'data-exampleText': 'muted' },
+      'Type a book title. The input waits 350 ms in an asyncProcess before the query calls the public Open Library API.',
+    ),
+    input('search', {
+      class: example.input,
+      'data-exampleField': 'wide',
+      type: 'search',
+      value: DebouncedWebSearchView.searchInput,
+      placeholder: 'Try “angular”, “dune” or “design patterns”…',
+      'aria-label': 'Search books',
+      *input(event) {
+        yield* DebouncedWebSearchView.searchInput.setSearchInput(
+          eventValue(event),
+        );
+      },
+    }),
+    div({ class: example.row }, [
+      span([
+        'Debounce: ',
+        StatusComponent({
+          status: DebouncedWebSearchView.debouncedSearch.statusValue,
+        }),
       ]),
-      ifNode(
-        'searchTooShort',
-        DebouncedWebSearchView.searchInput.tooShort,
-        () =>
-          p(
-            { class: example.hint },
-            'Enter at least two characters to search.',
-          ),
-      ),
-      ifNode(
-        'showDebouncing',
-        DebouncedWebSearchView.showDebouncing,
-        () => p({ class: example.hint }, 'Waiting for the debounce window…'),
-      ),
-      ifNode(
-        'hasSearchError',
-        DebouncedWebSearchView.searchQuery.hasSearchError,
-        () =>
-          p({ class: example.error, role: 'alert' }, DebouncedWebSearchView.searchQuery.searchFailureMessage),
-      ),
-      ifNode(
-        'showResults',
-        DebouncedWebSearchView.searchQuery.showResults,
-        () => [
-          heading({ class: example.subtitle }, [
-            DebouncedWebSearchView.searchQuery.resultCount,
-            ' results for “',
-            DebouncedWebSearchView.searchInput,
-            '”',
-          ]),
-          ul(
-            { class: example.list },
-            forNode(
-              DebouncedWebSearchView.searchQuery.resultBooks,
-              { track: (book) => book.key },
-              (book) =>
-                article({ class: bookSearch.book }, [
-                  img({
-                    class: bookSearch.cover,
-                    src: function* () {
-                      return safeResourceUrl((yield* book()).coverUrl, {
-                        allowedOrigins: ['https://covers.openlibrary.org'],
-                      });
-                    },
-                    alt: '',
-                  }),
-                  div({ class: bookSearch.content }, [
-                    a(
-                      'book',
-                      {
-                        class: bookSearch.link,
-                        href: function* () {
-                          // URL fournie par une API tierce : elle passe par le
-                          // garde-fou avant d'atterrir dans le DOM.
-                          return safeUrl((yield* book()).url);
-                        },
-                        target: '_blank',
-                        rel: 'noreferrer',
-                      },
-                      function* () {
-                        return (yield* book()).title;
-                      },
-                    ),
-                    small({ class: example.hint }, function* () {
-                      return (yield* book()).metadata;
-                    }),
-                  ]),
-                ]),
-            ),
-          ),
-        ],
-      ),
-      ifNode(
-        'showEmpty',
-        DebouncedWebSearchView.searchQuery.showEmpty,
-        () => p({ class: example.hint }, 'No books found.'),
-      ),
+      span([
+        'HTTP query: ',
+        StatusComponent({
+          status: DebouncedWebSearchView.searchQuery.status,
+        }),
+      ]),
     ]),
+    ifNode('searchTooShort', DebouncedWebSearchView.searchInput.tooShort, () =>
+      p({ class: example.hint }, 'Enter at least two characters to search.'),
+    ),
+    ifNode('showDebouncing', DebouncedWebSearchView.showDebouncing, () =>
+      p({ class: example.hint }, 'Waiting for the debounce window…'),
+    ),
+    ifNode(
+      'hasSearchError',
+      DebouncedWebSearchView.searchQuery.hasSearchError,
+      () =>
+        p(
+          { class: example.error, role: 'alert' },
+          DebouncedWebSearchView.searchQuery.searchFailureMessage,
+        ),
+    ),
+    ifNode(
+      'showResults',
+      DebouncedWebSearchView.searchQuery.showResults,
+      () => [
+        heading({ class: example.subtitle }, [
+          DebouncedWebSearchView.searchQuery.resultCount,
+          ' results for “',
+          DebouncedWebSearchView.searchInput,
+          '”',
+        ]),
+        ul(
+          { class: example.list },
+          forNode(
+            DebouncedWebSearchView.searchQuery.resultBooks,
+            { track: (book) => book.key },
+            (book) =>
+              article({ class: bookSearch.book }, [
+                img({
+                  class: bookSearch.cover,
+                  src: function* () {
+                    return safeResourceUrl((yield* book()).coverUrl, {
+                      allowedOrigins: ['https://covers.openlibrary.org'],
+                    });
+                  },
+                  alt: '',
+                }),
+                div({ class: bookSearch.content }, [
+                  a(
+                    'book',
+                    {
+                      class: bookSearch.link,
+                      href: function* () {
+                        // URL fournie par une API tierce : elle passe par le
+                        // garde-fou avant d'atterrir dans le DOM.
+                        return safeUrl((yield* book()).url);
+                      },
+                      target: '_blank',
+                      rel: 'noreferrer',
+                    },
+                    function* () {
+                      return (yield* book()).title;
+                    },
+                  ),
+                  small({ class: example.hint }, function* () {
+                    return (yield* book()).metadata;
+                  }),
+                ]),
+              ]),
+          ),
+        ),
+      ],
+    ),
+    ifNode('showEmpty', DebouncedWebSearchView.searchQuery.showEmpty, () =>
+      p({ class: example.hint }, 'No books found.'),
+    ),
+  ]),
 );
 
 export default DebouncedWebSearch;

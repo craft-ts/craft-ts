@@ -1,85 +1,99 @@
 import {
-  ɵrunCraftCleanups,
-  ɵdestroyCraftOwner,
-  ɵcreateCraftCleanup,
-} from '@craft-ts/core';
-import {
-  CRAFT_SERVICE_PROVIDER_BRAND,
-  SERVICE_RUNTIME_OVERRIDES,
-  ɵinjectCraftDomEventHooks,
-  CRAFT_NODE_DIRECTIVE,
-  provideCraftNodeEffectFactory,
-  provideCraftFieldExceptionBoundary,
+  childCraftRenderIdentity,
   CRAFT_FIELD_EXCEPTION_SOURCE,
+  CRAFT_NODE_DIRECTIVE,
+  CRAFT_SERVICE_PROVIDER_BRAND,
   craftEffect,
   craftLazy,
+  craftUse,
   createBrowserDomAdapter,
-  registerCraftSyncTemplateFlush,
-  executeYieldable,
-  HOST_TAG_LIST,
+  createCraftRenderIdentity,
+  deepYieldable,
   executeTemplateTrace,
+  executeYieldable,
+  fieldExceptionVisibilityMatches,
+  HOST_TAG_LIST,
   isCraftException,
+  isCraftField,
   isCraftGenShortCircuit,
   isCraftNotSettled,
-  ɵwithSettledReadObserver,
-  type CraftSettledReadNotice,
-  type CraftSettledReadObserver,
-  isGeneratorFunction,
-  isCraftField,
+  isCraftReplaying,
   isDeepYieldable,
   isGenerator,
-  deepYieldable,
-  markYieldableValue,
-  markYieldableMethod,
-  isYieldableValue,
+  isGeneratorFunction,
   isYieldableMethod,
   isYieldableReactiveValue,
+  isYieldableValue,
+  markYieldableMethod,
+  markYieldableValue,
+  provideCraftFieldExceptionBoundary,
+  provideCraftNodeEffectFactory,
+  provideCraftRenderIdentity,
   provideHostName,
   rawReactiveFacade,
-  rawReactiveValue,
+  registerCraftSyncTemplateFlush,
+  SERVICE_RUNTIME_OVERRIDES,
   toYieldable,
+  YIELDABLE_VALUE,
   yieldableInvocation,
+  ɵcaptureCraftReplayTarget,
+  ɵcraftBatch,
+  ɵcreateCraftCleanup,
+  ɵcurrentCorrelationId,
+  ɵdestroyCraftOwner,
   ɵfallbackComponentRegister,
   ɵinjectComponentRegister,
+  ɵinjectCorrelationIdService,
+  ɵinjectCraftChildMatch,
+  ɵinjectCraftDomEventHooks,
+  ɵinjectCraftMatch,
+  ɵinjectCraftSecurityPolicy,
+  ɵinjectCraftSsrPolicy,
+  ɵinjectCraftTemporalRuntime,
+  ɵinjectSendContextSession,
+  ɵisCraftDevMode,
+  ɵregisterCraftDeferReplayTarget,
+  ɵregisterCraftReplayTarget,
   ɵregisterCraftTarget,
-  type CraftServiceProvider,
+  ɵrunCraftCleanups,
+  ɵrunInInjectionContext,
+  ɵwithSettledReadObserver,
+  type AnyCraftException,
   type CraftDomAdapter,
   type CraftDomEvent,
   type CraftDomEventHook,
-  type CraftNodeDirectiveContext,
-  type AnyCraftException,
   type CraftFieldExceptionSource,
-  type FieldExceptionBoundaryRegistration,
-  fieldExceptionVisibilityMatches,
-  YIELDABLE_VALUE,
-  type TemporalTaskHandle,
-  type TemplateTraceContext,
-  ɵinjectCraftTemporalRuntime,
-  provideCraftRenderIdentity,
-  childCraftRenderIdentity,
-  createCraftRenderIdentity,
+  type CraftNodeDirectiveContext,
   type CraftRenderIdentity,
-  ɵregisterCraftReplayTarget,
-  ɵregisterCraftDeferReplayTarget,
-  ɵcaptureCraftReplayTarget,
-  ɵinjectSendContextSession,
-  ɵinjectCorrelationIdService,
-  isCraftReplaying,
-  ɵinjectCraftSsrPolicy,
-  ɵinjectCraftSecurityPolicy,
-  ɵinjectCraftMatch,
-  ɵinjectCraftChildMatch,
-  ɵrunInInjectionContext,
-  ɵisCraftDevMode,
-  ɵcraftBatch,
-  craftUse,
-  ɵcurrentCorrelationId,
+  type CraftServiceProvider,
+  type CraftSettledReadNotice,
+  type CraftSettledReadObserver,
+  type FieldExceptionBoundaryRegistration,
+  type TemplateTraceContext,
+  type TemporalTaskHandle,
 } from '@craft-ts/core';
 import {
+  CraftUnhandledExceptionError,
+  resolveCatchHandler,
+  type CatchPosition,
+} from '../catch-node';
+import {
   executeCraftComponentFactory,
+  executeCraftComponentFactoryAsync,
   renderCraftComponentTemplate,
   ɵasGeneratorTemplate,
 } from '../factory-runtime';
+import type {
+  FieldExceptionHandler,
+  FieldExceptionHandlers,
+} from '../field-error-node';
+import {
+  createForScheduler,
+  ɵinjectForSchedulerIn,
+  type CancelHandle,
+  type ForSchedulePolicy,
+  type ForScheduler,
+} from '../for-scheduling';
 import {
   computed,
   createEnvironmentInjector,
@@ -94,35 +108,11 @@ import {
 } from '../host-runtime';
 import type { HostProps } from '../hyperscript';
 import {
-  CRAFT_COMPONENT,
-  CRAFT_DIRECTIVE,
-  CONTENT_DECLARATION_CONTEXT,
-  type CraftComponent,
-  type InputValue,
-} from '../types';
-import {
-  normalizeChildren,
-  mergeHostProps,
-  type AppliedCraftNodeDirective,
-  type CraftDirectiveNode,
-  type CraftNode,
-  type CraftNodeChildren,
-  type CraftTextBinding,
-  type DeferNode,
-  type ForNode,
-  type IfNode,
-  type HeadingNode,
-  type HeadingSectionNode,
-  type ElementNodeBase,
-  type CatchNode,
-  type MatchNode,
-  type ProjectionNode,
-  type TemplateNode,
-  type FieldErrorNode,
-  type PendingNode,
-  withCraftRenderContext,
-  CRAFT_NODE_DIRECTIVES,
-} from './vnode';
+  CRAFT_LOCATOR_CONTENT_NAMES,
+  directCraftContentNames,
+  findCraftTemplateLocator,
+  type RuntimeLocatorCriteria,
+} from '../locator';
 import {
   CraftUnhandledPendingError,
   resolvePendingHandler,
@@ -130,23 +120,7 @@ import {
   type PendingPosition,
 } from '../pending-node';
 import {
-  CraftUnhandledExceptionError,
-  resolveCatchHandler,
-  type CatchPosition,
-} from '../catch-node';
-import type {
-  FieldExceptionHandler,
-  FieldExceptionHandlers,
-} from '../field-error-node';
-import {
-  ɵinjectForSchedulerIn,
-  createForScheduler,
-  type CancelHandle,
-  type ForSchedulePolicy,
-  type ForScheduler,
-} from '../for-scheduling';
-import { executeCraftComponentFactoryAsync } from '../factory-runtime';
-import {
+  CraftDomSecurityError,
   isCraftMultiUrlAttribute,
   isCraftResourceUrlAttribute,
   isCraftSafeHtml,
@@ -155,18 +129,41 @@ import {
   safeResourceUrl,
   safeUrl,
   safeUrlList,
-  CraftDomSecurityError,
 } from '../security';
-import { scopeIdFor } from './scope-id';
 import {
-  CRAFT_LOCATOR_CONTENT_NAMES,
-  directCraftContentNames,
-  findCraftTemplateLocator,
-  type RuntimeLocatorCriteria,
-} from '../locator';
+  CONTENT_DECLARATION_CONTEXT,
+  CRAFT_COMPONENT,
+  CRAFT_DIRECTIVE,
+  type CraftComponent,
+  type InputValue,
+} from '../types';
 import { HydrationMismatchError, type HydrationCursor } from './hydration';
 import { setNodeHydrationKey } from './hydration-metadata';
+import { scopeIdFor } from './scope-id';
 import type { CraftSsrCoordinator } from './ssr-coordinator';
+import {
+  CRAFT_NODE_DIRECTIVES,
+  mergeHostProps,
+  normalizeChildren,
+  withCraftRenderContext,
+  type AppliedCraftNodeDirective,
+  type CatchNode,
+  type CraftDirectiveNode,
+  type CraftNode,
+  type CraftNodeChildren,
+  type CraftTextBinding,
+  type DeferNode,
+  type ElementNodeBase,
+  type FieldErrorNode,
+  type ForNode,
+  type HeadingNode,
+  type HeadingSectionNode,
+  type IfNode,
+  type MatchNode,
+  type PendingNode,
+  type ProjectionNode,
+  type TemplateNode,
+} from './vnode';
 
 type NativeNode = Node;
 type NativeParent = Node;
@@ -472,7 +469,7 @@ function findResourceException(
   if (typeof candidate.exceptions === 'function') {
     const exceptions = (
       isYieldableReactiveValue(candidate.exceptions)
-        ? rawReactiveValue(candidate.exceptions)()
+        ? craftUse(candidate.exceptions())
         : candidate.exceptions()
     ) as { readonly list?: readonly unknown[] };
     const exception = exceptions.list?.find(isCraftException);

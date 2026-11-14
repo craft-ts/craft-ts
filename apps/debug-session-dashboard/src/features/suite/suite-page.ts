@@ -1,4 +1,3 @@
-import { i18n } from '../../shared/util/catalog';
 import {
   button,
   craftComponent,
@@ -12,14 +11,15 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { CraftRouter, craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { CraftRouter, craftComputed, craftUse } from '@craft-ts/core';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
-import { ui } from '../../shared/ui/dashboard.style';
 import {
   CHECK_ARCHIVE_URL,
   CHECK_PICTURE_ORIGIN,
   GoldenSuiteArchive,
 } from '../../shared/data-access/golden-suite.service';
+import { ui } from '../../shared/ui/dashboard.style';
+import { i18n } from '../../shared/util/catalog';
 import {
   checkPictureUrl,
   replayLineFor,
@@ -41,35 +41,47 @@ import {
  */
 export const SuitePage = craftComponent('SuitePage', {}, function* () {
   const archive = yield* GoldenSuiteArchive();
-  const suite = rawReactiveValue(archive.suite.goldenSuite);
-  const loading = rawReactiveValue(archive.suite.suiteLoading);
-  const unreachable = rawReactiveValue(archive.suite.suiteUnreachable);
-  const origins = rawReactiveValue(archive.suite.origins);
-  const origin = rawReactiveValue(archive.chosenOrigin.effective);
-  const lastRun = rawReactiveValue(archive.suiteRun.lastRun);
-  const replaying = rawReactiveValue(archive.suiteRun.replaying);
-  const replayFailed = rawReactiveValue(archive.suiteRun.replayUnreachable);
-  const lastCheck = rawReactiveValue(archive.lastCheck.check);
-  const approving = rawReactiveValue(archive.approveChange.approving);
-  const approveFailed = rawReactiveValue(archive.approveChange.approveFailed);
-  const openedCheck = rawReactiveValue(archive.openedCheckSession.current);
-  const check = yield* craftComputed('check', () => sessionsCheckView(lastCheck()));
-  const checkRows = yield* craftComputed('checkRows', () => sessionsCheckView(lastCheck()).rows);
+  const suite = archive.suite.goldenSuite;
+  const loading = archive.suite.suiteLoading;
+  const unreachable = archive.suite.suiteUnreachable;
+  const origins = archive.suite.origins;
+  const origin = archive.chosenOrigin.effective;
+  const lastRun = archive.suiteRun.lastRun;
+  const replaying = archive.suiteRun.replaying;
+  const replayFailed = archive.suiteRun.replayUnreachable;
+  const lastCheck = archive.lastCheck.check;
+  const approving = archive.approveChange.approving;
+  const approveFailed = archive.approveChange.approveFailed;
+  const openedCheck = archive.openedCheckSession.current;
+  const check = yield* craftComputed('check', function* () {
+    const _lastCheck = yield* lastCheck();
+    return sessionsCheckView(_lastCheck);
+  });
+  const checkRows = yield* craftComputed('checkRows', function* () {
+    const _lastCheck = yield* lastCheck();
+    return sessionsCheckView(_lastCheck).rows;
+  });
 
-  const facts = yield* craftComputed('facts', () => suiteView(suite()).facts);
-  const kept = yield* craftComputed('kept', () => suiteView(suite()).sessions);
-  const rejected = yield* craftComputed(
-    'rejected',
-    () => suiteView(suite()).rejected,
-  );
-  const toRecapture = yield* craftComputed(
-    'toRecapture',
-    () => suiteView(suite()).toRecapture,
-  );
-  const uncovered = yield* craftComputed(
-    'uncovered',
-    () => suiteView(suite()).uncovered,
-  );
+  const facts = yield* craftComputed('facts', function* () {
+    const _suite = yield* suite();
+    return suiteView(_suite).facts;
+  });
+  const kept = yield* craftComputed('kept', function* () {
+    const _suite = yield* suite();
+    return suiteView(_suite).sessions;
+  });
+  const rejected = yield* craftComputed('rejected', function* () {
+    const _suite = yield* suite();
+    return suiteView(_suite).rejected;
+  });
+  const toRecapture = yield* craftComputed('toRecapture', function* () {
+    const _suite = yield* suite();
+    return suiteView(_suite).toRecapture;
+  });
+  const uncovered = yield* craftComputed('uncovered', function* () {
+    const _suite = yield* suite();
+    return suiteView(_suite).uncovered;
+  });
 
   const originPicker = div(
     {
@@ -77,7 +89,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       role: 'group',
       'aria-label': i18n.t('suiteAppsLabel'),
       'data-lab': 'suite-origins',
-      hidden: () => origins().length < 2,
+      hidden: () => craftUse(origins()).length < 2,
     },
     forNode(origins, { track: (item) => item }, (item) =>
       button(
@@ -86,10 +98,12 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
           type: 'button',
           class: ui.segment,
           'aria-pressed': function* () {
-            return origin() === (yield* item()) ? 'true' : 'false';
+            const _origin = yield* origin();
+            return _origin === (yield* item()) ? 'true' : 'false';
           },
           'data-segment-on': function* () {
-            return origin() === (yield* item()) ? 'true' : undefined;
+            const _origin = yield* origin();
+            return _origin === (yield* item()) ? 'true' : undefined;
           },
           click: function* () {
             yield* archive.chosenOrigin.choose(yield* item());
@@ -122,10 +136,13 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       'data-variant': 'primary',
       'data-lab': 'suite-replay-all',
       disabled: function* () {
-        return replaying() || (yield* kept()).length === 0;
+        const _replaying = yield* replaying();
+        return _replaying || (yield* kept()).length === 0;
       },
       click: function* () {
-        yield* archive.suiteRun.call((yield* kept()).map((row) => row.sessionId));
+        yield* archive.suiteRun.call(
+          (yield* kept()).map((row) => row.sessionId),
+        );
       },
     },
     i18n.t('suiteReplayAll'),
@@ -135,19 +152,20 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
     {
       class: ui.lede,
       'data-lab': 'suite-replay-status',
-      hidden: () => !replaying() && !replayFailed(),
+      hidden: () => !craftUse(replaying()) && !craftUse(replayFailed()),
     },
-    () => replayStatusLine(replaying(), replayFailed()),
+    () => replayStatusLine(craftUse(replaying()), craftUse(replayFailed())),
   );
 
   const runSummary = p(
     {
       class: badgeUi.root,
       'data-lab': 'suite-run-summary',
-      'data-tone': () => suiteRunLine(lastRun()).tone,
-      hidden: () => replaying() || suiteRunLine(lastRun()).hidden,
+      'data-tone': () => suiteRunLine(craftUse(lastRun())).tone,
+      hidden: () =>
+        craftUse(replaying()) || suiteRunLine(craftUse(lastRun())).hidden,
     },
-    () => suiteRunLine(lastRun()).text,
+    () => suiteRunLine(craftUse(lastRun())).text,
   );
 
   const keptList = ul(
@@ -192,14 +210,17 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
               class: badgeUi.root,
               'data-lab': 'suite-replay-result',
               'data-tone': function* () {
-                return replayLineFor(lastRun(), (yield* row()).sessionId).tone;
+                const _lastRun = yield* lastRun();
+                return replayLineFor(_lastRun, (yield* row()).sessionId).tone;
               },
               hidden: function* () {
-                return replayLineFor(lastRun(), (yield* row()).sessionId).hidden;
+                const _lastRun = yield* lastRun();
+                return replayLineFor(_lastRun, (yield* row()).sessionId).hidden;
               },
             },
             function* () {
-              return replayLineFor(lastRun(), (yield* row()).sessionId).text;
+              const _lastRun = yield* lastRun();
+              return replayLineFor(_lastRun, (yield* row()).sessionId).text;
             },
           ),
         ]),
@@ -262,14 +283,27 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
           alt: label,
           src: function* () {
             const id = yield* sessionId();
-            const url = openedCheck() === id ? checkPictureUrl(CHECK_ARCHIVE_URL, origin(), path(yield* moment())) : undefined;
-            return safeResourceUrl(url, { allowedOrigins: [CHECK_PICTURE_ORIGIN] });
+            const _origin = yield* origin();
+            const _openedCheck = yield* openedCheck();
+            const url =
+              _openedCheck === id
+                ? checkPictureUrl(
+                    CHECK_ARCHIVE_URL,
+                    _origin,
+                    path(yield* moment()),
+                  )
+                : undefined;
+            return safeResourceUrl(url, {
+              allowedOrigins: [CHECK_PICTURE_ORIGIN],
+            });
           },
         }),
       ],
     );
 
-  const checkMoments = (row: () => Generator<unknown, SessionsCheckRow, unknown>) => {
+  const checkMoments = (
+    row: () => Generator<unknown, SessionsCheckRow, unknown>,
+  ) => {
     const sessionId = function* () {
       return (yield* row()).sessionId;
     };
@@ -278,7 +312,8 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
         class: ui.checkMoments,
         'data-lab': 'suite-check-moments',
         hidden: function* () {
-          return openedCheck() !== (yield* row()).sessionId;
+          const _openedCheck = yield* openedCheck();
+          return _openedCheck !== (yield* row()).sessionId;
         },
       },
       forNode(
@@ -297,9 +332,27 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
               }),
             ]),
             div({ class: ui.checkPictures }, [
-              picture('suite-check-base', i18n.t('suiteCheckBase'), (item) => item.base, sessionId, moment),
-              picture('suite-check-head', i18n.t('suiteCheckHead'), (item) => item.head, sessionId, moment),
-              picture('suite-check-diff', i18n.t('suiteCheckDiff'), (item) => item.diff, sessionId, moment),
+              picture(
+                'suite-check-base',
+                i18n.t('suiteCheckBase'),
+                (item) => item.base,
+                sessionId,
+                moment,
+              ),
+              picture(
+                'suite-check-head',
+                i18n.t('suiteCheckHead'),
+                (item) => item.head,
+                sessionId,
+                moment,
+              ),
+              picture(
+                'suite-check-diff',
+                i18n.t('suiteCheckDiff'),
+                (item) => item.diff,
+                sessionId,
+                moment,
+              ),
             ]),
             ul(
               { class: ui.rowChips },
@@ -308,7 +361,11 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
                   return (yield* moment()).measures;
                 },
                 { track: (line) => line },
-                (line) => li({ class: ui.unitTag, 'data-lab': 'suite-check-measure' }, line),
+                (line) =>
+                  li(
+                    { class: ui.unitTag, 'data-lab': 'suite-check-measure' },
+                    line,
+                  ),
               ),
             ),
           ]),
@@ -372,93 +429,111 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
         {
           class: ui.lede,
           'data-lab': 'suite-approve-failed',
-          hidden: () => approving() || !approveFailed(),
+          hidden: () => craftUse(approving()) || !craftUse(approveFailed()),
         },
         i18n.t('suiteApproveFailed'),
       ),
       ul(
         { class: ui.sessions },
         forNode(checkRows, { track: (row) => row.sessionId }, (row) =>
-          li({ class: [ui.row, ui.checkRow], 'data-lab': 'suite-check-session' }, [
-            span({ class: ui.rowBody }, [
-              span({ class: ui.rowTitle }, [
-                span(function* () {
-                  return (yield* row()).title;
+          li(
+            { class: [ui.row, ui.checkRow], 'data-lab': 'suite-check-session' },
+            [
+              span({ class: ui.rowBody }, [
+                span({ class: ui.rowTitle }, [
+                  span(function* () {
+                    return (yield* row()).title;
+                  }),
+                  span(
+                    {
+                      class: badgeUi.root,
+                      'data-lab': 'suite-check-session-verdict',
+                      'data-tone': function* () {
+                        return (yield* row()).tone;
+                      },
+                    },
+                    function* () {
+                      return (yield* row()).label;
+                    },
+                  ),
+                ]),
+                span({ class: ui.rowMeta }, function* () {
+                  return (yield* row()).reason;
                 }),
-                span(
+              ]),
+              span({ class: ui.rowActions }, [
+                button(
+                  'toggleCheckedMoments',
                   {
-                    class: badgeUi.root,
-                    'data-lab': 'suite-check-session-verdict',
-                    'data-tone': function* () {
-                      return (yield* row()).tone;
+                    type: 'button',
+                    class: [buttonUi.root, ui.inlineAction],
+                    'data-variant': 'secondary',
+                    'data-lab': 'suite-check-toggle',
+                    'aria-expanded': function* () {
+                      const _openedCheck = yield* openedCheck();
+                      return _openedCheck === (yield* row()).sessionId
+                        ? 'true'
+                        : 'false';
+                    },
+                    hidden: function* () {
+                      return (yield* row()).moments.length === 0;
+                    },
+                    click: function* () {
+                      yield* archive.openedCheckSession.toggle(
+                        (yield* row()).sessionId,
+                      );
                     },
                   },
                   function* () {
-                    return (yield* row()).label;
+                    const _openedCheck = yield* openedCheck();
+                    return _openedCheck === (yield* row()).sessionId
+                      ? i18n.t('suiteCheckHide')
+                      : i18n.t('suiteCheckShow');
                   },
                 ),
+                button(
+                  'openCheckedSession',
+                  {
+                    type: 'button',
+                    class: [buttonUi.root, ui.inlineAction],
+                    'data-variant': 'link',
+                    click: function* () {
+                      yield* CraftRouter.navigate({
+                        to: 'sessions/:sessionId',
+                        params: { sessionId: (yield* row()).sessionId },
+                      });
+                    },
+                  },
+                  i18n.t('suiteOpenSession'),
+                ),
+                button(
+                  'approveCheckedChange',
+                  {
+                    type: 'button',
+                    class: [buttonUi.root, ui.inlineAction],
+                    'data-variant': 'primary',
+                    'data-lab': 'suite-approve-change',
+                    hidden: function* () {
+                      return !(yield* row()).approvable;
+                    },
+                    disabled: approving,
+                    click: function* () {
+                      const _origin = yield* origin();
+                      yield* archive.approveCheckedChange(
+                        _origin,
+                        (yield* row()).sessionId,
+                      );
+                    },
+                  },
+                  () =>
+                    craftUse(approving())
+                      ? i18n.t('suiteApproving')
+                      : i18n.t('suiteApprove'),
+                ),
               ]),
-              span({ class: ui.rowMeta }, function* () {
-                return (yield* row()).reason;
-              }),
-            ]),
-            span({ class: ui.rowActions }, [
-              button(
-                'toggleCheckedMoments',
-                {
-                  type: 'button',
-                  class: [buttonUi.root, ui.inlineAction],
-                  'data-variant': 'secondary',
-                  'data-lab': 'suite-check-toggle',
-                  'aria-expanded': function* () {
-                    return openedCheck() === (yield* row()).sessionId ? 'true' : 'false';
-                  },
-                  hidden: function* () {
-                    return (yield* row()).moments.length === 0;
-                  },
-                  click: function* () {
-                    yield* archive.openedCheckSession.toggle((yield* row()).sessionId);
-                  },
-                },
-                function* () {
-                  return openedCheck() === (yield* row()).sessionId ? i18n.t('suiteCheckHide') : i18n.t('suiteCheckShow');
-                },
-              ),
-              button(
-                'openCheckedSession',
-                {
-                  type: 'button',
-                  class: [buttonUi.root, ui.inlineAction],
-                  'data-variant': 'link',
-                  click: function* () {
-                    yield* CraftRouter.navigate({
-                      to: 'sessions/:sessionId',
-                      params: { sessionId: (yield* row()).sessionId },
-                    });
-                  },
-                },
-                i18n.t('suiteOpenSession'),
-              ),
-              button(
-                'approveCheckedChange',
-                {
-                  type: 'button',
-                  class: [buttonUi.root, ui.inlineAction],
-                  'data-variant': 'primary',
-                  'data-lab': 'suite-approve-change',
-                  hidden: function* () {
-                    return !(yield* row()).approvable;
-                  },
-                  disabled: approving,
-                  click: function* () {
-                    yield* archive.approveCheckedChange(origin(), (yield* row()).sessionId);
-                  },
-                },
-                () => (approving() ? i18n.t('suiteApproving') : i18n.t('suiteApprove')),
-              ),
-            ]),
-            checkMoments(row),
-          ]),
+              checkMoments(row),
+            ],
+          ),
         ),
       ),
     ],
@@ -533,7 +608,9 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       class: ui.empty,
       'data-lab': 'suite-empty',
       hidden: function* () {
-        return loading() || unreachable() || (yield* kept()).length > 0;
+        const _unreachable = yield* unreachable();
+        const _loading = yield* loading();
+        return _loading || _unreachable || (yield* kept()).length > 0;
       },
     },
     i18n.t('suiteEmpty'),
@@ -542,7 +619,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
     {
       class: ui.empty,
       'data-lab': 'suite-unreachable',
-      hidden: () => !unreachable(),
+      hidden: () => !craftUse(unreachable()),
     },
     i18n.t('suiteUnreachable'),
   );

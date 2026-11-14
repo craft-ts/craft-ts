@@ -7,7 +7,6 @@ import {
   insertReactOnMutation,
   mutation,
   query,
-  rawReactiveValue,
   state,
 } from '@craft-ts/core';
 import {
@@ -35,35 +34,49 @@ export const { GoldenSuiteArchive } = craftService(
   { name: 'goldenSuiteArchive', providedIn: 'global' },
   function* () {
     const archive = yield* SessionArchive();
-    const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
-    const suiteOriginList = yield* craftComputed('suiteOriginList', () =>
-      suiteOrigins(savedSessions()),
+    const savedSessions = archive.sessions.savedSessions;
+    const suiteOriginList = yield* craftComputed(
+      'suiteOriginList',
+      function* () {
+        const _savedSessions = yield* savedSessions();
+        return suiteOrigins(_savedSessions);
+      },
     );
 
     // Each opening of the page asks again; 0 until it is opened once.
-    const suiteOpenings = yield* state('suiteOpenings', 0, function* ({ state: read, update }) {
-      return {
-        openings: yield* craftComputed('openings', function* () {
-          return yield* read();
-        }),
-        open: function* () {
-          yield* update((count) => count + 1);
-        },
-      };
-    });
+    const suiteOpenings = yield* state(
+      'suiteOpenings',
+      0,
+      function* ({ state: read, update }) {
+        return {
+          openings: yield* craftComputed('openings', function* () {
+            return yield* read();
+          }),
+          open: function* () {
+            yield* update((count) => count + 1);
+          },
+        };
+      },
+    );
     // The app chosen on the page, or by default the one recorded last.
-    const chosenOrigin = yield* state('chosenOrigin', '', function* ({ state: read, set }) {
-      return {
-        effective: yield* craftComputed('effective', function* () {
-          const chosen = yield* read();
-          const origins = yield* suiteOriginList();
-          return chosen && origins.includes(chosen) ? chosen : (origins[0] ?? '');
-        }),
-        choose: function* (origin: string) {
-          yield* set(origin);
-        },
-      };
-    });
+    const chosenOrigin = yield* state(
+      'chosenOrigin',
+      '',
+      function* ({ state: read, set }) {
+        return {
+          effective: yield* craftComputed('effective', function* () {
+            const chosen = yield* read();
+            const origins = yield* suiteOriginList();
+            return chosen && origins.includes(chosen)
+              ? chosen
+              : (origins[0] ?? '');
+          }),
+          choose: function* (origin: string) {
+            yield* set(origin);
+          },
+        };
+      },
+    );
 
     yield* query(
       'suite',
@@ -89,9 +102,12 @@ export const { GoldenSuiteArchive } = craftService(
           suiteLoading: yield* craftComputed('suiteLoading', function* () {
             return yield* resource.isLoading();
           }),
-          suiteUnreachable: yield* craftComputed('suiteUnreachable', function* () {
-            return yield* hasException();
-          }),
+          suiteUnreachable: yield* craftComputed(
+            'suiteUnreachable',
+            function* () {
+              return yield* hasException();
+            },
+          ),
           origins: suiteOriginList,
         };
       },
@@ -115,7 +131,8 @@ export const { GoldenSuiteArchive } = craftService(
     const approveChange = yield* mutation(
       'approveChange',
       {
-        method: (request: Readonly<{ origin: string; sessionId: string }>) => request,
+        method: (request: Readonly<{ origin: string; sessionId: string }>) =>
+          request,
         loader: function* ({ params }) {
           return yield* CraftHttpClient.post(({ response }) => ({
             url: `${SESSION_ARCHIVE_URL}/sessions/check/approve`,
@@ -137,9 +154,12 @@ export const { GoldenSuiteArchive } = craftService(
         };
       },
     );
-    yield* craftExpose('approveCheckedChange', function* (origin: string, sessionId: string) {
-      yield* approveChange.mutate({ origin, sessionId });
-    });
+    yield* craftExpose(
+      'approveCheckedChange',
+      function* (origin: string, sessionId: string) {
+        yield* approveChange.mutate({ origin, sessionId });
+      },
+    );
 
     // The last base-against-head check of the app (`npm run sessions:check`),
     // read again once a change is approved.
@@ -166,7 +186,9 @@ export const { GoldenSuiteArchive } = craftService(
             }),
           };
         },
-        insertReactOnMutation(approveChange, { reload: { onMutationResolved: true } }),
+        insertReactOnMutation(approveChange, {
+          reload: { onMutationResolved: true },
+        }),
       ),
     );
 
@@ -193,12 +215,14 @@ export const { GoldenSuiteArchive } = craftService(
           replaying: yield* craftComputed('replaying', function* () {
             return yield* resource.isLoading();
           }),
-          replayUnreachable: yield* craftComputed('replayUnreachable', function* () {
-            return yield* hasException();
-          }),
+          replayUnreachable: yield* craftComputed(
+            'replayUnreachable',
+            function* () {
+              return yield* hasException();
+            },
+          ),
         };
       },
     );
   },
 );
-

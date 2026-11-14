@@ -1,4 +1,3 @@
-import { i18n } from '../../../shared/util/catalog';
 import {
   button,
   craftComponent,
@@ -14,28 +13,28 @@ import {
   summary,
   ul,
 } from '@craft-ts/component';
-import { CraftRouter, craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { CraftRouter, craftUse } from '@craft-ts/core';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
-import { ui } from '../../../shared/ui/dashboard.style';
-import { openLinkedTab } from '../../../shared/util/replay-browser';
-import { sessionDate } from '../../../shared/util/replay-labels';
-import { plural } from '../../../shared/util/replay-model';
-import { ReplaySession } from '../../../shared/state/replay-session';
-import { routeSessionId } from '../../../shared/state/replay-state';
-import { copyResumePrompt } from '../resume-prompt';
-import { ResumeThread, type ResumeMessage } from '../../../shared/data-access/resume-thread.service';
+import { type ResumeMessage } from '../../../shared/data-access/resume-thread.service';
 import {
   SessionArchive,
   type ResumeCheckpointSummary,
   type ResumeRecipeSummary,
 } from '../../../shared/data-access/session-archive.service';
+import { ReplaySession } from '../../../shared/state/replay-session';
+import { ui } from '../../../shared/ui/dashboard.style';
+import { i18n } from '../../../shared/util/catalog';
+import { openLinkedTab } from '../../../shared/util/replay-browser';
+import { sessionDate } from '../../../shared/util/replay-labels';
+import { plural } from '../../../shared/util/replay-model';
 import {
-  derivedSessionsOf,
   RECIPE_RUN_STATUS,
   RECIPE_VALIDATION_LABEL,
   recipeName,
   recipeValidationTone,
 } from '../../../shared/util/session-lineage';
+import { copyResumePrompt } from '../resume-prompt';
+import { ReplayResumesViewModel } from './replay-resumes-view-model.service';
 
 const KIND_LABELS: Readonly<Record<ResumeMessage['kind'], string>> = {
   step: 'Étape',
@@ -104,52 +103,9 @@ function recipeRunSummary(recipe: ResumeRecipeSummary): string {
 export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
   const replaySession = yield* ReplaySession();
   const archive = yield* SessionArchive();
-  const resume = yield* ResumeThread();
-  const threadValue = rawReactiveValue(resume.thread.value);
-  const resumeNotice = rawReactiveValue(archive.resumeNotice);
-  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
-  const savedRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
-  const savedCheckpoints = rawReactiveValue(archive.resumeCheckpoints.resumeCheckpointList);
-
-  const checkpoints = yield* craftComputed('checkpoints', () =>
-    savedCheckpoints().filter((checkpoint) => !checkpoint.expired),
-  );
-  const recipes = yield* craftComputed('recipes', () => {
-    const sessionId = routeSessionId();
-    return sessionId
-      ? savedRecipes().filter((recipe) => recipe.sessionId === sessionId)
-      : [];
-  });
-  const derived = yield* craftComputed('derived', () => {
-    const sessionId = routeSessionId();
-    return sessionId
-      ? derivedSessionsOf(sessionId, savedSessions(), savedRecipes())
-      : [];
-  });
-  const checkpointsValue = rawReactiveValue(checkpoints);
-  const recipesValue = rawReactiveValue(recipes);
-  const derivedValue = rawReactiveValue(derived);
-  const messages = yield* craftComputed(
-    'messages',
-    () => threadValue()?.messages ?? [],
-  );
-  const messagesValue = rawReactiveValue(messages);
-  const noticeHere = yield* craftComputed('noticeHere', () => {
-    const notice = resumeNotice();
-    return notice !== undefined && notice.sessionId === routeSessionId()
-      ? notice
-      : undefined;
-  });
-  const noticeValue = rawReactiveValue(noticeHere);
-  const nothingYet = yield* craftComputed(
-    'nothingYet',
-    () =>
-      noticeValue() === undefined &&
-      messagesValue().length === 0 &&
-      checkpointsValue().length === 0 &&
-      recipesValue().length === 0 &&
-      derivedValue().length === 0,
-  );
+  const { checkpoints, recipes, derived, messages, noticeHere, nothingYet } =
+    yield* ReplayResumesViewModel();
+  const noticeValue = noticeHere;
 
   // How it works, once: open while nothing exists yet, folded after.
   const howItWorks = details(
@@ -180,20 +136,23 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
       class: ui.sideCard,
       'data-lab': 'resume-requested',
       hidden: function* () {
-        return noticeValue() === undefined;
+        const _noticeValue = yield* noticeValue();
+        return _noticeValue === undefined;
       },
     },
     [
-      heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy100")),
+      heading({ class: ui.sideSectionTitle }, i18n.t('copy.copy100')),
       p({ class: ui.lede }, function* () {
-        return noticeValue()?.appTabOpened
-          ? i18n.t("copy.copy101")
-          : i18n.t("copy.copy102");
+        const _noticeValue = yield* noticeValue();
+        return _noticeValue?.appTabOpened
+          ? i18n.t('copy.copy101')
+          : i18n.t('copy.copy102');
       }),
       details([
         summary('Voir le prompt copié'),
         pre({ class: ui.code, 'data-lab': 'resume-prompt' }, function* () {
-          return noticeValue()?.prompt ?? '';
+          const _noticeValue = yield* noticeValue();
+          return _noticeValue?.prompt ?? '';
         }),
       ]),
       div({ class: ui.gapActions }, [
@@ -204,10 +163,11 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
             class: buttonUi.root,
             'data-variant': 'primary',
             click: function* () {
-              yield* copyResumePrompt(noticeValue()?.prompt ?? '');
+              const _noticeValue = yield* noticeValue();
+              yield* copyResumePrompt(_noticeValue?.prompt ?? '');
             },
           },
-          i18n.t("copy.copy103"),
+          i18n.t('copy.copy103'),
         ),
         button(
           'openResumeAppTab',
@@ -216,14 +176,15 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
             class: buttonUi.root,
             'data-variant': 'secondary',
             hidden: function* () {
-              return !noticeValue()?.appUrl;
+              const _noticeValue = yield* noticeValue();
+              return !_noticeValue?.appUrl;
             },
             click: () => {
-              const href = noticeValue()?.appUrl;
+              const href = craftUse(noticeValue())?.appUrl;
               if (href) openLinkedTab(href);
             },
           },
-          i18n.t("copy.copy104"),
+          i18n.t('copy.copy104'),
         ),
         button(
           'dismissResumeNotice',
@@ -233,7 +194,7 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
             'data-variant': 'link',
             click: () => archive.resumeNotice.dismiss(),
           },
-          i18n.t("copy.copy105"),
+          i18n.t('copy.copy105'),
         ),
       ]),
     ],
@@ -243,11 +204,12 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
     {
       class: ui.sideSection,
       hidden: function* () {
-        return messagesValue().length === 0;
+        const _messagesValue = yield* messages();
+        return _messagesValue.length === 0;
       },
     },
     [
-      heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy106")),
+      heading({ class: ui.sideSectionTitle }, i18n.t('copy.copy106')),
       ul(
         { class: ui.events, 'data-lab': 'resume-thread' },
         forNode(messages, { track: (message) => message.id }, (message) =>
@@ -281,13 +243,15 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
     {
       class: ui.sideSection,
       hidden: function* () {
-        return checkpointsValue().length === 0;
+        const _checkpointsValue = yield* checkpoints();
+        return _checkpointsValue.length === 0;
       },
     },
     [
       heading({ class: ui.sideSectionTitle }, function* () {
+        const _checkpointsValue = yield* checkpoints();
         return plural(
-          checkpointsValue().length,
+          _checkpointsValue.length,
           'point de reprise',
           'points de reprise',
         );
@@ -302,7 +266,7 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
               div({ class: ui.eventInfo }, [
                 span({ class: ui.eventName }, function* () {
                   const item = yield* checkpoint();
-                  return item.label ?? item.goal ?? i18n.t("copy.copy107");
+                  return item.label ?? item.goal ?? i18n.t('copy.copy107');
                 }),
                 span({ class: ui.eventMeta }, function* () {
                   const checkpointItem = yield* checkpoint();
@@ -325,7 +289,7 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
                     );
                   },
                 },
-                i18n.t("copy.copy108"),
+                i18n.t('copy.copy108'),
               ),
             ]),
         ),
@@ -337,12 +301,14 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
     {
       class: ui.sideSection,
       hidden: function* () {
-        return recipesValue().length === 0;
+        const _recipesValue = yield* recipes();
+        return _recipesValue.length === 0;
       },
     },
     [
       heading({ class: ui.sideSectionTitle }, function* () {
-        return plural(recipesValue().length, 'recette');
+        const _recipesValue = yield* recipes();
+        return plural(_recipesValue.length, 'recette');
       }),
       ul(
         { class: ui.events, 'data-lab': 'resume-recipes' },
@@ -403,20 +369,22 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
     {
       class: ui.sideSection,
       hidden: function* () {
-        return derivedValue().length === 0;
+        const _derivedValue = yield* derived();
+        return _derivedValue.length === 0;
       },
     },
     [
       heading({ class: ui.sideSectionTitle }, function* () {
+        const _derivedValue = yield* derived();
         return plural(
-          derivedValue().length,
+          _derivedValue.length,
           'session issue de celle-ci',
           'sessions issues de celle-ci',
         );
       }),
       ul(
         { class: ui.events, 'data-lab': 'derived-sessions' },
-        forNode(derived, { track: (item) => item.id }, (item) =>
+        forNode(derived, { track: (item) => item.session.id }, (item) =>
           li(
             { class: ui.linkItem },
             button(
@@ -429,32 +397,22 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
                   const itemItem = yield* item();
                   yield* CraftRouter.navigate({
                     to: 'sessions/:sessionId',
-                    params: { sessionId: itemItem.id },
+                    params: { sessionId: itemItem.session.id },
                   });
                 },
               },
               [
                 span({ class: ui.listLinkTitle }, function* () {
-                  const saved = yield* item();
+                  const { session: saved } = yield* item();
                   return sessionDate.format(new Date(saved.createdAt));
                 }),
                 span({ class: ui.eventMeta }, function* () {
-                  const saved = yield* item();
-                  const recipe =
-                    saved.resume?.kind === 'recipe-run'
-                      ? savedRecipes().find(
-                          (candidate) =>
-                            candidate.id ===
-                            (saved.resume?.kind === 'recipe-run'
-                              ? saved.resume.recipeId
-                              : ''),
-                        )
-                      : undefined;
+                  const { session: saved, resumeDescription } = yield* item();
                   return [
                     saved.resume?.kind === 'guided-resume'
                       ? i18n.t('resumeGuided')
                       : i18n.t('resumeRecipe', {
-                          name: recipe ? recipeName(recipe) : '?',
+                          name: resumeDescription ?? '?',
                         }),
                     ...(saved.resume?.beforeSequence === undefined
                       ? []

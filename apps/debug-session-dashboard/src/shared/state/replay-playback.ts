@@ -1,5 +1,5 @@
 import { getReplaySteps } from '@craft-ts/component';
-import { craftExpose, craftService, rawReactiveValue } from '@craft-ts/core';
+import { craftExpose, craftService, craftUse } from '@craft-ts/core';
 import {
   after,
   cancelAfter,
@@ -71,7 +71,10 @@ export const { ReplayPlayback } = craftService(
     /* ── the loading veil ───────────────────────────────────────────────────── */
 
     function beginReplayLoadingIndicator(): void {
-      if (rawReactiveValue(replaySkeletonVisible)() || registers.skeletonTimer !== undefined)
+      if (
+        craftUse(replaySkeletonVisible()) ||
+        registers.skeletonTimer !== undefined
+      )
         return;
       setStates({ replaySkeletonVisible: false });
       registers.skeletonTimer = after(300, () => {
@@ -123,20 +126,25 @@ export const { ReplayPlayback } = craftService(
           viewport: () =>
             replayViewports.get(participantId) ??
             sessionForParticipant(participantId)?.viewport ??
-            rawReactiveValue(session)()?.viewport,
+            craftUse(session())?.viewport,
         })),
       );
       if (!scaled) return;
       let primaryScale = 1;
       for (const { participantId, scale } of scaled) {
         replayScales.set(participantId, scale);
-        if (participantId === rawReactiveValue(selectedParticipantId)() || primaryScale === 1)
+        if (
+          participantId === craftUse(selectedParticipantId()) ||
+          primaryScale === 1
+        )
           primaryScale = scale;
       }
       // A tab shown alone is the one the scale speaks of.
       const alone = replayTileAlone();
       if (alone !== undefined)
-        primaryScale = scaled.find((item) => item.participantId === alone)?.scale ?? primaryScale;
+        primaryScale =
+          scaled.find((item) => item.participantId === alone)?.scale ??
+          primaryScale;
       setStates({ replayViewportScale: primaryScale });
     }
 
@@ -196,7 +204,7 @@ export const { ReplayPlayback } = craftService(
               ? 'Onglet fermé'
               : state === 'interrupted'
                 ? 'Connexion interrompue'
-                : rawReactiveValue(replayState)() === 'paused'
+                : craftUse(replayState()) === 'paused'
                   ? 'En pause'
                   : state === 'hidden'
                     ? 'Non visible'
@@ -218,7 +226,9 @@ export const { ReplayPlayback } = craftService(
                 ? undefined
                 : {
                     message,
-                    dim: state === 'hidden' && rawReactiveValue(replayState)() !== 'paused',
+                    dim:
+                      state === 'hidden' &&
+                      craftUse(replayState()) !== 'paused',
                     collapsible: state === 'hidden',
                   },
           };
@@ -270,7 +280,7 @@ export const { ReplayPlayback } = craftService(
       const participantId = (focused ?? fallback)?.[0] ?? participantIds[0];
       registers.recordedActiveParticipantId = focused?.[0];
       if (!participantId) return;
-      if (participantId !== rawReactiveValue(activeReplayParticipantId)())
+      if (participantId !== craftUse(activeReplayParticipantId()))
         setStates({ activeReplayParticipantId: participantId });
       updateReplayTileIndicators();
       for (const id of participantIds) {
@@ -279,7 +289,7 @@ export const { ReplayPlayback } = craftService(
           id,
           scheduled
             ? false
-            : rawReactiveValue(selectedParticipantId)() === 'all'
+            : craftUse(selectedParticipantId()) === 'all'
               ? false
               : id !== participantId,
         );
@@ -289,7 +299,7 @@ export const { ReplayPlayback } = craftService(
     /** A tab that ended in the recording shows how, once the replay is over. */
     function applyReplayTerminalParticipantStates(): void {
       let changed = false;
-      for (const participant of rawReactiveValue(sessionParticipants)()) {
+      for (const participant of craftUse(sessionParticipants())) {
         if (!registers.visibilityParticipantIds.includes(participant.id))
           continue;
         const state = terminalStateOf(participant);
@@ -380,18 +390,21 @@ export const { ReplayPlayback } = craftService(
       // final "completed" status message even after every recorded action ran.
       else if (
         replayableEvents().length > 0 &&
-        rawReactiveValue(replayIndex)() >= replayableEvents().length &&
+        craftUse(replayIndex()) >= replayableEvents().length &&
         !hasDifference()
-      ) nextReplayState = 'completed';
+      )
+        nextReplayState = 'completed';
       else if (
         states.includes('playing') ||
         (registers.playbackRequested &&
           states.some((state) => state !== 'completed' && state !== 'error'))
-      ) nextReplayState = 'playing';
+      )
+        nextReplayState = 'playing';
       else if (
         states.length > 0 &&
         states.every((state) => state === 'completed')
-      ) nextReplayState = 'completed';
+      )
+        nextReplayState = 'completed';
       else if (states.includes('paused')) nextReplayState = 'paused';
       else if (framesConnected) nextReplayState = 'ready';
       setStates({ connected: framesConnected, replayState: nextReplayState });
@@ -400,7 +413,8 @@ export const { ReplayPlayback } = craftService(
       );
       if (hasStartedParticipant || states.includes('error'))
         endReplayLoadingIndicator();
-      if (nextReplayState === 'completed') applyReplayTerminalParticipantStates();
+      if (nextReplayState === 'completed')
+        applyReplayTerminalParticipantStates();
       if (
         nextReplayState !== 'playing' &&
         registers.clockStartedAt !== undefined
@@ -487,7 +501,10 @@ export const { ReplayPlayback } = craftService(
           baseElapsedMs + monotonicMs() - registers.clockStartedAt;
         launchDueReplayParticipants(registers.clockElapsedMs);
         updateActiveReplayFrame(registers.clockElapsedMs);
-        if (rawReactiveValue(replayState)() === 'completed' || rawReactiveValue(replayState)() === 'error')
+        if (
+          craftUse(replayState()) === 'completed' ||
+          craftUse(replayState()) === 'error'
+        )
           stopReplayVisibilityClock();
       });
       updateActiveReplayFrame(registers.clockElapsedMs);

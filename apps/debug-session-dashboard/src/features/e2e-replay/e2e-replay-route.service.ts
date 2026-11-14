@@ -1,16 +1,16 @@
 import {
   BrowserLocationService,
   CraftHttpClient,
-  craftGen,
-  craftExpose,
   craftEffect,
+  craftExpose,
+  craftGen,
   craftService,
+  craftUse,
   query,
-  rawReactiveValue,
 } from '@craft-ts/core';
+import { ReplaySession } from '../../shared/state/replay-session';
 import { onWindowMessage } from '../../shared/util/replay-browser';
 import { isRecord } from '../../shared/util/replay-model';
-import { ReplaySession } from '../../shared/state/replay-session';
 
 const rawDecoder = { decode: (input: unknown) => input };
 
@@ -34,12 +34,12 @@ export const { E2eReplayRoute: E2eReplayRouteService } = craftService(
         if (source) yield* sourceSession.call(source);
       }),
     );
-    const sourceValue = rawReactiveValue(sourceSession.value);
+    const sourceValue = sourceSession.value;
     const browserLocation = yield* BrowserLocationService();
     const dashboardOrigin = browserLocation.origin();
     let loaded: unknown;
     yield* craftEffect('installE2eReplaySession', () => {
-      const next = sourceValue();
+      const next = craftUse(sourceValue());
       if (!isRecord(next) || next === loaded) return;
       loaded = next;
       replaySession.importJson(JSON.stringify(next));

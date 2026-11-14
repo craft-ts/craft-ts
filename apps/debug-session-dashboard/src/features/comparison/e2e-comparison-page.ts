@@ -1,4 +1,3 @@
-import { i18n } from '../../shared/util/catalog';
 import {
   button,
   craftComponent,
@@ -16,44 +15,58 @@ import {
   summary,
   ul,
 } from '@craft-ts/component';
-import { CraftRouter, craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { CraftRouter, craftComputed, craftUse } from '@craft-ts/core';
 import {
   describeSessionTraceFinding,
   sessionTraceFindingAnchors,
   sessionTraceFindingLabel,
   type SessionTraceFinding,
 } from '@craft-ts/session-trace';
+import { buttonUi } from '@craft-ts/ui/style';
 import {
   E2eComparison,
   type E2eComparisonError,
   type E2eComparisonReport,
 } from '../../shared/data-access/e2e-comparison.service';
-import { ui } from '../../shared/ui/dashboard.style';
-import { dashboardHref, seekE2eComparisonFrame } from '../../shared/util/replay-browser';
-import { page } from '../../shared/state/replay-state';
 import { httpFailureReason } from '../../shared/data-access/session-archive.service';
-import { buttonUi } from '@craft-ts/ui/style';
-
+import { page } from '../../shared/state/replay-state';
+import { ui } from '../../shared/ui/dashboard.style';
+import { i18n } from '../../shared/util/catalog';
+import {
+  dashboardHref,
+  seekE2eComparisonFrame,
+} from '../../shared/util/replay-browser';
 
 function comparisonSummary(
   result: E2eComparisonReport | E2eComparisonError | undefined,
   exception: unknown,
 ): string {
   if (result && 'error' in result)
-    return (i18n.t("copy.copy005") + (result.error) + "");
+    return i18n.t('copy.copy005') + result.error + '';
   if (!result && exception !== undefined)
-    return (i18n.t("copy.copy006") + (typeof exception === 'string' ? exception : httpFailureReason(exception)) + i18n.t("copy.copy007"));
-  if (!result) return i18n.t("copy.copy008");
-  const references =
-    i18n.t(
-      result.baselineCount > 1 ? 'greenReferencesMany' : 'greenReferencesOne',
-      { count: result.baselineCount },
+    return (
+      i18n.t('copy.copy006') +
+      (typeof exception === 'string'
+        ? exception
+        : httpFailureReason(exception)) +
+      i18n.t('copy.copy007')
     );
+  if (!result) return i18n.t('copy.copy008');
+  const references = i18n.t(
+    result.baselineCount > 1 ? 'greenReferencesMany' : 'greenReferencesOne',
+    { count: result.baselineCount },
+  );
   const single =
-    result.baselineCount === 1
-      ? i18n.t('singleReferenceNote')
-      : '';
-  return (i18n.t("copy.copy009") + (result.comparison.findings.length) + i18n.t("copy.copy010") + (references) + i18n.t("copy.copy011") + (single) + ".");
+    result.baselineCount === 1 ? i18n.t('singleReferenceNote') : '';
+  return (
+    i18n.t('copy.copy009') +
+    result.comparison.findings.length +
+    i18n.t('copy.copy010') +
+    references +
+    i18n.t('copy.copy011') +
+    single +
+    '.'
+  );
 }
 
 /** The two replay frames: the latest green reference and the observed run. */
@@ -71,7 +84,9 @@ function replayFramesOf(
   // The frames show this dashboard, at the route the router writes for them
   // (`/#/e2e-replay?…`): a relative address, whatever port it runs on. A
   // report naming another dashboard opens the frames there.
-  const dashboard = new URL(result.dashboardUrl || dashboardHref() || 'http://localhost/');
+  const dashboard = new URL(
+    result.dashboardUrl || dashboardHref() || 'http://localhost/',
+  );
   const replayUrl = (source: string) => {
     const serialized = router.serializeUrl(
       router.createUrlTree({ to: 'e2e-replay', queryParams: { source } }),
@@ -114,20 +129,27 @@ export const E2eComparisonPage = craftComponent(
   {},
   function* () {
     const service = yield* E2eComparison();
-    const report = rawReactiveValue(service.comparison.value);
-    const queryException = rawReactiveValue(service.comparison.exception);
+    const report = service.comparison.value;
+    const queryException = service.comparison.exception;
     const hidden = yield* craftComputed('hidden', () => page() !== 'compare');
-    const title = yield* craftComputed('title', () => {
-      const result = report();
+    const title = yield* craftComputed('title', function* () {
+      const _report = yield* report();
+      const result = _report;
       return result && !('error' in result)
-        ? (i18n.t("copy.copy012") + (result.testId) + i18n.t("copy.copy013") + (result.project) + "")
-        : i18n.t("copy.copy014");
+        ? i18n.t('copy.copy012') +
+            result.testId +
+            i18n.t('copy.copy013') +
+            result.project +
+            ''
+        : i18n.t('copy.copy014');
     });
-    const summaryText = yield* craftComputed('summaryText', () =>
-      comparisonSummary(report(), queryException()),
-    );
+    const summaryText = yield* craftComputed('summaryText', function* () {
+      const _queryException = yield* queryException();
+      const _report = yield* report();
+      return comparisonSummary(_report, _queryException);
+    });
     const comparison = () => {
-      const result = report();
+      const result = craftUse(report());
       return result && !('error' in result) ? result.comparison : undefined;
     };
     const firstDivergenceLabel = yield* craftComputed(
@@ -138,7 +160,7 @@ export const E2eComparisonPage = craftComponent(
           ? i18n.t('findingHeading', {
               findingLabel: sessionTraceFindingLabel(first),
             })
-          : i18n.t("copy.copy016");
+          : i18n.t('copy.copy016');
       },
     );
     const firstDivergenceText = yield* craftComputed(
@@ -149,18 +171,19 @@ export const E2eComparisonPage = craftComponent(
           ? i18n.t('findingDetails', {
               findingDetails: describeSessionTraceFinding(first),
             })
-          : i18n.t("copy.copy017");
+          : i18n.t('copy.copy017');
       },
     );
     const reportText = yield* craftComputed('reportText', () => {
       const current = comparison();
       return current
         ? JSON.stringify(current, null, 2)
-        : i18n.t("copy.copy018");
+        : i18n.t('copy.copy018');
     });
     const replayFrames = yield* craftComputed('replayFrames', function* () {
       const router = yield* CraftRouter();
-      return replayFramesOf(report(), router);
+      const _report = yield* report();
+      return replayFramesOf(_report, router);
     });
     const findings = yield* craftComputed('findings', () => {
       const current = comparison();
@@ -199,7 +222,7 @@ export const E2eComparisonPage = craftComponent(
                   yield* CraftRouter.navigate({ to: '' });
                 },
               },
-              i18n.t("copy.copy019"),
+              i18n.t('copy.copy019'),
             ),
             heading({ class: ui.title }, title),
             p({ class: ui.lede, role: 'status' }, summaryText),
@@ -269,7 +292,7 @@ export const E2eComparisonPage = craftComponent(
                     'data-lab': 'e2e-comparison-findings-panel',
                   },
                   [
-                    p({ class: ui.sideSectionTitle }, i18n.t("copy.copy020")),
+                    p({ class: ui.sideSectionTitle }, i18n.t('copy.copy020')),
                     ul(
                       {
                         class: ui.sessions,

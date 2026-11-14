@@ -5,16 +5,21 @@ import {
   heading,
   headingRoot,
 } from '@craft-ts/component';
-import { craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
+import { SessionArchive } from '../../shared/data-access/session-archive.service';
+import { ReplayRoute } from '../../shared/state/replay-route.service';
+import {
+  page,
+  replayState,
+  routeSessionId,
+  session,
+} from '../../shared/state/replay-state';
 import { ui } from '../../shared/ui/dashboard.style';
 import { ReplayHead, replaySessionTitle } from './replay-head';
 import { ReplayNotices } from './replay-notices';
+import { ResumeDialog } from './resume-dialog';
 import { ReplayRail, ReplaySidePanel } from './side-panel/replay-side-panel';
 import { ReplayPlaybar, ReplayStage } from './stage/replay-stage';
-import { ReplayRoute } from '../../shared/state/replay-route.service';
-import { page, replayState, routeSessionId, session } from '../../shared/state/replay-state';
-import { SessionArchive } from '../../shared/data-access/session-archive.service';
-import { ResumeDialog } from './resume-dialog';
 
 /**
  * Page 2: the replay of one session. The head says which one and opens the
@@ -24,13 +29,14 @@ import { ResumeDialog } from './resume-dialog';
 export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
   const route = yield* ReplayRoute();
   const archive = yield* SessionArchive();
-  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
-  const titleText = yield* craftComputed('titleText', () =>
-    replaySessionTitle(
-      savedSessions().find((item) => item.id === routeSessionId()),
+  const savedSessions = archive.sessions.savedSessions;
+  const titleText = yield* craftComputed('titleText', function* () {
+    const _savedSessions = yield* savedSessions();
+    return replaySessionTitle(
+      _savedSessions.find((item) => item.id === routeSessionId()),
       session(),
-    ),
-  );
+    );
+  });
   const pageIsHidden = yield* craftComputed(
     'pageIsHidden',
     () => page() !== 'detail',

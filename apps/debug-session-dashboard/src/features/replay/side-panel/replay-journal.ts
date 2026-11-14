@@ -1,8 +1,7 @@
-import { i18n } from '../../../shared/util/catalog';
 import {
   button,
-  craftComponent,
   content,
+  craftComponent,
   div,
   forNode,
   li,
@@ -10,13 +9,9 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { DocIcon, DocSwitch, DocTooltip } from '@craft-ts/ui';
 import { buttonUi, iconButtonUi } from '@craft-ts/ui/style';
-import { ui } from '../../../shared/ui/dashboard.style';
-import { eventElapsedLabel, journalSummary } from '../../../shared/util/replay-labels';
-import { eventDiagnosticLabel, eventSeverity } from '../../../shared/util/replay-model';
-import { ReplayOrchestration } from './replay-orchestration';
 import { ReplayDebug } from '../../../shared/state/replay-debug';
 import { ReplaySession } from '../../../shared/state/replay-session';
 import {
@@ -25,7 +20,18 @@ import {
   ReplayState,
   visibleEventPage,
 } from '../../../shared/state/replay-state';
+import { ui } from '../../../shared/ui/dashboard.style';
+import { i18n } from '../../../shared/util/catalog';
+import {
+  eventElapsedLabel,
+  journalSummary,
+} from '../../../shared/util/replay-labels';
+import {
+  eventDiagnosticLabel,
+  eventSeverity,
+} from '../../../shared/util/replay-model';
 import { lit } from '../../../shared/util/view-helpers';
+import { ReplayOrchestration } from './replay-orchestration';
 
 /**
  * `DocSwitch` hands its `toggle` the state it asks for. The prop shares its
@@ -43,8 +49,8 @@ function showAllEventsSwitch(
 export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
   const replayDebug = yield* ReplayDebug();
   const replaySession = yield* ReplaySession();
-  const { eventTimelinePage, setStates, showAllEvents } =
-    (yield* ReplayState()).imperative;
+  const { eventTimelinePage, setStates, showAllEvents } = (yield* ReplayState())
+    .imperative;
   const journalSummaryText = yield* craftComputed(
     'journalSummaryText',
     journalSummary,
@@ -55,16 +61,16 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
   );
   const previousDisabled = yield* craftComputed(
     'previousDisabled',
-    function* () { return (yield* eventTimelinePage()) === 0; },
+    function* () {
+      return (yield* eventTimelinePage()) === 0;
+    },
   );
-  const pageLabel = yield* craftComputed(
-    'pageLabel',
-    function* () { return `${(yield* eventTimelinePage()) + 1} / ${eventTimelinePageCount()}`; },
-  );
-  const nextDisabled = yield* craftComputed(
-    'nextDisabled',
-    function* () { return (yield* eventTimelinePage()) + 1 >= eventTimelinePageCount(); },
-  );
+  const pageLabel = yield* craftComputed('pageLabel', function* () {
+    return `${(yield* eventTimelinePage()) + 1} / ${eventTimelinePageCount()}`;
+  });
+  const nextDisabled = yield* craftComputed('nextDisabled', function* () {
+    return (yield* eventTimelinePage()) + 1 >= eventTimelinePageCount();
+  });
 
   const filter = div({ class: ui.pager }, [
     p(journalSummaryText),
@@ -91,7 +97,7 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
             type: 'button',
             class: [iconButtonUi.root, ui.eventAction],
             'data-lab': 'debug-from-event',
-            'aria-label': i18n.t("copy.copy065"),
+            'aria-label': i18n.t('copy.copy065'),
             'aria-describedby': tipId,
             click: function* () {
               const item = yield* event();
@@ -158,13 +164,10 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           disabled: previousDisabled,
           click: () =>
             setStates({
-              eventTimelinePage: Math.max(
-                0,
-                rawReactiveValue(eventTimelinePage)() - 1,
-              ),
+              eventTimelinePage: Math.max(0, craftUse(eventTimelinePage()) - 1),
             }),
         },
-        i18n.t("copy.copy066"),
+        i18n.t('copy.copy066'),
       ),
       span(pageLabel),
       button(
@@ -178,11 +181,11 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
             setStates({
               eventTimelinePage: Math.min(
                 eventTimelinePageCount() - 1,
-                rawReactiveValue(eventTimelinePage)() + 1,
+                craftUse(eventTimelinePage()) + 1,
               ),
             }),
         },
-        i18n.t("copy.copy067"),
+        i18n.t('copy.copy067'),
       ),
     ],
   );

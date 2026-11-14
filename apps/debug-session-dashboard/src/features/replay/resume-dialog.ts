@@ -1,4 +1,3 @@
-import { i18n } from '../../shared/util/catalog';
 import {
   button,
   content,
@@ -10,21 +9,22 @@ import {
   p,
   textarea,
 } from '@craft-ts/component';
-import { craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { DocDialog } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
-import { ui } from '../../shared/ui/dashboard.style';
-import { ReplayDebug } from '../../shared/state/replay-debug';
-import { parseLocalTarget } from '../../shared/util/replay-model';
-import { routeSessionId, ReplayState } from '../../shared/state/replay-state';
-import { ResumeRequest } from './resume-request.service';
 import {
   SessionArchive,
   type ResumeCheckpointSummary,
   type ResumeRecipeSummary,
 } from '../../shared/data-access/session-archive.service';
+import { ReplayDebug } from '../../shared/state/replay-debug';
+import { ReplayState, routeSessionId } from '../../shared/state/replay-state';
+import { ui } from '../../shared/ui/dashboard.style';
+import { i18n } from '../../shared/util/catalog';
+import { parseLocalTarget } from '../../shared/util/replay-model';
 import { recipeName } from '../../shared/util/session-lineage';
 import { eventValue, lit } from '../../shared/util/view-helpers';
+import { ResumeRequest } from './resume-request.service';
 
 /** A point frozen for this very moment, on the app the dashboard drives. */
 function readyCheckpointFor(
@@ -100,36 +100,42 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
   const { closeResumeDialog } = replayState;
   const archive = yield* SessionArchive();
   const request = yield* ResumeRequest();
-  const resumeRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
-  const resumeCheckpoints = rawReactiveValue(archive.resumeCheckpoints.resumeCheckpointList);
-  const sending = rawReactiveValue(archive.resumeRequest.resumeRequestSending);
-  const failed = rawReactiveValue(archive.resumeRequest.resumeRequestFailed);
+  const resumeRecipes = archive.recipeCatalog.resumeRecipeList;
+  const resumeCheckpoints = archive.resumeCheckpoints.resumeCheckpointList;
+  const sending = archive.resumeRequest.resumeRequestSending;
+  const failed = archive.resumeRequest.resumeRequestFailed;
 
   const momentText = yield* craftComputed('momentText', () => {
     const point = replayDebug.replayPoint();
     return point.beforeSequence === undefined
-      ? i18n.t("copy.copy155")
-      : (i18n.t("copy.copy156") + (point.beforeSequence) + i18n.t("copy.copy157"));
+      ? i18n.t('copy.copy155')
+      : i18n.t('copy.copy156') + point.beforeSequence + i18n.t('copy.copy157');
   });
   const existingText = yield* craftComputed('existingText', function* () {
     const before = replayDebug.replayPoint().beforeSequence;
+    const _resumeRecipes = yield* resumeRecipes();
+    const _resumeCheckpoints = yield* resumeCheckpoints();
     return existingAtMoment(
-      readyCheckpointFor(resumeCheckpoints(), yield* targetUrl(), before),
-      readyRecipesFor(resumeRecipes(), routeSessionId(), yield* targetUrl(), before),
+      readyCheckpointFor(_resumeCheckpoints, yield* targetUrl(), before),
+      readyRecipesFor(
+        _resumeRecipes,
+        routeSessionId(),
+        yield* targetUrl(),
+        before,
+      ),
     );
   });
-  const existingValue = rawReactiveValue(existingText);
-  const failedHidden = yield* craftComputed('failedHidden', () => !failed());
-  const submitDisabled = yield* craftComputed(
-    'submitDisabled',
-    function* () {
-      return (
-        (yield* resumeIntent()).trim() === '' ||
-        sending() ||
-        !routeSessionId()
-      );
-    },
-  );
+  const existingValue = existingText;
+  const failedHidden = yield* craftComputed('failedHidden', function* () {
+    const _failed = yield* failed();
+    return !_failed;
+  });
+  const submitDisabled = yield* craftComputed('submitDisabled', function* () {
+    const _sending = yield* sending();
+    return (
+      (yield* resumeIntent()).trim() === '' || _sending || !routeSessionId()
+    );
+  });
 
   return DocDialog({
     heading: lit('Reprendre avec un agent IA'),
@@ -153,24 +159,25 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
             class: ui.dialogNote,
             'data-lab': 'resume-existing',
             hidden: function* () {
-              return existingValue() === '';
+              const _existingValue = yield* existingValue();
+              return _existingValue === '';
             },
           },
           existingText,
         ),
         label(
           { class: ui.fieldLabel, for: 'resume-intent' },
-          i18n.t("copy.copy158"),
+          i18n.t('copy.copy158'),
         ),
         textarea('resumeIntent', {
           id: 'resume-intent',
-          'aria-label': i18n.t("copy.copy159"),
+          'aria-label': i18n.t('copy.copy159'),
           class: ui.importText,
           rows: 4,
-          placeholder:
-            i18n.t("copy.copy160"),
+          placeholder: i18n.t('copy.copy160'),
           value: resumeIntent,
-          input: (event: Event) => setStates({ resumeIntent: eventValue(event) }),
+          input: (event: Event) =>
+            setStates({ resumeIntent: eventValue(event) }),
         }),
         p(
           {
@@ -178,7 +185,7 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
             role: 'alert',
             hidden: failedHidden,
           },
-          i18n.t("copy.copy161"),
+          i18n.t('copy.copy161'),
         ),
         div({ class: ui.importActions }, [
           button(
@@ -189,7 +196,7 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
               'data-variant': 'secondary',
               click: closeResumeDialog,
             },
-            i18n.t("copy.copy162"),
+            i18n.t('copy.copy162'),
           ),
           button(
             'confirmResume',
@@ -201,7 +208,7 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
               disabled: submitDisabled,
               click: request.submit,
             },
-            i18n.t("copy.copy163"),
+            i18n.t('copy.copy163'),
           ),
         ]),
       ]),
