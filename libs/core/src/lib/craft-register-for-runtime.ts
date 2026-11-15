@@ -7,7 +7,7 @@ import {
 } from './host/craft-compat';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import {
-  ɵreleaseWithoutTargetWrappers,
+  ɵEMPTY_TARGET_RELEASE,
   ɵrunCraftTargetWrappers,
   type CraftTargetWrapper,
 } from './craft-target-runtime';
@@ -197,7 +197,7 @@ export function ɵregisterCraftTarget(
   }
   if (wrappers !== undefined && wrappers.length === 0) {
     // Nothing would read the registration: none is described.
-    return ɵreleaseWithoutTargetWrappers(injector, autoCleanup);
+    return ɵEMPTY_TARGET_RELEASE;
   }
 
   return ɵrunCraftTargetWrappers(

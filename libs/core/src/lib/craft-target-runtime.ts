@@ -51,17 +51,10 @@ export function ɵcraftTargetWrappers(
 
 /**
  * @internal What registering a target amounts to where no wrapper exists:
- * the same no-op release, inscribed like any other.
+ * the one no-op release. It releases nothing, so nothing is inscribed for it
+ * in the owner's DestroyRef.
  */
-export function ɵreleaseWithoutTargetWrappers(
-  injector: Injector,
-  autoCleanup: boolean,
-): CraftTargetRelease {
-  if (autoCleanup) {
-    injector.get(DestroyRef, null)?.onDestroy(EMPTY_RELEASE);
-  }
-  return EMPTY_RELEASE;
-}
+export const ɵEMPTY_TARGET_RELEASE: CraftTargetRelease = EMPTY_RELEASE;
 
 export function ɵrunCraftTargetWrappers(
   injector: Injector,
@@ -71,9 +64,9 @@ export function ɵrunCraftTargetWrappers(
   wrappers: readonly CraftTargetWrapper[] = ɵcraftTargetWrappers(injector),
 ): CraftTargetRelease {
   // Without a wrapper the chain is one empty generator that returns
-  // EMPTY_RELEASE: skip driving it, keep the same release and its inscription.
+  // EMPTY_RELEASE: skip driving it and return that same release.
   if (wrappers.length === 0) {
-    return ɵreleaseWithoutTargetWrappers(injector, autoCleanup);
+    return EMPTY_RELEASE;
   }
   let next: CraftTargetWrapperRunner = function* () {
     return EMPTY_RELEASE;

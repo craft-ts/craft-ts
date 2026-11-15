@@ -330,7 +330,7 @@ describe('craft target registration without wrappers', () => {
     return target;
   }
 
-  it('returns the same no-op release and keeps its DestroyRef inscription', () => {
+  it('returns the same no-op release and inscribes nothing in the DestroyRef', () => {
     const injector = Injector.create({ providers: [] });
     const destroyRef = injector.get(DestroyRef);
     const onDestroy = vi.spyOn(destroyRef, 'onDestroy');
@@ -348,8 +348,8 @@ describe('craft target registration without wrappers', () => {
       'component:B#2',
     );
     expect(first).toBe(second);
-    expect(onDestroy).toHaveBeenCalledTimes(2);
-    expect(onDestroy).toHaveBeenNthCalledWith(1, first);
+    // A release that releases nothing is not worth a callback per target.
+    expect(onDestroy).not.toHaveBeenCalled();
 
     const manual = ɵregisterCraftTarget(
       injector,
@@ -359,7 +359,7 @@ describe('craft target registration without wrappers', () => {
       false,
     );
     expect(manual).toBe(first);
-    expect(onDestroy).toHaveBeenCalledTimes(2);
+    expect(onDestroy).not.toHaveBeenCalled();
     expect(() => first()).not.toThrow();
     expect(() => injector.destroy()).not.toThrow();
   });
