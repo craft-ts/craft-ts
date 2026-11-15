@@ -10,6 +10,7 @@
 //   RUNTIME_ONLY_CASES='[{"rows":1000,"indexes":false}]'
 //   RUNTIME_ONLY_OUTPUT=tmp/runtime-only/<name>
 //   RUNTIME_ONLY_SKIP_TIMING=true   (contracts and sizes only)
+//   RUNTIME_ONLY_COMMENTS_MAY_CHANGE=true  (contracts ignore the comment count)
 //   RUNTIME_ONLY_COUNTS=true        (separate instrumented build: counters)
 //
 // The first variant is the reference of every comparison.
@@ -68,6 +69,8 @@ const contractCases = [
   { rows: 30, indexes: true },
 ];
 const skipTiming = process.env.RUNTIME_ONLY_SKIP_TIMING === 'true';
+const boundaryCommentsMayChange =
+  process.env.RUNTIME_ONLY_COMMENTS_MAY_CHANGE === 'true';
 const withCounts = process.env.RUNTIME_ONLY_COUNTS === 'true';
 const countCases = [
   { rows: 1000, indexes: false },
@@ -536,11 +539,24 @@ try {
             join(output, `contracts-${variant.label}-${scenario.rows}-${scenario.indexes}.json`),
             JSON.stringify(contract, null, 2) + '\n',
           );
+        // A change that removes boundary comments on purpose compares
+        // everything but their count, and says so.
+        const comparable = (value) =>
+          boundaryCommentsMayChange
+            ? { ...value, dom: { ...value.dom, comment: undefined } }
+            : value;
         assert.deepEqual(
-          signature,
-          reference.signature,
+          comparable(signature),
+          comparable(reference.signature),
           `${variant.label}: contracts differ from ${variants[0].label}`,
         );
+        if (
+          boundaryCommentsMayChange &&
+          signature.dom.comment !== reference.signature.dom.comment
+        )
+          console.log(
+            `  comments ${reference.signature.dom.comment} -> ${signature.dom.comment} (RUNTIME_ONLY_COMMENTS_MAY_CHANGE)`,
+          );
       }
       console.log(
         `contracts ${variant.label} rows=${scenario.rows} indexes=${scenario.indexes}: ${signature.mountedReports} reports, replay ${signature.replay}, identical`,
