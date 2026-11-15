@@ -238,9 +238,36 @@ Mettre à jour un dixième des lignes passe sous Solid dans les trois cas (2,40 
 
 Deux nouveaux tests couvrent le premier point : le template ne se relance pas quand le parent se redessine à l'identique, il se relance quand une prop d'hôte change, apparaît ou disparaît, et un input modifié met à jour son binding sans relancer le template. Le premier échoue si l'on retire le changement.
 
+## 4 septies. Lecteurs d'item et d'index sans génératrice
+
+Dernier des trois points de la section 4 ter, fait à la demande le 15 novembre.
+
+`forNode` passait à son template un lecteur d'item et un lecteur d'index écrits `function* () { return … }`. Chaque lecture — `yield* item()`, `craftUse(item())`, ou à travers l'input d'un composant — créait un objet génératrice pour rendre une valeur déjà connue. Ce sont maintenant des lecteurs « déjà résolus » (`ɵsettledReader`, `ɵsettledValueReader` dans [`yieldable.ts`](../../libs/core/src/lib/yieldable.ts)) : l'appel rend un petit objet terminé dès son premier `next()`.
+
+**Comment il reste reconnu.** Les trois tests « est-ce une fonction génératrice » du dépôt (noyau, `state.ts`, `i18n`) lisent l'étiquette standard `Symbol.toStringTag`. Le lecteur la porte : il va donc partout où allait l'ancien — input de composant, paramètres d'une primitive, wrapper de fonction — sans qu'aucun de ces tests change. `isGeneratorFunction` du noyau lit l'étiquette directement au lieu de deux `hasOwnProperty`.
+
+**Ce qui change pour une application.**
+- `item()` ne rend plus un objet génératrice natif. `yield*`, `craftUse` et les hôtes de génératrices n'y voient pas de différence. Du code qui le piloterait à la main verrait qu'un second `next()` redonne la valeur au lieu de `undefined`, et que `Object.prototype.toString` répond `[object Object]`.
+- Le lecteur d'index lit la position au moment de l'appel `index()`, et non au premier `next()`. Dans un binding les deux ont lieu dans le même effet.
+
+Une spec du noyau couvre le lecteur seul (reconnaissance, `yield*`, `craftUse`, hôte de génératrices, lecture réactive, valeurs nulles). Un test du renderer couvre une liste dont l'item et l'index sont lus directement, par `craftUse`, en binding et à travers un composant, avant et après réordonnancement.
+
+**Mesure indépendante de la charge.** Alloué par ligne au montage, 5 000 lignes avec index : 12,6 Ko → **11,6 Ko**.
+
+**Temps**, face à l'état commité juste avant, même cohorte, 9 navigations, machine calme (Solid à 6,1 / 7,3 / 18,5 / 24,6 ms de montage) :
+
+| Lignes | Index | Montage | 10 % des lignes | Rétablir | Tas après GC |
+|---:|:---:|---:|---:|---:|---:|
+| 1 000 | non | 23,2 → 23,1 ms | 2,05 → 1,55 ms | 5,25 → 4,80 ms | 7,41 → 7,28 Mio |
+| 1 000 | oui | 26,7 → 25,7 ms | 2,05 → 2,20 ms | 8,15 → 7,35 ms | 9,05 → 8,75 Mio |
+| 5 000 | non | 55,9 → 54,3 ms | 5,15 → 4,60 ms | 20,7 → 21,4 ms | 26,7 → 26,0 Mio |
+| 5 000 | oui | 73,4 → **69,6 ms** | 5,55 → 4,90 ms | 33,4 → **28,7 ms** | 35,0 → 33,6 Mio |
+
+Le gain est modeste : 3 à 5 % au montage à 5 000 lignes et quand l'index est affiché, rien de mesurable à 1 000 lignes sans index ; une dizaine de pour cent sur la mise à jour d'un dixième des lignes dans trois cas sur quatre ; 2 à 4 % de tas. Le rétablissement avec index gagne 14 % à 5 000 lignes et 10 % à 1 000 ; sans index il ne bouge pas.
+
 ## 5. Validation
 
-- Core : 1 675 tests réussis sur 168 fichiers, 1 échec attendu et 3 todo inchangés. Component : 604 sur 59 fichiers, dont deux nouveaux pour la section 4 sexies et cinq pour le lot 4 (composant sans ancres, passage à vide / multiple / autre nœud, liste à clés qui bouge autour d'une ligne qui change de forme, lignes rétablies sans déplacer celles restées).
+- Core : 1 680 tests réussis sur 169 fichiers, 1 échec attendu et 3 todo inchangés. Component : 605 sur 59 fichiers, dont un nouveau pour la section 4 septies, deux pour la section 4 sexies et cinq pour le lot 4 (composant sans ancres, passage à vide / multiple / autre nœud, liste à clés qui bouge autour d'une ligne qui change de forme, lignes rétablies sans déplacer celles restées).
 - Types : `tsconfig.spec.json` de Core et Component, `tsconfig.public-surface.json`, et `erasableSyntaxOnly` sur les fichiers touchés.
 - ESLint : mêmes comptes d'erreurs et d'avertissements qu'à `HEAD` sur les 14 fichiers source de bibliothèque modifiés (hors `index.ts` et spec).
 - Contrats navigateur du runner `runtime-only.mjs` (référence `HEAD`, candidat = arbre de travail) : 123 rapports d'effets sans index et 183 avec, mêmes empreintes, cibles replay résolues, zéro rapport après destruction. Après les lots 1 à 3 le DOM est identique. Après le lot 4, seul le nombre de commentaires diffère (124 → 62) ; le runner a pour cela une option explicite, `RUNTIME_ONLY_COMMENTS_MAY_CHANGE=true`, qui compare tout le reste et affiche l'écart. Après la section 4 sexies, l'ordre des rapports relevés après les actions diffère aussi ; `RUNTIME_ONLY_EXERCISED_ORDER_MAY_CHANGE=true` les compare comme un ensemble, chacun avec sa source et ses tags, et ils sont identiques.
@@ -261,12 +288,11 @@ Deux nouveaux tests couvrent le premier point : le template ne se relance pas qu
 
 Pistes lues dans les 9,4 Ko encore alloués par ligne (plancher : 4,5 Ko) et dans le dernier profil, où le ramasse-miettes pèse un tiers du montage et l'évaluation des bindings génératrices un quart ; aucune n'est mesurée, l'ordre est une estimation :
 
-1. **Le lecteur d'item générateur** des listes, dernier des trois points « à décider » de la section 4 ter.
-2. **Génératrices de l'écriture** : ~1,4 Ko par ligne en objets génératrices et résultats d'itération (bindings, lecteurs d'item et d'index). Le plancher paie la même chose ; seul un compilateur, ou des lecteurs non générateurs, le retire.
-3. **Composant** : ~0,7 Ko pour l'objet et ~0,4 Ko pour les enveloppes d'inputs (`Proxy`, fermetures).
-4. **Cellules privées** : ~115 octets chacune, trois par ligne.
-5. **Effet d'entrée de liste** : un effet par entrée, qui pourrait disparaître quand le callback ne lit rien de réactif.
-6. **Ancres des entrées de liste** : deux commentaires par ligne restent ; les retirer demande de donner à l'acteur de page un autre moyen de lire la clé.
+1. **Génératrices de l'écriture** : chaque binding `function*` crée un objet génératrice à chaque évaluation. Le plancher paie la même chose ; seul un compilateur le retire. Les lecteurs d'item et d'index n'en créent plus (section 4 septies).
+2. **Composant** : ~0,7 Ko pour l'objet et ~0,4 Ko pour les enveloppes d'inputs (`Proxy`, fermetures).
+3. **Cellules privées** : ~115 octets chacune, trois par ligne.
+4. **Effet d'entrée de liste** : un effet par entrée, qui pourrait disparaître quand le callback ne lit rien de réactif.
+5. **Ancres des entrées de liste** : deux commentaires par ligne restent ; les retirer demande de donner à l'acteur de page un autre moyen de lire la clé.
 
 Au-delà du plancher, pour rejoindre Solid, il faut cesser d'interpréter le template à chaque instance : c'est le compilateur de plans de la campagne du 6 novembre. Il devient plus rentable une fois ces coûts retirés, puisqu'il ne butera plus sur l'injecteur ni sur les enregistrements.
 
