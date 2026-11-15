@@ -214,12 +214,36 @@ Dans cette cohorte, `main` est à 62,9 / 81,0 / 242,5 / 331,1 ms de montage, Sol
 
 **Le lot 6 ne produit pas de gain de temps mesurable.** À 5 000 lignes le montage passe de 59,0 à 58,1 ms et de 77,8 à 76,5 ms entre les deux cohortes : c'est dans le bruit. Ce qu'il apporte est en mémoire : tas après GC 28,7 → 27,3 Mio et 37,4 → 35,5 Mio à 5 000 lignes, 7,8 → 7,6 Mio à 1 000, et 7 % d'allocations en moins au montage. La séparation du contexte vaut surtout pour les arbres profonds, où chaque nœud recopiait vingt-cinq champs ; la fixture, une liste plate, la met peu à l'épreuve.
 
+## 4 sexies. Deux changements de comportement, décidés le 15 novembre
+
+Les deux premiers points laissés de côté en section 4 ter sont faits, à la demande. Le troisième (lecteur d'item générateur) ne l'est pas.
+
+**Le template d'un composant ne se relance plus à chaque rendu de son parent.** `ComponentRenderedNode.patch` publiait à chaque fois un objet neuf de props d'hôte ; le composant y lisait un changement et réexécutait son template, inputs inchangés. Les props d'hôte ne sont maintenant publiées que si elles diffèrent : mêmes clés, mêmes valeurs au sens de `Object.is`. Un objet `class` ou `style` littéral, ou un écouteur recréé par le parent, reste une différence, comme avant.
+
+- Ce qui change pour une application : un template qui comptait sur cette relance pour relire une valeur non réactive (variable de module, horloge) ne se rafraîchit plus quand son parent se redessine. Un input qu'il lit, lui, le relance toujours.
+- Un composant composé (`withProviders`…) dont ni les inputs ni les props d'hôte ne changent ne reconstruit plus son injecteur à chaque rendu du parent.
+- Conséquence observable dans les rapports : les effets de binding d'un composant mis à jour ne sont plus détruits puis recréés. Après une séquence d'actions, les rapports d'effets sont les mêmes (sources et tags), dans un autre ordre.
+
+**Plus d'inscription d'un release vide.** Sans wrapper de cible, `ɵregisterCraftTarget` rend toujours le même release vide, mais ne l'inscrit plus au `DestroyRef` du propriétaire. Le test du 6 novembre qui affirmait cette inscription affirme maintenant son absence.
+
+**Mesure**, face à l'état des six lots, même cohorte, 9 navigations, charge 14 au lancement puis 6 (Solid à 6,8 / 19,1 / 25,3 ms de montage) :
+
+| Lignes | Index | 10 % des lignes | Montage | Tas après GC |
+|---:|:---:|---:|---:|---:|
+| 1 000 | non | 2,70 → **2,00 ms** (−26 %) | 24,1 → 24,6 ms | 7,56 → 7,41 Mio |
+| 5 000 | non | 6,00 → **5,00 ms** (−17 %) | 59,8 → 58,0 ms | 27,3 → 26,7 Mio |
+| 5 000 | oui | 7,60 → **5,40 ms** (−29 %) | 75,6 → 75,8 ms | 35,5 → 35,0 Mio |
+
+Mettre à jour un dixième des lignes passe sous Solid dans les trois cas (2,40 / 7,15 / 6,50 ms). Le montage, la mise à jour d'une seule ligne, l'inversion, le filtrage et le rétablissement ne bougent pas au-delà du bruit. La baisse de tas, de l'ordre de 2 %, vient du release vide.
+
+Deux nouveaux tests couvrent le premier point : le template ne se relance pas quand le parent se redessine à l'identique, il se relance quand une prop d'hôte change, apparaît ou disparaît, et un input modifié met à jour son binding sans relancer le template. Le premier échoue si l'on retire le changement.
+
 ## 5. Validation
 
-- Core : 1 675 tests réussis sur 168 fichiers, 1 échec attendu et 3 todo inchangés. Component : 602 sur 59 fichiers, dont cinq nouveaux pour le lot 4 (composant sans ancres, passage à vide / multiple / autre nœud, liste à clés qui bouge autour d'une ligne qui change de forme, lignes rétablies sans déplacer celles restées).
+- Core : 1 675 tests réussis sur 168 fichiers, 1 échec attendu et 3 todo inchangés. Component : 604 sur 59 fichiers, dont deux nouveaux pour la section 4 sexies et cinq pour le lot 4 (composant sans ancres, passage à vide / multiple / autre nœud, liste à clés qui bouge autour d'une ligne qui change de forme, lignes rétablies sans déplacer celles restées).
 - Types : `tsconfig.spec.json` de Core et Component, `tsconfig.public-surface.json`, et `erasableSyntaxOnly` sur les fichiers touchés.
 - ESLint : mêmes comptes d'erreurs et d'avertissements qu'à `HEAD` sur les 14 fichiers source de bibliothèque modifiés (hors `index.ts` et spec).
-- Contrats navigateur du runner `runtime-only.mjs` (référence `HEAD`, candidat = arbre de travail) : 123 rapports d'effets sans index et 183 avec, mêmes empreintes, cibles replay résolues, zéro rapport après destruction. Après les lots 1 à 3 le DOM est identique. Après le lot 4, seul le nombre de commentaires diffère (124 → 62) ; le runner a pour cela une option explicite, `RUNTIME_ONLY_COMMENTS_MAY_CHANGE=true`, qui compare tout le reste et affiche l'écart.
+- Contrats navigateur du runner `runtime-only.mjs` (référence `HEAD`, candidat = arbre de travail) : 123 rapports d'effets sans index et 183 avec, mêmes empreintes, cibles replay résolues, zéro rapport après destruction. Après les lots 1 à 3 le DOM est identique. Après le lot 4, seul le nombre de commentaires diffère (124 → 62) ; le runner a pour cela une option explicite, `RUNTIME_ONLY_COMMENTS_MAY_CHANGE=true`, qui compare tout le reste et affiche l'écart. Après la section 4 sexies, l'ordre des rapports relevés après les actions diffère aussi ; `RUNTIME_ONLY_EXERCISED_ORDER_MAY_CHANGE=true` les compare comme un ensemble, chacun avec sa source et ses tags, et ils sont identiques.
 - [`craft-render-identity.spec.ts`](../../libs/core/src/lib/craft-render-identity.spec.ts) compare désormais `path` et `hydrationKey` au lieu des objets, et couvre `ɵchildCraftRenderIdentity` et la sérialisation JSON.
 
 ## 6. Coûts et limites
@@ -237,7 +261,7 @@ Dans cette cohorte, `main` est à 62,9 / 81,0 / 242,5 / 331,1 ms de montage, Sol
 
 Pistes lues dans les 9,4 Ko encore alloués par ligne (plancher : 4,5 Ko) et dans le dernier profil, où le ramasse-miettes pèse un tiers du montage et l'évaluation des bindings génératrices un quart ; aucune n'est mesurée, l'ordre est une estimation :
 
-1. **Les trois points « à décider »** de la section 4 ter : ce sont maintenant les gains les plus directs.
+1. **Le lecteur d'item générateur** des listes, dernier des trois points « à décider » de la section 4 ter.
 2. **Génératrices de l'écriture** : ~1,4 Ko par ligne en objets génératrices et résultats d'itération (bindings, lecteurs d'item et d'index). Le plancher paie la même chose ; seul un compilateur, ou des lecteurs non générateurs, le retire.
 3. **Composant** : ~0,7 Ko pour l'objet et ~0,4 Ko pour les enveloppes d'inputs (`Proxy`, fermetures).
 4. **Cellules privées** : ~115 octets chacune, trois par ligne.
