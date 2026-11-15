@@ -4038,3 +4038,79 @@ describe('forNode entries created in place', () => {
     destroy();
   });
 });
+
+describe('component host properties across parent renders', () => {
+  it('runs a child template again only when its host properties differ', async () => {
+    const tick = signal(0);
+    const label = signal('a');
+    const kind = signal('row');
+    const renders = vi.fn();
+    const child = craftComponent(
+      'stableHostChild',
+      {},
+      (inputs: { label: Input<string> }) => {
+        renders();
+        return p(function* () {
+          return yield* inputs.label();
+        });
+      },
+    );
+    const parent = craftComponent('stableHostParent', {}, () => {
+      tick();
+      return section([child({ label: label(), 'data-kind': kind() })]);
+    });
+    const { nativeElement, flush, destroy } = await renderCraftComponent(parent);
+    const row = nativeElement.querySelector('p')!;
+    expect(renders).toHaveBeenCalledTimes(1);
+    expect(row.getAttribute('data-kind')).toBe('row');
+
+    // The parent renders again and hands over what it handed over before.
+    tick.set(1);
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(1);
+
+    // An input changes: its binding follows, the template is not run again.
+    label.set('b');
+    await flush();
+    expect(row.textContent).toBe('b');
+    expect(renders).toHaveBeenCalledTimes(1);
+    expect(nativeElement.querySelector('p')).toBe(row);
+
+    // A host property changes: the template runs again and the host follows.
+    kind.set('header');
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(2);
+    expect(nativeElement.querySelector('p')!.getAttribute('data-kind')).toBe(
+      'header',
+    );
+    destroy();
+  });
+
+  it('runs a child template again when a host property appears or goes away', async () => {
+    const marked = signal(false);
+    const renders = vi.fn();
+    const child = craftComponent('markedHostChild', {}, () => {
+      renders();
+      return p('row');
+    });
+    const parent = craftComponent('markedHostParent', {}, () =>
+      section([child(marked() ? { 'data-marked': 'yes' } : {})]),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(parent);
+    const marker = () =>
+      nativeElement.querySelector('p')!.getAttribute('data-marked');
+    expect(renders).toHaveBeenCalledTimes(1);
+    expect(marker()).toBeNull();
+
+    marked.set(true);
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(2);
+    expect(marker()).toBe('yes');
+
+    marked.set(false);
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(3);
+    expect(marker()).toBeNull();
+    destroy();
+  });
+});

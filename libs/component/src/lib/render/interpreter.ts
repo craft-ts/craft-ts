@@ -1967,6 +1967,28 @@ function hostPropsFromComponentProps(
   return host;
 }
 
+/** The same host properties, each with the same value. */
+function sameHostProps(
+  previous: Readonly<Record<string, unknown>>,
+  next: Readonly<Record<string, unknown>>,
+): boolean {
+  let count = 0;
+  for (const key in next) {
+    if (!Object.prototype.hasOwnProperty.call(next, key)) continue;
+    if (
+      !Object.prototype.hasOwnProperty.call(previous, key) ||
+      !Object.is(previous[key], next[key])
+    ) {
+      return false;
+    }
+    count += 1;
+  }
+  for (const key in previous) {
+    if (Object.prototype.hasOwnProperty.call(previous, key)) count -= 1;
+  }
+  return count === 0;
+}
+
 // The directives composed around a definition never change.
 const composedDirectiveNames = new WeakMap<object, readonly string[]>();
 
@@ -6156,9 +6178,15 @@ class ComponentRenderedNode implements RenderedNode {
       this.propKeys.forEach((key, index) => {
         this.propSources[index].set(props[key]);
       });
-      this.hostPropsSource.set(
-        hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
+      // The host properties are a new object at every patch. Publishing it as
+      // it is would run the component's template again each time its parent
+      // renders, inputs unchanged: only a difference is a change.
+      const hostProps = hostPropsFromComponentProps(
+        props as Readonly<Record<string, unknown>>,
       );
+      if (!sameHostProps(untracked(this.hostPropsSource), hostProps)) {
+        this.hostPropsSource.set(hostProps);
+      }
     });
     return true;
   }

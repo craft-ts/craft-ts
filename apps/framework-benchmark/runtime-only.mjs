@@ -11,6 +11,8 @@
 //   RUNTIME_ONLY_OUTPUT=tmp/runtime-only/<name>
 //   RUNTIME_ONLY_SKIP_TIMING=true   (contracts and sizes only)
 //   RUNTIME_ONLY_COMMENTS_MAY_CHANGE=true  (contracts ignore the comment count)
+//   RUNTIME_ONLY_EXERCISED_ORDER_MAY_CHANGE=true  (reports after the actions
+//                                    are compared as a set, not in order)
 //   RUNTIME_ONLY_COUNTS=true        (separate instrumented build: counters)
 //
 // The first variant is the reference of every comparison.
@@ -71,6 +73,8 @@ const contractCases = [
 const skipTiming = process.env.RUNTIME_ONLY_SKIP_TIMING === 'true';
 const boundaryCommentsMayChange =
   process.env.RUNTIME_ONLY_COMMENTS_MAY_CHANGE === 'true';
+const exercisedOrderMayChange =
+  process.env.RUNTIME_ONLY_EXERCISED_ORDER_MAY_CHANGE === 'true';
 const withCounts = process.env.RUNTIME_ONLY_COUNTS === 'true';
 const countCases = [
   { rows: 1000, indexes: false },
@@ -514,7 +518,16 @@ try {
         mountedTagsSha256: sha(contract.mounted.tags),
         mountedRowsSha256: sha(contract.mounted.rows),
         exercisedReports: contract.exercised.reports,
-        exercisedTagsSha256: sha(contract.exercised.tags),
+        // A change that keeps effects alive where they used to be recreated
+        // moves them in the registry: their reports are then compared as a
+        // set, each with its source and tags.
+        exercisedTagsSha256: sha(
+          exercisedOrderMayChange
+            ? contract.exercised.tags
+                .map((entry) => JSON.stringify(entry))
+                .sort()
+            : contract.exercised.tags,
+        ),
         exercisedRowsSha256: sha(contract.exercised.rows),
         descriptor: contract.exercised.descriptor,
         replay: contract.exercised.replay,
