@@ -4055,11 +4055,15 @@ describe('component host properties across parent renders', () => {
         });
       },
     );
+    const labelInput = function* () {
+      return label();
+    };
     const parent = craftComponent('stableHostParent', {}, () => {
       tick();
-      return section([child({ label: label(), 'data-kind': kind() })]);
+      return section([child({ label: labelInput, 'data-kind': kind() })]);
     });
-    const { nativeElement, flush, destroy } = await renderCraftComponent(parent);
+    const { nativeElement, flush, destroy } =
+      await renderCraftComponent(parent);
     const row = nativeElement.querySelector('p')!;
     expect(renders).toHaveBeenCalledTimes(1);
     expect(row.getAttribute('data-kind')).toBe('row');
@@ -4094,9 +4098,10 @@ describe('component host properties across parent renders', () => {
       return p('row');
     });
     const parent = craftComponent('markedHostParent', {}, () =>
-      section([child(marked() ? { 'data-marked': 'yes' } : {})]),
+      section([marked() ? child({ 'data-marked': 'yes' }) : child()]),
     );
-    const { nativeElement, flush, destroy } = await renderCraftComponent(parent);
+    const { nativeElement, flush, destroy } =
+      await renderCraftComponent(parent);
     const marker = () =>
       nativeElement.querySelector('p')!.getAttribute('data-marked');
     expect(renders).toHaveBeenCalledTimes(1);
