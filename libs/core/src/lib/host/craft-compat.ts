@@ -7,9 +7,12 @@ import { runCraftCleanups } from '../lifecycle';
 import {
   createCraftInjector,
   getCurrentCraftInjector,
+  ɵcreateChildFromProviderSet,
+  ɵprepareCraftProviders,
   type CraftInjector,
   type CraftInjectToken,
   type CraftProvider,
+  type ɵCraftProviderSet,
 } from './craft-injector';
 import {
   craftBatch,
@@ -192,15 +195,14 @@ type DestroyRefState = {
   callbacks: Array<() => void>;
   closed: boolean;
 };
-const destroyRefState = new WeakMap<DestroyRef, DestroyRefState>();
+// Kept on the ref itself, outside its type: a DestroyRef stays the one-method
+// shape application code may implement, and reaching its state is a property
+// read instead of a weak-map lookup for every view.
+const DESTROY_REF_STATE = Symbol('craft-destroy-ref-state');
 
 function getDestroyRefState(ref: DestroyRef): DestroyRefState {
-  let state = destroyRefState.get(ref);
-  if (!state) {
-    state = { callbacks: [], closed: false };
-    destroyRefState.set(ref, state);
-  }
-  return state;
+  const holder = ref as DestroyRef & { [DESTROY_REF_STATE]?: DestroyRefState };
+  return (holder[DESTROY_REF_STATE] ??= { callbacks: [], closed: false });
 }
 
 export class DestroyRef {
@@ -553,8 +555,16 @@ export function toCraftProviders(
 // value from the injector that resolves it, and records, results and caches
 // stay per injector, so the declarations themselves can be shared.
 const STANDARD_ENVIRONMENT_PROVIDERS: readonly CraftProvider[] = [
-  { token: INJECTOR_TOKEN, useFactory: (injector) => injector },
-  { token: ENVIRONMENT_INJECTOR_TOKEN, useFactory: (injector) => injector },
+  {
+    token: INJECTOR_TOKEN,
+    useFactory: (injector) => injector,
+    ɵtransient: true,
+  },
+  {
+    token: ENVIRONMENT_INJECTOR_TOKEN,
+    useFactory: (injector) => injector,
+    ɵtransient: true,
+  },
   {
     token: ApplicationInitStatus,
     useFactory: (injector) =>
@@ -580,6 +590,60 @@ export function createEnvironmentInjector(
     child as CraftInjector & { ɵonDestroy?: (callback: () => void) => void }
   ).ɵonDestroy?.(() => ɵdestroyCraftDestroyRef(destroyRef));
   return child;
+}
+
+// The DestroyRef of a prepared environment injector is the one attached to
+// it when it is created: the declaration is shared, the value is not.
+const ATTACHED_DESTROY_REF: CraftProvider = {
+  token: DestroyRef,
+  useFactory: (injector) =>
+    (injector as CraftInjector & { ɵdestroyRef?: DestroyRef }).ɵdestroyRef,
+  ɵtransient: true,
+};
+
+/**
+ * The providers of an environment injector, prepared once for every injector
+ * {@link ɵcreatePreparedEnvironmentInjector} creates from them. The providers
+ * must hold nothing that belongs to one injector: what differs from one to
+ * the next is attached to it and read through {@link ɵinjectorInstance}.
+ */
+export function ɵprepareEnvironmentProviders(
+  providers: readonly unknown[],
+): ɵCraftProviderSet {
+  return ɵprepareCraftProviders([
+    ATTACHED_DESTROY_REF,
+    ...STANDARD_ENVIRONMENT_PROVIDERS,
+    ...toCraftProviders(providers),
+  ]);
+}
+
+/**
+ * {@link createEnvironmentInjector} from prepared providers. `instance` is
+ * what the creator attaches to this injector for its providers to read.
+ */
+export function ɵcreatePreparedEnvironmentInjector(
+  prepared: ɵCraftProviderSet,
+  parent: CraftInjector,
+  instance?: unknown,
+): EnvironmentInjector & CraftInjector {
+  const destroyRef = new DestroyRef();
+  const child = ɵcreateChildFromProviderSet(
+    parent,
+    prepared,
+  ) as CraftInjector & {
+    ɵdestroyRef?: DestroyRef;
+    ɵinstance?: unknown;
+    ɵonDestroy?: (callback: () => void) => void;
+  };
+  child.ɵdestroyRef = destroyRef;
+  child.ɵinstance = instance;
+  child.ɵonDestroy?.(() => ɵdestroyCraftDestroyRef(destroyRef));
+  return child;
+}
+
+/** What the creator of `injector` attached to it, if anything. */
+export function ɵinjectorInstance(injector: CraftInjector): unknown {
+  return (injector as CraftInjector & { ɵinstance?: unknown }).ɵinstance;
 }
 
 export function provideAppInitializer(fn: () => unknown): Provider {

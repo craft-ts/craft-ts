@@ -1,7 +1,8 @@
 import {
-  executeGeneratorCompatibleFactory,
   executeGeneratorCompatibleFactoryAsync,
   isGenerator,
+  ɵexecuteFactoryIn,
+  type FnFactoryAdapter,
   type CraftInjector,
   type CraftProgramSettledStep,
   type ResolveGeneratorResult,
@@ -27,21 +28,30 @@ export function executeCraftComponentFactory<Factory extends ComponentFactory>(
   args: Parameters<Factory>,
   injector: CraftInjector,
   onServiceResolved?: (instance: unknown) => void,
+  /** `injectFnWrapper()` in `injector`, when the renderer already has it. */
+  fnAdapter?: FnFactoryAdapter,
 ): ResolveGeneratorResult<ReturnType<Factory>> {
   return injector.run(
     () =>
-      executeGeneratorCompatibleFactory({
-        factory,
-        thisArg: undefined,
-        getInjector: () => injector,
-        args,
-        invalidYieldErrorMessage: INVALID_YIELD,
-        multipleAppStartErrorMessage: MULTIPLE_APP_START,
-        onAppStartNotSupportedErrorMessage: APP_START_NOT_SUPPORTED,
+      ɵexecuteFactoryIn(
+        factory as (...args: unknown[]) => unknown,
+        undefined,
+        args as unknown[],
+        injector,
+        COMPONENT_FACTORY_MESSAGES,
+        fnAdapter,
         onServiceResolved,
-      }) as ResolveGeneratorResult<ReturnType<Factory>>,
+      ) as ResolveGeneratorResult<ReturnType<Factory>>,
   );
 }
+
+const NO_HOST_PROPS: Readonly<Record<string, unknown>> = Object.freeze({});
+
+const COMPONENT_FACTORY_MESSAGES = {
+  invalidYieldErrorMessage: INVALID_YIELD,
+  multipleAppStartErrorMessage: MULTIPLE_APP_START,
+  onAppStartNotSupportedErrorMessage: APP_START_NOT_SUPPORTED,
+};
 
 export function executeCraftComponentFactoryAsync<
   Factory extends ComponentFactory,
@@ -91,12 +101,14 @@ export function renderCraftComponentTemplate(
   hostProps: HostProps | undefined,
   injector: CraftInjector,
   onServiceResolved?: (instance: unknown) => void,
+  fnAdapter?: FnFactoryAdapter,
 ): CraftNodeChildren {
   let children: unknown = executeCraftComponentFactory(
     definition.template as ComponentFactory,
     args as Parameters<ComponentFactory>,
     injector,
     onServiceResolved,
+    fnAdapter,
   );
 
   while (isGenerator(children)) {
@@ -106,13 +118,14 @@ export function renderCraftComponentTemplate(
       [] as Parameters<ComponentFactory>,
       injector,
       onServiceResolved,
+      fnAdapter,
     );
   }
 
   const rendered = children as CraftNodeChildren;
   const effectiveHostProps = mergeHostProps(
-    definition.meta.host ?? {},
-    hostProps ?? {},
+    definition.meta.host ?? NO_HOST_PROPS,
+    hostProps ?? NO_HOST_PROPS,
   );
   return applyHostPropsToChildren(rendered, effectiveHostProps);
 }

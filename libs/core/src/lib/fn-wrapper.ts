@@ -1,4 +1,8 @@
-import { inject, type InjectionToken, type Provider } from './host/craft-compat';
+import {
+  inject,
+  type InjectionToken,
+  type Provider,
+} from './host/craft-compat';
 import { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
 
 export { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
@@ -19,6 +23,8 @@ export type FnWrapObserver = (factory: AnyFactory) => void;
 
 const IDENTITY_ADAPTER: FnFactoryAdapter = ((factory) =>
   factory) as FnFactoryAdapter;
+/** What {@link injectFnWrapper} answers where nothing wraps nor observes. */
+export const ɵIDENTITY_FN_ADAPTER = IDENTITY_ADAPTER;
 
 // These are optional multi-provider keys. Plain objects deliberately avoid
 // constructing a Craft token while the generator runtime is still loading.
@@ -40,15 +46,13 @@ export function provideFnWrapObserver(observer: FnWrapObserver): Provider {
 
 export function injectFnWrapper(): FnFactoryAdapter {
   const wrappers =
-    inject(
-      FN_WRAPPER as InjectionToken<readonly FnWrapper[]>,
-      { optional: true },
-    ) ?? [];
+    inject(FN_WRAPPER as InjectionToken<readonly FnWrapper[]>, {
+      optional: true,
+    }) ?? [];
   const observers =
-    inject(
-      FN_WRAP_OBSERVER as InjectionToken<readonly FnWrapObserver[]>,
-      { optional: true },
-    ) ?? [];
+    inject(FN_WRAP_OBSERVER as InjectionToken<readonly FnWrapObserver[]>, {
+      optional: true,
+    }) ?? [];
   if (wrappers.length === 0 && observers.length === 0) {
     return IDENTITY_ADAPTER;
   }

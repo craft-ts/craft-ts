@@ -17,13 +17,20 @@ import type {
 import {
   ɵcreateHostTaggedInjector,
   ɵHOST_TAG_LIST,
+  ɵhostOwnerTags,
   ɵmergeHostTags,
 } from './craft-service';
 import {
   isGeneratorFunction,
   runCraftGenerator,
 } from './craft-generator-runtime';
-import { ɵinjectAppSnapshotRegistryIn } from './take-app-snapshot';
+import {
+  ɵinjectAppSnapshotRegistryIn,
+  type ActiveEffectReport,
+  type AppSnapshotRegistry,
+  type ɵActiveEffectSource,
+} from './take-app-snapshot';
+import { ɵcraftDetachedEffect } from './host/craft-signal';
 import {
   createNamedPrimitiveGen,
   type NamedCraftPrimitiveGen,
@@ -96,6 +103,99 @@ export function ɵcraftEffectRef(
   options?: CreateEffectOptions,
 ): EffectRef {
   return createCraftEffect(name, effectFn, options);
+}
+
+/**
+ * The tags every plain effect owned by `injector` reports before its own:
+ * what {@link ɵmergeHostTags} answers, without the effect's tag. They only
+ * depend on the injector, so a host that creates many effects in the same
+ * injector asks once.
+ */
+export function ɵeffectOwnerTags(injector: Injector): readonly string[] {
+  return ɵhostOwnerTags(injector);
+}
+
+/** What a host resolved once for the injector its effects are created in. */
+export interface ɵCraftEffectOwner {
+  /** {@link ɵeffectOwnerTags} of the injector. */
+  readonly ownerTags: readonly string[];
+  /** {@link ɵeffectRegistry} of the injector. */
+  readonly registry: AppSnapshotRegistry | null;
+}
+
+/** The effect registry of `injector`, for {@link ɵCraftRenderEffect}. */
+export function ɵeffectRegistry(
+  injector: Injector,
+): AppSnapshotRegistry | null {
+  return ɵinjectAppSnapshotRegistryIn(injector) ?? null;
+}
+
+/**
+ * The effect of one renderer binding: what `ɵcraftEffectRef(name, body,
+ * { manualCleanup: true })` creates, as a single object.
+ *
+ * The renderer owns it and destroys it, its body takes no cleanup, and its
+ * report — the same `source` and the same tags — is built when a snapshot
+ * reads it. The registry and the owner's tags come from `owner`, which keeps
+ * them for every effect of the injector: the tags are read before the first
+ * run and the registry after it, when `craftEffect` resolves them.
+ */
+// What the constructor below hands to `startPendingEffect`, read as soon as
+// it starts: the injection context opens without a closure per effect.
+let pendingEffectBody: (() => void) | undefined;
+
+function startPendingEffect(): () => void {
+  const body = pendingEffectBody as () => void;
+  pendingEffectBody = undefined;
+  return ɵcraftDetachedEffect(body);
+}
+
+export class ɵCraftRenderEffect implements EffectRef, ɵActiveEffectSource {
+  // Links of the registry's list of live effects.
+  ɵtracked = false;
+  ɵpreviousSource: ɵActiveEffectSource | undefined = undefined;
+  ɵnextSource: ɵActiveEffectSource | undefined = undefined;
+  private stop: (() => void) | undefined = undefined;
+  private destroyed = false;
+  private readonly name: string;
+  private readonly ownerTags: readonly string[];
+  private registry: AppSnapshotRegistry | null = null;
+
+  constructor(
+    name: string,
+    body: () => void,
+    injector: Injector,
+    owner: ɵCraftEffectOwner,
+  ) {
+    this.name = name;
+    this.ownerTags = owner.ownerTags;
+    // Detached from the active subscriber: an independently owned effect is
+    // not disposed with a transient parent effect.
+    pendingEffectBody = body;
+    this.stop = injector.run(startPendingEffect);
+    if (this.destroyed) {
+      // Destroyed by its own first run.
+      this.stop();
+      this.stop = undefined;
+      return;
+    }
+    this.registry = owner.registry;
+    this.registry?.ɵtrackActiveEffect(this);
+  }
+
+  report(): ActiveEffectReport {
+    const source = `effect:${this.name}`;
+    return { source, from: [...this.ownerTags, source] };
+  }
+
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.registry?.ɵuntrackActiveEffect(this);
+    const stop = this.stop;
+    this.stop = undefined;
+    stop?.();
+  }
 }
 
 function createCraftEffect(

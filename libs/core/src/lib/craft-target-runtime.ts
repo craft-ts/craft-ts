@@ -1,8 +1,4 @@
-import {
-  DestroyRef,
-  type Injector,
-  type Provider,
-} from './host/craft-compat';
+import { DestroyRef, type Injector, type Provider } from './host/craft-compat';
 import { runCraftGenerator } from './craft-generator-runtime';
 
 export type CraftTargetKind = 'component' | 'directive';
@@ -44,22 +40,40 @@ type CraftTargetWrapperRunner = (
   context: CraftTargetContext,
 ) => Generator<unknown, CraftTargetRelease, unknown>;
 
+const NO_TARGET_WRAPPERS: readonly CraftTargetWrapper[] = [];
+
+/** @internal The target wrappers visible from `injector`. */
+export function ɵcraftTargetWrappers(
+  injector: Injector,
+): readonly CraftTargetWrapper[] {
+  return injector.get(CRAFT_TARGET_WRAPPER as never, NO_TARGET_WRAPPERS);
+}
+
+/**
+ * @internal What registering a target amounts to where no wrapper exists:
+ * the same no-op release, inscribed like any other.
+ */
+export function ɵreleaseWithoutTargetWrappers(
+  injector: Injector,
+  autoCleanup: boolean,
+): CraftTargetRelease {
+  if (autoCleanup) {
+    injector.get(DestroyRef, null)?.onDestroy(EMPTY_RELEASE);
+  }
+  return EMPTY_RELEASE;
+}
+
 export function ɵrunCraftTargetWrappers(
   injector: Injector,
   context: CraftTargetContext,
   autoCleanup: boolean,
+  /** {@link ɵcraftTargetWrappers} of `injector`, when the caller has them. */
+  wrappers: readonly CraftTargetWrapper[] = ɵcraftTargetWrappers(injector),
 ): CraftTargetRelease {
-  const wrappers = injector.get(
-    CRAFT_TARGET_WRAPPER as never,
-    [] as readonly CraftTargetWrapper[],
-  );
   // Without a wrapper the chain is one empty generator that returns
   // EMPTY_RELEASE: skip driving it, keep the same release and its inscription.
   if (wrappers.length === 0) {
-    if (autoCleanup) {
-      injector.get(DestroyRef, null)?.onDestroy(EMPTY_RELEASE);
-    }
-    return EMPTY_RELEASE;
+    return ɵreleaseWithoutTargetWrappers(injector, autoCleanup);
   }
   let next: CraftTargetWrapperRunner = function* () {
     return EMPTY_RELEASE;

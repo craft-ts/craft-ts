@@ -5,11 +5,12 @@ import {
   type Signal,
 } from './host/craft-compat';
 import {
-  executeGeneratorCompatibleFactory,
   isGenerator,
   runCraftGenerator,
+  ɵexecuteFactoryIn,
   type ResolveGeneratorResult,
 } from './craft-generator-runtime';
+import type { FnFactoryAdapter } from './fn-wrapper';
 import {
   YIELDABLE_METHOD,
   YIELDABLE_VALUE,
@@ -160,9 +161,41 @@ export type YieldableInsertionMethods<Shape> = Shape extends (
 export function yieldableInvocation<Yielded = never, Result = unknown>(
   result: Result,
 ): YieldableInvocation<Yielded, Result> {
-  return (function* () {
-    return result;
-  })();
+  return new SettledInvocation(result) as unknown as YieldableInvocation<
+    Yielded,
+    Result
+  >;
+}
+
+/**
+ * What a generator that only returns `result` would be to `yield*` and to the
+ * generator hosts: an iterator that is done at its first `next()`. It is its
+ * own result, so reading a settled value allocates one object instead of a
+ * generator and its closure.
+ */
+class SettledInvocation<Result> {
+  readonly done = true;
+  readonly value: Result;
+
+  constructor(value: Result) {
+    this.value = value;
+  }
+
+  next(): this {
+    return this;
+  }
+
+  return(value: Result): { done: true; value: Result } {
+    return { done: true, value };
+  }
+
+  throw(error: unknown): never {
+    throw error;
+  }
+
+  [Symbol.iterator](): this {
+    return this;
+  }
 }
 
 export type YieldableInsertionRuntimeOptions = Readonly<{
@@ -302,17 +335,24 @@ export function executeYieldable<Args extends unknown[], Result>(
   callback: (...args: Args) => Result,
   args: Args,
   injector: Injector,
+  /** `injectFnWrapper()` in `injector`, when the caller already has it. */
+  fnAdapter?: FnFactoryAdapter,
 ): ResolveGeneratorResult<Result> {
-  return executeGeneratorCompatibleFactory({
-    factory: callback,
-    thisArg: undefined,
-    getInjector: () => injector,
+  return ɵexecuteFactoryIn(
+    callback,
+    undefined,
     args,
-    invalidYieldErrorMessage:
-      'Craft template callbacks can only yield Craft dependencies or yieldable methods.',
-    multipleAppStartErrorMessage:
-      'Craft template callbacks cannot declare onAppStart(...) more than once.',
-    onAppStartNotSupportedErrorMessage:
-      'Craft template callbacks do not support onAppStart(...).',
-  });
+    injector,
+    YIELDABLE_MESSAGES,
+    fnAdapter,
+  );
 }
+
+const YIELDABLE_MESSAGES = {
+  invalidYieldErrorMessage:
+    'Craft template callbacks can only yield Craft dependencies or yieldable methods.',
+  multipleAppStartErrorMessage:
+    'Craft template callbacks cannot declare onAppStart(...) more than once.',
+  onAppStartNotSupportedErrorMessage:
+    'Craft template callbacks do not support onAppStart(...).',
+};

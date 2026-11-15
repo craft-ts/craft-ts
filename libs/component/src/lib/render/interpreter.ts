@@ -1,8 +1,4 @@
-import {
-  ɵrunCraftCleanups,
-  ɵdestroyCraftOwner,
-  ɵcreateCraftCleanup,
-} from '@craft-ts/core';
+import { ɵrunCraftCleanups, ɵdestroyCraftOwner } from '@craft-ts/core';
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   SERVICE_RUNTIME_OVERRIDES,
@@ -12,6 +8,13 @@ import {
   provideCraftFieldExceptionBoundary,
   CRAFT_FIELD_EXCEPTION_SOURCE,
   ɵcraftEffectRef,
+  ɵCraftRenderEffect,
+  ɵeffectOwnerTags,
+  ɵeffectRegistry,
+  injectFnWrapper,
+  isCraftDevelopment,
+  type AppSnapshotRegistry,
+  type FnFactoryAdapter,
   craftLazy,
   createBrowserDomAdapter,
   registerCraftSyncTemplateFlush,
@@ -30,7 +33,9 @@ import {
   isGenerator,
   deepYieldable,
   markYieldableValue,
-  markYieldableMethod,
+  YIELDABLE_METHOD,
+  ɵcraftTargetWrappers,
+  type CraftTargetWrapper,
   isYieldableValue,
   isYieldableMethod,
   isYieldableReactiveValue,
@@ -56,10 +61,18 @@ import {
   type TemplateTraceContext,
   ɵinjectCraftTemporalRuntime,
   provideCraftRenderIdentity,
-  childCraftRenderIdentity,
+  ɵprovideCraftRenderIdentityReading,
+  ɵcreatePreparedEnvironmentInjector,
+  ɵprepareEnvironmentProviders,
+  ɵinjectorInstance,
+  ɵchildCraftRenderIdentity,
   createCraftRenderIdentity,
   type CraftRenderIdentity,
-  ɵregisterCraftReplayTarget,
+  ɵcreateCraftReplayTargetTree,
+  ɵlinkCraftReplayTarget,
+  ɵunlinkCraftReplayTarget,
+  type ɵCraftReplayTargetRecord,
+  type ɵCraftReplayTargetTree,
   ɵregisterCraftDeferReplayTarget,
   ɵcaptureCraftReplayTarget,
   ɵinjectSendContextSession,
@@ -85,8 +98,10 @@ import {
 import {
   computed,
   createEnvironmentInjector,
+  DestroyRef,
   ElementRef,
   EnvironmentInjector,
+  inject,
   Injector,
   runInInjectionContext,
   signal,
@@ -143,6 +158,7 @@ import type {
 import {
   ɵinjectForSchedulerIn,
   createForScheduler,
+  SyncForScheduler,
   type CancelHandle,
   type ForSchedulePolicy,
   type ForScheduler,
@@ -212,6 +228,254 @@ interface RenderContext {
   readonly hydration?: HydrationCursor;
   readonly emitHydrationKeys?: boolean;
   readonly ssr?: CraftSsrCoordinator;
+  /** Replay targets of the render tree this context belongs to. */
+  readonly replayTargets?: ɵCraftReplayTargetTree;
+  /** What the renderer resolved once for `injector`; see {@link ambientOf}. */
+  readonly ambient?: RenderAmbient;
+}
+
+/**
+ * What the renderer asks an injector again and again — at every effect, every
+ * binding, every template — and that only depends on the injector: the effect
+ * registry, the tags its effects report, the runtime mode and the function
+ * wrappers. Each is resolved the first time it is needed, in the order the
+ * renderer needed it before, then kept for every context of that injector.
+ *
+ * A component that declares no provider cannot change the registry, the mode
+ * or the wrappers: its ambient reads them from the ambient of its parent.
+ */
+class RenderAmbient {
+  private resolvedRegistry: AppSnapshotRegistry | null | undefined = undefined;
+  private resolvedOwnerTags: readonly string[] | undefined = undefined;
+  private resolvedDevelopment: boolean | undefined = undefined;
+  private resolvedFnAdapter: FnFactoryAdapter | undefined = undefined;
+  private resolvedTargetWrappers: readonly CraftTargetWrapper[] | undefined =
+    undefined;
+  readonly injector: Injector;
+  private readonly inherited: RenderAmbient | undefined;
+
+  constructor(injector: Injector, inherited: RenderAmbient | undefined) {
+    this.injector = injector;
+    this.inherited = inherited;
+  }
+
+  get registry(): AppSnapshotRegistry | null {
+    if (this.resolvedRegistry !== undefined) return this.resolvedRegistry;
+    return (this.resolvedRegistry = this.inherited
+      ? this.inherited.registry
+      : ɵeffectRegistry(this.injector));
+  }
+
+  get ownerTags(): readonly string[] {
+    return (this.resolvedOwnerTags ??= ɵeffectOwnerTags(this.injector));
+  }
+
+  get development(): boolean {
+    if (this.resolvedDevelopment !== undefined) return this.resolvedDevelopment;
+    return (this.resolvedDevelopment = this.inherited
+      ? this.inherited.development
+      : isCraftDevelopment(this.injector));
+  }
+
+  /**
+   * Owner tags the renderer already read for this injector: the tag list of a
+   * component's own injector is what its effects report before their own.
+   */
+  seedOwnerTags(tags: readonly string[]): void {
+    this.resolvedOwnerTags ??= tags;
+  }
+
+  get targetWrappers(): readonly CraftTargetWrapper[] {
+    if (this.resolvedTargetWrappers !== undefined) {
+      return this.resolvedTargetWrappers;
+    }
+    return (this.resolvedTargetWrappers = this.inherited
+      ? this.inherited.targetWrappers
+      : ɵcraftTargetWrappers(this.injector));
+  }
+
+  get fnAdapter(): FnFactoryAdapter {
+    if (this.resolvedFnAdapter !== undefined) return this.resolvedFnAdapter;
+    return (this.resolvedFnAdapter = this.inherited
+      ? this.inherited.fnAdapter
+      : runInInjectionContext(this.injector, injectFnWrapper));
+  }
+}
+
+/** The ambient of the context's injector, created when first asked for. */
+function ambientOf(context: RenderContext): RenderAmbient {
+  const environment = stateOf(context).environment;
+  const current = environment.ambient;
+  if (current !== undefined && current.injector === environment.injector) {
+    return current;
+  }
+  const ambient = new RenderAmbient(environment.injector, undefined);
+  environment.ambient = ambient;
+  return ambient;
+}
+
+/**
+ * What a render context has in common with the contexts derived from it,
+ * until one of them changes it: where things are rendered and injected, the
+ * component being rendered, the boundaries around it. A component or a
+ * boundary makes its own; the nodes below share it.
+ */
+class RenderEnvironment {
+  renderer: CraftDomAdapter;
+  injector: Injector;
+  componentContext: unknown;
+  componentName: string | undefined;
+  ownerScope: string | undefined;
+  exceptionBoundary: RenderContext['exceptionBoundary'];
+  exceptionBoundaryResolved: RenderContext['exceptionBoundaryResolved'];
+  pendingBoundary: PendingBoundaryRegistration | undefined;
+  settledReadObserver: CraftSettledReadObserver | undefined;
+  handledResourceExceptionCodes: Set<string> | undefined;
+  fieldExceptionBoundary: FieldExceptionBoundaryRegistration | undefined;
+  declarationContext: RenderContext | undefined;
+  headingLevel: number | undefined;
+  directiveNames: readonly string[] | undefined;
+  mode: 'create' | 'hydrate';
+  hydration: HydrationCursor | undefined;
+  emitHydrationKeys: boolean | undefined;
+  ssr: CraftSsrCoordinator | undefined;
+  replayTargets: ɵCraftReplayTargetTree | undefined;
+  ambient: RenderAmbient | undefined;
+
+  constructor(source: RenderContext | RenderEnvironment) {
+    this.renderer = source.renderer;
+    this.injector = source.injector;
+    this.componentContext = source.componentContext;
+    this.componentName = source.componentName;
+    this.ownerScope = source.ownerScope;
+    this.exceptionBoundary = source.exceptionBoundary;
+    this.exceptionBoundaryResolved = source.exceptionBoundaryResolved;
+    this.pendingBoundary = source.pendingBoundary;
+    this.settledReadObserver = source.settledReadObserver;
+    this.handledResourceExceptionCodes = source.handledResourceExceptionCodes;
+    this.fieldExceptionBoundary = source.fieldExceptionBoundary;
+    this.declarationContext = source.declarationContext;
+    this.headingLevel = source.headingLevel;
+    this.directiveNames = source.directiveNames;
+    this.mode = source.mode;
+    this.hydration = source.hydration;
+    this.emitHydrationKeys = source.emitHydrationKeys;
+    this.ssr = source.ssr;
+    this.replayTargets = source.replayTargets;
+    this.ambient = source.ambient;
+  }
+}
+
+/**
+ * The context of one node: what changes from a node to the next — its
+ * identity, whether its replay address is stable, the component root scope
+ * and the render being traced — and the environment it shares with the nodes
+ * around it. Deriving the context of a child copies these few fields, not
+ * the environment.
+ */
+class RenderContextState implements RenderContext {
+  environment: RenderEnvironment;
+  identity: CraftRenderIdentity;
+  replayTargetStable: boolean | undefined;
+  rootScope: string | undefined;
+  traceState: TemplateTraceState | undefined;
+
+  constructor(
+    environment: RenderEnvironment,
+    identity: CraftRenderIdentity,
+    replayTargetStable: boolean | undefined,
+    rootScope: string | undefined,
+    traceState: TemplateTraceState | undefined,
+  ) {
+    this.environment = environment;
+    this.identity = identity;
+    this.replayTargetStable = replayTargetStable;
+    this.rootScope = rootScope;
+    this.traceState = traceState;
+  }
+
+  get renderer(): CraftDomAdapter {
+    return this.environment.renderer;
+  }
+  get injector(): Injector {
+    return this.environment.injector;
+  }
+  get componentContext(): unknown {
+    return this.environment.componentContext;
+  }
+  get componentName(): string | undefined {
+    return this.environment.componentName;
+  }
+  get ownerScope(): string | undefined {
+    return this.environment.ownerScope;
+  }
+  get exceptionBoundary(): RenderContext['exceptionBoundary'] {
+    return this.environment.exceptionBoundary;
+  }
+  get exceptionBoundaryResolved(): RenderContext['exceptionBoundaryResolved'] {
+    return this.environment.exceptionBoundaryResolved;
+  }
+  get pendingBoundary(): PendingBoundaryRegistration | undefined {
+    return this.environment.pendingBoundary;
+  }
+  get settledReadObserver(): CraftSettledReadObserver | undefined {
+    return this.environment.settledReadObserver;
+  }
+  get handledResourceExceptionCodes(): Set<string> | undefined {
+    return this.environment.handledResourceExceptionCodes;
+  }
+  get fieldExceptionBoundary(): FieldExceptionBoundaryRegistration | undefined {
+    return this.environment.fieldExceptionBoundary;
+  }
+  get declarationContext(): RenderContext | undefined {
+    return this.environment.declarationContext;
+  }
+  get headingLevel(): number | undefined {
+    return this.environment.headingLevel;
+  }
+  get directiveNames(): readonly string[] | undefined {
+    return this.environment.directiveNames;
+  }
+  get mode(): 'create' | 'hydrate' {
+    return this.environment.mode;
+  }
+  get hydration(): HydrationCursor | undefined {
+    return this.environment.hydration;
+  }
+  get emitHydrationKeys(): boolean | undefined {
+    return this.environment.emitHydrationKeys;
+  }
+  get ssr(): CraftSsrCoordinator | undefined {
+    return this.environment.ssr;
+  }
+  get replayTargets(): ɵCraftReplayTargetTree | undefined {
+    return this.environment.replayTargets;
+  }
+  get ambient(): RenderAmbient | undefined {
+    return this.environment.ambient;
+  }
+}
+
+/** The state behind a context; a context handed in as plain data gets one. */
+function stateOf(context: RenderContext): RenderContextState {
+  return context instanceof RenderContextState
+    ? context
+    : new RenderContextState(
+        new RenderEnvironment(context),
+        context.identity,
+        context.replayTargetStable,
+        context.rootScope,
+        context.traceState,
+      );
+}
+
+/** The context a render tree starts from, with its own replay targets. */
+function rootRenderContext(
+  source: Omit<RenderContext, 'replayTargets' | 'ambient'>,
+): RenderContext {
+  const context = stateOf(source);
+  context.environment.replayTargets = ɵcreateCraftReplayTargetTree();
+  return context;
 }
 
 interface TemplateTraceState {
@@ -233,27 +497,96 @@ let templateGeneratorDepth = 0;
 
 function childContext(
   context: RenderContext,
-  overrides: Partial<RenderContext> = {},
+  overrides?: Partial<RenderContext>,
 ): RenderContext {
-  return { ...context, ...overrides };
+  const source = stateOf(context);
+  const next = new RenderContextState(
+    source.environment,
+    source.identity,
+    source.replayTargetStable,
+    source.rootScope,
+    source.traceState,
+  );
+  if (overrides === undefined) return next;
+  // The environment is copied the first time an override belongs to it.
+  let environment: Record<string, unknown> | undefined;
+  for (const key in overrides) {
+    const value = (overrides as Record<string, unknown>)[key];
+    switch (key) {
+      case 'identity':
+        next.identity = value as CraftRenderIdentity;
+        break;
+      case 'replayTargetStable':
+        next.replayTargetStable = value as boolean | undefined;
+        break;
+      case 'rootScope':
+        next.rootScope = value as string | undefined;
+        break;
+      case 'traceState':
+        next.traceState = value as TemplateTraceState | undefined;
+        break;
+      default:
+        if (environment === undefined) {
+          next.environment = new RenderEnvironment(source.environment);
+          environment = next.environment as unknown as Record<string, unknown>;
+        }
+        environment[key] = value;
+    }
+  }
+  return next;
+}
+
+/**
+ * Gives the injector a component renders in to the context that was just
+ * derived for it. Only for a context whose environment nothing else shares.
+ */
+function renderInOwnInjector(
+  context: RenderContext,
+  injector: Injector,
+  componentContext: unknown,
+  ambient: RenderAmbient | undefined,
+): RenderContext {
+  const environment = stateOf(context).environment;
+  environment.injector = injector;
+  environment.componentContext = componentContext;
+  environment.ambient = ambient;
+  return context;
 }
 
 function childNodeContext(
   context: RenderContext,
   node: CraftNode,
   index: number,
+  clearRootScope = false,
 ): RenderContext {
-  const segments: readonly (string | number)[] =
+  // A text node only reads its identity to claim or emit a hydration key:
+  // a client render gives it the context of its parent as it is.
+  if (
+    (node.kind === 'text' || node.kind === 'reactive-text') &&
+    !context.emitHydrationKeys &&
+    !isHydrating(context)
+  ) {
+    return context;
+  }
+  const source = stateOf(context);
+  const parent = source.identity;
+  return new RenderContextState(
+    source.environment,
     node.kind === 'component'
-      ? [node.component[CRAFT_COMPONENT].name, index]
+      ? ɵchildCraftRenderIdentity(
+          parent,
+          node.component[CRAFT_COMPONENT].name,
+          index,
+        )
       : node.kind === 'for'
-        ? [`for:${node.sourceName ?? index}`]
+        ? ɵchildCraftRenderIdentity(parent, `for:${node.sourceName ?? index}`)
         : node.kind === 'if'
-          ? [`if:${node.conditionName}`]
-          : [index];
-  return childContext(context, {
-    identity: childCraftRenderIdentity(context.identity, ...segments),
-  });
+          ? ɵchildCraftRenderIdentity(parent, `if:${node.conditionName}`)
+          : ɵchildCraftRenderIdentity(parent, index),
+    source.replayTargetStable,
+    clearRootScope ? undefined : source.rootScope,
+    source.traceState,
+  );
 }
 
 function lexicalContext(context: RenderContext): RenderContext {
@@ -298,6 +631,9 @@ function renderChildrenCallback(
   kind: TemplateTraceContext['kind'] = 'callback',
   name?: string,
 ): CraftNodeChildren {
+  if (!ambientOf(context).development) {
+    return invokeChildrenCallback(context, callback, args);
+  }
   const phase = tracePhase(context);
   return executeTemplateTrace(
     context.injector,
@@ -322,6 +658,9 @@ function renderBlockChildren(
   callback: (...args: any[]) => CraftNodeChildren,
   args: readonly unknown[] = [],
 ): CraftNodeChildren {
+  if (!ambientOf(context).development) {
+    return invokeChildrenCallback(context, callback, args);
+  }
   return executeTemplateTrace(
     context.injector,
     traceContext(context, 'block', tracePhase(context), name),
@@ -335,6 +674,9 @@ function renderDeferChildren(
   callback: (...args: any[]) => CraftNodeChildren,
   args: readonly unknown[] = [],
 ): CraftNodeChildren {
+  if (!ambientOf(context).development) {
+    return invokeChildrenCallback(context, callback, args);
+  }
   return executeTemplateTrace(
     context.injector,
     traceContext(context, 'defer', tracePhase(context), name),
@@ -505,7 +847,46 @@ interface RenderedNode {
   firstNode(): NativeNode;
   lastNode(): NativeNode;
   patch(node: CraftNode): boolean;
-  destroy(): void;
+  /**
+   * Releases what the node owns and takes its DOM out of the document.
+   * `detached` says an ancestor element is being removed with everything
+   * under it: a node that honors it releases what it owns and leaves its
+   * own DOM where it is.
+   */
+  destroy(detached?: boolean): void;
+}
+
+/** Keeps the failure of one release so that the following ones still run. */
+function keepCleanupError(
+  errors: unknown[] | undefined,
+  error: unknown,
+): unknown[] {
+  if (errors === undefined) return [error];
+  errors.push(error);
+  return errors;
+}
+
+/** Surfaces what {@link keepCleanupError} kept, as `ɵrunCraftCleanups` does. */
+function throwCleanupErrors(errors: unknown[] | undefined): void {
+  if (errors === undefined) return;
+  if (errors.length === 1) throw errors[0];
+  throw new AggregateError(errors, 'Craft cleanup failed.');
+}
+
+/** Destroys every child, in order, whatever each of them throws. */
+function destroyRenderedChildren(
+  children: readonly RenderedNode[],
+  detached: boolean | undefined,
+  errors: unknown[] | undefined,
+): unknown[] | undefined {
+  for (const child of children) {
+    try {
+      child.destroy(detached);
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+  }
+  return errors;
 }
 
 function activeSsrRoute(context: RenderContext): string | undefined {
@@ -528,27 +909,52 @@ function createRenderEffect(
   name: string,
   effectFn: () => void,
 ): EffectRef {
-  // One token per binding: a binding that suspends holds it until it next runs
-  // to completion. The effect stays subscribed across the suspension — the
-  // settled read registered its source's `status` before throwing — so the
-  // boundary is released without any polling.
-  const token = {};
+  return new RenderBindingEffect(context, name, effectFn);
+}
+
+/**
+ * The effect of one binding, and what it owes its boundaries.
+ *
+ * It is its own token: a binding that suspends holds it until it next runs to
+ * completion. The effect stays subscribed across the suspension — the settled
+ * read registered its source's `status` before throwing — so the boundary is
+ * released without any polling.
+ */
+class RenderBindingEffect implements EffectRef {
   // A binding that short-circuited must tell its boundary when it recovers —
   // but only that binding, so a sibling still in exception keeps its fallback.
-  let shortCircuited = false;
-  const ref = createEffectInInjector(context.injector, name, () => {
+  private shortCircuited = false;
+  private destroyed = false;
+  private readonly effect: ɵCraftRenderEffect;
+  private readonly context: RenderContext;
+  private readonly effectFn: () => void;
+
+  constructor(context: RenderContext, name: string, effectFn: () => void) {
+    this.context = context;
+    this.effectFn = effectFn;
+    const ambient = ambientOf(context);
+    this.effect = new ɵCraftRenderEffect(
+      name,
+      () => this.run(),
+      context.injector,
+      ambient,
+    );
+  }
+
+  private run(): void {
+    const context = this.context;
     try {
       // A settled read reports its source while it evaluates — that is how the
       // boundary learns about a source that is refetching rather than
       // suspending, since a refetch throws nothing.
-      ɵwithSettledReadObserver(context.settledReadObserver, effectFn);
+      ɵwithSettledReadObserver(context.settledReadObserver, this.effectFn);
     } catch (error) {
       if (isCraftNotSettled(error)) {
         if (!context.pendingBoundary) {
           if (context.ssr) {
             const routePolicy = ɵinjectCraftSsrPolicy();
             if (routePolicy) {
-              context.ssr.suspend(token, error.source, routePolicy.mode, {
+              context.ssr.suspend(this, error.source, routePolicy.mode, {
                 route: activeSsrRoute(context),
                 timeoutMs: routePolicy.timeoutMs,
               });
@@ -558,7 +964,7 @@ function createRenderEffect(
           }
           throw new CraftUnhandledPendingError(error.source);
         }
-        context.pendingBoundary.suspend(token, error.source);
+        context.pendingBoundary.suspend(this, error.source);
         return;
       }
 
@@ -566,32 +972,45 @@ function createRenderEffect(
 
       // A settled read whose source carries a business exception: route it to
       // the nearest catchNode, exactly like a component initialization one.
-      context.pendingBoundary?.resume(token);
-      if (!context.exceptionBoundary?.(error.exception, token)) {
+      context.pendingBoundary?.resume(this);
+      if (!context.exceptionBoundary?.(error.exception, this)) {
         throw new CraftUnhandledExceptionError(error.exception);
       }
-      shortCircuited = true;
+      this.shortCircuited = true;
       return;
     }
 
-    context.ssr?.resume(token);
-    context.pendingBoundary?.resume(token);
-    if (shortCircuited) {
-      shortCircuited = false;
-      context.exceptionBoundaryResolved?.(token);
+    if (context.ssr !== undefined) context.ssr.resume(this);
+    if (context.pendingBoundary !== undefined) {
+      context.pendingBoundary.resume(this);
     }
-  });
+    if (this.shortCircuited) {
+      this.shortCircuited = false;
+      context.exceptionBoundaryResolved?.(this);
+    }
+  }
 
-  return {
-    destroy: ɵcreateCraftCleanup([
-      () => context.ssr?.resume(token),
-      () => context.pendingBoundary?.resume(token),
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    const context = this.context;
+    if (
+      context.ssr === undefined &&
+      context.pendingBoundary === undefined &&
+      !this.shortCircuited
+    ) {
+      this.effect.destroy();
+      return;
+    }
+    ɵrunCraftCleanups([
+      () => context.ssr?.resume(this),
+      () => context.pendingBoundary?.resume(this),
       () => {
-        if (shortCircuited) context.exceptionBoundaryResolved?.(token);
+        if (this.shortCircuited) context.exceptionBoundaryResolved?.(this);
       },
-      () => ref.destroy(),
-    ]),
-  } as EffectRef;
+      () => this.effect.destroy(),
+    ]);
+  }
 }
 
 function createEffectInInjector(
@@ -614,7 +1033,12 @@ function executeTemplateCallback(
   const isGeneratorCallback = isGeneratorFunction(callback);
   if (isGeneratorCallback) templateGeneratorDepth++;
   try {
-    return executeYieldable(callback, args, context.injector);
+    return executeYieldable(
+      callback,
+      args,
+      context.injector,
+      ambientOf(context).fnAdapter,
+    );
   } finally {
     if (isGeneratorCallback) templateGeneratorDepth--;
   }
@@ -1091,6 +1515,9 @@ function patchRenderedChildren(
   children: CraftNodeChildren,
   before: NativeNode | null,
   context: RenderContext,
+  // The children of a component's root element are no longer at the root of
+  // the component's scope: their contexts are created without it.
+  clearRootScope = false,
 ): RenderedNode[] {
   const nextNodes = normalizeChildren(children);
   const sharedLength = Math.min(rendered.length, nextNodes.length);
@@ -1104,7 +1531,7 @@ function patchRenderedChildren(
         next,
         parent,
         current.firstNode(),
-        childNodeContext(context, next, index),
+        childNodeContext(context, next, index, clearRootScope),
       );
       rendered[index] = replacement;
       current.destroy();
@@ -1112,11 +1539,12 @@ function patchRenderedChildren(
   }
 
   if (rendered.length > nextNodes.length) {
-    ɵrunCraftCleanups(
-      rendered
-        .splice(nextNodes.length)
-        .reverse()
-        .map((child) => () => child.destroy()),
+    throwCleanupErrors(
+      destroyRenderedChildren(
+        rendered.splice(nextNodes.length).reverse(),
+        false,
+        undefined,
+      ),
     );
   }
 
@@ -1126,7 +1554,7 @@ function patchRenderedChildren(
         nextNodes[index],
         parent,
         before,
-        childNodeContext(context, nextNodes[index], index),
+        childNodeContext(context, nextNodes[index], index, clearRootScope),
       ),
     );
   }
@@ -1136,6 +1564,7 @@ function patchRenderedChildren(
 
 class TextRenderedNode implements RenderedNode {
   readonly kind = 'text';
+  private destroyed = false;
   private node: Text;
   private value: string;
   private renderer: CraftDomAdapter;
@@ -1166,17 +1595,16 @@ class TextRenderedNode implements RenderedNode {
     return true;
   }
 
-  destroy(): void {
-    ɵdestroyCraftOwner(this, [
-      () => {
-        removeNode(this.renderer, this.node);
-      },
-    ]);
+  destroy(detached?: boolean): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    if (!detached) removeNode(this.renderer, this.node);
   }
 }
 
 class ReactiveTextRenderedNode implements RenderedNode {
   readonly kind = 'reactive-text';
+  private destroyed = false;
   private binding: CraftTextBinding;
   private effectRef: EffectRef;
   private value = '';
@@ -1211,15 +1639,14 @@ class ReactiveTextRenderedNode implements RenderedNode {
     return true;
   }
 
-  destroy(): void {
-    ɵdestroyCraftOwner(this, [
-      () => {
-        this.effectRef.destroy();
-      },
-      () => {
-        removeNode(this.context.renderer, this.node);
-      },
-    ]);
+  destroy(detached?: boolean): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    try {
+      this.effectRef.destroy();
+    } finally {
+      if (!detached) removeNode(this.context.renderer, this.node);
+    }
   }
 
   private createEffect(): EffectRef {
@@ -1431,6 +1858,8 @@ const PROPERTY_NAMES = new Set([
   'innerHTML',
 ]);
 
+const NO_EVENT_NAMES: readonly string[] = [];
+
 function eventNameFor(key: string, value: unknown): string | undefined {
   if (typeof value !== 'function') {
     return undefined;
@@ -1492,7 +1921,18 @@ const HOST_PROPERTY_NAMES = new Set([
   'directives',
 ]);
 
+// A prop name is one of a few literals written in templates: classified once.
+const hostPropertyNames = new Map<string, boolean>();
+
 function isHostProperty(key: string): boolean {
+  const known = hostPropertyNames.get(key);
+  if (known !== undefined) return known;
+  const host = classifyHostProperty(key);
+  if (hostPropertyNames.size < 4096) hostPropertyNames.set(key, host);
+  return host;
+}
+
+function classifyHostProperty(key: string): boolean {
   return (
     HOST_PROPERTY_NAMES.has(key) ||
     key.startsWith('data-') ||
@@ -1503,12 +1943,42 @@ function isHostProperty(key: string): boolean {
   );
 }
 
+/** The properties of a component call that are its inputs, in order. */
+function inputKeys(props: object): string[] {
+  const keys: string[] = [];
+  for (const key in props) {
+    if (
+      Object.prototype.hasOwnProperty.call(props, key) &&
+      !isHostProperty(key)
+    ) {
+      keys.push(key);
+    }
+  }
+  return keys;
+}
+
 function hostPropsFromComponentProps(
   props: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
-  return Object.fromEntries(
-    Object.entries(props).filter(([key]) => isHostProperty(key)),
-  );
+  const host: Record<string, unknown> = {};
+  for (const key of Object.keys(props)) {
+    if (isHostProperty(key)) host[key] = props[key];
+  }
+  return host;
+}
+
+// The directives composed around a definition never change.
+const composedDirectiveNames = new WeakMap<object, readonly string[]>();
+
+function directiveNamesOf(definition: {
+  readonly scopeOwners: readonly { readonly name: string }[];
+}): readonly string[] {
+  let names = composedDirectiveNames.get(definition);
+  if (names === undefined) {
+    names = definition.scopeOwners.slice(1).map((owner) => owner.name);
+    composedDirectiveNames.set(definition, names);
+  }
+  return names;
 }
 
 function className(value: unknown, context: RenderContext): string {
@@ -1530,17 +2000,17 @@ function className(value: unknown, context: RenderContext): string {
   return value == null ? '' : String(value);
 }
 
-function containsRenderBinding(
-  value: unknown,
-  seen = new Set<object>(),
-): boolean {
-  if (typeof value === 'function' || isGenerator(value)) return true;
-  if (typeof value !== 'object' || value === null || seen.has(value)) {
-    return false;
-  }
-  seen.add(value);
+function containsRenderBinding(value: unknown, seen?: Set<object>): boolean {
+  if (typeof value === 'function') return true;
+  if (typeof value !== 'object' || value === null) return false;
+  if (isGenerator(value)) return true;
+  if (seen?.has(value)) return false;
+  // Only an object can hold a cycle: nothing to remember for the common
+  // absent, string or function value.
+  const visited = seen ?? new Set<object>();
+  visited.add(value);
   return Object.values(value).some((child) =>
-    containsRenderBinding(child, seen),
+    containsRenderBinding(child, visited),
   );
 }
 
@@ -1647,14 +2117,18 @@ function isModalDialog(dialog: HTMLDialogElement): boolean {
   }
 }
 
+const NO_ATTRIBUTES: ReadonlyMap<string, unknown> = new Map();
+
 function flattenAttributes(
   props: Readonly<Record<string, unknown>>,
-): Map<string, unknown> {
-  const attributes = new Map<string, unknown>();
-  for (const [key, value] of Object.entries(props)) {
+): ReadonlyMap<string, unknown> {
+  let attributes: Map<string, unknown> | undefined;
+  for (const key of Object.keys(props)) {
+    const value = props[key];
     if (key === 'attrs' && typeof value === 'object' && value !== null) {
-      for (const [attribute, attributeValue] of Object.entries(value)) {
-        attributes.set(attribute, attributeValue);
+      const nested = value as Record<string, unknown>;
+      for (const attribute of Object.keys(nested)) {
+        (attributes ??= new Map()).set(attribute, nested[attribute]);
       }
     } else if (
       key !== 'class' &&
@@ -1664,10 +2138,10 @@ function flattenAttributes(
       key !== 'onClose' &&
       !eventNameFor(key, value)
     ) {
-      attributes.set(key, value);
+      (attributes ??= new Map()).set(key, value);
     }
   }
-  return attributes;
+  return attributes ?? NO_ATTRIBUTES;
 }
 
 function applyAttribute(
@@ -1799,22 +2273,89 @@ export function ɵassertSafeStyleValue(
   }
 }
 
+const NO_PROPS: Readonly<Record<string, unknown>> = Object.freeze({});
+
+// An attribute name is one of a few literals written in templates: the key
+// of its binding and the name of its effect are built once.
+const attributeNameCache = new Map<
+  string,
+  { readonly binding: string; readonly effect: string }
+>();
+
+function attributeNames(key: string): {
+  readonly binding: string;
+  readonly effect: string;
+} {
+  let names = attributeNameCache.get(key);
+  if (names === undefined) {
+    names = {
+      binding: `attribute:${key}`,
+      effect: `element-attribute:${key}-binding`,
+    };
+    if (attributeNameCache.size < 4096) attributeNameCache.set(key, names);
+  }
+  return names;
+}
+
+/**
+ * An attribute bound to a template value: its effect resolves the value and
+ * writes the attribute when it changed.
+ */
+class AttributeBinding {
+  readonly source: unknown;
+  readonly effectRef: EffectRef;
+  private readonly element: Element;
+  private readonly key: string;
+  private readonly context: RenderContext;
+  private initialized = false;
+  private previous: unknown = undefined;
+
+  constructor(
+    element: Element,
+    key: string,
+    source: unknown,
+    context: RenderContext,
+    effectName: string,
+  ) {
+    this.element = element;
+    this.key = key;
+    this.source = source;
+    this.context = context;
+    this.effectRef = createRenderEffect(context, effectName, () => {
+      const value = resolveTemplateValue(this.source, this.context);
+      if (!this.initialized || !Object.is(this.previous, value)) {
+        applyAttribute(
+          this.context.renderer,
+          this.element,
+          this.key,
+          value,
+          this.context,
+        );
+        this.previous = value;
+        this.initialized = true;
+      }
+    });
+  }
+}
+
 class ElementRenderedNode implements RenderedNode {
   readonly kind = 'element';
+  private destroyed = false;
   private children: RenderedNode[] = [];
-  private props: Readonly<Record<string, unknown>> = {};
-  private readonly listeners = new Map<string, () => void>();
-  private readonly bindings = new Map<
-    string,
-    { readonly source: unknown; readonly effectRef: EffectRef }
-  >();
+  private props: Readonly<Record<string, unknown>> = NO_PROPS;
+  // Created with the first listener and the first binding: most elements
+  // have neither.
+  private listeners: Map<string, () => void> | undefined;
+  private bindings:
+    | Map<string, { readonly source: unknown; readonly effectRef: EffectRef }>
+    | undefined;
   private craftNodeDirectiveTypes: readonly AppliedCraftNodeDirective[] = [];
   private craftNodeDirectiveMounts: CraftNodeDirectiveMount[] = [];
   private localName: string | undefined;
   private dialogCleanup: (() => void) | undefined;
 
   private readonly node: Element;
-  private readonly unregisterReplayTarget: () => void;
+  private readonly replayTarget: ɵCraftReplayTargetRecord;
   private tag: string;
   private context: RenderContext;
 
@@ -1827,10 +2368,11 @@ class ElementRenderedNode implements RenderedNode {
     this.node = node;
     this.tag = tag;
     this.context = context;
-    this.unregisterReplayTarget = ɵregisterCraftReplayTarget(
+    this.replayTarget = ɵlinkCraftReplayTarget(
       node,
-      context.identity.path,
+      context.identity,
       context.replayTargetStable !== false,
+      context.replayTargets,
     );
     this.patchProperties(initial);
     this.installDialog(initial);
@@ -1840,15 +2382,14 @@ class ElementRenderedNode implements RenderedNode {
             rootScope: undefined,
             headingLevel: 1,
           })
-        : childContext(context, {
-            rootScope: undefined,
-          });
+        : context;
     this.children = patchRenderedChildren(
       this.node,
       this.children,
       initial.children,
       null,
       nested,
+      nested.rootScope !== undefined,
     );
     this.reapplySelectValue(initial);
     this.openDialog(initial);
@@ -1911,9 +2452,8 @@ class ElementRenderedNode implements RenderedNode {
       this.children,
       node.children,
       null,
-      childContext(this.context, {
-        rootScope: undefined,
-      }),
+      this.context,
+      this.context.rootScope !== undefined,
     );
     this.openDialog(node);
     return true;
@@ -1924,35 +2464,34 @@ class ElementRenderedNode implements RenderedNode {
   ): void {
     const next = nextNode.props;
     const renderer = this.context.renderer;
-    const previousAttributes = flattenAttributes(this.props);
-    const nextAttributes = flattenAttributes(next);
+    if (this.props === NO_PROPS && !('attrs' in next)) {
+      // First properties of the element: nothing to compare with or remove,
+      // so they are read straight from the object, in its order.
+      for (const key of Object.keys(next)) {
+        const value = next[key];
+        if (
+          key !== 'class' &&
+          key !== 'style' &&
+          key !== 'directives' &&
+          key !== 'labelledBy' &&
+          key !== 'onClose' &&
+          !eventNameFor(key, value)
+        ) {
+          this.patchAttribute(key, value, undefined);
+        }
+      }
+    } else {
+      const previousAttributes = flattenAttributes(this.props);
+      const nextAttributes = flattenAttributes(next);
 
-    for (const key of previousAttributes.keys()) {
-      if (!nextAttributes.has(key)) {
-        this.destroyBinding(`attribute:${key}`);
-        applyAttribute(renderer, this.node, key, null, this.context);
+      for (const key of previousAttributes.keys()) {
+        if (!nextAttributes.has(key)) {
+          this.destroyBinding(attributeNames(key).binding);
+          applyAttribute(renderer, this.node, key, null, this.context);
+        }
       }
-    }
-    for (const [key, value] of nextAttributes) {
-      if (typeof value === 'function' || isGenerator(value)) {
-        this.updateBinding(
-          `attribute:${key}`,
-          value,
-          () => resolveTemplateValue(value, this.context),
-          (resolved) =>
-            applyAttribute(renderer, this.node, key, resolved, this.context),
-        );
-      } else {
-        this.destroyBinding(`attribute:${key}`);
-      }
-      if (
-        typeof value !== 'function' &&
-        !isGenerator(value) &&
-        (!Object.is(previousAttributes.get(key), value) ||
-          typeof previousAttributes.get(key) === 'function' ||
-          isGenerator(previousAttributes.get(key)))
-      ) {
-        applyAttribute(renderer, this.node, key, value, this.context);
+      for (const [key, value] of nextAttributes) {
+        this.patchAttribute(key, value, previousAttributes.get(key));
       }
     }
 
@@ -2018,24 +2557,27 @@ class ElementRenderedNode implements RenderedNode {
       );
     }
 
-    const nextEvents = new Map<string, EventListener>();
-    for (const [key, value] of Object.entries(next)) {
+    let nextEvents: Map<string, EventListener> | undefined;
+    for (const key of Object.keys(next)) {
+      const value = next[key];
       const eventName = eventNameFor(key, value);
       if (eventName) {
-        nextEvents.set(eventName, value as EventListener);
+        (nextEvents ??= new Map()).set(eventName, value as EventListener);
       }
     }
 
-    for (const [eventName, dispose] of this.listeners) {
-      if (!nextEvents.has(eventName)) {
-        dispose();
-        this.listeners.delete(eventName);
+    if (this.listeners) {
+      for (const [eventName, dispose] of this.listeners) {
+        if (!nextEvents?.has(eventName)) {
+          dispose();
+          this.listeners.delete(eventName);
+        }
       }
     }
 
-    for (const [eventName] of nextEvents) {
-      if (!this.listeners.has(eventName)) {
-        this.listeners.set(
+    for (const eventName of nextEvents?.keys() ?? NO_EVENT_NAMES) {
+      if (!this.listeners?.has(eventName)) {
+        (this.listeners ??= new Map()).set(
           eventName,
           renderer.listen(this.node, eventName, (event: Event) => {
             const listener = Object.entries(this.props).find(
@@ -2105,21 +2647,47 @@ class ElementRenderedNode implements RenderedNode {
     }
 
     const contentNames = directCraftContentNames(nextNode.children);
+    const located = this.node as Element & {
+      [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
+    };
     if (contentNames.length > 0) {
-      (
-        this.node as Element & {
-          [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
-        }
-      )[CRAFT_LOCATOR_CONTENT_NAMES] = contentNames;
-    } else {
-      delete (
-        this.node as Element & {
-          [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
-        }
-      )[CRAFT_LOCATOR_CONTENT_NAMES];
+      located[CRAFT_LOCATOR_CONTENT_NAMES] = contentNames;
+    } else if (located[CRAFT_LOCATOR_CONTENT_NAMES] !== undefined) {
+      delete located[CRAFT_LOCATOR_CONTENT_NAMES];
     }
 
     this.props = next;
+  }
+
+  /** One attribute of the next properties, given the value it had before. */
+  private patchAttribute(key: string, value: unknown, previous: unknown): void {
+    if (typeof value === 'function' || isGenerator(value)) {
+      const names = attributeNames(key);
+      const current = this.bindings?.get(names.binding);
+      if (current?.source === value) return;
+      current?.effectRef.destroy();
+      (this.bindings ??= new Map()).set(
+        names.binding,
+        new AttributeBinding(this.node, key, value, this.context, names.effect),
+      );
+      return;
+    }
+    if (this.bindings !== undefined) {
+      this.destroyBinding(attributeNames(key).binding);
+    }
+    if (
+      !Object.is(previous, value) ||
+      typeof previous === 'function' ||
+      isGenerator(previous)
+    ) {
+      applyAttribute(
+        this.context.renderer,
+        this.node,
+        key,
+        value,
+        this.context,
+      );
+    }
   }
 
   private updateBinding(
@@ -2129,7 +2697,7 @@ class ElementRenderedNode implements RenderedNode {
     apply: (value: unknown) => void,
     equals: (left: unknown, right: unknown) => boolean = Object.is,
   ): void {
-    const current = this.bindings.get(key);
+    const current = this.bindings?.get(key);
     if (current?.source === source) return;
     current?.effectRef.destroy();
 
@@ -2147,12 +2715,14 @@ class ElementRenderedNode implements RenderedNode {
         }
       },
     );
-    this.bindings.set(key, { source, effectRef });
+    (this.bindings ??= new Map()).set(key, { source, effectRef });
   }
 
   private destroyBinding(key: string): void {
-    this.bindings.get(key)?.effectRef.destroy();
-    this.bindings.delete(key);
+    const bindings = this.bindings;
+    if (bindings === undefined) return;
+    bindings.get(key)?.effectRef.destroy();
+    bindings.delete(key);
   }
 
   private installDialog(
@@ -2221,55 +2791,65 @@ class ElementRenderedNode implements RenderedNode {
     }
   }
 
-  destroy(): void {
-    ɵdestroyCraftOwner(this, [
-      () => {
-        this.unregisterReplayTarget();
-      },
-      () => {
-        this.dialogCleanup?.();
-      },
-      () => {
-        ɵrunCraftCleanups(
-          Array.from(
-            this.bindings.values(),
-            ({ effectRef }) =>
-              () =>
-                effectRef.destroy(),
-          ),
-        );
-      },
-      () => {
-        this.bindings.clear();
-      },
-      () => {
-        ɵrunCraftCleanups(this.listeners.values());
-      },
-      () => {
-        this.listeners.clear();
-      },
-      () => {
-        ɵrunCraftCleanups(
-          this.craftNodeDirectiveMounts.map((mount) => () => mount.destroy()),
-        );
-      },
-      () => {
-        this.craftNodeDirectiveMounts = [];
-      },
-      () => {
-        ɵrunCraftCleanups(
-          this.children.splice(0).map((child) => () => child.destroy()),
-        );
-      },
-      () => {
+  destroy(detached?: boolean): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    // Every release runs, in this order, before any failure surfaces.
+    let errors: unknown[] | undefined;
+    ɵunlinkCraftReplayTarget(this.replayTarget);
+    if (this.dialogCleanup) {
+      try {
+        this.dialogCleanup();
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    if (this.bindings) {
+      for (const binding of this.bindings.values()) {
+        try {
+          binding.effectRef.destroy();
+        } catch (error) {
+          errors = keepCleanupError(errors, error);
+        }
+      }
+      this.bindings.clear();
+    }
+    if (this.listeners) {
+      for (const dispose of this.listeners.values()) {
+        try {
+          dispose();
+        } catch (error) {
+          errors = keepCleanupError(errors, error);
+        }
+      }
+      this.listeners.clear();
+    }
+    if (this.craftNodeDirectiveMounts.length > 0) {
+      for (const mount of this.craftNodeDirectiveMounts) {
+        try {
+          mount.destroy();
+        } catch (error) {
+          errors = keepCleanupError(errors, error);
+        }
+      }
+      this.craftNodeDirectiveMounts = [];
+    }
+    // The children leave the document with this element.
+    errors = destroyRenderedChildren(this.children.splice(0), true, errors);
+    if (!detached) {
+      try {
         removeNode(this.context.renderer, this.node);
-      },
-    ]);
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    throwCleanupErrors(errors);
   }
 }
 
 class FragmentRenderedNode implements RenderedNode {
   readonly kind = 'fragment';
+  private destroyed = false;
   private children: RenderedNode[] = [];
 
   /**
@@ -2279,40 +2859,117 @@ class FragmentRenderedNode implements RenderedNode {
    * rather than the parent captured at construction time.
    */
   private get liveParent(): NativeParent {
-    return this.start.parentNode ?? this.parent;
+    return (
+      (this.start ?? this.children[0]?.firstNode())?.parentNode ?? this.parent
+    );
   }
 
   private readonly parent: NativeParent;
-  private readonly start: Comment;
-  private readonly end: Comment;
+  // A fragment is bounded by two comments — except a single-root one (see
+  // `createSingleRootFragment`), which has none while its content is one
+  // element: that element is the whole range.
+  private start: Comment | undefined;
+  private end: Comment | undefined;
   private context: RenderContext;
+  // Of a single-root fragment: the label its boundaries will carry and where
+  // its first content goes.
+  private readonly label: string | undefined;
+  private pendingBefore: NativeNode | null = null;
 
   constructor(
     parent: NativeParent,
-    start: Comment,
-    end: Comment,
+    start: Comment | undefined,
+    end: Comment | undefined,
     context: RenderContext,
     initialChildren: CraftNodeChildren,
+    singleRoot?: { readonly label: string; readonly before: NativeNode | null },
   ) {
     this.parent = parent;
     this.start = start;
     this.end = end;
     this.context = context;
+    this.label = singleRoot?.label;
+    if (singleRoot) {
+      this.pendingBefore = singleRoot.before;
+      return;
+    }
     this.children = patchRenderedChildren(
       parent,
       this.children,
       initialChildren,
-      end,
+      end ?? null,
       context,
     );
   }
 
   firstNode(): NativeNode {
-    return this.start;
+    return this.start ?? this.children[0]?.firstNode() ?? this.bounded().start;
   }
 
   lastNode(): NativeNode {
-    return this.end;
+    return this.end ?? this.children[0]?.lastNode() ?? this.bounded().end;
+  }
+
+  /**
+   * The two boundaries, created around the current content the first time
+   * the fragment needs them: its content is no longer one element.
+   */
+  private bounded(): { readonly start: Comment; readonly end: Comment } {
+    if (this.start !== undefined && this.end !== undefined) {
+      return { start: this.start, end: this.end };
+    }
+    const content = this.children[0];
+    const first = content?.firstNode();
+    const parent = first?.parentNode ?? this.parent;
+    const label = this.label ?? 'craft-fragment';
+    const start = mountComment(
+      parent,
+      `${label}:start`,
+      first ?? this.pendingBefore,
+      this.context,
+    );
+    const end = mountComment(
+      parent,
+      `${label}:end`,
+      content ? content.lastNode().nextSibling : this.pendingBefore,
+      this.context,
+    );
+    this.pendingBefore = null;
+    this.start = start;
+    this.end = end;
+    return { start, end };
+  }
+
+  /**
+   * Patches a single-root fragment that still has no boundaries. True when
+   * the content is, and stays, one element: mounted on the first call,
+   * patched in place afterwards. Anything else gives the fragment its
+   * boundaries and leaves the patch to the bounded path.
+   */
+  private patchSingleRoot(children: CraftNodeChildren): boolean {
+    const nodes = normalizeChildren(children);
+    if (nodes.length === 1) {
+      const next = nodes[0];
+      const current = this.children[0];
+      if (current === undefined) {
+        if (next.kind === 'element') {
+          this.children.push(
+            mountNode(
+              next,
+              this.parent,
+              this.pendingBefore,
+              childNodeContext(this.context, next, 0),
+            ),
+          );
+          this.pendingBefore = null;
+          return true;
+        }
+      } else if (current.patch(next)) {
+        return true;
+      }
+    }
+    this.bounded();
+    return false;
   }
 
   patch(_node: CraftNode): boolean {
@@ -2320,11 +2977,12 @@ class FragmentRenderedNode implements RenderedNode {
   }
 
   patchChildren(children: CraftNodeChildren): void {
+    if (this.end === undefined && this.patchSingleRoot(children)) return;
     this.children = patchRenderedChildren(
       this.liveParent,
       this.children,
       children,
-      this.end,
+      this.end ?? this.bounded().end,
       this.context,
     );
   }
@@ -2335,16 +2993,16 @@ class FragmentRenderedNode implements RenderedNode {
 
   appendChildren(children: CraftNodeChildren): void {
     const nextNodes = normalizeChildren(children);
+    const end = this.bounded().end;
     nextNodes.forEach((child) => {
-      this.children.push(
-        mountNode(child, this.liveParent, this.end, this.context),
-      );
+      this.children.push(mountNode(child, this.liveParent, end, this.context));
     });
   }
 
   prependChildren(children: CraftNodeChildren): void {
     const nextNodes = normalizeChildren(children);
-    const before = this.children[0]?.firstNode() ?? this.end;
+    const end = this.bounded().end;
+    const before = this.children[0]?.firstNode() ?? end;
     const mounted: RenderedNode[] = [];
     for (let index = nextNodes.length - 1; index >= 0; index -= 1) {
       mounted.unshift(
@@ -2359,11 +3017,12 @@ class FragmentRenderedNode implements RenderedNode {
   }
 
   moveBefore(before: NativeNode): void {
-    let current: NativeNode | null = this.start;
+    let current: NativeNode | null = this.firstNode();
+    const last = this.lastNode();
     const nodes: NativeNode[] = [];
     while (current) {
       nodes.push(current);
-      if (current === this.end) {
+      if (current === last) {
         break;
       }
       current = current.nextSibling;
@@ -2373,20 +3032,27 @@ class FragmentRenderedNode implements RenderedNode {
     );
   }
 
-  destroy(): void {
-    ɵdestroyCraftOwner(this, [
-      () => {
-        ɵrunCraftCleanups(
-          this.children.splice(0).map((child) => () => child.destroy()),
-        );
-      },
-      () => {
+  destroy(detached?: boolean): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    let errors = destroyRenderedChildren(
+      this.children.splice(0),
+      detached,
+      undefined,
+    );
+    if (!detached && this.start !== undefined && this.end !== undefined) {
+      try {
         removeNode(this.context.renderer, this.start);
-      },
-      () => {
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+      try {
         removeNode(this.context.renderer, this.end);
-      },
-    ]);
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    throwCleanupErrors(errors);
   }
 }
 
@@ -2415,7 +3081,7 @@ class ProjectionRenderedNode implements RenderedNode {
       // they live here, and their hydration keys come from where they are mounted.
       // Numbered from the declarer, every slot it declares would start again at 0
       // and collide with the declarer's own nodes and with its other slots.
-      identity: childCraftRenderIdentity(
+      identity: ɵchildCraftRenderIdentity(
         context.identity,
         'projection',
         node.slotName ?? 'slot',
@@ -2574,6 +3240,31 @@ function createFragment(
   return new FragmentRenderedNode(parent, start, end, context, children);
 }
 
+/**
+ * A fragment for content that is usually one element (a component's view).
+ * On a client render it creates no boundary comment as long as its content is
+ * exactly one element, patched in place: two nodes fewer to create, move and
+ * remove for each instance. The boundaries appear around that element as soon
+ * as the content becomes empty, multiple or anything else.
+ *
+ * Server rendering and hydration keep the two boundaries: they are part of
+ * the markup both sides agree on.
+ */
+function createSingleRootFragment(
+  parent: NativeParent,
+  before: NativeNode | null,
+  context: RenderContext,
+  label: string,
+): FragmentRenderedNode {
+  if (context.mode !== 'create' || context.emitHydrationKeys) {
+    return createFragment(parent, before, context, [], label);
+  }
+  return new FragmentRenderedNode(parent, undefined, undefined, context, [], {
+    label,
+    before,
+  });
+}
+
 // Keep the reader's closure outside reconciliation: a surviving sibling must
 // not retain the previous/next entry maps and the removed rows they contained.
 function createForIndexReader(read: () => number): InputValue<number> {
@@ -2605,16 +3296,19 @@ interface ForRenderedEntry {
   // Read only through `indexReader`: a renderer-private cell.
   readonly indexSignal: ɵCraftPrivateCell<number>;
   readonly indexReader: InputValue<number>;
-  readonly view: FragmentRenderedNode;
+  view: FragmentRenderedNode;
+  /** Context of a view the ordering pass has yet to create. */
+  pendingContext: RenderContext | undefined;
   readonly traceState: TemplateTraceState;
   renderEffect?: EffectRef;
   rendered: boolean;
 }
 
+const NO_FOR_SOURCE = Symbol('no-for-source');
+
 class ForRenderedNode implements RenderedNode {
   readonly kind = 'for';
   private entries = new Map<unknown, ForRenderedEntry>();
-  private ordered: FragmentRenderedNode[] = [];
   private emptyView: FragmentRenderedNode | undefined;
   private readonly descriptor;
   private readonly effectRef: EffectRef;
@@ -2630,6 +3324,8 @@ class ForRenderedNode implements RenderedNode {
   private schedulerConfigured = false;
   private readonly pendingTasks = new Set<CancelHandle>();
   private reconcileVersion = 0;
+  private deepSourceOf: unknown = NO_FOR_SOURCE;
+  private deepSource = false;
 
   constructor(
     node: ForNode<unknown, unknown>,
@@ -2722,11 +3418,10 @@ class ForRenderedNode implements RenderedNode {
         entry.view.destroy();
       });
       this.entries.clear();
-      this.ordered = [];
 
       if (this.node.empty) {
         const emptyContext = childContext(this.context, {
-          identity: childCraftRenderIdentity(this.context.identity, 'empty'),
+          identity: ɵchildCraftRenderIdentity(this.context.identity, 'empty'),
         });
         if (this.emptyView) {
           this.emptyView.patchChildren(
@@ -2753,7 +3448,12 @@ class ForRenderedNode implements RenderedNode {
 
     const previous = this.entries;
     const next = new Map<unknown, ForRenderedEntry>();
-    const nextOrdered: FragmentRenderedNode[] = [];
+    const nextOrdered: ForRenderedEntry[] = [];
+    // A new entry is created where it belongs, by the ordering pass below: a
+    // row inserted between two rows is one insertion, not a move of every row
+    // around it. While server HTML is being claimed, boundaries are claimed
+    // in document order, so entries are created here, in that order.
+    const createInPlace = !isHydrating(this.context);
 
     const entriesToRender: ForRenderedEntry[] = [];
     collection.forEach((item, index) => {
@@ -2777,7 +3477,7 @@ class ForRenderedNode implements RenderedNode {
         const indexSignal = ɵcraftPrivateCell(index);
         const indexReader = createForIndexReader(indexSignal);
         const entryContext = childContext(this.context, {
-          identity: childCraftRenderIdentity(
+          identity: ɵchildCraftRenderIdentity(
             this.context.identity,
             `item:${String(key)}`,
           ),
@@ -2793,19 +3493,22 @@ class ForRenderedNode implements RenderedNode {
           indexReader,
           traceState,
           rendered: false,
-          view: createFragment(
-            this.parent,
-            this.end,
-            entryContext,
-            [],
-            `craft-for:${String(key)}`,
-          ),
+          pendingContext: createInPlace ? entryContext : undefined,
+          view: createInPlace
+            ? (undefined as unknown as FragmentRenderedNode)
+            : createFragment(
+                this.parent,
+                this.end,
+                entryContext,
+                [],
+                `craft-for:${String(key)}`,
+              ),
         };
         entriesToRender.push(entry);
       }
 
       next.set(key, entry);
-      nextOrdered.push(entry.view);
+      nextOrdered.push(entry);
     });
 
     previous.forEach((entry, key) => {
@@ -2818,14 +3521,23 @@ class ForRenderedNode implements RenderedNode {
     let before: NativeNode = this.end;
     for (let index = nextOrdered.length - 1; index >= 0; index -= 1) {
       const entry = nextOrdered[index];
-      if (entry.lastNode().nextSibling !== before) {
-        entry.moveBefore(before);
+      const entryContext = entry.pendingContext;
+      if (entryContext !== undefined) {
+        entry.pendingContext = undefined;
+        entry.view = createFragment(
+          this.parent,
+          before,
+          entryContext,
+          [],
+          `craft-for:${String(entry.key)}`,
+        );
+      } else if (entry.view.lastNode().nextSibling !== before) {
+        entry.view.moveBefore(before);
       }
-      before = entry.firstNode();
+      before = entry.view.firstNode();
     }
 
     this.entries = next;
-    this.ordered = nextOrdered;
 
     entriesToRender.forEach((entry) => this.scheduleEntryRender(entry));
   }
@@ -2863,6 +3575,12 @@ class ForRenderedNode implements RenderedNode {
     // once again when its scheduled task runs. Descendant bindings stay live.
     entry.renderEffect?.destroy();
     entry.renderEffect = undefined;
+    // The synchronous scheduler runs its task at once and has nothing to
+    // cancel: the entry is rendered here, without a task to hand over.
+    if (this.scheduler.constructor === SyncForScheduler) {
+      this.renderEntry(entry);
+      return;
+    }
     const version = this.reconcileVersion;
     const scheduled = {
       completed: false,
@@ -2874,20 +3592,24 @@ class ForRenderedNode implements RenderedNode {
       if (version !== this.reconcileVersion || !this.entries.has(entry.key)) {
         return;
       }
-      entry.renderEffect = createRenderEffect(this.context, 'for-item', () =>
-        entry.view.patchChildren(
-          this.renderItem(
-            entry.traceState,
-            entry.item,
-            entry.indexReader,
-            entry.key,
-          ),
-        ),
-      );
-      entry.rendered = true;
+      this.renderEntry(entry);
     });
     scheduled.handle = handle;
     if (!scheduled.completed) this.pendingTasks.add(handle);
+  }
+
+  private renderEntry(entry: ForRenderedEntry): void {
+    entry.renderEffect = createRenderEffect(this.context, 'for-item', () =>
+      entry.view.patchChildren(
+        this.renderItem(
+          entry.traceState,
+          entry.item,
+          entry.indexReader,
+          entry.key,
+        ),
+      ),
+    );
+    entry.rendered = true;
   }
 
   private cancelPendingTasks(): void {
@@ -2910,7 +3632,13 @@ class ForRenderedNode implements RenderedNode {
     const itemReader = function* () {
       return item;
     };
-    const itemInput = isDeepYieldable(this.node.source)
+    const source = this.node.source;
+    if (source !== this.deepSourceOf) {
+      // Asked once for a source: it does not change with the row.
+      this.deepSourceOf = source;
+      this.deepSource = isDeepYieldable(source);
+    }
+    const itemInput = this.deepSource
       ? deepYieldable(
           markYieldableValue(
             itemReader,
@@ -2922,7 +3650,7 @@ class ForRenderedNode implements RenderedNode {
     return renderBlockChildren(
       childContext(this.context, {
         traceState,
-        identity: childCraftRenderIdentity(
+        identity: ɵchildCraftRenderIdentity(
           this.context.identity,
           `item:${String(key)}`,
         ),
@@ -2933,7 +3661,7 @@ class ForRenderedNode implements RenderedNode {
     );
   }
 
-  destroy(): void {
+  destroy(detached?: boolean): void {
     ɵdestroyCraftOwner(this, [
       () => {
         this.effectRef.destroy();
@@ -2948,21 +3676,29 @@ class ForRenderedNode implements RenderedNode {
         if (this.ownsScheduler) this.scheduler.destroy?.();
       },
       () => {
-        ɵrunCraftCleanups(
-          Array.from(this.entries.values(), (entry) => [
-            () => entry.renderEffect?.destroy(),
-            () => entry.view.destroy(),
-          ]).flat(),
-        );
+        let errors: unknown[] | undefined;
+        for (const entry of this.entries.values()) {
+          try {
+            entry.renderEffect?.destroy();
+          } catch (error) {
+            errors = keepCleanupError(errors, error);
+          }
+          try {
+            entry.view.destroy(detached);
+          } catch (error) {
+            errors = keepCleanupError(errors, error);
+          }
+        }
+        throwCleanupErrors(errors);
       },
       () => {
-        this.emptyView?.destroy();
+        this.emptyView?.destroy(detached);
       },
       () => {
-        removeNode(this.context.renderer, this.start);
+        if (!detached) removeNode(this.context.renderer, this.start);
       },
       () => {
-        removeNode(this.context.renderer, this.end);
+        if (!detached) removeNode(this.context.renderer, this.end);
       },
     ]);
   }
@@ -4325,8 +5061,13 @@ class FieldErrorRenderedNode implements RenderedNode {
   }
 }
 
-function componentHostName(injector: Injector, name: string): string {
-  const tags = injector.get(HOST_TAG_LIST, []);
+const NO_HOST_TAGS: readonly string[] = [];
+
+function componentHostName(
+  injector: Injector,
+  name: string,
+  tags: readonly string[] = injector.get(HOST_TAG_LIST, NO_HOST_TAGS),
+): string {
   const current = tags[tags.length - 1];
   if (current?.startsWith('component:')) {
     return current;
@@ -4366,8 +5107,200 @@ function componentHostProviders(definition: {
   return providers;
 }
 
+/** What differs between two injectors of the same component definition. */
+type ComponentScope = {
+  readonly identity: CraftRenderIdentity;
+  readonly element: Element | null;
+};
+
+const componentScope = (injector: Injector): ComponentScope =>
+  ɵinjectorInstance(injector) as ComponentScope;
+
+// Shared by every component injector: each reads its own scope.
+const SCOPE_RENDER_IDENTITY = ɵprovideCraftRenderIdentityReading(
+  (injector) => componentScope(injector).identity,
+) as Provider;
+const SCOPE_ELEMENT_REF: Provider = {
+  provide: ElementRef,
+  useFactory: () => new ElementRef(componentScope(inject(Injector)).element),
+};
+
+// The providers of a component's own injector, prepared once for a
+// definition and its name: the same declarations as the list built for a
+// component that receives additional providers, in the same order.
+const componentScopeProviders = new WeakMap<
+  object,
+  {
+    readonly name: string;
+    readonly prepared: ReturnType<typeof ɵprepareEnvironmentProviders>;
+  }
+>();
+
+function preparedComponentProviders(definition: {
+  readonly name: string;
+  readonly meta: { readonly providers?: readonly unknown[] };
+}): ReturnType<typeof ɵprepareEnvironmentProviders> {
+  const cached = componentScopeProviders.get(definition);
+  if (cached?.name === definition.name) return cached.prepared;
+  const prepared = ɵprepareEnvironmentProviders([
+    ...componentHostProviders(definition),
+    SCOPE_RENDER_IDENTITY,
+    ...(definition.meta.providers ?? []),
+    SCOPE_ELEMENT_REF,
+  ]);
+  componentScopeProviders.set(definition, { name: definition.name, prepared });
+  return prepared;
+}
+
+/**
+ * The callable an input is to its component: calling it reads the current
+ * value. Content inputs are object-shaped at the call site but component
+ * factories receive callable input shells, so the shell also exposes the
+ * object's properties — the factory can use `content.header` without eagerly
+ * evaluating a slot.
+ */
+function createInputShell(source: ɵCraftPrivateCell<unknown>): unknown {
+  const input = (...callbackArgs: unknown[]) => {
+    const current = source();
+    if (callbackArgs.length > 0 && typeof current === 'function') {
+      return (current as (...args: unknown[]) => unknown)(...callbackArgs);
+    }
+    const value =
+      typeof current === 'function' ? (current as () => unknown)() : current;
+
+    return isGenerator(value)
+      ? value
+      : yieldableInvocation<unknown, unknown>(value);
+  };
+  // The handler answers for the yieldable-method mark, which is only ever
+  // looked up with `in`: no property to define on each shell.
+  return new Proxy(input, new InputShellHandler(source));
+}
+
+class InputShellHandler implements ProxyHandler<object> {
+  private readonly source: ɵCraftPrivateCell<unknown>;
+
+  constructor(source: ɵCraftPrivateCell<unknown>) {
+    this.source = source;
+  }
+
+  get(target: object, property: string | symbol, receiver: unknown): unknown {
+    const current = this.source();
+    if (
+      typeof current === 'object' &&
+      current !== null &&
+      property in current
+    ) {
+      return Reflect.get(current, property);
+    }
+    if (property === YIELDABLE_METHOD) return true;
+    return Reflect.get(target, property, receiver);
+  }
+
+  has(target: object, property: string | symbol): boolean {
+    const current = this.source();
+    return (
+      (typeof current === 'object' &&
+        current !== null &&
+        property in current) ||
+      property === YIELDABLE_METHOD ||
+      property in target
+    );
+  }
+
+  ownKeys(target: object): (string | symbol)[] {
+    const current = this.source();
+    return [
+      ...new Set([
+        ...Reflect.ownKeys(target),
+        ...(typeof current === 'object' && current !== null
+          ? Reflect.ownKeys(current)
+          : []),
+      ]),
+    ];
+  }
+
+  getOwnPropertyDescriptor(
+    target: object,
+    property: string | symbol,
+  ): PropertyDescriptor | undefined {
+    const current = this.source();
+    if (
+      typeof current === 'object' &&
+      current !== null &&
+      property in current
+    ) {
+      return {
+        configurable: true,
+        enumerable: true,
+        value: Reflect.get(current, property),
+      };
+    }
+    return Reflect.getOwnPropertyDescriptor(target, property);
+  }
+}
+
+/** The one object a component template receives: its inputs, by name. */
+class ComponentInputsHandler implements ProxyHandler<object> {
+  private readonly propKeys: readonly string[];
+  private readonly propSources: readonly ɵCraftPrivateCell<unknown>[];
+  private readonly inputShell: (index: number) => unknown;
+  private readonly lexicalContext: RenderContext;
+
+  constructor(
+    propKeys: readonly string[],
+    propSources: readonly ɵCraftPrivateCell<unknown>[],
+    inputShell: (index: number) => unknown,
+    lexicalContext: RenderContext,
+  ) {
+    this.propKeys = propKeys;
+    this.propSources = propSources;
+    this.inputShell = inputShell;
+    this.lexicalContext = lexicalContext;
+  }
+
+  private read(index: number): unknown {
+    const value = this.propSources[index]();
+    return shouldUseInputShell(value)
+      ? this.inputShell(index)
+      : preserveContentDeclarationContext(value, this.lexicalContext);
+  }
+
+  get(target: object, property: string | symbol, receiver: unknown): unknown {
+    const index = this.propKeys.indexOf(String(property));
+    return index !== -1
+      ? this.read(index)
+      : Reflect.get(target, property, receiver);
+  }
+
+  has(target: object, property: string | symbol): boolean {
+    return (
+      this.propKeys.includes(String(property)) || Reflect.has(target, property)
+    );
+  }
+
+  ownKeys(target: object): (string | symbol)[] {
+    return [...new Set([...Reflect.ownKeys(target), ...this.propKeys])];
+  }
+
+  getOwnPropertyDescriptor(
+    target: object,
+    property: string | symbol,
+  ): PropertyDescriptor | undefined {
+    const index = this.propKeys.indexOf(String(property));
+    return index === -1
+      ? Reflect.getOwnPropertyDescriptor(target, property)
+      : {
+          configurable: true,
+          enumerable: true,
+          value: this.read(index),
+        };
+  }
+}
+
 class ComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
+  private destroyed = false;
   private environmentInjector: EnvironmentInjector | undefined;
   private readonly propKeys: string[];
   // Renderer-private cells: application code receives the values they hold
@@ -4391,6 +5324,8 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly traceState: TemplateTraceState;
   private readonly componentRenderContext: RenderContext;
   private traceCreated = false;
+  /** Ambient of this component's own injector, when it has no composition. */
+  private ownAmbient: RenderAmbient | undefined;
   // Kept as one array for the whole component: the nodes that read it (a field
   // error boundary looking for validation cases) hold on to the reference.
   private readonly resolvedServices: unknown[] = [];
@@ -4425,9 +5360,7 @@ class ComponentRenderedNode implements RenderedNode {
       rootScope: scopeTokens(context.rootScope, ownScope),
       componentName: definition.name,
       declarationContext: declarationContext ?? context,
-      directiveNames: definition.scopeOwners
-        .slice(1)
-        .map((owner) => owner.name),
+      directiveNames: directiveNamesOf(definition),
       traceState: this.traceState,
     });
     this.componentRenderContext = componentRenderContext;
@@ -4443,20 +5376,30 @@ class ComponentRenderedNode implements RenderedNode {
     // CraftRouteContext and ChildrenOutletContexts.
     const parentInjector = context.injector as EnvironmentInjector;
     if (!composition) {
-      const scopeInjector = createEnvironmentInjector(
-        [
-          ...componentHostProviders(definition),
-          provideCraftRenderIdentity(componentRenderContext.identity),
-          ...(definition.meta.providers ?? []),
-          {
-            provide: ElementRef,
-            useValue: new ElementRef(componentElement),
-          },
-          ...additionalProviders,
-        ],
-        parentInjector,
-        'CraftComponent',
-      );
+      const scopeInjector =
+        additionalProviders.length === 0
+          ? ɵcreatePreparedEnvironmentInjector(
+              preparedComponentProviders(definition),
+              parentInjector,
+              {
+                identity: componentRenderContext.identity,
+                element: componentElement,
+              } satisfies ComponentScope,
+            )
+          : createEnvironmentInjector(
+              [
+                ...componentHostProviders(definition),
+                provideCraftRenderIdentity(componentRenderContext.identity),
+                ...(definition.meta.providers ?? []),
+                {
+                  provide: ElementRef,
+                  useValue: new ElementRef(componentElement),
+                },
+                ...additionalProviders,
+              ],
+              parentInjector,
+              'CraftComponent',
+            );
       // A service transform wraps what the scope above resolved, so it has to
       // live one scope below the providers it decorates.
       this.environmentInjector = definition.service.length
@@ -4466,17 +5409,26 @@ class ComponentRenderedNode implements RenderedNode {
             'CraftComponentServiceTransforms',
           )
         : scopeInjector;
-      this.traceCreated = true;
-      traceComponentLifecycle(
+      // Nothing this component declares can change what its parent resolved.
+      const inheritsAmbient =
+        (definition.meta.providers?.length ?? 0) === 0 &&
+        additionalProviders.length === 0 &&
+        definition.service.length === 0;
+      this.ownAmbient = new RenderAmbient(
         this.environmentInjector,
-        'create',
-        definition.name,
-        this.traceState.renderCount,
+        inheritsAmbient ? ambientOf(context) : undefined,
       );
+      this.traceCreated = true;
+      if (this.ownAmbient.development) {
+        traceComponentLifecycle(
+          this.environmentInjector,
+          'create',
+          definition.name,
+          this.traceState.renderCount,
+        );
+      }
     }
-    this.propKeys = this.templateOnly
-      ? []
-      : Object.keys(props).filter((key) => !isHostProperty(key));
+    this.propKeys = this.templateOnly ? [] : inputKeys(props);
     this.propSources = this.propKeys.map((key) =>
       ɵcraftPrivateCell((props as Record<string, unknown>)[key]),
     );
@@ -4484,75 +5436,11 @@ class ComponentRenderedNode implements RenderedNode {
       hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
     );
 
-    const inputShells = this.propSources.map((source) => {
-      const input = markYieldableMethod((...callbackArgs: unknown[]) => {
-        const current = source();
-        if (callbackArgs.length > 0 && typeof current === 'function') {
-          return (current as (...args: unknown[]) => unknown)(...callbackArgs);
-        }
-        const value =
-          typeof current === 'function'
-            ? (current as () => unknown)()
-            : current;
-
-        return isGenerator(value)
-          ? value
-          : yieldableInvocation<unknown, unknown>(value);
-      });
-
-      // Content inputs are object-shaped at the call site but component
-      // factories receive callable input shells. Expose object properties on
-      // the shell so the factory can use `content.header` without eagerly
-      // evaluating a slot.
-      return new Proxy(input, {
-        get(target, property, receiver) {
-          const current = source();
-          if (
-            typeof current === 'object' &&
-            current !== null &&
-            property in current
-          ) {
-            return Reflect.get(current, property);
-          }
-          return Reflect.get(target, property, receiver);
-        },
-        has(target, property) {
-          const current = source();
-          return (
-            (typeof current === 'object' &&
-              current !== null &&
-              property in current) ||
-            property in target
-          );
-        },
-        ownKeys(target) {
-          const current = source();
-          return [
-            ...new Set([
-              ...Reflect.ownKeys(target),
-              ...(typeof current === 'object' && current !== null
-                ? Reflect.ownKeys(current)
-                : []),
-            ]),
-          ];
-        },
-        getOwnPropertyDescriptor(target, property) {
-          const current = source();
-          if (
-            typeof current === 'object' &&
-            current !== null &&
-            property in current
-          ) {
-            return {
-              configurable: true,
-              enumerable: true,
-              value: Reflect.get(current, property),
-            };
-          }
-          return Reflect.getOwnPropertyDescriptor(target, property);
-        },
-      });
-    });
+    // A shell is created when the template first reads its input: an input
+    // the template never reads costs nothing.
+    const inputShells: unknown[] = [];
+    const inputShell = (index: number): unknown =>
+      (inputShells[index] ??= createInputShell(this.propSources[index]));
 
     // A component takes its inputs as one object. The callable shell keeps the
     // historical Input<T> invocation while exposing the object's properties.
@@ -4561,45 +5449,15 @@ class ComponentRenderedNode implements RenderedNode {
       : [
           new Proxy(
             ((...callbackArgs: unknown[]) =>
-              (inputShells[0] as (...args: unknown[]) => unknown)(
+              (inputShell(0) as (...args: unknown[]) => unknown)(
                 ...callbackArgs,
               )) as (...args: unknown[]) => unknown,
-            {
-              get: (target, property, receiver) => {
-                const index = this.propKeys.indexOf(String(property));
-                if (index !== -1) {
-                  const value = this.propSources[index]();
-                  return shouldUseInputShell(value)
-                    ? inputShells[index]
-                    : preserveContentDeclarationContext(
-                        value,
-                        declarationContext ?? context,
-                      );
-                }
-                return Reflect.get(target, property, receiver);
-              },
-              has: (target, property) =>
-                this.propKeys.includes(String(property)) ||
-                Reflect.has(target, property),
-              ownKeys: (target) => [
-                ...new Set([...Reflect.ownKeys(target), ...this.propKeys]),
-              ],
-              getOwnPropertyDescriptor: (target, property) => {
-                const index = this.propKeys.indexOf(String(property));
-                return index === -1
-                  ? Reflect.getOwnPropertyDescriptor(target, property)
-                  : {
-                      configurable: true,
-                      enumerable: true,
-                      value: shouldUseInputShell(this.propSources[index]())
-                        ? inputShells[index]
-                        : preserveContentDeclarationContext(
-                            this.propSources[index](),
-                            declarationContext ?? context,
-                          ),
-                    };
-              },
-            },
+            new ComponentInputsHandler(
+              this.propKeys,
+              this.propSources,
+              inputShell,
+              declarationContext ?? context,
+            ),
           ),
         ];
 
@@ -4616,101 +5474,136 @@ class ComponentRenderedNode implements RenderedNode {
       );
     }
 
-    this.view = createFragment(
-      parent,
-      before,
-      childContext(componentRenderContext, {
-        injector: composition ? parentInjector : this.environmentInjector,
-        componentContext: this.resolvedServices,
-      }),
-      composition ? [] : [],
-      'craft-component',
-    );
+    // A plain component renders in its own injector from the start: the
+    // context built above, which nothing else holds yet, becomes the context
+    // of its view instead of being copied into it.
+    const viewContext = composition
+      ? childContext(componentRenderContext, {
+          injector: parentInjector,
+          componentContext: this.resolvedServices,
+          ambient: componentRenderContext.ambient,
+        })
+      : renderInOwnInjector(
+          componentRenderContext,
+          this.environmentInjector as EnvironmentInjector,
+          this.resolvedServices,
+          this.ownAmbient,
+        );
+    this.view = composition
+      ? createFragment(parent, before, viewContext, [], 'craft-component')
+      : createSingleRootFragment(
+          parent,
+          before,
+          viewContext,
+          'craft-component',
+        );
 
-    this.effectRef = untracked(() =>
-      runInInjectionContext(
-        composition ? parentInjector : this.environmentInjector!,
-        () =>
+    if (composition) {
+      this.effectRef = untracked(() =>
+        runInInjectionContext(parentInjector, () =>
           ɵcraftEffectRef(
             'component-render',
-            composition
-              ? (onCleanup: (cleanup: () => void) => void) => {
-                  // Input-bound providers own a stable scope. Template and host
-                  // updates are tracked by the dedicated template effect below.
-                  // Preserve the reactive scope lifecycle of withProviders.
-                  if (!composition.componentProviders) {
-                    this.propSources.forEach((source) => source());
-                    this.hostPropsSource();
-                  }
-                  untracked(() =>
-                    this.refreshComposedComponent(
-                      definition,
-                      args,
-                      componentElement,
-                      parentInjector,
-                      additionalProviders,
-                      hostTarget,
-                      context,
-                      componentRenderContext,
-                      onCleanup,
-                    ),
-                  );
-                  this.providerTrackers.forEach((tracker) => tracker());
-                }
-              : () => {
-                  try {
-                    const callSiteHostProps = this.hostPropsSource();
-                    const hostProps = mergeHostProps(
-                      definition.meta.host ?? {},
-                      callSiteHostProps,
-                    );
-                    const renderContext = childContext(componentRenderContext, {
-                      injector: this.environmentInjector!,
-                      componentContext: this.resolvedServices,
-                    });
-                    this.traceState.renderCount += 1;
-                    this.latestTemplate = executeTemplateTrace(
-                      renderContext.injector,
-                      traceContext(
-                        renderContext,
-                        'component',
-                        this.traceState.renderCount === 1
-                          ? 'initialRender'
-                          : 'update',
-                        definition.name,
-                      ),
-                      () =>
-                        withCraftRenderContext(renderContext, () => {
-                          this.resolvedServices.length = 0;
-                          return renderCraftComponentTemplate(
-                            definition,
-                            args,
-                            callSiteHostProps,
-                            renderContext.injector,
-                            (instance) => this.resolvedServices.push(instance),
-                          );
-                        }),
-                    );
-                    this.view.patchChildren(this.latestTemplate);
-                    this.hostBindings?.patch(hostProps);
-                    context.exceptionBoundaryResolved?.();
-                  } catch (error) {
-                    if (
-                      isCraftGenShortCircuit(error) &&
-                      context.exceptionBoundary?.(error.exception)
-                    ) {
-                      this.view.patchChildren([]);
-                      return;
-                    }
-                    if (isCraftGenShortCircuit(error)) {
-                      throw new CraftUnhandledExceptionError(error.exception);
-                    }
-                    throw error;
-                  }
-                },
+            (onCleanup: (cleanup: () => void) => void) => {
+              // Input-bound providers own a stable scope. Template and host
+              // updates are tracked by the dedicated template effect below.
+              // Preserve the reactive scope lifecycle of withProviders.
+              if (!composition.componentProviders) {
+                this.propSources.forEach((source) => source());
+                this.hostPropsSource();
+              }
+              untracked(() =>
+                this.refreshComposedComponent(
+                  definition,
+                  args,
+                  componentElement,
+                  parentInjector,
+                  additionalProviders,
+                  hostTarget,
+                  context,
+                  componentRenderContext,
+                  onCleanup,
+                ),
+              );
+              this.providerTrackers.forEach((tracker) => tracker());
+            },
           ),
-      ),
+        ),
+      );
+      return;
+    }
+
+    const environmentInjector = this.environmentInjector!;
+    // The same effect a binding gets: owned and destroyed by this node. Like
+    // `craftEffect`, it also stops with the injector it renders in.
+    const renderEffect = new ɵCraftRenderEffect(
+      'component-render',
+      () => {
+        try {
+          const callSiteHostProps = this.hostPropsSource();
+          // A context of its own for each render: content declared by this
+          // render is told apart from the previous one by it.
+          const renderContext = childContext(componentRenderContext);
+          this.traceState.renderCount += 1;
+          const renderTemplate = () =>
+            withCraftRenderContext(renderContext, () => {
+              this.resolvedServices.length = 0;
+              return renderCraftComponentTemplate(
+                definition,
+                args,
+                callSiteHostProps,
+                renderContext.injector,
+                (instance) => this.resolvedServices.push(instance),
+                ambientOf(renderContext).fnAdapter,
+              );
+            });
+          this.latestTemplate = ambientOf(renderContext).development
+            ? executeTemplateTrace(
+                renderContext.injector,
+                traceContext(
+                  renderContext,
+                  'component',
+                  this.traceState.renderCount === 1
+                    ? 'initialRender'
+                    : 'update',
+                  definition.name,
+                ),
+                renderTemplate,
+              )
+            : renderTemplate();
+          this.view.patchChildren(this.latestTemplate);
+          if (this.hostBindings) {
+            this.hostBindings.patch(
+              mergeHostProps(definition.meta.host ?? {}, callSiteHostProps),
+            );
+          }
+          context.exceptionBoundaryResolved?.();
+        } catch (error) {
+          if (
+            isCraftGenShortCircuit(error) &&
+            context.exceptionBoundary?.(error.exception)
+          ) {
+            this.view.patchChildren([]);
+            return;
+          }
+          if (isCraftGenShortCircuit(error)) {
+            throw new CraftUnhandledExceptionError(error.exception);
+          }
+          throw error;
+        }
+      },
+      environmentInjector,
+      this.ownAmbient ?? new RenderAmbient(environmentInjector, undefined),
     );
+    const stopWithInjector = () => renderEffect.destroy();
+    const owner = environmentInjector as EnvironmentInjector & {
+      ɵonDestroy?: (callback: () => void) => void;
+    };
+    if (typeof owner.ɵonDestroy === 'function') {
+      owner.ɵonDestroy(stopWithInjector);
+    } else {
+      environmentInjector.get(DestroyRef).onDestroy(stopWithInjector);
+    }
+    this.effectRef = renderEffect;
   }
 
   firstNode(): NativeNode {
@@ -5022,15 +5915,34 @@ class ComponentRenderedNode implements RenderedNode {
     factoryContext: unknown,
     injector: EnvironmentInjector,
   ): void {
-    ɵrunCraftCleanups(this.registrationReleases.splice(0));
+    if (this.registrationReleases.length > 0) {
+      ɵrunCraftCleanups(this.registrationReleases.splice(0));
+    }
+    // What a plain component already knows of its own injector: no lookup of
+    // the wrappers at each instance, and its tag list read once for both its
+    // host name and the tags of its effects.
+    const ambient =
+      injector === this.environmentInjector ? this.ownAmbient : undefined;
+    const wrappers = ambient?.targetWrappers;
+    const tags = injector.get(HOST_TAG_LIST, NO_HOST_TAGS);
+    ambient?.seedOwnerTags(tags);
+    const release = ɵregisterCraftTarget(
+      injector,
+      this.component,
+      factoryContext,
+      componentHostName(injector, definition.name, tags),
+      true,
+      wrappers,
+    );
+    const owners = definition.scopeOwners;
+    if (owners.length === 1 && owners[0].registrationTarget === undefined) {
+      // No directive composed around the component: one registration.
+      this.registrationReleases = [release];
+      return;
+    }
     this.registrationReleases = [
-      ɵregisterCraftTarget(
-        injector,
-        this.component,
-        factoryContext,
-        componentHostName(injector, definition.name),
-      ),
-      ...definition.scopeOwners.flatMap((owner) =>
+      release,
+      ...owners.flatMap((owner) =>
         owner.registrationTarget === undefined
           ? []
           : [
@@ -5039,6 +5951,8 @@ class ComponentRenderedNode implements RenderedNode {
                 owner.registrationTarget,
                 factoryContext,
                 allocateCraftHostName(injector, 'directive', owner.name),
+                true,
+                wrappers,
               ),
             ],
       ),
@@ -5302,32 +6216,52 @@ class ComponentRenderedNode implements RenderedNode {
     return findCraftTemplateLocator(host, this.latestTemplate, tag, criteria);
   }
 
-  destroy(): void {
-    ɵdestroyCraftOwner(this, [
-      () => {
-        if (this.traceCreated) {
+  destroy(detached?: boolean): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    // Every release runs, in this order, before any failure surfaces.
+    let errors: unknown[] | undefined;
+    if (this.traceCreated) {
+      try {
+        // Nothing traces outside development: no trace to build then.
+        if (this.ownAmbient?.development !== false) {
           traceComponentLifecycle(
             this.environmentInjector ?? this.context.injector,
             'destroy',
             this.componentRenderContext.componentName ?? 'unknown',
             this.traceState.renderCount,
           );
-          this.traceCreated = false;
         }
-      },
-      () => {
-        this.effectRef.destroy();
-      },
-      () => {
-        this.hostBindings?.destroy();
-      },
-      () => {
-        this.view.destroy();
-      },
-      () => {
-        this.environmentInjector?.destroy();
-      },
-    ]);
+        this.traceCreated = false;
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    try {
+      this.effectRef.destroy();
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    if (this.hostBindings) {
+      try {
+        this.hostBindings.destroy();
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    try {
+      this.view.destroy(detached);
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    if (this.environmentInjector) {
+      try {
+        this.environmentInjector.destroy();
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    throwCleanupErrors(errors);
   }
 }
 
@@ -5837,6 +6771,11 @@ function mountNode(
 ): RenderedNode {
   switch (node.kind) {
     case 'text': {
+      if (!context.emitHydrationKeys && !isHydrating(context)) {
+        const text = context.renderer.createText(node.value);
+        insertBefore(context.renderer, parent, text, before);
+        return new TextRenderedNode(text, node.value, context.renderer);
+      }
       const created = createTextForRender(
         node.value,
         parent,
@@ -5851,6 +6790,11 @@ function mountNode(
       );
     }
     case 'reactive-text': {
+      if (!context.emitHydrationKeys && !isHydrating(context)) {
+        const text = context.renderer.createText('');
+        insertBefore(context.renderer, parent, text, before);
+        return new ReactiveTextRenderedNode(text, node.binding, context);
+      }
       const created = createTextForRender('', parent, before, context, false);
       return new ReactiveTextRenderedNode(
         created.text,
@@ -5884,6 +6828,25 @@ function mountNode(
       );
     }
     case 'element': {
+      if (!isHydrating(context)) {
+        const element = context.renderer.createElement(node.tag);
+        if (context.emitHydrationKeys) {
+          context.renderer.setAttribute(
+            element,
+            'data-craft-hk',
+            context.identity.hydrationKey,
+          );
+        }
+        insertBefore(context.renderer, parent, element, before);
+        if (context.rootScope) {
+          context.renderer.setAttribute(
+            element,
+            'data-craft-root',
+            context.rootScope,
+          );
+        }
+        return new ElementRenderedNode(element, node.tag, context, node);
+      }
       const created = createElementForRender(node.tag, parent, before, context);
       if (created.context.rootScope) {
         created.context.renderer.setAttribute(
@@ -6167,7 +7130,7 @@ export function mountInterpretedComponentWithOptions<Props extends object>(
       props,
       host,
       null,
-      {
+      rootRenderContext({
         renderer: options.renderer,
         injector: craftInjector,
         mode: options.mode ?? 'create',
@@ -6175,7 +7138,7 @@ export function mountInterpretedComponentWithOptions<Props extends object>(
         hydration: options.hydration,
         emitHydrationKeys: options.emitHydrationKeys,
         ssr: options.ssr,
-      },
+      }),
       host,
     );
   } catch (error) {
@@ -6215,7 +7178,7 @@ export function mountInterpretedComponentTemplate<Context>(
       {},
       host,
       null,
-      {
+      rootRenderContext({
         renderer,
         injector: craftInjector,
         mode: 'create',
@@ -6223,7 +7186,7 @@ export function mountInterpretedComponentTemplate<Context>(
           component[CRAFT_COMPONENT].name,
           0,
         ]),
-      },
+      }),
       host,
       { value: context },
       additionalProviders,

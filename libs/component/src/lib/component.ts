@@ -31,7 +31,7 @@ import type {
   CraftNodeChildren,
 } from './render/vnode';
 import type { HostProps } from './hyperscript';
-import { currentCraftRenderContext, pipeCraftNode } from './render/vnode';
+import { currentCraftRenderContext, ɵComponentVNode } from './render/vnode';
 import { ɵasGeneratorTemplate } from './factory-runtime';
 
 type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
@@ -208,15 +208,11 @@ function createCraftComponent<
   const craftComponent = ((
     props: Props & HostProps = {} as Props & HostProps,
   ): ComponentNode<Props & HostProps, ComponentDeps> => {
-    const node = {
-      kind: 'component',
-      component: craftComponent as unknown as CraftComponent<
-        any,
-        ComponentDeps
-      >,
+    const node = new ɵComponentVNode(
+      craftComponent,
       props,
-      declarationContext: currentCraftRenderContext(),
-    } as unknown as ComponentNode<Props & HostProps, ComponentDeps>;
+      currentCraftRenderContext(),
+    ) as unknown as ComponentNode<Props & HostProps, ComponentDeps>;
     if ('key' in props) {
       Object.defineProperty(node, 'key', {
         configurable: false,
@@ -224,10 +220,6 @@ function createCraftComponent<
         get: () => (props as Record<string, unknown>)['key'],
       });
     }
-    Object.defineProperty(node, 'pipe', {
-      value: (directive: unknown) => pipeCraftNode(node, directive as never),
-      enumerable: false,
-    });
     return node;
   }) as unknown as ComponentOf<Name, Meta, Template>;
 

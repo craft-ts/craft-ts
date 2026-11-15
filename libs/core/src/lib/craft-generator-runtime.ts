@@ -2,7 +2,11 @@ import type { Provider } from './host/craft-compat';
 import type { CraftInjector } from './host/craft-injector';
 import type { Subscribable } from './stream-kernel/subscribable';
 import type { ConcreteServiceScope } from './craft-service.shared';
-import { injectFnWrapper } from './fn-wrapper';
+import {
+  injectFnWrapper,
+  ɵIDENTITY_FN_ADAPTER,
+  type FnFactoryAdapter,
+} from './fn-wrapper';
 import {
   isTemporalAwaitRequest,
   type RuntimeTemporalAwaitRequest,
@@ -168,10 +172,9 @@ export type GeneratorCompatibleFactory<
  * plain or Promise-returning branch. Resource loaders use it so every remote
  * dependency can be yielded and tracked by the Craft runtime.
  */
-export type GeneratorOnlyFactory<
-  Factory,
-  Yielded = never,
-> = Factory extends (...args: infer Args) => infer Result
+export type GeneratorOnlyFactory<Factory, Yielded = never> = Factory extends (
+  ...args: infer Args
+) => infer Result
   ? (...args: Args) => Generator<Yielded, Result, unknown>
   : never;
 
@@ -282,6 +285,8 @@ type RunCraftGeneratorOptions = {
   };
   /** Sees every service instance this run resolved, in resolution order. */
   onServiceResolved?: (instance: unknown) => void;
+  /** The result of a first `next()` the caller already made. */
+  first?: IteratorResult<unknown, unknown>;
 };
 
 export function runCraftGenerator({
@@ -296,13 +301,14 @@ export function runCraftGenerator({
   reactiveReader,
   collectExposed,
   onServiceResolved,
+  first,
 }: RunCraftGeneratorOptions): {
   value: unknown;
   appStartHook?: () => AppStartResult;
 } {
   const injector = injectorInput;
   let appStartHook: (() => AppStartResult) | undefined;
-  let current = iterator.next();
+  let current = first ?? iterator.next();
 
   while (!current.done) {
     const yielded = current.value;
@@ -429,22 +435,93 @@ export function runCraftGenerator({
 export function isGenerator(
   value: unknown,
 ): value is Generator<unknown, unknown, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'next' in value &&
-    typeof value.next === 'function'
-  );
+  if (typeof value !== 'object' || value === null) return false;
+  // The object a generator function of this realm returns: recognized by the
+  // prototype every generator shares, without a property lookup that has seen
+  // every shape of node, props and row.
+  const prototype: unknown = Object.getPrototypeOf(value);
+  if (
+    prototype !== null &&
+    Object.getPrototypeOf(prototype) === GENERATOR_PROTOTYPE
+  ) {
+    return true;
+  }
+  return typeof (value as { next?: unknown }).next === 'function';
 }
+
+const GENERATOR_PROTOTYPE: unknown = Object.getPrototypeOf(
+  Object.getPrototypeOf(
+    (function* () {
+      return undefined;
+    })(),
+  ),
+);
+
+const GENERATOR_FUNCTION_PROTOTYPE: unknown = Object.getPrototypeOf(
+  function* () {
+    return undefined;
+  },
+);
 
 export function isGeneratorFunction(
   value: unknown,
 ): value is AnyGeneratorFunction {
+  if (typeof value !== 'function') return false;
+  // The two answers the renderer asks for at every binding: a generator
+  // function of this realm, and a plain function, which is not one.
+  const prototype: unknown = Object.getPrototypeOf(value);
+  if (prototype === GENERATOR_FUNCTION_PROTOTYPE) return true;
+  if (
+    prototype === Function.prototype &&
+    !Object.prototype.hasOwnProperty.call(value, 'constructor') &&
+    !Object.prototype.hasOwnProperty.call(value, Symbol.toStringTag)
+  ) {
+    return false;
+  }
   return (
-    typeof value === 'function' &&
-    (value.constructor?.name === 'GeneratorFunction' ||
-      Object.prototype.toString.call(value) === '[object GeneratorFunction]')
+    value.constructor?.name === 'GeneratorFunction' ||
+    Object.prototype.toString.call(value) === '[object GeneratorFunction]'
   );
+}
+
+// What `executeGeneratorCompatibleFactory` hands to the function below. It is
+// read as soon as that function starts, before anything can run in between:
+// the injection context opens without a closure per call.
+let pendingIterator: Iterator<unknown, unknown, unknown> | undefined;
+let pendingInjector: CraftInjector | undefined;
+let pendingMessages:
+  | {
+      invalidYieldErrorMessage: string;
+      multipleAppStartErrorMessage: string;
+      onAppStartNotSupportedErrorMessage?: string;
+      onServiceResolved?: (instance: unknown) => void;
+    }
+  | undefined;
+
+let pendingOnServiceResolved: ((instance: unknown) => void) | undefined;
+
+function drivePendingGenerator(): unknown {
+  const iterator = pendingIterator as Iterator<unknown, unknown, unknown>;
+  const injector = pendingInjector as CraftInjector;
+  const messages = pendingMessages as NonNullable<typeof pendingMessages>;
+  const onServiceResolved = pendingOnServiceResolved;
+  pendingIterator = pendingInjector = pendingMessages = undefined;
+  pendingOnServiceResolved = undefined;
+  // A generator that returns without yielding (an input read, an index read)
+  // needs none of the driver.
+  const first = iterator.next();
+  if (first.done) return first.value;
+  return runCraftGenerator({
+    iterator: iterator as Generator<unknown, unknown, unknown>,
+    injector,
+    hostScope: 'function',
+    invalidYieldErrorMessage: messages.invalidYieldErrorMessage,
+    multipleAppStartErrorMessage: messages.multipleAppStartErrorMessage,
+    onAppStartNotSupportedErrorMessage:
+      messages.onAppStartNotSupportedErrorMessage,
+    onServiceResolved,
+    first,
+  }).value;
 }
 
 export function executeGeneratorCompatibleFactory<
@@ -460,6 +537,7 @@ export function executeGeneratorCompatibleFactory<
   multipleAppStartErrorMessage,
   onAppStartNotSupportedErrorMessage,
   onServiceResolved,
+  fnAdapter,
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
@@ -469,27 +547,62 @@ export function executeGeneratorCompatibleFactory<
   multipleAppStartErrorMessage: string;
   onAppStartNotSupportedErrorMessage?: string;
   onServiceResolved?: (instance: unknown) => void;
+  /**
+   * The adapter `injectFnWrapper()` answers in this injector, when the caller
+   * already resolved it.
+   */
+  fnAdapter?: FnFactoryAdapter;
 }): ResolveGeneratorResult<Result> {
   const injector = getInjector();
-  const craftInjector = injector;
-  const wrappedFactory = craftInjector.run(() => injectFnWrapper()(factory));
+  return ɵexecuteFactoryIn(
+    factory,
+    thisArg,
+    args,
+    injector,
+    {
+      invalidYieldErrorMessage,
+      multipleAppStartErrorMessage,
+      onAppStartNotSupportedErrorMessage,
+      onServiceResolved,
+    },
+    fnAdapter,
+  );
+}
+
+/**
+ * {@link executeGeneratorCompatibleFactory} with positional arguments and one
+ * messages object the caller keeps, for hosts that call it at every binding.
+ */
+export function ɵexecuteFactoryIn<This, Args extends unknown[], Result>(
+  factory: (this: This, ...args: Args) => Result,
+  thisArg: This,
+  args: Args,
+  injector: CraftInjector,
+  messages: {
+    invalidYieldErrorMessage: string;
+    multipleAppStartErrorMessage: string;
+    onAppStartNotSupportedErrorMessage?: string;
+    onServiceResolved?: (instance: unknown) => void;
+  },
+  fnAdapter?: FnFactoryAdapter,
+  /** Replaces `messages.onServiceResolved`, for a callback of this call. */
+  onServiceResolved?: (instance: unknown) => void,
+): ResolveGeneratorResult<Result> {
+  const wrappedFactory =
+    fnAdapter === ɵIDENTITY_FN_ADAPTER
+      ? factory
+      : injector.run(() => (fnAdapter ?? injectFnWrapper())(factory));
   const result = wrappedFactory.apply(thisArg, args);
 
   if (!isGenerator(result)) {
     return result as ResolveGeneratorResult<Result>;
   }
 
-  return craftInjector.run(() => {
-    return runCraftGenerator({
-      iterator: result,
-      injector,
-      hostScope: 'function',
-      invalidYieldErrorMessage,
-      multipleAppStartErrorMessage,
-      onAppStartNotSupportedErrorMessage,
-      onServiceResolved,
-    }).value as ResolveGeneratorResult<Result>;
-  });
+  pendingIterator = result;
+  pendingInjector = injector;
+  pendingMessages = messages;
+  pendingOnServiceResolved = onServiceResolved ?? messages.onServiceResolved;
+  return injector.run(drivePendingGenerator) as ResolveGeneratorResult<Result>;
 }
 
 /**

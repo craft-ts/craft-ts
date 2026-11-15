@@ -7,7 +7,7 @@ import type {
   RequireCaughtComponentExceptions,
 } from './render/vnode';
 import type { Yieldable } from '@craft-ts/core';
-import { pipeCraftNode } from './render/vnode';
+import { ɵElementVNode } from './render/vnode';
 
 type ClassValueResult =
   | string
@@ -131,7 +131,8 @@ function looksLikeChildren(value: unknown): boolean {
     value === undefined ||
     Array.isArray(value) ||
     typeof value !== 'object' ||
-    ('next' in value && typeof (value as { next?: unknown }).next === 'function') ||
+    ('next' in value &&
+      typeof (value as { next?: unknown }).next === 'function') ||
     ('kind' in value && typeof (value as { kind?: unknown }).kind === 'string')
   );
 }
@@ -184,12 +185,11 @@ export function h<
     ? (propsOrChildren as CraftNodeChildren)
     : maybeChildren;
 
-  const node = {
-    kind: 'element',
+  return new ɵElementVNode(
     tag,
-    props: props as Readonly<Record<string, unknown>>,
-    children: children ?? [],
-  } as ElementNode<
+    props as Readonly<Record<string, unknown>>,
+    children ?? [],
+  ) as unknown as ElementNode<
     CraftNodeDependencies<
       HProps<PropsOrChildren>,
       HChildren<Tag, PropsOrChildren, MaybeChildren>
@@ -204,14 +204,6 @@ export function h<
     >,
     never
   >;
-
-  Object.defineProperty(node, 'pipe', {
-    value: (directive: unknown) =>
-      pipeCraftNode(node as unknown as ElementNode, directive as never),
-    enumerable: false,
-  });
-
-  return node;
 }
 
 /** Creates a typed Craft node for a custom element or Web Component tag. */
