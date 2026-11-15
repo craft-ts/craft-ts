@@ -23,6 +23,7 @@ import {
   craftSleep,
   HOST_TAG_LIST,
   insertDeepYieldable,
+  isGeneratorFunction,
   mutation,
   markYieldableValue,
   overrideService,
@@ -4116,6 +4117,67 @@ describe('component host properties across parent renders', () => {
     await flush();
     expect(renders).toHaveBeenCalledTimes(3);
     expect(marker()).toBeNull();
+    destroy();
+  });
+});
+
+describe('forNode item and index readers', () => {
+  it('reads the item and its position without a generator object, wherever a reader goes', async () => {
+    const items = signal([
+      { id: 1, name: 'Ada' },
+      { id: 2, name: 'Lin' },
+    ]);
+    const kinds: boolean[] = [];
+    const invocations: unknown[] = [];
+    const row = craftComponent(
+      'settledReaderRow',
+      {},
+      (inputs: {
+        item: Input<{ id: number; name: string }>;
+        position: Input<number>;
+      }) =>
+        p({ 'data-position': inputs.position }, function* () {
+          return `${(yield* inputs.position()) + 1}:${(yield* inputs.item()).name}`;
+        }),
+    );
+    const list = craftComponent('settledReaderList', {}, () =>
+      ul(
+        forNode(items, { track: (item) => item.id }, (item, index) => {
+          kinds.push(isGeneratorFunction(item), isGeneratorFunction(index));
+          invocations.push(item());
+          return [
+            // Read directly, as a binding, and handed to a component.
+            li(function* () {
+              return `${yield* index()}=${(yield* item()).name}`;
+            }),
+            li(String(craftUse(item()).id)),
+            row({ item, position: index }),
+          ];
+        }),
+      ),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+
+    expect(nativeElement.textContent).toBe('0=Ada11:Ada1=Lin22:Lin');
+    expect(kinds).toEqual([true, true, true, true]);
+    // Done at once, like the generator it replaces, and not one.
+    expect(
+      invocations.map((invocation) =>
+        Object.prototype.toString.call(invocation),
+      ),
+    ).toEqual(['[object Object]', '[object Object]']);
+
+    items.set([
+      { id: 2, name: 'Lin' },
+      { id: 1, name: 'Ada B.' },
+    ]);
+    await flush();
+    expect(nativeElement.textContent).toBe('0=Lin21:Lin1=Ada B.12:Ada B.');
+    expect(
+      [...nativeElement.querySelectorAll('p')].map((node) =>
+        node.getAttribute('data-position'),
+      ),
+    ).toEqual(['0', '1']);
     destroy();
   });
 });

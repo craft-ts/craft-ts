@@ -471,12 +471,13 @@ export function isGeneratorFunction(
   // function of this realm, and a plain function, which is not one.
   const prototype: unknown = Object.getPrototypeOf(value);
   if (prototype === GENERATOR_FUNCTION_PROTOTYPE) return true;
-  if (
-    prototype === Function.prototype &&
-    !Object.prototype.hasOwnProperty.call(value, 'constructor') &&
-    !Object.prototype.hasOwnProperty.call(value, Symbol.toStringTag)
-  ) {
-    return false;
+  if (prototype === Function.prototype) {
+    // A plain function is one only if it says so itself: by the tag the
+    // check below reads, or by a constructor of its own.
+    return (
+      (value as unknown as Record<symbol, unknown>)[Symbol.toStringTag] ===
+        'GeneratorFunction' || value.constructor?.name === 'GeneratorFunction'
+    );
   }
   return (
     value.constructor?.name === 'GeneratorFunction' ||

@@ -34,6 +34,8 @@ import {
   deepYieldable,
   markYieldableValue,
   YIELDABLE_METHOD,
+  ɵsettledReader,
+  ɵsettledValueReader,
   ɵcraftTargetWrappers,
   type CraftTargetWrapper,
   isYieldableValue,
@@ -3290,9 +3292,7 @@ function createSingleRootFragment(
 // Keep the reader's closure outside reconciliation: a surviving sibling must
 // not retain the previous/next entry maps and the removed rows they contained.
 function createForIndexReader(read: () => number): InputValue<number> {
-  return function* () {
-    return read();
-  };
+  return ɵsettledReader(read) as InputValue<number>;
 }
 
 const MAX_FOR_SOURCE_PASSES = 8;
@@ -3651,9 +3651,9 @@ class ForRenderedNode implements RenderedNode {
     key: unknown,
   ): CraftNodeChildren {
     traceState.renderCount += 1;
-    const itemReader = function* () {
-      return item;
-    };
+    // The item is known: reading it hands the value back, without a
+    // generator object at each read.
+    const itemReader = ɵsettledValueReader(item);
     const source = this.node.source;
     if (source !== this.deepSourceOf) {
       // Asked once for a source: it does not change with the row.

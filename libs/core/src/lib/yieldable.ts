@@ -198,6 +198,41 @@ class SettledInvocation<Result> {
   }
 }
 
+/**
+ * A reader of a value that is known when it is read, where a
+ * `function* () { return value; }` used to be: `yield* reader()` and
+ * `craftUse(reader())` get the value, and a read creates one small object
+ * instead of a generator.
+ *
+ * It carries the tag of a generator function, which is what every host asks
+ * to recognise one, so it goes wherever such a function went: an input of a
+ * component, the parameters of a primitive, a function wrapper. What it hands
+ * back is not a generator object: it is done at its first `next()`, and says
+ * so again with the same value if it is asked twice.
+ */
+export function ɵsettledReader<Value>(
+  read: () => Value,
+): () => Generator<never, Value, unknown> {
+  const reader = () => new SettledInvocation(read());
+  return tagAsGeneratorFunction(reader);
+}
+
+/** {@link ɵsettledReader} of a value that does not change. */
+export function ɵsettledValueReader<Value>(
+  value: Value,
+): () => Generator<never, Value, unknown> {
+  const reader = () => new SettledInvocation(value);
+  return tagAsGeneratorFunction(reader);
+}
+
+function tagAsGeneratorFunction<Value>(
+  reader: () => SettledInvocation<Value>,
+): () => Generator<never, Value, unknown> {
+  (reader as unknown as Record<symbol, unknown>)[Symbol.toStringTag] =
+    'GeneratorFunction';
+  return reader as unknown as () => Generator<never, Value, unknown>;
+}
+
 export type YieldableInsertionRuntimeOptions = Readonly<{
   injector: Injector;
   invalidYieldErrorMessage: string;
