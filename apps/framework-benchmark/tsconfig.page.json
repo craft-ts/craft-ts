@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "rootDir": "../..",
+    "types": ["node"]
+  },
+  "include": ["src/craft-page/**/*.ts"]
+}
