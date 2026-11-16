@@ -117,3 +117,46 @@ describe('craftBatch', () => {
     queuedBehind.destroy();
   });
 });
+
+describe('batches published by renderer effects', () => {
+  it('drains a wide component fanout without recursively flushing the queue', () => {
+    const source = craftSignal(0);
+    const cells = Array.from({ length: 6000 }, () => craftSignal(0));
+    const watchers = cells.map((cell) =>
+      craftWatch(() => {
+        const value = source();
+        craftBatch(() => cell.set(value));
+      }),
+    );
+    try {
+      expect(() => source.set(1)).not.toThrow();
+      expect(cells.every((cell) => cell() === 1)).toBe(true);
+      source.set(2);
+      expect(cells.every((cell) => cell() === 2)).toBe(true);
+    } finally {
+      watchers.forEach((watch) => watch.destroy());
+    }
+  });
+});
+
+describe('failed reentrant publication', () => {
+  it('balances deferred batches when an effect throws and the next update still drains', () => {
+    const source = craftSignal(0);
+    const cells = Array.from({ length: 20 }, () => craftSignal(0));
+    const watchers = cells.map((cell, index) =>
+      craftWatch(() => {
+        const value = source();
+        craftBatch(() => cell.set(value));
+        if (value === 1 && index === 1)
+          throw new Error('nested publication failed');
+      }),
+    );
+    try {
+      expect(() => source.set(1)).toThrow('nested publication failed');
+      expect(() => source.set(2)).not.toThrow();
+      expect(cells.every((cell) => cell() === 2)).toBe(true);
+    } finally {
+      watchers.forEach((watch) => watch.destroy());
+    }
+  });
+});

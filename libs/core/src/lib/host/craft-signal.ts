@@ -258,6 +258,38 @@ export function ɵcraftDetachedEffect(fn: () => void): () => void {
   }
 }
 
+let closingBatch = false;
+let pendingBatchEnds = 0;
+
+// Alien's endBatch() publishes synchronously at depth zero. A renderer effect
+// may itself finish a batch while that queue is being drained: calling
+// endBatch() there would recursively drain all the remaining sibling effects.
+// Keep those inner batches open until the current drain returns, then balance
+// every startBatch(), even if an effect failed. No work crosses an async turn.
+function closeCraftBatch(): void {
+  pendingBatchEnds++;
+  if (closingBatch) return;
+  closingBatch = true;
+  let failed = false;
+  let failure: unknown;
+  try {
+    while (pendingBatchEnds) {
+      pendingBatchEnds--;
+      try {
+        endBatch();
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          failure = error;
+        }
+      }
+    }
+  } finally {
+    closingBatch = false;
+  }
+  if (failed) throw failure;
+}
+
 /**
  * Publishes every write made inside `fn` as ONE update: readers and effects run
  * after the last write, never between two of them.
@@ -272,7 +304,7 @@ export function craftBatch<T>(fn: () => T): T {
   try {
     return fn();
   } finally {
-    endBatch();
+    closeCraftBatch();
   }
 }
 
