@@ -1,0 +1,47 @@
+{
+  "name": "@craft-ts/compiler",
+  "version": "0.11.0",
+  "description": "Optional DOM template compiler for CraftTS",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./vite": {
+      "types": "./src/vite.d.ts",
+      "default": "./src/vite.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "typescript": "^6.0.3",
+    "magic-string": "^0.30.21"
+  },
+  "peerDependencies": {
+    "vite": "^7.0.0 || ^8.0.0",
+    "@craft-ts/component": "^0.11.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/**/*.js",
+    "src/**/*.js.map",
+    "src/**/*.d.ts",
+    "README.md",
+    "LICENSE"
+  ]
+}

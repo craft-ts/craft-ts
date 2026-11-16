@@ -1,4 +1,6 @@
 import { ɵrunCraftCleanups, ɵdestroyCraftOwner } from '@craft-ts/core';
+import { ɵIDENTITY_FN_ADAPTER, ɵREACTIVE_READ_OBSERVERS, ɵinjectTemplateTraces } from '@craft-ts/core';
+import { createCompiledNodes, compiledItemComponent, compiledTemplateFor, type CompiledTemplatePlan } from './compiled-template';
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   SERVICE_RUNTIME_OVERRIDES,
@@ -251,6 +253,7 @@ class RenderAmbient {
   private resolvedOwnerTags: readonly string[] | undefined = undefined;
   private resolvedDevelopment: boolean | undefined = undefined;
   private resolvedFnAdapter: FnFactoryAdapter | undefined = undefined;
+  private resolvedCompilationAllowed: boolean | undefined = undefined;
   private resolvedTargetWrappers: readonly CraftTargetWrapper[] | undefined =
     undefined;
   readonly injector: Injector;
@@ -259,6 +262,17 @@ class RenderAmbient {
   constructor(injector: Injector, inherited: RenderAmbient | undefined) {
     this.injector = injector;
     this.inherited = inherited;
+  }
+
+  get compilationAllowed(): boolean {
+    return (this.resolvedCompilationAllowed ??= this.inherited
+      ? this.inherited.compilationAllowed
+      : !this.development &&
+        this.fnAdapter === ɵIDENTITY_FN_ADAPTER &&
+        this.targetWrappers.length === 0 &&
+        this.injector.get(ɵREACTIVE_READ_OBSERVERS, NO_COMPILED_OBSERVERS)
+          .length === 0 &&
+        ɵinjectTemplateTraces(this.injector).length === 0);
   }
 
   get registry(): AppSnapshotRegistry | null {
@@ -3546,13 +3560,20 @@ class ForRenderedNode implements RenderedNode {
       const entryContext = entry.pendingContext;
       if (entryContext !== undefined) {
         entry.pendingContext = undefined;
-        entry.view = createFragment(
-          this.parent,
-          before,
-          entryContext,
-          [],
-          `craft-for:${String(entry.key)}`,
-        );
+        entry.view = this.canCompileItem()
+          ? createSingleRootFragment(
+              this.parent,
+              before,
+              entryContext,
+              `craft-for:${String(entry.key)}`,
+            )
+          : createFragment(
+              this.parent,
+              before,
+              entryContext,
+              [],
+              `craft-for:${String(entry.key)}`,
+            );
       } else if (entry.view.lastNode().nextSibling !== before) {
         entry.view.moveBefore(before);
       }
@@ -3621,6 +3642,20 @@ class ForRenderedNode implements RenderedNode {
   }
 
   private renderEntry(entry: ForRenderedEntry): void {
+    if (this.canCompileItem()) {
+      untracked(() =>
+        entry.view.patchChildren(
+          this.renderItem(
+            entry.traceState,
+            entry.item,
+            entry.indexReader,
+            entry.key,
+          ),
+        ),
+      );
+      entry.rendered = true;
+      return;
+    }
     entry.renderEffect = createRenderEffect(this.context, 'for-item', () =>
       entry.view.patchChildren(
         this.renderItem(
@@ -3632,6 +3667,17 @@ class ForRenderedNode implements RenderedNode {
       ),
     );
     entry.rendered = true;
+  }
+
+  private canCompileItem(): boolean {
+    const component = compiledItemComponent(this.node.itemTemplate);
+    return (
+      !!component &&
+      canUseCompiledDefinition(
+        component as CraftComponent<object>,
+        this.context,
+      )
+    );
   }
 
   private cancelPendingTasks(): void {
@@ -5320,6 +5366,293 @@ class ComponentInputsHandler implements ProxyHandler<object> {
   }
 }
 
+const NO_COMPILED_OBSERVERS: readonly unknown[] = [];
+
+/** A plan is an acceleration of plain browser rendering, never a new semantics. */
+function canMountCompiledComponent(
+  node: Extract<CraftNode, { kind: 'component' }>,
+  context: RenderContext,
+): boolean {
+  const plan = compiledTemplateFor(node.component);
+  if (
+    !plan ||
+    plan.bindings.some((binding) => {
+      if (!binding.input || binding.key) return false;
+      const property = Object.getOwnPropertyDescriptor(
+        node.props,
+        binding.input,
+      );
+      return (
+        !property ||
+        !('value' in property) ||
+        property.value == null ||
+        typeof property.value === 'object'
+      );
+    })
+  )
+    return false;
+  return (
+    !node.injector &&
+    !Object.keys(node.props).some(isHostProperty) &&
+    canUseCompiledDefinition(node.component, context)
+  );
+}
+
+function canUseCompiledDefinition(
+  component: CraftComponent<object>,
+  context: RenderContext,
+): boolean {
+  if (
+    !compiledTemplateFor(component) ||
+    context.mode !== 'create' ||
+    context.ssr ||
+    context.emitHydrationKeys ||
+    context.pendingBoundary ||
+    context.exceptionBoundary ||
+    context.fieldExceptionBoundary
+  )
+    return false;
+  const definition = component[CRAFT_COMPONENT];
+  if (
+    definition.composition ||
+    definition.service.length ||
+    definition.meta.providers?.length ||
+    Object.keys(definition.meta.host ?? {}).length ||
+    definition.scopeOwners.length !== 1
+  )
+    return false;
+  return ambientOf(context).compilationAllowed;
+}
+
+/** Fixed DOM shape; native DI ownership and independent binding effects. */
+class CompiledComponentRenderedNode implements RenderedNode {
+  readonly kind = 'component';
+  private readonly component: CraftComponent<object>;
+  private readonly plan: CompiledTemplatePlan;
+  private readonly injector: EnvironmentInjector;
+  private readonly propKeys: string[];
+  private readonly sources: ɵCraftPrivateCell<unknown>[];
+  private readonly effects: EffectRef[] = [];
+  private readonly targets: ɵCraftReplayTargetRecord[] = [];
+  private release: (() => void) | undefined;
+  private unregister: (() => void) | undefined;
+  private nodes: Node[] = [];
+  private readonly context: RenderContext;
+
+  constructor(
+    node: Extract<CraftNode, { kind: 'component' }>,
+    parent: NativeParent,
+    before: NativeNode | null,
+    context: RenderContext,
+  ) {
+    this.context = context;
+    this.component = node.component;
+    this.plan = compiledTemplateFor(node.component)!;
+    const definition = node.component[CRAFT_COMPONENT];
+    const ownScope = scopeIdFor(definition.scopeDefinition, definition.name);
+    const componentContext = childContext(context, {
+      ownerScope: ownScope,
+      rootScope: scopeTokens(context.rootScope, ownScope),
+      componentName: definition.name,
+      declarationContext:
+        (node.declarationContext as RenderContext | undefined) ?? context,
+      directiveNames: [],
+      traceState: { renderCount: 1 },
+    });
+    this.injector = ɵcreatePreparedEnvironmentInjector(
+      preparedComponentProviders(definition),
+      context.injector as EnvironmentInjector,
+      {
+        identity: context.identity,
+        element: isElementNode(parent) ? parent : parent.parentElement,
+      } satisfies ComponentScope,
+    );
+    const renderContext = renderInOwnInjector(
+      componentContext,
+      this.injector,
+      [],
+      new RenderAmbient(this.injector, ambientOf(context)),
+    );
+    this.propKeys = inputKeys(node.props);
+    this.sources = this.propKeys.map((key) =>
+      ɵcraftPrivateCell((node.props as Record<string, unknown>)[key]),
+    );
+    const shells: unknown[] = [];
+    const shell = (index: number) =>
+      (shells[index] ??= createInputShell(this.sources[index]));
+    const inputs = new Proxy(
+      (...args: unknown[]) =>
+        (shell(0) as (...args: unknown[]) => unknown)(...args),
+      new ComponentInputsHandler(
+        this.propKeys,
+        this.sources,
+        shell,
+        componentContext.declarationContext!,
+      ),
+    );
+    try {
+      this.release = ɵregisterCraftTarget(
+        this.injector,
+        this.component,
+        undefined,
+        componentHostName(this.injector, definition.name),
+      );
+      untracked(() =>
+        runInInjectionContext(this.injector, () => {
+          this.nodes = createCompiledNodes(this.plan, context.renderer);
+          const root = this.nodes[0] as Element;
+          context.renderer.setAttribute(
+            root,
+            'data-craft-root',
+            componentContext.rootScope!,
+          );
+          const readers = this.plan.bind(inputs);
+          for (const target of this.plan.elements) {
+            const identity = ɵchildCraftRenderIdentity(
+              context.identity,
+              0,
+              ...target.path,
+            );
+            this.targets.push(
+              ɵlinkCraftReplayTarget(
+                this.nodes[target.slot] as Element,
+                identity,
+                context.replayTargetStable !== false,
+                context.replayTargets,
+              ),
+            );
+          }
+          for (let index = 0; index < this.plan.bindings.length; index++) {
+            const binding = this.plan.bindings[index];
+            const bindingContext = childContext(renderContext, {
+              identity: ɵchildCraftRenderIdentity(
+                context.identity,
+                0,
+                ...binding.path,
+              ),
+              rootScope: undefined,
+            });
+            let seen = false,
+              previous: unknown;
+            this.effects.push(
+              createRenderEffect(
+                bindingContext,
+                binding.key
+                  ? attributeNames(binding.key).effect
+                  : 'text-binding',
+                () => {
+                  const source = (binding as { indirect?: boolean }).indirect
+                    ? (readers[index] as () => unknown)()
+                    : readers[index];
+                  let value = resolveTemplateValue(source, bindingContext);
+                  if (binding.key === 'class')
+                    value = className(value, bindingContext);
+                  else if (!binding.key)
+                    value =
+                      value === null || value === undefined || value === false
+                        ? ''
+                        : String(value);
+                  if (seen && Object.is(previous, value)) return;
+                  if (binding.key === 'class') {
+                    if (value)
+                      context.renderer.setAttribute(
+                        this.nodes[binding.slot] as Element,
+                        'class',
+                        value as string,
+                      );
+                    else
+                      context.renderer.removeAttribute(
+                        this.nodes[binding.slot] as Element,
+                        'class',
+                      );
+                  } else if (binding.key)
+                    applyAttribute(
+                      context.renderer,
+                      this.nodes[binding.slot] as Element,
+                      binding.key,
+                      value,
+                      bindingContext,
+                    );
+                  else
+                    context.renderer.setValue(
+                      this.nodes[binding.slot] as Text,
+                      value as string,
+                    );
+                  previous = value;
+                  seen = true;
+                },
+              ),
+            );
+          }
+          insertBefore(context.renderer, parent, root, before);
+        }),
+      );
+      this.unregister = this.injector
+        .get(DestroyRef)
+        .onDestroy(() => this.destroy());
+    } catch (error) {
+      try {
+        this.destroy();
+      } catch {
+        /* Preserve the mounting failure. */
+      }
+      throw error;
+    }
+  }
+
+  firstNode(): NativeNode {
+    return this.nodes[0];
+  }
+  lastNode(): NativeNode {
+    return this.nodes[0];
+  }
+  patch(node: CraftNode): boolean {
+    if (
+      node.kind !== 'component' ||
+      node.component !== this.component ||
+      compiledTemplateFor(node.component) !== this.plan ||
+      !canMountCompiledComponent(node, this.context)
+    )
+      return false;
+    const keys = inputKeys(node.props);
+    if (
+      keys.length !== this.propKeys.length ||
+      keys.some((key, index) => key !== this.propKeys[index])
+    )
+      return false;
+    ɵcraftBatch(() =>
+      this.propKeys.forEach((key, index) =>
+        this.sources[index].set((node.props as Record<string, unknown>)[key]),
+      ),
+    );
+    return true;
+  }
+  destroy(detached = false): void {
+    ɵdestroyCraftOwner(this, [
+      () => this.unregister?.(),
+      () =>
+        ɵrunCraftCleanups(
+          this.effects.splice(0).map((effect) => () => effect.destroy()),
+        ),
+      () =>
+        ɵrunCraftCleanups(
+          this.targets
+            .splice(0)
+            .map((target) => () => ɵunlinkCraftReplayTarget(target)),
+        ),
+      () => this.release?.(),
+      () => {
+        if (!detached && this.nodes[0])
+          removeNode(this.context.renderer, this.nodes[0]);
+      },
+      () => this.injector.destroy(),
+      () => {
+        this.nodes = [];
+      },
+    ]);
+  }
+}
+
 class ComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
   private destroyed = false;
@@ -6891,6 +7224,9 @@ function mountNode(
       );
     }
     case 'component':
+      if (canMountCompiledComponent(node, context)) {
+        return new CompiledComponentRenderedNode(node, parent, before, context);
+      }
       return new ComponentRenderedNode(
         node.component,
         node.props,

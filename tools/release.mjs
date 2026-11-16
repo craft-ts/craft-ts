@@ -78,6 +78,13 @@ export const releasePackages = [
     distRoot: 'dist/libs/deploy-alchemy',
   },
   {
+    key: 'compiler',
+    name: '@craft-ts/compiler',
+    project: 'craft-ts-compiler',
+    sourceManifest: 'libs/compiler/package.json',
+    distRoot: 'dist/libs/compiler',
+  },
+  {
     key: 'style',
     name: '@craft-ts/style',
     project: 'craft-ts-style',

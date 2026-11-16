@@ -21,6 +21,9 @@
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "paths": {
+      "@craft-ts/compiler": ["./libs/compiler/src/index.ts"],
+      "@craft-ts/compiler/vite": ["./libs/compiler/src/vite.ts"],
+      "@craft-ts/component/compiler-runtime": ["./libs/component/src/compiler-runtime.ts"],
       "@craft-ts/core": ["./libs/core/src/index.ts"],
       "@craft-ts/i18n": ["./libs/i18n/src/index.ts"],
       "@craft-ts/ui/style": ["./libs/ui/src/style.ts"],

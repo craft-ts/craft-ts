@@ -322,6 +322,7 @@ export * from './lib/craft-register-for-runtime';
 export * from './lib/craft-target-runtime';
 export * from './lib/craft-node-directive';
 export * from './lib/fn-wrapper';
+export { REACTIVE_READ_OBSERVERS as ɵREACTIVE_READ_OBSERVERS } from './lib/reactive-read';
 export * from './lib/behavior-proof-recorder';
 export * from './lib/behavior-mutant';
 export * from './lib/craft-test-providers';

@@ -89,6 +89,7 @@
       "craft-ts-cli",
       "craft-ts-deploy-alchemy",
       "craft-ts-style",
+      "craft-ts-compiler",
       "craft-ts-style-testing",
       "craft-ts-i18n",
       "craft-ts-i18n-effect",

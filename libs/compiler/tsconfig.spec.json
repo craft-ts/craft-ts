@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "rootDir": "../..",
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*.spec.ts"],
+  "references": [
+    { "path": "./tsconfig.lib.json" },
+    { "path": "../component/tsconfig.lib.json" },
+    { "path": "../core/tsconfig.lib.json" }
+  ]
+}

@@ -3,6 +3,8 @@ export interface CraftDomAdapter {
   createText(value: string): Text;
   createComment(value: string): Comment;
   createFragment(): DocumentFragment;
+  /** Optional deep clone for compiler-generated, inert native DOM blueprints. */
+  cloneNode?(node: Node): Node;
   appendChild(parent: Node, child: Node): void;
   insertBefore(parent: Node, child: Node, before: Node | null): void;
   removeChild(parent: Node, child: Node): void;
@@ -24,6 +26,7 @@ export function createBrowserDomAdapter(document: Document): CraftDomAdapter {
     createText: (value) => document.createTextNode(value),
     createComment: (value) => document.createComment(value),
     createFragment: () => document.createDocumentFragment(),
+    cloneNode: (node) => node.cloneNode(true),
     appendChild: (parent, child) => parent.appendChild(child),
     insertBefore: (parent, child, before) => parent.insertBefore(child, before),
     removeChild: (parent, child) => parent.removeChild(child),

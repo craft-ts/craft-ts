@@ -1,0 +1,44 @@
+{
+  "name": "craft-ts-compiler",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/compiler/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "dependsOn": [],
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/compiler",
+        "main": "libs/compiler/src/index.ts",
+        "tsConfig": "libs/compiler/tsconfig.lib.json",
+        "assets": ["libs/compiler/README.md", "libs/compiler/LICENSE"]
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/compiler/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "nx-release-publish": {
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
+      }
+    },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/compiler/tsconfig.spec.json --pretty false"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["libs/compiler/src/**/*.ts"],
+        "eslintConfig": "libs/compiler/eslint.config.mjs"
+      }
+    }
+  }
+}
