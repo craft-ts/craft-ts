@@ -120,6 +120,12 @@ import {
   type DeepYieldableReactiveValue,
 } from './reactive-read';
 import { craftUse } from './craft-use';
+import {
+  isCraftResourceMethodStream,
+  reportResourceMethodStreamError,
+  subscribeCraftResourceMethodStream,
+  type CraftResourceMethodStream,
+} from './resource-method-stream';
 
 type AsyncProcessConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -193,8 +199,8 @@ export type AsyncProcessRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  AsyncProcessExceptions extends AsyncProcessExceptionConstraints =
-    AsyncProcessExceptionConstraints,
+  AsyncProcessExceptions extends
+    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
@@ -300,7 +306,10 @@ type AsyncProcessConfig<
   MethodYielded = never,
   LoaderYielded = never,
   StreamYielded = never,
-> = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
+> = Omit<
+  ResourceOptions<NoInfer<ResourceState>, Params>,
+  'params' | 'loader' | 'method'
+> &
   (
     | {
         /**
@@ -313,7 +322,8 @@ type AsyncProcessConfig<
               (args: ParamsArgs) => Params,
               MethodYielded
             >
-          | ReadonlySource<SourceParams>;
+          | ReadonlySource<SourceParams>
+          | CraftResourceMethodStream<Params, MethodYielded>;
         /**
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
@@ -343,7 +353,8 @@ type AsyncProcessConfig<
               (args: ParamsArgs) => Params,
               MethodYielded
             >
-          | ReadonlySource<SourceParams>;
+          | ReadonlySource<SourceParams>
+          | CraftResourceMethodStream<Params, MethodYielded>;
         loader?: never;
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
@@ -406,8 +417,8 @@ export type AsyncProcessExceptionConstraints = {
 };
 
 export type ResourceLikeAsyncProcessExceptions<
-  AsyncProcessException extends AsyncProcessExceptionConstraints =
-    AsyncProcessExceptionConstraints,
+  AsyncProcessException extends
+    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
   GroupIdentifier = unknown,
 > = {
   hasException: Signal<boolean>;
@@ -458,8 +469,8 @@ export type ResourceLikeAsyncProcessExceptions<
 };
 
 export type ResourceByIdLikeAsyncProcessExceptions<
-  AsyncProcessException extends AsyncProcessExceptionConstraints =
-    AsyncProcessExceptionConstraints,
+  AsyncProcessException extends
+    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
   GroupIdentifier extends string = string,
 > = {
   hasException: Signal<boolean>;
@@ -548,6 +559,145 @@ type SchemaAsyncProcessConfig<
   ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
+
+export function asyncProcess<
+  Name extends string,
+  Params,
+  State extends object | undefined,
+  MethodYielded = never,
+  LoaderYielded = never,
+  GroupIdentifier extends string = string,
+  Providers extends readonly Provider[] = never[],
+  Exceptions extends AsyncProcessExceptionConstraints = {
+    params:
+      | ExtractCraftException<Params>
+      | Extract<ExtractCraftGenExceptions<MethodYielded>, AnyCraftException>;
+    loader:
+      | ExtractCraftException<State>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
+  },
+>(
+  name: Name,
+  config: Omit<
+    ResourceOptions<NoInfer<State>, Params>,
+    'params' | 'loader' | 'method'
+  > & {
+    method: CraftResourceMethodStream<Params, MethodYielded>;
+    loader: GeneratorCompatibleFactory<
+      (
+        param: ResourceLoaderParams<NonNullable<StripCraftException<Params>>>,
+      ) => Promise<State> | State,
+      LoaderYielded
+    >;
+    identifier?: (
+      params: NoInfer<NonNullable<StripCraftException<Params>>>,
+    ) => GroupIdentifier;
+    providers?: Providers;
+    paramsSchema?: CraftSchema;
+    loaderSchema?: CraftSchema;
+    params?: never;
+    stream?: never;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  AsyncProcessOutput<
+    StripCraftException<Awaited<State>>,
+    StripCraftException<Params>,
+    Params,
+    unknown,
+    GroupIdentifier,
+    {},
+    Exceptions,
+    AsyncProcessTrackedDependencies<
+      never,
+      MethodYielded,
+      LoaderYielded,
+      never,
+      never,
+      Providers
+    >,
+    false,
+    MethodYielded,
+    Name
+  >
+>;
+
+export function asyncProcess<
+  Name extends string,
+  Params,
+  State extends object | undefined,
+  MethodYielded = never,
+  LoaderYielded = never,
+  GroupIdentifier extends string = string,
+  Insertion = {},
+  InsertionYielded = never,
+  Providers extends readonly Provider[] = never[],
+  Exceptions extends AsyncProcessExceptionConstraints = {
+    params:
+      | ExtractCraftException<Params>
+      | Extract<ExtractCraftGenExceptions<MethodYielded>, AnyCraftException>;
+    loader:
+      | ExtractCraftException<State>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
+  },
+>(
+  name: Name,
+  config: Omit<
+    ResourceOptions<NoInfer<State>, Params>,
+    'params' | 'loader' | 'method'
+  > & {
+    method: CraftResourceMethodStream<Params, MethodYielded>;
+    loader: GeneratorCompatibleFactory<
+      (
+        param: ResourceLoaderParams<NonNullable<StripCraftException<Params>>>,
+      ) => Promise<State> | State,
+      LoaderYielded
+    >;
+    identifier?: (
+      params: NoInfer<NonNullable<StripCraftException<Params>>>,
+    ) => GroupIdentifier;
+    providers?: Providers;
+    paramsSchema?: CraftSchema;
+    loaderSchema?: CraftSchema;
+    params?: never;
+    stream?: never;
+    [key: string]: unknown;
+  },
+  insertion: InsertionsResourcesFactory<
+    GroupIdentifier,
+    NoInfer<StripCraftException<Awaited<State>>>,
+    NoInfer<StripCraftException<Params>>,
+    NoInfer<Exceptions>,
+    Insertion,
+    {},
+    InsertionYielded,
+    Name
+  >,
+): NamedCraftPrimitiveGen<
+  Name,
+  AsyncProcessOutput<
+    StripCraftException<Awaited<State>>,
+    StripCraftException<Params>,
+    Params,
+    unknown,
+    GroupIdentifier,
+    Insertion,
+    Exceptions,
+    AsyncProcessTrackedDependencies<
+      never,
+      MethodYielded,
+      LoaderYielded,
+      never,
+      InsertionYielded,
+      Providers,
+      Insertion
+    >,
+    false,
+    MethodYielded,
+    Name
+  >
+>;
 
 export function asyncProcess<
   Name extends string,
@@ -1105,6 +1255,10 @@ function createAsyncProcessRef<
     !hasParamsFn &&
     typeof AsyncProcessConfig.method === 'function' &&
     !isSignal(AsyncProcessConfig.method);
+  const methodStream = isCraftResourceMethodStream(AsyncProcessConfig.method)
+    ? AsyncProcessConfig.method
+    : undefined;
+  const hasMethodTrigger = hasMethodFn || !!methodStream;
 
   const isUsingIdentifier = 'identifier' in AsyncProcessConfig;
 
@@ -1134,7 +1288,8 @@ function createAsyncProcessRef<
   const schemaPolicy = useSchemaValidationPolicy(
     getInjector(),
     AsyncProcessConfig.schemaValidationPolicy as
-      SchemaValidationPolicy | undefined,
+      | SchemaValidationPolicy
+      | undefined,
   );
   const schemaValidation = {
     method: createSchemaValidationRuntime({
@@ -1453,7 +1608,8 @@ function createAsyncProcessRef<
   // Method-based, non-grouped: feed the resource a nonce-tagged request so every
   // explicit call re-runs the loader (even for identical / `undefined` params),
   // while `resourceParamsSrc` stays the raw signal for all public consumers.
-  const usesMethodParamsSignal = !isConnectedToSource && !hasParamsFn;
+  const usesMethodParamsSignal =
+    !isConnectedToSource && !hasParamsFn && hasMethodTrigger;
   const methodTaggedParams = computed(() => {
     const seq = methodTriggerSeq();
     if (seq === 0) return undefined; // idle until the first call
@@ -1650,6 +1806,52 @@ function createAsyncProcessRef<
             method: isSignal(AsyncProcessConfig.method)
               ? undefined
               : (arg: AsyncProcessArgsParams) => {
+                  if (methodStream) {
+                    let paramsResult = arg as unknown as AsyncProcessParams;
+                    if (configuredSchemas.params) {
+                      const parsed =
+                        schemaValidation.params.parseSync<AsyncProcessParams>(
+                          arg,
+                          'params',
+                          'method',
+                        );
+                      if (!parsed.accepted) {
+                        methodParamsException.set(
+                          enrichResourceException(parsed.exception, {
+                            scope: 'params',
+                          }),
+                        );
+                        return yieldableInvocation<
+                          MethodYielded,
+                          AsyncProcessParams
+                        >(parsed.exception as AsyncProcessParams);
+                      }
+                      paramsResult = parsed.value;
+                    }
+                    methodParamsException.set(undefined);
+                    craftBatch(() => {
+                      methodTriggerSeq.update((n) => n + 1);
+                      AsyncProcessResourceParamsFnSignal.set(paramsResult);
+                    });
+                    if (isUsingIdentifier) {
+                      const id = AsyncProcessConfig.identifier?.(
+                        paramsResult as NonNullable<
+                          StripCraftException<AsyncProcessParams>
+                        >,
+                      );
+                      (
+                        resourceTarget as ResourceByIdRef<
+                          GroupIdentifier & string,
+                          AsyncProcesstate,
+                          AsyncProcessParams
+                        >
+                      ).addById(id as GroupIdentifier & string);
+                    }
+                    return yieldableInvocation<
+                      MethodYielded,
+                      AsyncProcessParams
+                    >(paramsResult);
+                  }
                   let methodArg: unknown = arg;
                   if (configuredSchemas.method) {
                     const parsedMethod =
@@ -1765,6 +1967,63 @@ function createAsyncProcessRef<
 
   if (!isUsingIdentifier) {
     attachCraftSettledValue(name, asyncOutput as object);
+  }
+
+  if (methodStream) {
+    subscribeCraftResourceMethodStream(methodStream, getInjector(), {
+      next: (value) => {
+        if (isCraftException(value)) {
+          methodParamsException.set(
+            enrichResourceException(value, { scope: 'params' }),
+          );
+          return;
+        }
+        let paramsResult = value as unknown as AsyncProcessParams;
+        if (configuredSchemas.params) {
+          const parsed = schemaValidation.params.parseSync<AsyncProcessParams>(
+            value,
+            'params',
+            'stream',
+          );
+          if (!parsed.accepted) {
+            methodParamsException.set(
+              enrichResourceException(parsed.exception, { scope: 'params' }),
+            );
+            return;
+          }
+          paramsResult = parsed.value;
+        }
+        methodParamsException.set(undefined);
+        craftBatch(() => {
+          methodTriggerSeq.update((n) => n + 1);
+          AsyncProcessResourceParamsFnSignal.set(paramsResult);
+        });
+        if (isUsingIdentifier) {
+          const id = AsyncProcessConfig.identifier?.(
+            paramsResult as NonNullable<
+              StripCraftException<AsyncProcessParams>
+            >,
+          );
+          (
+            resourceTarget as ResourceByIdRef<
+              GroupIdentifier & string,
+              AsyncProcesstate,
+              AsyncProcessParams
+            >
+          ).addById(id as GroupIdentifier & string);
+        }
+      },
+      exception: (exception) => {
+        if (isCraftException(exception)) {
+          methodParamsException.set(
+            enrichResourceException(exception, { scope: 'params' }),
+          );
+        } else {
+          reportResourceMethodStreamError(getInjector(), exception);
+        }
+      },
+      error: (error) => reportResourceMethodStreamError(getInjector(), error),
+    });
   }
 
   const publicAsyncContext = createYieldableReactiveFacade(asyncOutput, {

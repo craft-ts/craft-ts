@@ -30,6 +30,12 @@ export default [
   },
   {
     files: ['**/src/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     plugins: {
       'craft-ts': craftRules,
     },
@@ -38,6 +44,7 @@ export default [
       'craft-ts/prefer-direct-craft-service-exposure': 'error',
       'craft-ts/require-craft-service-input-scope': 'error',
       'craft-ts/require-direct-craft-component-template': 'error',
+      'craft-ts/require-reactive-template-bindings': 'error',
       'craft-ts/no-explicit-effect-type': 'error',
       'craft-ts/prefer-inline-effect-insertion': 'error',
       'craft-ts/no-explicit-craft-insertion-type': 'error',

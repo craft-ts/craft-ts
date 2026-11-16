@@ -70,8 +70,15 @@ export type StreamRun<A> = (
 ) => Unsubscribable;
 
 export interface CraftStream<out A, out Y = never> extends Subscribable<A> {
+  /** Runtime marker for use as a resource method stream. */
+  readonly __craftResourceMethodStream: true;
   /** Phantom carrier for the value and yielded types — never present at runtime. */
   readonly [STREAM_TYPES]?: { readonly a: A; readonly y: Y };
+  /** Structural carrier consumed by core's resource method-stream overloads. */
+  readonly __craftResourceMethodStreamTypes?: {
+    readonly params: A;
+    readonly yielded: Y;
+  };
   readonly [STREAM_RUN]: StreamRun<A>;
   readonly pipe: CraftStreamPipe<A, Y>;
   subscribe(observer: Partial<StreamObserver<A>>): Unsubscribable;
@@ -195,6 +202,7 @@ export function createCraftStream<A, Y = never>(
 
 function attachStreamApi<A, Y>(run: StreamRun<A>): CraftStream<A, Y> {
   const stream: CraftStream<A, Y> = {
+    __craftResourceMethodStream: true,
     [STREAM_RUN]: run,
     subscribe(observer) {
       const context = captureStreamContext();

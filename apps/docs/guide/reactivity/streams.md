@@ -41,10 +41,10 @@ A stream is **cold**: every subscription re-runs it. Make it hot with
 
 ### Three terminal notifications
 
-| Notification | Meaning                                                           |
-| ------------ | ----------------------------------------------------------------- |
-| `complete`   | The stream is done.                                               |
-| `exception`  | A **typed** failure (`{ _tag: ... }`), advertised in `Y`.         |
+| Notification | Meaning                                                            |
+| ------------ | ------------------------------------------------------------------ |
+| `complete`   | The stream is done.                                                |
+| `exception`  | A **typed** failure (`{ _tag: ... }`), advertised in `Y`.          |
 | `error`      | A **defect** — an unexpected throw. Never catchable by `catchTag`. |
 
 An `Observable`'s `error` is a defect. Exceptions are the typed channel.
@@ -93,27 +93,27 @@ const squares = of(1, 2, 3, 4).pipe(
 );
 ```
 
-| Operator                                                                                | What it does                                                       |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `map`, `filter`, `tap`, `scan`                                                          | Per value; the callback may be a plain function or a **generator** |
-| `take`, `skip`, `takeWhile`, `distinctUntilChanged`, `startWith`, `pairwise`            | Select, bound, seed or pair                                        |
-| `takeUntil`, `takeUntilDestroyed`                                                       | End on a notifier / when the owner is destroyed                    |
-| `first`, `last`, `takeLast`, `reduce`                                                   | One value, the tail, or the folded result                          |
-| `skipWhile`, `skipUntil`, `distinct`, `defaultIfEmpty`, `ignoreElements`, `endWith`, `finalize` | Drop, deduplicate, fill in, end, clean up                  |
-| `switchAll`, `exhaustAll`, `concatAll`, `mergeAll`                                      | Flatten a stream **of streams**                                    |
-| `concatWith`, `mergeWith`, `combineLatestWith`                                          | The pipeable forms of `concat`, `merge`, `combineLatest`           |
-| `switchMap`, `exhaustMap`, `concatMap`, `mergeMap`                                      | [Flatten](#flattening) inner streams                               |
-| `combineLatest`, `merge`, `zip`, `race`, `withLatestFrom`                               | [Combine](#combining) streams                                      |
-| `debounce`, `throttle`, `auditTime`, `delay`, `timeout`, `retry`, `repeat`              | [Time](#time)                                                      |
-| `buffer`, `bufferCount`, `bufferTime`, `bufferWhen`, `sample`, `groupBy`, `window`, `windowCount` | [Group](#grouping-and-sampling) values                  |
-| `expand`                                                                                | Recursively project: results feed back in (bound it)               |
-| `count`, `min`, `max`, `every`, `isEmpty`, `find`, `findIndex`                          | Aggregate or answer a question about the whole stream              |
-| `single`, `elementAt`, `throwIfEmpty`, `skipLast`, `mapTo`, `distinctUntilKeyChanged`   | Select one value, hold back the tail, replace, deduplicate by key  |
-| `timestamp`, `timeInterval`, `audit`, `sampleTime`, `delayWhen`                         | Stamp values, or time them from a clock or a notifier stream       |
-| `zipWith`, `raceWith`, `zipAll`, `combineLatestAll`                                     | More combination forms; `…All` collects a stream **of streams**    |
-| `traceStage`                                                                            | Mark a point of the pipeline in [stream traces](#observability)    |
-| `catchTag`, `catchTag.exhaustive`, `mapException`, `orElse`                             | Work on the typed exception channel                                |
-| `share`, `shareReplay`                                                                  | One upstream run for many subscribers                              |
+| Operator                                                                                          | What it does                                                       |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `map`, `filter`, `tap`, `scan`                                                                    | Per value; the callback may be a plain function or a **generator** |
+| `take`, `skip`, `takeWhile`, `distinctUntilChanged`, `startWith`, `pairwise`                      | Select, bound, seed or pair                                        |
+| `takeUntil`, `takeUntilDestroyed`                                                                 | End on a notifier / when the owner is destroyed                    |
+| `first`, `last`, `takeLast`, `reduce`                                                             | One value, the tail, or the folded result                          |
+| `skipWhile`, `skipUntil`, `distinct`, `defaultIfEmpty`, `ignoreElements`, `endWith`, `finalize`   | Drop, deduplicate, fill in, end, clean up                          |
+| `switchAll`, `exhaustAll`, `concatAll`, `mergeAll`                                                | Flatten a stream **of streams**                                    |
+| `concatWith`, `mergeWith`, `combineLatestWith`                                                    | The pipeable forms of `concat`, `merge`, `combineLatest`           |
+| `switchMap`, `exhaustMap`, `concatMap`, `mergeMap`                                                | [Flatten](#flattening) inner streams                               |
+| `combineLatest`, `merge`, `zip`, `race`, `withLatestFrom`                                         | [Combine](#combining) streams                                      |
+| `debounce`, `throttle`, `auditTime`, `delay`, `timeout`, `retry`, `repeat`                        | [Time](#time)                                                      |
+| `buffer`, `bufferCount`, `bufferTime`, `bufferWhen`, `sample`, `groupBy`, `window`, `windowCount` | [Group](#grouping-and-sampling) values                             |
+| `expand`                                                                                          | Recursively project: results feed back in (bound it)               |
+| `count`, `min`, `max`, `every`, `isEmpty`, `find`, `findIndex`                                    | Aggregate or answer a question about the whole stream              |
+| `single`, `elementAt`, `throwIfEmpty`, `skipLast`, `mapTo`, `distinctUntilKeyChanged`             | Select one value, hold back the tail, replace, deduplicate by key  |
+| `timestamp`, `timeInterval`, `audit`, `sampleTime`, `delayWhen`                                   | Stamp values, or time them from a clock or a notifier stream       |
+| `zipWith`, `raceWith`, `zipAll`, `combineLatestAll`                                               | More combination forms; `…All` collects a stream **of streams**    |
+| `traceStage`                                                                                      | Mark a point of the pipeline in [stream traces](#observability)    |
+| `catchTag`, `catchTag.exhaustive`, `mapException`, `orElse`                                       | Work on the typed exception channel                                |
+| `share`, `shareReplay`                                                                            | One upstream run for many subscribers                              |
 
 Creators beyond `of`/`from`/`interval`: `range`, `iif` (a branch per subscription),
 `forkJoin` (the last value of each input, as a tuple or record) and `partition` (two
@@ -153,12 +153,12 @@ A projection returns an inner stream; the inner values are flattened into one st
 The four operators differ in what they do when an outer value arrives while an inner
 stream is still running:
 
-| Operator     | While an inner stream is running…                             |
-| ------------ | ------------------------------------------------------------- |
-| `switchMap`  | cancel it and start the new one                               |
-| `exhaustMap` | ignore the new value                                          |
-| `concatMap`  | queue the new value, run one inner stream at a time           |
-| `mergeMap`   | run it concurrently (up to `concurrency`, queueing beyond)    |
+| Operator     | While an inner stream is running…                          |
+| ------------ | ---------------------------------------------------------- |
+| `switchMap`  | cancel it and start the new one                            |
+| `exhaustMap` | ignore the new value                                       |
+| `concatMap`  | queue the new value, run one inner stream at a time        |
+| `mergeMap`   | run it concurrently (up to `concurrency`, queueing beyond) |
 
 ```typescript
 const results$ = query$.pipe(
@@ -246,7 +246,10 @@ the exception with that tag, and a tag the stream cannot produce is a compile
 error:
 
 ```typescript
-declare const user$: CraftStream<User, CraftGenExceptionMarker<NotFound | Forbidden>>;
+declare const user$: CraftStream<
+  User,
+  CraftGenExceptionMarker<NotFound | Forbidden>
+>;
 
 const safe$ = user$.pipe(
   catchTag('NotFound', (e) => GUEST), // e: NotFound
@@ -369,7 +372,7 @@ subscribe(
 program you `yield*`. Its dependencies and exceptions become the program's:
 
 ```typescript
-const latest = yield* lastValueFrom(prices$);
+const latest = yield * lastValueFrom(prices$);
 ```
 
 A stream that settles synchronously returns without suspending; otherwise the
@@ -381,9 +384,12 @@ its injector destroyed.
 Expose a stream as a named primitive of a `craftService`:
 
 ```typescript
-const { Feed } = craftService({ name: 'Feed', providedIn: 'global' }, function* () {
-  yield* streamSignal('latest', prices$);
-});
+const { Feed } = craftService(
+  { name: 'Feed', providedIn: 'global' },
+  function* () {
+    yield* streamSignal('latest', prices$);
+  },
+);
 
 const feed = craftUse(Feed());
 feed.latest.value(); // the latest value
@@ -393,6 +399,36 @@ feed.latest.exception(); // the typed exception, or undefined
 
 The stream's service dependencies are folded into the service's verified
 dependency tree, and its exceptions into the host's exception types.
+
+### Trigger a resource from a stream
+
+`query`, `mutation` and `asyncProcess` accept a `CraftStream` as `method`.
+Each emitted value is treated as a method input. The stream starts with the
+resource's injector and is stopped when its owner is destroyed. The same stream
+operators can shape when and what the resource receives.
+
+```typescript
+import { craftService, query } from '@craft-ts/core';
+import { timer } from '@craft-ts/stream';
+
+const { SessionArchive } = craftService(
+  { name: 'SessionArchive', providedIn: 'global' },
+  function* () {
+    yield* query('sessions', {
+      method: timer(0, 2_000),
+      loader: function* () {
+        return { sessions: [] };
+      },
+    });
+  },
+);
+```
+
+The first timer value triggers on startup; later values trigger every two
+seconds. A stream used as `method` supplies request parameters. The separate
+`stream` option still describes a resource result that can update over time.
+Typed stream exceptions become parameter exceptions; stream defects are sent to
+the configured error handler.
 
 ## Observability
 
@@ -436,11 +472,7 @@ provideStreamTrace((event, context) => {
   stream, and one that throws is ignored.
 
 ```ts
-source$.pipe(
-  traceStage('raw'),
-  map(parse),
-  traceStage('parsed'),
-)
+source$.pipe(traceStage('raw'), map(parse), traceStage('parsed'));
 ```
 
 **A defect takes an app snapshot.** A stream that ends with a defect (`error`,
@@ -467,7 +499,9 @@ through the **temporal runtime** of the stream's context, the same one `craftSle
   const restore = activateCraftTemporalRuntime(clock);
 
   const seen: number[] = [];
-  interval(100).pipe(take(3)).subscribe({ next: (n) => seen.push(n) });
+  interval(100)
+    .pipe(take(3))
+    .subscribe({ next: (n) => seen.push(n) });
 
   await clock.advanceBy(300);
   expect(seen).toEqual([0, 1, 2]);
@@ -518,7 +552,9 @@ waits on the temporal runtime itself.
 
 ```typescript
 const exposed = toSubscribable(stream$);
-const observable$ = new Observable((subscriber) => exposed.subscribe(subscriber));
+const observable$ = new Observable((subscriber) =>
+  exposed.subscribe(subscriber),
+);
 ```
 
 ## Effect interop
@@ -583,6 +619,6 @@ The deprecated operators with no equivalent (`retryWhen`, `repeatWhen`, `mergeSc
 `…MapTo`) block their file with a diagnostic that names the replacement. `exhaust` becomes `exhaustAll`.
 
 Semantic changes are reported as **review notices** on a migrated file: `catchError(() => x$)`
-becomes `orElse(() => x$)`, which continues on a *typed* exception of a craft stream and does
+becomes `orElse(() => x$)`, which continues on a _typed_ exception of a craft stream and does
 not catch defects — prefer `catchTag` so the handler is typed per exception; `timeout` raises
 a typed exception; `retry` retries typed exceptions only; `zip` buffers without bound.

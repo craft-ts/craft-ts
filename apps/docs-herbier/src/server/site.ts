@@ -401,6 +401,7 @@ const resourcesSidebar: readonly SidebarEntry[] = [
   {
     text: 'Resources',
     items: [
+      { text: 'CraftTS Cloud (early access)', link: '/resources/cloud' },
       { text: 'Examples', link: '/resources/examples' },
       { text: 'Coding agents', link: '/resources/ai-agents' },
       { text: 'Migration', link: '/resources/migration' },
@@ -499,6 +500,7 @@ const nav: readonly NavEntry[] = [
     text: 'Resources',
     activeMatch: '^/resources/',
     items: [
+      { text: 'CraftTS Cloud (early access)', link: '/resources/cloud' },
       { text: 'Examples', link: '/resources/examples' },
       { text: 'Migration', link: '/resources/migration' },
       {

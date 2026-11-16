@@ -15,6 +15,7 @@ import {
   sessionsCheckDecoder,
   suiteOrigins,
   suiteRunDecoder,
+  suiteView,
 } from '../util/golden-suite';
 import { SessionArchive } from './session-archive.service';
 
@@ -95,9 +96,50 @@ export const { GoldenSuiteArchive } = craftService(
         },
       },
       function* ({ resource, hasException }) {
+        const presentation = yield* craftComputed(
+          'presentation',
+          function* () {
+            return suiteView(yield* resource.value());
+          },
+        );
+        const facts = yield* craftComputed('facts', function* () {
+          return (yield* presentation()).facts;
+        });
+        const kept = yield* craftComputed('kept', function* () {
+          return (yield* presentation()).sessions;
+        });
+        const rejected = yield* craftComputed('rejected', function* () {
+          return (yield* presentation()).rejected;
+        });
+        const toRecapture = yield* craftComputed('toRecapture', function* () {
+          return (yield* presentation()).toRecapture;
+        });
+        const uncovered = yield* craftComputed('uncovered', function* () {
+          return (yield* presentation()).uncovered;
+        });
         return {
           goldenSuite: yield* craftComputed('goldenSuite', function* () {
             return yield* resource.value();
+          }),
+          facts,
+          kept,
+          keptCount: yield* craftComputed('keptCount', function* () {
+            return (yield* kept()).length;
+          }),
+          rejected,
+          rejectedCount: yield* craftComputed('rejectedCount', function* () {
+            return (yield* rejected()).length;
+          }),
+          toRecapture,
+          toRecaptureCount: yield* craftComputed(
+            'toRecaptureCount',
+            function* () {
+              return (yield* toRecapture()).length;
+            },
+          ),
+          uncovered,
+          uncoveredCount: yield* craftComputed('uncoveredCount', function* () {
+            return (yield* uncovered()).length;
           }),
           suiteLoading: yield* craftComputed('suiteLoading', function* () {
             return yield* resource.isLoading();

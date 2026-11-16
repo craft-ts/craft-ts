@@ -6,10 +6,11 @@ import {
   derivedSessionsOf,
   recipeName,
 } from '../../../shared/util/session-lineage';
+import { sessionDate } from '../../../shared/util/replay-labels';
 
 /** Reactive data and derived presentation state for the replay resume panel. */
 export const { ReplayResumesViewModel } = craftService(
-  { name: 'replayResumesViewModel', providedIn: 'function' },
+  { name: 'replayResumesViewModel', providedIn: 'global' },
   function* () {
     const archive = yield* SessionArchive();
     const resume = yield* ResumeThread();
@@ -47,6 +48,7 @@ export const { ReplayResumesViewModel } = craftService(
                 : undefined;
             return {
               session,
+              createdAtLabel: sessionDate.format(new Date(session.createdAt)),
               resumeDescription:
                 session.resume?.kind === 'guided-resume'
                   ? undefined
@@ -60,6 +62,27 @@ export const { ReplayResumesViewModel } = craftService(
     const messages = yield* craftComputed('messages', function* () {
       return (yield* thread())?.messages ?? [];
     });
+    const hasNoMessages = yield* craftComputed('hasNoMessages', function* () {
+      return (yield* messages()).length === 0;
+    });
+    const checkpointCount = yield* craftComputed(
+      'checkpointCount',
+      function* () {
+        return (yield* checkpoints()).length;
+      },
+    );
+    const recipeCount = yield* craftComputed(
+      'recipeCount',
+      function* () {
+        return (yield* recipes()).length;
+      },
+    );
+    const derivedSessionCount = yield* craftComputed(
+      'derivedSessionCount',
+      function* () {
+        return (yield* derived()).length;
+      },
+    );
     const noticeHere = yield* craftComputed('noticeHere', function* () {
       const notice = yield* resumeNotice();
       return notice !== undefined && notice.sessionId === routeSessionId()
@@ -70,17 +93,17 @@ export const { ReplayResumesViewModel } = craftService(
       const [currentNotice, currentMessages, currentCheckpoints, currentRecipes, currentDerived] =
         [
           yield* noticeHere(),
-          yield* messages(),
-          yield* checkpoints(),
-          yield* recipes(),
-          yield* derived(),
+          yield* hasNoMessages(),
+          yield* checkpointCount(),
+          yield* recipeCount(),
+          yield* derivedSessionCount(),
         ];
       return (
         currentNotice === undefined &&
-        currentMessages.length === 0 &&
-        currentCheckpoints.length === 0 &&
-        currentRecipes.length === 0 &&
-        currentDerived.length === 0
+        currentMessages &&
+        currentCheckpoints === 0 &&
+        currentRecipes === 0 &&
+        currentDerived === 0
       );
     });
 

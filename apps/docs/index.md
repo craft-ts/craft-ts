@@ -23,6 +23,9 @@ hero:
     - theme: alt
       text: Examples
       link: /resources/examples
+    - theme: alt
+      text: CraftTS Cloud
+      link: /resources/cloud
 
 features:
   - title: Real journeys. Reproducible regressions.
@@ -63,6 +66,8 @@ features:
     details: 'The static Craft graph makes architecture enforceable: keep this feature from depending on that one, keep file kinds in their lanes, or allow an endpoint to be called only once. Ordinary Vitest assertions — see the shape of the system, then teach it its boundaries.'
     link: /guide/testing/architecture
 ---
+
+<CloudTeaser />
 
 ## Packages
 

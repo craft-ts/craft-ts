@@ -18,7 +18,7 @@ import {
   signIn,
   signOut,
 } from './api';
-import { lineKey } from './shop-format';
+import { failureOf, lineKey } from './shop-format';
 import type { AccountSession } from '../shared/accounts';
 import type { CartLine, ChoiceGroup, ServerCart } from '../shared/model';
 
@@ -205,6 +205,9 @@ export const { Session } = craftService(
         }
         return result;
       },
+    });
+    yield* craftComputed('signInFailure', function* () {
+      return failureOf(yield* signInProcess.value());
     });
     yield* query(
       'currentUser',

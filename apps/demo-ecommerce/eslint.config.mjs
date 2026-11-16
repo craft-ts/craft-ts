@@ -36,9 +36,16 @@ export default [
   },
   {
     files: ['**/src/client/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     plugins: { 'craft-ts': craftRules },
     rules: {
       'craft-ts/prefer-craft-router-link': 'error',
+      'craft-ts/require-reactive-template-bindings': 'error',
       // Le rejeu et la reprise pilotent l'horloge : la vitrine ne lit jamais le
       // temps ni ne programme de tâche en dehors du runtime temporel.
       'craft-ts/no-direct-temporal-globals': 'error',

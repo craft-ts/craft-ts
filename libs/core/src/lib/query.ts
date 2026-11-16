@@ -117,6 +117,12 @@ import {
 } from './reactive-read';
 import { craftUse } from './craft-use';
 import {
+  isCraftResourceMethodStream,
+  reportResourceMethodStreamError,
+  subscribeCraftResourceMethodStream,
+  type CraftResourceMethodStream,
+} from './resource-method-stream';
+import {
   createSchemaValidationRuntime,
   type CraftSchema,
   type SchemaInput,
@@ -192,7 +198,10 @@ type QueryConfig<
   MethodYielded = never,
   LoaderYielded = never,
   StreamYielded = never,
-> = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
+> = Omit<
+  ResourceOptions<NoInfer<ResourceState>, Params>,
+  'params' | 'loader' | 'method'
+> &
   (
     | {
         /**
@@ -362,13 +371,14 @@ type QueryConfig<
      * For **query** that don't use 'identifier', the default value is 'default'
      */
     equalParams?: Params extends object
-      ? | 'default'
-        | 'useIdentifier'
-        | ((
-            a: Params,
-            b: Params,
-            identifierFn: (params: Params) => GroupIdentifier,
-          ) => boolean)
+      ?
+          | 'default'
+          | 'useIdentifier'
+          | ((
+              a: Params,
+              b: Params,
+              identifierFn: (params: Params) => GroupIdentifier,
+            ) => boolean)
       : never;
   };
 
@@ -1446,6 +1456,163 @@ export function query<
  * ```
  */
 
+export function query<
+  Name extends string,
+  Params,
+  State extends object | undefined,
+  MethodStreamYielded = never,
+  LoaderYielded = never,
+  GroupIdentifier = unknown,
+  Providers extends readonly Provider[] = never[],
+>(
+  name: Name,
+  queryConfig: Omit<
+    ResourceOptions<NoInfer<State>, Params>,
+    'params' | 'loader' | 'method'
+  > & {
+    method: CraftResourceMethodStream<Params, MethodStreamYielded>;
+    loader: GeneratorCompatibleFactory<
+      (
+        param: ResourceLoaderParams<StripCraftException<Params>>,
+      ) => Promise<State> | State,
+      LoaderYielded
+    >;
+    identifier?: (
+      params: NoInfer<NonNullable<StripCraftException<Params>>>,
+    ) => GroupIdentifier;
+    providers?: Providers;
+    params?: never;
+    stream?: never;
+    fromResourceById?: never;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    StripCraftException<Awaited<State>>,
+    StripCraftException<Params>,
+    Params,
+    Params,
+    GroupIdentifier,
+    {},
+    ResourceExceptionConstraints & {
+      params:
+        | ExtractCraftException<Params>
+        | Extract<
+            ExtractCraftGenExceptions<MethodStreamYielded>,
+            AnyCraftException
+          >;
+      loader: Extract<
+        ExtractCraftGenExceptions<LoaderYielded>,
+        AnyCraftException
+      >;
+    },
+    QueryTrackedDependencies<
+      never,
+      MethodStreamYielded,
+      LoaderYielded,
+      never,
+      never,
+      Providers,
+      never
+    >,
+    false,
+    MethodStreamYielded,
+    Name
+  >
+>;
+
+export function query<
+  Name extends string,
+  Params,
+  State extends object | undefined,
+  MethodStreamYielded = never,
+  LoaderYielded = never,
+  GroupIdentifier = unknown,
+  Insertions = {},
+  InsertionYielded = never,
+  Providers extends readonly Provider[] = never[],
+>(
+  name: Name,
+  queryConfig: Omit<
+    ResourceOptions<NoInfer<State>, Params>,
+    'params' | 'loader' | 'method'
+  > & {
+    method: CraftResourceMethodStream<Params, MethodStreamYielded>;
+    loader: GeneratorCompatibleFactory<
+      (
+        param: ResourceLoaderParams<StripCraftException<Params>>,
+      ) => Promise<State> | State,
+      LoaderYielded
+    >;
+    identifier?: (
+      params: NoInfer<NonNullable<StripCraftException<Params>>>,
+    ) => GroupIdentifier;
+    providers?: Providers;
+    params?: never;
+    stream?: never;
+    fromResourceById?: never;
+    [key: string]: unknown;
+  },
+  insertion: InsertionsResourcesFactory<
+    GroupIdentifier,
+    NoInfer<StripCraftException<Awaited<State>>>,
+    NoInfer<StripCraftException<Params>>,
+    NoInfer<
+      ResourceExceptionConstraints & {
+        params:
+          | ExtractCraftException<Params>
+          | Extract<
+              ExtractCraftGenExceptions<MethodStreamYielded>,
+              AnyCraftException
+            >;
+        loader: Extract<
+          ExtractCraftGenExceptions<LoaderYielded>,
+          AnyCraftException
+        >;
+      }
+    >,
+    Insertions,
+    {},
+    InsertionYielded,
+    Name
+  >,
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    StripCraftException<Awaited<State>>,
+    StripCraftException<Params>,
+    Params,
+    Params,
+    GroupIdentifier,
+    Insertions,
+    ResourceExceptionConstraints & {
+      params:
+        | ExtractCraftException<Params>
+        | Extract<
+            ExtractCraftGenExceptions<MethodStreamYielded>,
+            AnyCraftException
+          >;
+      loader: Extract<
+        ExtractCraftGenExceptions<LoaderYielded>,
+        AnyCraftException
+      >;
+    },
+    QueryTrackedDependencies<
+      never,
+      MethodStreamYielded,
+      LoaderYielded,
+      never,
+      InsertionYielded,
+      Providers,
+      Insertions
+    >,
+    false,
+    MethodStreamYielded,
+    Name
+  >
+>;
+
 export function query(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1562,8 +1729,13 @@ function createQueryRef<
 
   const hasMethodFn =
     typeof queryConfig.method === 'function' && !isSignal(queryConfig.method);
+  const methodStream = isCraftResourceMethodStream(queryConfig.method)
+    ? queryConfig.method
+    : undefined;
+  const hasMethodTrigger = hasMethodFn || !!methodStream;
+  const queryMethodParamsSignal = signal<QueryParams | undefined>(undefined);
   const queryResourceParamsFnSignal =
-    queryConfig.params ?? signal<QueryParams | undefined>(undefined);
+    queryConfig.params ?? queryMethodParamsSignal;
 
   // Incremented on every explicit call() so the resource request always changes,
   // forcing the loader to re-run even when the method returns the same value or
@@ -1657,7 +1829,7 @@ function createQueryRef<
   };
 
   const reactiveParamsException = computed(() => {
-    if (hasMethodFn) {
+    if (hasMethodTrigger) {
       return undefined;
     }
     const schemaParamsException = schemaParseExceptions()['params'];
@@ -1701,7 +1873,9 @@ function createQueryRef<
   });
 
   const paramsException = computed(() => {
-    return hasMethodFn ? methodParamsException() : reactiveParamsException();
+    return hasMethodTrigger
+      ? methodParamsException()
+      : reactiveParamsException();
   });
 
   const {
@@ -1930,10 +2104,10 @@ function createQueryRef<
       seq,
     );
   });
-  const nonGroupedParams = hasMethodFn
+  const nonGroupedParams = hasMethodTrigger
     ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
     : resourceParamsSrc;
-  const nonGroupedEqual = hasMethodFn
+  const nonGroupedEqual = hasMethodTrigger
     ? methodParamsWrapperEqual(
         (queryConfig as { equal?: (a: any, b: any) => boolean }).equal,
       )
@@ -2126,9 +2300,48 @@ function createQueryRef<
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         QueryParams | undefined
       >,
-      call: !hasMethodFn
+      call: !hasMethodTrigger
         ? undefined
         : (arg: QueryArgsParams) => {
+            if (methodStream) {
+              let paramsResult = arg as unknown as QueryParams;
+              if (configuredSchemas.params) {
+                const parsed = schemaValidation.params.parseSync<QueryParams>(
+                  arg,
+                  'params',
+                  'method',
+                );
+                if (!parsed.accepted) {
+                  methodParamsException.set(
+                    enrichResourceException(parsed.exception, {
+                      scope: 'params',
+                    }),
+                  );
+                  return yieldableInvocation<MethodYielded, QueryParams>(
+                    parsed.exception as QueryParams,
+                  );
+                }
+                paramsResult = parsed.value;
+              }
+              methodParamsException.set(undefined);
+              if (isUsingIdentifier) {
+                const id = queryConfig.identifier?.(
+                  paramsResult as NonNullable<StripCraftException<QueryParams>>,
+                );
+                (
+                  resourceTarget as ResourceByIdRef<
+                    GroupIdentifier & string,
+                    QueryState,
+                    QueryParams
+                  >
+                ).addById(id as GroupIdentifier & string);
+              }
+              queryMethodParamsSignal.set(paramsResult);
+              methodTriggerSeq.update((n) => n + 1);
+              return yieldableInvocation<MethodYielded, QueryParams>(
+                paramsResult,
+              );
+            }
             let methodArg: unknown = arg;
             if (configuredSchemas.method) {
               const parsedMethod = schemaValidation.method.parseSync<unknown>(
@@ -2547,6 +2760,58 @@ function createQueryRef<
         },
       });
     }
+  }
+  if (methodStream) {
+    subscribeCraftResourceMethodStream(methodStream, getInjector(), {
+      next: (value) => {
+        if (isCraftException(value)) {
+          methodParamsException.set(
+            enrichResourceException(value, { scope: 'params' }),
+          );
+          return;
+        }
+        let paramsResult = value as unknown as QueryParams;
+        if (configuredSchemas.params) {
+          const parsed = schemaValidation.params.parseSync<QueryParams>(
+            value,
+            'params',
+            'stream',
+          );
+          if (!parsed.accepted) {
+            methodParamsException.set(
+              enrichResourceException(parsed.exception, { scope: 'params' }),
+            );
+            return;
+          }
+          paramsResult = parsed.value;
+        }
+        methodParamsException.set(undefined);
+        if (isUsingIdentifier) {
+          const id = queryConfig.identifier?.(
+            paramsResult as NonNullable<StripCraftException<QueryParams>>,
+          );
+          (
+            resourceTarget as ResourceByIdRef<
+              GroupIdentifier & string,
+              QueryState,
+              QueryParams
+            >
+          ).addById(id as GroupIdentifier & string);
+        }
+        queryMethodParamsSignal.set(paramsResult);
+        methodTriggerSeq.update((n) => n + 1);
+      },
+      exception: (exception) => {
+        if (isCraftException(exception)) {
+          methodParamsException.set(
+            enrichResourceException(exception, { scope: 'params' }),
+          );
+        } else {
+          reportResourceMethodStreamError(getInjector(), exception);
+        }
+      },
+      error: (error) => reportResourceMethodStreamError(getInjector(), error),
+    });
   }
   const publicQuery = createYieldableReactiveFacade(queryOutput, {
     name,

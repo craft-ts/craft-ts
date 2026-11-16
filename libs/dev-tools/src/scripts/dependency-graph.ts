@@ -1990,9 +1990,17 @@ function linkServiceReferences(builder: GraphBuilder): void {
         property: name,
       });
       if (!builder.edges.has(`${owner.id}:uses-property:${property.id}`)) {
+        const templateRole = templateRoleOf(identifier);
+        const templateHandlerId = templateHandlerIdOf(identifier);
+        const templateEventHandlerId = templateEventHandlerIdOf(identifier);
+        const templateContexts = templateContextsOf(identifier);
         addEdge(builder, owner.id, property.id, 'uses-property', 'ast', {
           property: name,
           usage: 'template',
+          ...(templateRole ? { templateRole } : {}),
+          ...(templateHandlerId ? { templateHandlerId } : {}),
+          ...(templateEventHandlerId ? { templateEventHandlerId } : {}),
+          ...(templateContexts ? { templateContexts } : {}),
         });
       }
       parentId = property.id;
@@ -2878,64 +2886,72 @@ function analyzeComponents(builder: GraphBuilder): void {
         containsCallNamed(part, 'form'),
       ),
     };
-    for (const part of [setup, template].flatMap(
-      componentImplementationParts,
-    )) {
-      if (!part) continue;
-      collectServiceBindingsFromReturns(component, part, builder);
-      for (const nested of part.getDescendantsOfKind(
-        SyntaxKind.CallExpression,
-      )) {
-        const httpClientUsage = findCraftHttpClientUsage(nested);
-        if (httpClientUsage) {
-          const ownerNode = ownerNodeForCall(
-            builder,
-            nested,
-            component.node.id,
-          );
-          addHttpClientUsage(builder, ownerNode.id, httpClientUsage, {
-            ...(resourceLoaderFactory(nested)
-              ? { resourceRole: 'loader' }
-              : {}),
-          });
-        }
-        addServerFunctionUsage(builder, nested, component.node.id);
-        const temporalUsage = findCraftTemporalUsage(nested);
-        if (temporalUsage) {
-          const ownerNode = ownerNodeForCall(
-            builder,
-            nested,
-            component.node.id,
-          );
-          addTemporalUsage(builder, ownerNode.id, temporalUsage);
-        }
-        const helper =
-          findServiceForCall(builder, nested) ??
-          findComponentBoundService(component, nested);
-        if (helper) {
-          addEdge(
-            builder,
-            component.node.id,
-            helper.node.id,
-            'depends-on',
-            'type',
-          );
-          addServiceDependency(builder, component.node.id, helper, nested);
-          if (!nearestPrimitiveFactory(nested)) {
-            collectServiceBindings(component, nested, helper);
+    const implementations =
+      template === setup
+        ? ([[template, 'template']] as const)
+        : ([[setup, 'setup'], [template, 'template']] as const);
+    for (const [implementation, usage] of implementations) {
+      for (const part of componentImplementationParts(implementation)) {
+        if (!part) continue;
+        collectServiceBindingsFromReturns(component, part, builder);
+        for (const nested of part.getDescendantsOfKind(
+          SyntaxKind.CallExpression,
+        )) {
+          const httpClientUsage = findCraftHttpClientUsage(nested);
+          if (httpClientUsage) {
+            const ownerNode = ownerNodeForCall(
+              builder,
+              nested,
+              component.node.id,
+            );
+            addHttpClientUsage(builder, ownerNode.id, httpClientUsage, {
+              ...(resourceLoaderFactory(nested)
+                ? { resourceRole: 'loader' }
+                : {}),
+            });
+          }
+          addServerFunctionUsage(builder, nested, component.node.id);
+          const temporalUsage = findCraftTemporalUsage(nested);
+          if (temporalUsage) {
+            const ownerNode = ownerNodeForCall(
+              builder,
+              nested,
+              component.node.id,
+            );
+            addTemporalUsage(builder, ownerNode.id, temporalUsage);
+          }
+          const helper =
+            findServiceForCall(builder, nested) ??
+            findComponentBoundService(component, nested);
+          if (helper) {
+            addEdge(
+              builder,
+              component.node.id,
+              helper.node.id,
+              'depends-on',
+              'type',
+            );
+            addServiceDependency(builder, component.node.id, helper, nested);
+            if (!nearestPrimitiveFactory(nested)) {
+              collectServiceBindings(component, nested, helper);
+            }
+          }
+          if (isPrimitiveFactory(nested)) {
+            addOwnedPrimitive(builder, nested, component.node.id, { usage });
+          }
+          const child = findComponentForCall(builder, nested);
+          if (child && child !== component) {
+            addEdge(
+              builder,
+              component.node.id,
+              child.node.id,
+              'renders',
+              'ast',
+            );
           }
         }
-        if (isPrimitiveFactory(nested)) {
-          addOwnedPrimitive(builder, nested, component.node.id, {
-            usage: part === setup ? 'setup' : 'template',
-          });
-        }
-        const child = findComponentForCall(builder, nested);
-        if (child && child !== component) {
-          addEdge(builder, component.node.id, child.node.id, 'renders', 'ast');
-        }
+        addSourceInteractions(builder, component.node.id, part, usage);
       }
-      addSourceInteractions(builder, component.node.id, part);
     }
     const setupParts = componentImplementationParts(setup);
     const setupBindings = new Map<string, ReactiveBinding>();
@@ -4579,6 +4595,7 @@ function addSourceInteractions(
   builder: GraphBuilder,
   ownerId: string,
   node: Node,
+  usage?: 'setup' | 'template',
 ): void {
   for (const source of builder.sources) {
     for (const name of source.variableNames) {
@@ -4595,8 +4612,22 @@ function addSourceInteractions(
         if (!directSourceAccess && !exposedMachineSourceAccess) continue;
         const owner = ownerNodeForAst(builder, access, ownerId);
         if (text.endsWith('.emit') || text.endsWith('.set')) {
+          const templateRole =
+            usage === 'template' ? templateRoleOf(access) : undefined;
+          const templateHandlerId =
+            usage === 'template' ? templateHandlerIdOf(access) : undefined;
+          const templateEventHandlerId =
+            usage === 'template' ? templateEventHandlerIdOf(access) : undefined;
           addEdge(builder, owner.id, source.node.id, 'writes', 'ast', {
             operation: text.split('.').pop(),
+            callSite: {
+              filePath: access.getSourceFile().getFilePath(),
+              line: access.getStartLineNumber(),
+            },
+            ...(usage ? { usage } : {}),
+            ...(templateRole ? { templateRole } : {}),
+            ...(templateHandlerId ? { templateHandlerId } : {}),
+            ...(templateEventHandlerId ? { templateEventHandlerId } : {}),
             ...(exposedMachineSourceAccess
               ? { exposedThrough: 'state-machine' }
               : {}),
@@ -5230,9 +5261,62 @@ function templateHandlerIdOf(node: Node): string | undefined {
   return undefined;
 }
 
+const TEMPLATE_EVENT_HANDLER_NAMES = new Set([
+  'click',
+  'onClick',
+  'input',
+  'onInput',
+  'change',
+  'onChange',
+  'submit',
+  'onSubmit',
+  'keydown',
+  'onKeyDown',
+  'keyup',
+  'onKeyUp',
+  'focus',
+  'onFocus',
+  'blur',
+  'onBlur',
+  'pointerdown',
+  'onPointerDown',
+  'pointerup',
+  'onPointerUp',
+  'mousedown',
+  'onMouseDown',
+  'mouseup',
+  'onMouseUp',
+]);
+
+function templateEventHandlerIdOf(node: Node): string | undefined {
+  let current: Node | undefined = node;
+  while (current) {
+    if (Node.isPropertyAssignment(current)) {
+      const propertyName = current
+        .getNameNode()
+        .getText()
+        .replace(/["']/g, '');
+      const options = current.getParentIfKind(
+        SyntaxKind.ObjectLiteralExpression,
+      );
+      const owner = options?.getParentIfKind(SyntaxKind.CallExpression);
+      if (owner && TEMPLATE_EVENT_HANDLER_NAMES.has(propertyName)) {
+        return `${current.getSourceFile().getFilePath()}:${current.getStart()}`;
+      }
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
 function templateContextsOf(
   node: Node,
-): readonly { role: string; handlerId?: string; filePath: string; offset: number }[] | undefined {
+): readonly {
+  role: string;
+  handlerId?: string;
+  filePath: string;
+  offset: number;
+}[] | undefined {
   const role = templateRoleOf(node);
   if (!role) return undefined;
   const handlerId = templateHandlerIdOf(node);

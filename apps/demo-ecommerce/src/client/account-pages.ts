@@ -1,6 +1,5 @@
 import { a, article, button, craftComponent, div, form, heading, headingSection, ifNode, input, label, main, p, span, strong } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
-import { failureOf } from './shop-format';
 import { Session } from './shop-state';
 import { demoAccounts } from '../shared/accounts';
 
@@ -38,7 +37,7 @@ export const LoginPanel = craftComponent('EcommerceLoginPanel', {}, function* ()
       label({ class: 'field' }, ['Mot de passe', input('sign-in-password', { name: 'password', type: 'password', autocomplete: 'current-password', required: true })]),
       button('sign-in-submit', { type: 'submit', class: 'button', disabled: session.signInProcess.isLoading }, function* () { return (yield* session.signInProcess.isLoading()) ? 'Connexion…' : 'Se connecter'; }),
       // Un échec renvoyé par le serveur arrive dans le canal d'exception de la query, pas dans sa valeur.
-      ifNode('sign-in-failed', function* () { return failureOf(yield* session.signInProcess.value()) !== undefined; }, () => p({ class: 'notice error' }, function* () { return failureOf(yield* session.signInProcess.value())?.message ?? ''; })),
+      ifNode('sign-in-failed', function* () { return (yield* session.signInFailure()) !== undefined; }, () => p({ class: 'notice error' }, function* () { return (yield* session.signInFailure())?.message ?? ''; })),
     ]),
   ]);
 });

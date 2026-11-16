@@ -28,6 +28,10 @@ import { buttonUi } from '@craft-ts/ui/style';
 const DEFAULT_GRID_SIZE = 16;
 const EMPTY_COLOR = '#f8fafc';
 const COLORS = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
+const COLOR_SWATCHES = COLORS.map((color) => ({
+  color,
+  fill: pixelColor(color),
+}));
 const benchmarkParams =
   typeof globalThis.location !== 'undefined'
     ? new URLSearchParams(globalThis.location.search)
@@ -39,9 +43,6 @@ const CELL_COUNT = Math.max(
 const SCHEDULE_MODE =
   benchmarkParams?.get('schedule') === 'sync' ? 'sync' : 'frame';
 const INDEXES = Array.from({ length: CELL_COUNT }, (_, index) => index);
-
-const cellColor = (cell: { color: string } | undefined) =>
-  cell?.color ?? EMPTY_COLOR;
 
 export const { PixelArtView, providePixelArtView } = craftService(
   { name: 'pixelArtView', providedIn: 'toProvide' },
@@ -114,6 +115,15 @@ export const { PixelArtView, providePixelArtView } = craftService(
                 );
               },
             ),
+            displayCells: yield* craftComputed(
+              'displayCells',
+              function* () {
+                return (yield* state()).map((cell) => ({
+                  ...cell,
+                  fill: pixelColor(cell.color),
+                }));
+              },
+            ),
           };
         },
       ),
@@ -142,18 +152,18 @@ const PixelArt = craftComponent(
       ]),
       div(
         { class: pixel.palette },
-        forNode(COLORS, { track: (color) => color }, (color) =>
+        forNode(COLOR_SWATCHES, { track: (swatch) => swatch.color }, (swatch) =>
           button('color', {
             type: 'button',
             class: pixel.swatch,
             style: function* () {
-              return assign(pixelVars.fill, pixelColor(yield* color()));
+              return assign(pixelVars.fill, (yield* swatch()).fill);
             },
             'aria-label': function* () {
-              return `Choose ${yield* color()}`;
+              return `Choose ${(yield* swatch()).color}`;
             },
             *click() {
-              yield* PixelArtView.ui.setActiveColor(yield* color());
+              yield* PixelArtView.ui.setActiveColor((yield* swatch()).color);
             },
           }),
         ),
@@ -178,26 +188,19 @@ const PixelArt = craftComponent(
       div(
         { class: pixel.grid, role: 'grid' },
         forNode(
-          INDEXES,
-          { track: (index) => index },
-          (_item, currentIndex) =>
+          PixelArtView.cells.displayCells,
+          { track: (cell) => cell.index },
+          (cell) =>
             button('cell', {
               type: 'button',
               class: pixel.cell,
               'data-testid': 'pixel-cell',
               style: function* () {
-                return assign(
-                  pixelVars.fill,
-                  pixelColor(
-                    cellColor(
-                      yield* PixelArtView.cells.selectCell(yield* currentIndex()),
-                    ),
-                  ),
-                );
+                return assign(pixelVars.fill, (yield* cell()).fill);
               },
-              title: function* () { return `Cell ${(yield* currentIndex()) + 1}`; },
+              title: function* () { return `Cell ${(yield* cell()).index + 1}`; },
               *click() {
-                yield* PixelArtView.paintCell(yield* currentIndex());
+                yield* PixelArtView.paintCell((yield* cell()).index);
               },
             }),
         ).pipe(

@@ -10,6 +10,7 @@ const STRUCTURAL_HELPERS = new Set([
   'ifNode',
   'liveRegion',
   'matchNode',
+  'pendingNode',
   'renderContent',
   'renderTemplate',
 ]);
@@ -18,6 +19,7 @@ const EVENT_NAMES = new Set([
   'blur',
   'change',
   'click',
+  'contextmenu',
   'dblclick',
   'focus',
   'input',
@@ -26,6 +28,8 @@ const EVENT_NAMES = new Set([
   'keyup',
   'mousedown',
   'mouseup',
+  'pointerenter',
+  'pointerleave',
   'pointerdown',
   'pointerup',
   'reset',
@@ -46,11 +50,13 @@ const EAGER_CALLBACK_METHODS = new Set([
   'reduceRight',
   'some',
   'sort',
+  // Promise callbacks used by deferNode resolve an insertion; they are not
+  // reactive template bindings.
+  'then',
 ]);
 const PRESENTATION_FUNCTIONS = new Set(['Boolean', 'Number', 'String']);
 const PRESENTATION_METHODS = new Set([
   'charAt',
-  'join',
   'padEnd',
   'padStart',
   'slice',
@@ -59,6 +65,9 @@ const PRESENTATION_METHODS = new Set([
   'toString',
   'toUpperCase',
   'trim',
+  // Router and style builders decorate an already-created CraftNode; the
+  // call does not derive template data.
+  'pipe',
 ]);
 const SAFE_TEMPLATE_CALLS = new Set([
   'safeUrl',
@@ -79,14 +88,14 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Require reactive values rendered by Craft components to be read inside granular binding callbacks.',
+        'Require reactive values rendered by Craft components to be read inside granular bindings, and keep derived calls out of those bindings.',
     },
     schema: [],
     messages: {
       directRead:
         'Do not read a reactive value directly while building a Craft template. Wrap the rendered expression in a binding callback, for example `() => value()`.',
       derivedCall:
-        'Do not call a derived business helper from a reactive Craft template binding. Move the derivation to state(), craftComputed(), or query(), then bind the resulting value.',
+        'Do not call a derived helper or data transformation from a reactive Craft template binding. Expose the value through an insertion or service computed, then bind that value.',
       missingTypeInfo:
         'This rule requires TypeScript type information to identify reactive template values.',
     },
@@ -98,6 +107,7 @@ module.exports = {
     const checker = parserServices?.program?.getTypeChecker?.();
     const esTreeNodeToTSNodeMap = parserServices?.esTreeNodeToTSNodeMap;
     let reportedMissingTypeInfo = false;
+    let craftNodeType;
 
     return {
       Program() {
@@ -152,36 +162,31 @@ module.exports = {
         }
 
         if (
-          node.arguments.length > 0 &&
           isInsideReactiveBinding(node, template) &&
+          !isRenderCall(node) &&
+          !isYieldedCall(node) &&
           !isPresentationCall(node) &&
-          containsReactiveRead(node)
+          !isReactiveRead(node)
         ) {
           context.report({ node, messageId: 'derivedCall' });
         }
       });
     }
 
-    function containsReactiveRead(node) {
-      let found = false;
-      walk(node, (candidate) => {
-        if (
-          candidate !== node &&
-          candidate.type === 'CallExpression' &&
-          candidate.arguments.length === 0 &&
-          isReactiveRead(candidate)
-        ) {
-          found = true;
-          return 'skip';
-        }
-      });
-      return found;
-    }
-
     function isPresentationCall(node) {
       // Message catalogs often expose interpolation helpers (for example
       // `t().queueSummary(count)`). These format already-derived values for
       // display and do not belong in the business-derivation rule.
+      if (
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.object.type === 'Identifier' &&
+        node.callee.object.name === 'i18n' &&
+        node.callee.property.type === 'Identifier' &&
+        node.callee.property.name === 't'
+      ) {
+        return true;
+      }
       if (
         node.callee.type === 'MemberExpression' &&
         !node.callee.computed &&
@@ -212,6 +217,12 @@ module.exports = {
         !node.callee.computed &&
         node.callee.property.type === 'Identifier' &&
         PRESENTATION_METHODS.has(node.callee.property.name)
+      );
+    }
+
+    function isYieldedCall(node) {
+      return (
+        node.parent?.type === 'YieldExpression' && node.parent.argument === node
       );
     }
 
@@ -275,7 +286,20 @@ module.exports = {
       let current = node.parent;
       while (current && current !== template) {
         if (isFunctionNode(current)) {
-          return isReactiveBindingFunction(current);
+          if (isEventOrOutputCallback(current)) return false;
+          const renderCall = enclosingRenderCall(current);
+          if (renderCall) {
+            if (isReactiveBindingFunction(current)) return true;
+            if (
+              isStructuralTemplateFunction(
+                current,
+                renderCall,
+                callName(renderCall),
+              )
+            ) {
+              return false;
+            }
+          }
         }
         current = current.parent;
       }
@@ -317,13 +341,13 @@ module.exports = {
       const key = enclosingPropertyName(fn, call);
 
       if (name === 'forNode') {
-        return argumentIndex === 2 || key === 'empty';
+        return argumentIndex === 2 || key === 'empty' || key === 'track';
       }
       if (name === 'ifNode') {
         return argumentIndex === 1 || argumentIndex === 2;
       }
       if (name === 'deferNode') {
-        return ['resolve', 'placeholder', 'loading', 'error'].includes(key);
+        return argumentIndex === 0 || ['resolve', 'placeholder', 'loading', 'error'].includes(key);
       }
       if (name === 'exhaustive') {
         return argumentIndex !== 0;
@@ -380,6 +404,7 @@ module.exports = {
       }
       if (name === 'exhaustive') return true;
       return (
+        isCraftNodeResult(node) ||
         node.callee.type === 'Identifier' &&
         /^[A-Z]/.test(node.callee.name) &&
         ![
@@ -391,6 +416,33 @@ module.exports = {
           'Object',
           'String',
         ].includes(node.callee.name)
+      );
+    }
+
+    function isCraftNodeResult(node) {
+      const tsNode = esTreeNodeToTSNodeMap.get(node);
+      if (!tsNode) return false;
+      const type = checker.getTypeAtLocation(tsNode);
+      if (craftNodeType === undefined) {
+        const sourceFile = tsNode.getSourceFile();
+        const componentImport = sourceFile.statements.find(
+          (statement) =>
+            statement.moduleSpecifier?.text === '@craft-ts/component',
+        );
+        const moduleSymbol = componentImport?.moduleSpecifier
+          ? checker.getSymbolAtLocation(componentImport.moduleSpecifier)
+          : undefined;
+        const craftNodeSymbol = moduleSymbol
+          ? checker
+              .getExportsOfModule(moduleSymbol)
+              .find((symbol) => symbol.name === 'CraftNode')
+          : undefined;
+        craftNodeType = craftNodeSymbol
+          ? checker.getDeclaredTypeOfSymbol(craftNodeSymbol)
+          : null;
+      }
+      return Boolean(
+        craftNodeType && checker.isTypeAssignableTo(type, craftNodeType),
       );
     }
 

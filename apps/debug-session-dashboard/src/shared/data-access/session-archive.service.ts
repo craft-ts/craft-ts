@@ -1,6 +1,5 @@
 import {
   CraftHttpClient,
-  CraftTemporalRuntime,
   craftComputed,
   craftExpose,
   craftService,
@@ -8,9 +7,9 @@ import {
   insertQueryPipe,
   mutation,
   query,
-  source$,
   state,
 } from '@craft-ts/core';
+import { timer } from '@craft-ts/stream';
 import { isRecord } from '../util/replay-model';
 
 const SESSION_ARCHIVE_URL =
@@ -413,16 +412,13 @@ export function httpFailureReason(exception: unknown): string {
 /**
  * The local archive of recorded sessions: the list the sessions page shows,
  * refreshed on a timer, the deletion of one, and the load of one. Every call
- * goes through the Craft HTTP transport; the timer is the Craft temporal
- * runtime's, so it ends with the service.
+ * goes through the Craft HTTP transport; the refresh stream is owned by this
+ * service and stops with it.
  */
 export const { SessionArchive } = craftService(
   { name: 'sessionArchive', providedIn: 'global' },
   function* () {
-    const temporal = yield* CraftTemporalRuntime();
-
-    let refreshCount = 0;
-    const refreshRequested$ = source$<number>('refreshRequested$');
+    const refresh = timer(0, REFRESH_EVERY_MS);
 
     const deleteSession = yield* mutation('deleteSession', {
       method: (id: string) => id,
@@ -458,37 +454,41 @@ export const { SessionArchive } = craftService(
 
     // "Reprendre ici": the archive keeps the point for the AI's
     // `resume.request` tool, bound to the id copied into the prompt.
-    const resumeRequest = yield* mutation('resumeRequest', {
-      method: (input: Readonly<{ point: ResumePoint; requestId: string }>) =>
-        input,
-      loader: function* ({ params: input }) {
-        return yield* CraftHttpClient.post(({ response }) => ({
-          url: `${SESSION_ARCHIVE_URL}/sessions/resume-requests`,
-          payload: { ...input.point, id: input.requestId },
-          success: response(resumeRequestDecoder),
-        }));
+    const resumeRequest = yield* mutation(
+      'resumeRequest',
+      {
+        method: (input: Readonly<{ point: ResumePoint; requestId: string }>) =>
+          input,
+        loader: function* ({ params: input }) {
+          return yield* CraftHttpClient.post(({ response }) => ({
+            url: `${SESSION_ARCHIVE_URL}/sessions/resume-requests`,
+            payload: { ...input.point, id: input.requestId },
+            success: response(resumeRequestDecoder),
+          }));
+        },
       },
-    }, function* ({ resource, hasException }) {
-      return {
-        resumeRequestSending: yield* craftComputed(
-          'resumeRequestSending',
-          function* () {
-            return yield* resource.isLoading();
-          },
-        ),
-        resumeRequestFailed: yield* craftComputed(
-          'resumeRequestFailed',
-          function* () {
-            return yield* hasException();
-          },
-        ),
-      };
-    });
+      function* ({ resource, hasException }) {
+        return {
+          resumeRequestSending: yield* craftComputed(
+            'resumeRequestSending',
+            function* () {
+              return yield* resource.isLoading();
+            },
+          ),
+          resumeRequestFailed: yield* craftComputed(
+            'resumeRequestFailed',
+            function* () {
+              return yield* hasException();
+            },
+          ),
+        };
+      },
+    );
 
     yield* query(
       'sessions',
       {
-        method: refreshRequested$.value,
+        method: refresh,
         loader: function* () {
           return yield* CraftHttpClient.get(({ response }) => ({
             url: `${SESSION_ARCHIVE_URL}/sessions`,
@@ -571,7 +571,7 @@ export const { SessionArchive } = craftService(
     yield* query(
       'recipeCatalog',
       {
-        method: refreshRequested$.value,
+        method: refresh,
         loader: function* () {
           return yield* CraftHttpClient.get(({ response }) => ({
             url: `${SESSION_ARCHIVE_URL}/sessions/recipes`,
@@ -581,9 +581,12 @@ export const { SessionArchive } = craftService(
       },
       function* ({ resource }) {
         return {
-          resumeRecipeList: yield* craftComputed('resumeRecipeList', function* () {
-            return (yield* resource.value()) ?? [];
-          }),
+          resumeRecipeList: yield* craftComputed(
+            'resumeRecipeList',
+            function* () {
+              return (yield* resource.value()) ?? [];
+            },
+          ),
         };
       },
     );
@@ -609,14 +612,6 @@ export const { SessionArchive } = craftService(
         };
       },
     );
-
-    const refreshAgain = () => {
-      refreshRequested$.emit(++refreshCount);
-      temporal.schedule(refreshAgain, REFRESH_EVERY_MS, {
-        owner: 'session-archive',
-      });
-    };
-    refreshAgain();
 
     // What the dashboard tells after « Reprendre ici »: the request is out,
     // and the sentence to give the AI, shown in case the copy failed.

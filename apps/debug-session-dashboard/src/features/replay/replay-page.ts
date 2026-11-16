@@ -8,9 +8,9 @@ import {
 import { craftComputed } from '@craft-ts/core';
 import { SessionArchive } from '../../shared/data-access/session-archive.service';
 import { ReplayRoute } from '../../shared/state/replay-route.service';
+import { ReplayState } from '../../shared/state/replay-state';
 import {
   page,
-  replayState,
   routeSessionId,
   session,
 } from '../../shared/state/replay-state';
@@ -46,7 +46,7 @@ export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
       class: ui.page,
       'data-lab': 'detail-page',
       'data-replay-state': function* () {
-        return replayState();
+        return yield* (yield* ReplayState()).imperative.replayState();
       },
       hidden: pageIsHidden,
     },

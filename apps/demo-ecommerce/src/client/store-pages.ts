@@ -60,6 +60,7 @@ export const { SearchView, provideSearchView } = craftService({ name: 'searchVie
 export const { ProductView, provideProductView } = craftService({ name: 'productView', providedIn: 'toProvide' }, function* () {
   const { storeQuery } = yield* StorefrontView();
   const productId = yield* ProductIdPathParams();
+  const shopUi = yield* ShopUi();
   const currentProduct = yield* craftComputed('currentProduct', function* () {
     const id = yield* productId();
     return (yield* storeQuery.products()).find((product) => product.id === id);
@@ -69,6 +70,78 @@ export const { ProductView, provideProductView } = craftService({ name: 'product
     if (!current) return [];
     const others = (yield* storeQuery.products()).filter((product) => product.id !== current.id && isAvailable(product));
     return [...others.filter((product) => product.categoryId === current.categoryId), ...others.filter((product) => product.categoryId !== current.categoryId)].slice(0, 3);
+  });
+  yield* craftComputed('categoryLabel', function* () {
+    const current = yield* currentProduct();
+    return current ? categoryName(yield* storeQuery.categories(), current.categoryId) : '';
+  });
+  yield* craftComputed('stockLevel', function* () {
+    const current = yield* currentProduct();
+    if (current?.kind !== 'simple') return undefined;
+    return current.stock <= 0 ? 'out' : current.stock <= 3 ? 'low' : 'ok';
+  });
+  yield* craftComputed('stockLabel', function* () {
+    const current = yield* currentProduct();
+    return current?.kind === 'simple' ? stockLabel(current.stock) : 'Formule à composer';
+  });
+  yield* craftComputed('formulaGroupsLabel', function* () {
+    const current = yield* currentProduct();
+    if (current?.kind !== 'formule') return '';
+    const categories = yield* storeQuery.categories();
+    return current.groups.map((group) => `${categoryName(categories, group.categoryId)} · ${groupRule(group)}`).join('  ·  ');
+  });
+  yield* craftComputed('formulaDisplayGroups', function* () {
+    const current = yield* currentProduct();
+    if (current?.kind !== 'formule') return [];
+    const products = yield* storeQuery.simpleProducts();
+    const categories = yield* storeQuery.categories();
+    const picksByGroup = (yield* shopUi.formulaPicks())[current.id] ?? {};
+    return current.groups.map((group) => {
+      const picks = picksByGroup[group.id] ?? [];
+      const options = products
+        .filter((item) => item.categoryId === group.categoryId)
+        .map((item) => ({
+          item,
+          selected: picks.includes(item.id),
+          disabled: item.stock <= 0 || (group.max > 1 && picks.length >= group.max && !picks.includes(item.id)),
+          tone: categoryTone(item.categoryId),
+          emoji: productEmoji(item),
+          stockText: item.stock > 0 ? `Inclus · ${stockLabel(item.stock).toLowerCase()}` : 'Épuisé',
+        }));
+      const names = picks.map((id) => products.find((item) => item.id === id)?.name ?? id);
+      return {
+        group,
+        categoryLabel: categoryName(categories, group.categoryId),
+        ruleLabel: groupRule(group),
+        statusLabel: `${picks.length} / ${group.max}`,
+        isComplete: picks.length >= group.min && picks.length <= group.max,
+        selectionLabel: names.length ? names.join(', ') : group.min === 0 ? 'Sans' : 'À choisir',
+        options,
+      };
+    });
+  });
+  yield* craftComputed('formulaIsComplete', function* () {
+    const current = yield* currentProduct();
+    if (current?.kind !== 'formule') return false;
+    const picks = (yield* shopUi.formulaPicks())[current.id] ?? {};
+    return current.groups.every((group) => {
+      const count = picks[group.id]?.length ?? 0;
+      return count >= group.min && count <= group.max;
+    });
+  });
+  yield* craftComputed('formulaPriceLabel', function* () {
+    const current = yield* currentProduct();
+    return current?.kind === 'formule' ? euros(current.price) : '';
+  });
+  yield* craftComputed('formulaButtonLabel', function* () {
+    const current = yield* currentProduct();
+    if (current?.kind !== 'formule') return 'Complétez vos choix';
+    const picks = (yield* shopUi.formulaPicks())[current.id] ?? {};
+    const complete = current.groups.every((group) => {
+      const count = picks[group.id]?.length ?? 0;
+      return count >= group.min && count <= group.max;
+    });
+    return complete ? `Ajouter au panier · ${euros(current.price)}` : 'Complétez vos choix';
   });
 });
 
@@ -268,7 +341,7 @@ const CataloguePage = craftComponent('EcommerceCataloguePage', { providers: [pro
 
 const ProductPage = craftComponent('EcommerceProductPage', { providers: [provideStorefrontView(), provideProductView()] }, function* () {
   const { storeQuery } = yield* StorefrontView();
-  const { currentProduct: product, relatedProducts } = yield* ProductView();
+  const { currentProduct: product, relatedProducts, categoryLabel, stockLevel, stockLabel: productStockLabel, formulaGroupsLabel } = yield* ProductView();
   const cart = yield* Cart();
   const { promoNow } = yield* PromoClock();
   const pricing = pricingOf(storeQuery.promotion, storeQuery.products, promoNow);
@@ -279,18 +352,14 @@ const ProductPage = craftComponent('EcommerceProductPage', { providers: [provide
         () => div({ class: 'product-layout' }, [
           productVisual(product, 'hero'),
           section({ class: 'product-info' }, [
-            span({ class: 'badge' }, function* () { const value = yield* product(); return value ? categoryName(yield* storeQuery.categories(), value.categoryId) : ''; }),
+            span({ class: 'badge' }, categoryLabel),
             heading({ class: 'page-title' }, function* () { return (yield* product())?.name ?? ''; }),
             p({ class: 'lead' }, function* () { return (yield* product())?.description ?? ''; }),
             div({ class: 'price-row' }, [
               priceTag(pricing, product, 'large'),
-              span({ class: 'stock-hint', 'data-level': function* () { const value = yield* product(); if (value?.kind !== 'simple') return undefined; return value.stock <= 0 ? 'out' : value.stock <= 3 ? 'low' : 'ok'; } }, function* () { const value = yield* product(); return value?.kind === 'simple' ? stockLabel(value.stock) : 'Formule à composer'; }),
+              span({ class: 'stock-hint', 'data-level': stockLevel }, productStockLabel),
             ]),
-            ifNode('formula-groups', function* () { return (yield* product())?.kind === 'formule'; }, () => ul({ class: 'formula-rules' }, function* () {
-              const value = yield* product();
-              const categories = yield* storeQuery.categories();
-              return value?.kind === 'formule' ? value.groups.map((group) => `${categoryName(categories, group.categoryId)} · ${groupRule(group)}`).join('  ·  ') : '';
-            })),
+            ifNode('formula-groups', function* () { return (yield* product())?.kind === 'formule'; }, () => ul({ class: 'formula-rules' }, formulaGroupsLabel)),
             addToCartControl(cart, pricing, product, 'large'),
             ul({ class: 'reassurance' }, [li('🕖 Préparé le matin même'), li('🛍 Retrait offert au comptoir'), li('🔒 Paiement de démonstration, sans carte')]),
           ]),
@@ -304,61 +373,47 @@ const ProductPage = craftComponent('EcommerceProductPage', { providers: [provide
 });
 
 const FormulaComposer = craftComponent('EcommerceFormulaComposer', {}, function* () {
-  const { storeQuery } = yield* StorefrontView();
   const cart = yield* Cart();
   const shopUi = yield* ShopUi();
-  const formula = yield* (yield* ProductView()).currentProduct();
+  const { currentProduct, formulaDisplayGroups, formulaIsComplete, formulaPriceLabel, formulaButtonLabel } = yield* ProductView();
+  const formula = yield* currentProduct();
   if (!formula || formula.kind !== 'formule') return div({ class: 'empty-state' }, [heading({ level: 2 }, 'Cette formule est introuvable.'), a('missing-formula-shop', { class: 'button' }, 'Voir la boutique').pipe(CraftRouterLink({ to: 'catalogue' }))]);
-  const products = yield* storeQuery.simpleProducts();
-  const categories = yield* storeQuery.categories();
-  const picksOf = function* (groupId: string) { return (yield* shopUi.formulaPicks())[formula.id]?.[groupId] ?? []; };
-  const isComplete = function* () {
-    const picks = (yield* shopUi.formulaPicks())[formula.id] ?? {};
-    return formula.groups.every((group) => { const count = picks[group.id]?.length ?? 0; return count >= group.min && count <= group.max; });
-  };
+  const displayGroups = yield* formulaDisplayGroups();
   return div({ class: 'composer' }, [
-    div({ class: 'composer-steps' }, formula.groups.map((group, index) => {
-      const options = products.filter((product) => product.categoryId === group.categoryId);
+    div({ class: 'composer-steps' }, displayGroups.map((displayGroup, index) => {
+      const { group } = displayGroup;
       return section({ class: 'step' }, [
         div({ class: 'step-head' }, [
           span({ class: 'step-number' }, String(index + 1)),
-          div([heading({ level: 2, class: 'step-title' }, `Choisissez : ${categoryName(categories, group.categoryId).toLowerCase()}`), span({ class: 'muted' }, groupRule(group))]),
-          span({ class: 'step-status', 'data-done': function* () { const count = (yield* picksOf(group.id)).length; return count >= group.min && count > 0 ? 'true' : undefined; } }, function* () { return `${(yield* picksOf(group.id)).length} / ${group.max}`; }),
+          div([heading({ level: 2, class: 'step-title' }, `Choisissez : ${displayGroup.categoryLabel.toLowerCase()}`), span({ class: 'muted' }, displayGroup.ruleLabel)]),
+          span({ class: 'step-status', 'data-done': displayGroup.isComplete ? 'true' : undefined }, displayGroup.statusLabel),
         ]),
-        div({ class: 'options' }, [...options.map((product) => button('formula-choice', {
+        div({ class: 'options' }, [...displayGroup.options.map((option) => button('formula-choice', {
           type: 'button',
           class: 'option',
-          'aria-pressed': function* () { return (yield* picksOf(group.id)).includes(product.id) ? 'true' : 'false'; },
-          disabled: function* () {
-            if (product.stock <= 0) return true;
-            const picked = yield* picksOf(group.id);
-            return group.max > 1 && picked.length >= group.max && !picked.includes(product.id);
-          },
-          *click() { yield* shopUi.formulaPicks.toggle(formula.id, group, product.id); },
+          'aria-pressed': option.selected ? 'true' : 'false',
+          disabled: option.disabled,
+          *click() { yield* shopUi.formulaPicks.toggle(formula.id, group, option.item.id); },
         }, [
-          span({ class: 'option-emoji', 'data-tone': categoryTone(product.categoryId), 'aria-hidden': 'true' }, productEmoji(product)),
-          span({ class: 'option-text' }, [strong(product.name), span({ class: 'muted' }, product.stock > 0 ? `Inclus · ${stockLabel(product.stock).toLowerCase()}` : 'Épuisé')]),
+          span({ class: 'option-emoji', 'data-tone': option.tone, 'aria-hidden': 'true' }, option.emoji),
+          span({ class: 'option-text' }, [strong(option.item.name), span({ class: 'muted' }, option.stockText)]),
           span({ class: 'option-check', 'aria-hidden': 'true' }, '✓'),
-        ])), ...(options.length ? [] : [p({ class: 'muted' }, 'Aucun produit disponible dans cette catégorie.')])]),
+        ])), ...(displayGroup.options.length ? [] : [p({ class: 'muted' }, 'Aucun produit disponible dans cette catégorie.')])]),
       ]);
     })),
     aside({ class: 'summary' }, [
       div({ class: 'summary-head' }, [span({ class: 'summary-emoji', 'data-tone': categoryTone(formula.categoryId), 'aria-hidden': 'true' }, productEmoji(formula)), div([strong(formula.name), p({ class: 'muted' }, formula.description)])]),
-      ul({ class: 'summary-list' }, formula.groups.map((group) => li([
-        span({ class: 'muted' }, categoryName(categories, group.categoryId)),
-        span(function* () {
-          const names = (yield* picksOf(group.id)).map((id) => products.find((product) => product.id === id)?.name ?? id);
-          if (names.length) return names.join(', ');
-          return group.min === 0 ? 'Sans' : 'À choisir';
-        }),
+      ul({ class: 'summary-list' }, displayGroups.map((displayGroup) => li([
+        span({ class: 'muted' }, displayGroup.categoryLabel),
+        span(displayGroup.selectionLabel),
       ]))),
-      div({ class: 'summary-total' }, [span('Prix de la formule'), strong(euros(formula.price))]),
-      button('add-formula', { type: 'button', class: 'button button-block', disabled: function* () { return !(yield* isComplete()); }, *click() {
+      div({ class: 'summary-total' }, [span('Prix de la formule'), strong(formulaPriceLabel)]),
+      button('add-formula', { type: 'button', class: 'button button-block', disabled: function* () { return !(yield* formulaIsComplete()); }, *click() {
         const picks = (yield* shopUi.formulaPicks())[formula.id] ?? {};
         yield* cart.cartLines.add({ productId: formula.id, quantity: 1, selections: formula.groups.map((group) => ({ groupId: group.id, productIds: [...(picks[group.id] ?? [])] })) });
         yield* shopUi.formulaPicks.forget(formula.id);
         yield* CraftRouter.navigate({ to: 'panier' });
-      } }, function* () { return (yield* isComplete()) ? `Ajouter au panier · ${euros(formula.price)}` : 'Complétez vos choix'; }),
+      } }, formulaButtonLabel),
       p({ class: 'muted small' }, 'Les éléments choisis sont inclus dans le prix de la formule.'),
     ]),
   ]);
@@ -380,39 +435,66 @@ function selectionSummary(line: CartLine, product: Product | undefined, products
   return names.length ? names.join(' · ') : 'Formule sans accompagnement';
 }
 
-const CartPage = craftComponent('EcommerceCartPage', { providers: [provideStorefrontView()] }, function* () {
+export const { CartPageView, provideCartPageView } = craftService({ name: 'cartPageView', providedIn: 'toProvide' }, function* () {
   const { storeQuery } = yield* StorefrontView();
   const cart = yield* Cart();
   const { promoNow } = yield* PromoClock();
   const pricing = pricingOf(storeQuery.promotion, storeQuery.products, promoNow);
-  const productOf = function* (line: Read<CartLine>) { const value = yield* line(); return (yield* storeQuery.products()).find((product) => product.id === value.productId); };
-  const unitPrice = function* (line: Read<CartLine>) { const product = yield* productOf(line); return product ? yield* pricing.price(product) : 0; };
+  yield* craftComputed('displayLines', function* () {
+    const lines = yield* cart.cartLines();
+    const products = yield* storeQuery.products();
+    const result = [];
+    for (const line of lines) {
+      const product = products.find((item) => item.id === line.productId);
+      const unitPrice = product ? yield* pricing.price(product) : 0;
+      result.push({
+        line,
+        product,
+        summaryLabel: selectionSummary(line, product, products, unitPrice),
+        quantity: line.quantity,
+        cannotIncrease: product?.kind === 'simple' && quantityInCart(lines, product.id) >= product.stock,
+        totalLabel: euros(unitPrice * line.quantity),
+      });
+    }
+    return result;
+  });
+  yield* craftComputed('subtotalLabel', function* () {
+    return euros(yield* pricing.total(yield* cart.cartLines()));
+  });
+  yield* craftComputed('countLabel', function* () {
+    return `Sous-total · ${yield* cart.cartCount()} article(s)`;
+  });
+});
+
+const CartPage = craftComponent('EcommerceCartPage', { providers: [provideStorefrontView(), provideCartPageView()] }, function* () {
+  const cart = yield* Cart();
+  const cartPage = yield* CartPageView();
   return main([
     span({ class: 'eyebrow' }, 'Avant de se régaler'), heading({ class: 'page-title' }, 'Votre panier'),
     ifNode('cart-empty', function* () { return (yield* cart.cartCount()) === 0; },
       () => div({ class: 'empty-state' }, [span({ class: 'empty-emoji', 'aria-hidden': 'true' }, '🧺'), heading({ level: 2 }, 'Votre panier est encore vide'), p({ class: 'muted' }, 'Un croissant, un flat white ? On vous attend.'), a('empty-shop', { class: 'button' }, 'Voir la boutique').pipe(CraftRouterLink({ to: 'catalogue' }))]),
       () => div({ class: 'cart-layout' }, [
-        div({ class: 'cart-lines' }, forNode(cart.cartLines, { track: (line) => lineKey(line) }, (line) => article({ class: 'cart-line' }, [
-          productVisual(function* () { return yield* productOf(line); }, 'thumb'),
+        div({ class: 'cart-lines' }, forNode(cartPage.displayLines, { track: (line) => lineKey(line.line) }, (line) => article({ class: 'cart-line' }, [
+          productVisual(function* () { return (yield* line()).product; }, 'thumb'),
           div({ class: 'cart-line-info' }, [
-            strong(function* () { return (yield* productOf(line))?.name ?? 'Produit retiré de la carte'; }),
-            span({ class: 'muted' }, function* () { return selectionSummary(yield* line(), yield* productOf(line), yield* storeQuery.products(), yield* unitPrice(line)); }),
+            strong(function* () { return (yield* line()).product?.name ?? 'Produit retiré de la carte'; }),
+            span({ class: 'muted' }, function* () { return (yield* line()).summaryLabel; }),
             div({ class: 'stepper', 'data-size': 'compact' }, [
-              button('line-decrease', { type: 'button', class: 'stepper-button', 'aria-label': 'Retirer un exemplaire', *click() { yield* cart.cartLines.shift(lineKey(yield* line()), -1); } }, '−'),
+              button('line-decrease', { type: 'button', class: 'stepper-button', 'aria-label': 'Retirer un exemplaire', *click() { yield* cart.cartLines.shift(lineKey((yield* line()).line), -1); } }, '−'),
               span({ class: 'stepper-value' }, function* () { return String((yield* line()).quantity); }),
-              button('line-increase', { type: 'button', class: 'stepper-button', 'aria-label': 'Ajouter un exemplaire', disabled: function* () { const product = yield* productOf(line); return product?.kind === 'simple' && quantityInCart(yield* cart.cartLines(), product.id) >= product.stock; }, *click() { yield* cart.cartLines.shift(lineKey(yield* line()), 1); } }, '+'),
+              button('line-increase', { type: 'button', class: 'stepper-button', 'aria-label': 'Ajouter un exemplaire', disabled: function* () { return (yield* line()).cannotIncrease; }, *click() { yield* cart.cartLines.shift(lineKey((yield* line()).line), 1); } }, '+'),
             ]),
           ]),
           div({ class: 'cart-line-end' }, [
-            span({ class: 'price' }, function* () { return euros((yield* unitPrice(line)) * (yield* line()).quantity); }),
-            button('remove-line', { type: 'button', class: 'icon-button', 'aria-label': 'Retirer du panier', *click() { yield* cart.cartLines.remove(lineKey(yield* line())); } }, '✕'),
+            span({ class: 'price' }, function* () { return (yield* line()).totalLabel; }),
+            button('remove-line', { type: 'button', class: 'icon-button', 'aria-label': 'Retirer du panier', *click() { yield* cart.cartLines.remove(lineKey((yield* line()).line)); } }, '✕'),
           ]),
         ]))),
         aside({ class: 'summary' }, [
           heading({ level: 2, class: 'summary-title' }, 'Récapitulatif'),
-          div({ class: 'summary-row' }, [span(function* () { return `Sous-total · ${yield* cart.cartCount()} article(s)`; }), span(function* () { return euros(yield* pricing.total(yield* cart.cartLines())); })]),
+          div({ class: 'summary-row' }, [span(cartPage.countLabel), span(cartPage.subtotalLabel)]),
           div({ class: 'summary-row' }, [span('Retrait en boutique'), span({ class: 'free' }, 'Offert')]),
-          div({ class: 'summary-total' }, [span('Total'), strong(function* () { return euros(yield* pricing.total(yield* cart.cartLines())); })]),
+          div({ class: 'summary-total' }, [span('Total'), strong(cartPage.subtotalLabel)]),
           a('to-checkout', { class: 'button button-block' }, 'Passer commande →').pipe(CraftRouterLink({ to: 'paiement' })),
           a('continue-shopping', { class: 'text-link center' }, 'Continuer mes achats').pipe(CraftRouterLink({ to: 'catalogue' })),
         ]),
@@ -420,19 +502,56 @@ const CartPage = craftComponent('EcommerceCartPage', { providers: [provideStoref
   ]);
 });
 
-const CheckoutPage = craftComponent('EcommerceCheckoutPage', { providers: [provideStorefrontView()] }, function* () {
+export const { CheckoutPageView, provideCheckoutPageView } = craftService({ name: 'checkoutPageView', providedIn: 'toProvide' }, function* () {
   const { storeQuery, placeOrderProcess } = yield* StorefrontView();
   const cart = yield* Cart();
   const { promoNow } = yield* PromoClock();
   const pricing = pricingOf(storeQuery.promotion, storeQuery.products, promoNow);
   const placedOrder = yield* craftComputed('placedOrder', function* () { const result = yield* placeOrderProcess.value(); return result && !isCraftException(result) ? result : undefined; });
+  yield* craftComputed('confirmationLabel', function* () {
+    const order = yield* placedOrder();
+    return order ? `Commande ${order.id.slice(-5).toUpperCase()} · ${euros(order.total)}. Elle vous attend au comptoir.` : '';
+  });
+  yield* craftComputed('checkoutLines', function* () {
+    const lines = yield* cart.cartLines();
+    const products = yield* storeQuery.products();
+    const result = [];
+    for (const line of lines) {
+      const product = products.find((item) => item.id === line.productId);
+      const unitPrice = product ? yield* pricing.price(product) : 0;
+      result.push({
+        line,
+        nameLabel: `${line.quantity} × ${product?.name ?? 'Produit retiré'}`,
+        totalLabel: euros(unitPrice * line.quantity),
+      });
+    }
+    return result;
+  });
+  yield* craftComputed('totalLabel', function* () {
+    return euros(yield* pricing.total(yield* cart.cartLines()));
+  });
+  yield* craftComputed('confirmDisabled', function* () {
+    return (yield* placeOrderProcess.isLoading()) || (yield* cart.cartCount()) === 0;
+  });
+  yield* craftComputed('confirmLabel', function* () {
+    return (yield* placeOrderProcess.isLoading()) ? 'Validation…' : 'Confirmer la commande';
+  });
+  yield* craftComputed('failureLabel', function* () {
+    return failureOf(yield* placeOrderProcess.exception())?.message ?? 'La commande n’a pas pu être validée. Vérifiez le stock et réessayez.';
+  });
+});
+
+const CheckoutPage = craftComponent('EcommerceCheckoutPage', { providers: [provideStorefrontView(), provideCheckoutPageView()] }, function* () {
+  const { placeOrderProcess } = yield* StorefrontView();
+  const cart = yield* Cart();
+  const checkout = yield* CheckoutPageView();
   return main([
-    ifNode('order-placed', function* () { return (yield* placedOrder()) !== undefined; },
+    ifNode('order-placed', function* () { return (yield* checkout.placedOrder()) !== undefined; },
       () => div({ class: 'empty-state success' }, [
         span({ class: 'empty-emoji', 'aria-hidden': 'true' }, '🎉'),
         span({ class: 'eyebrow' }, 'Merci pour votre commande'),
         heading({ class: 'page-title' }, 'C’est tout bon !'),
-        p({ class: 'lead' }, function* () { const order = yield* placedOrder(); return order ? `Commande ${order.id.slice(-5).toUpperCase()} · ${euros(order.total)}. Elle vous attend au comptoir.` : ''; }),
+        p({ class: 'lead' }, checkout.confirmationLabel),
         a('confirmation-shop', { class: 'button' }, 'Revenir à la boutique').pipe(CraftRouterLink({ to: 'catalogue' })),
       ]),
       () => div([
@@ -442,18 +561,18 @@ const CheckoutPage = craftComponent('EcommerceCheckoutPage', { providers: [provi
           div({ class: 'panel' }, [
             heading({ level: 2, class: 'summary-title' }, 'Retrait au comptoir'),
             p({ class: 'muted' }, 'atelier. · 12 rue des Lilas · ouvert de 7 h à 19 h. Votre commande est prête en 15 minutes.'),
-            ul({ class: 'checkout-lines' }, forNode(cart.cartLines, { track: (line) => lineKey(line), empty: () => li({ class: 'muted' }, 'Votre panier est vide.') }, (line) => li([
-              span(function* () { const value = yield* line(); const product = (yield* storeQuery.products()).find((item) => item.id === value.productId); return `${value.quantity} × ${product?.name ?? 'Produit retiré'}`; }),
-              span({ class: 'price' }, function* () { const value = yield* line(); const product = (yield* storeQuery.products()).find((item) => item.id === value.productId); return euros((product ? yield* pricing.price(product) : 0) * value.quantity); }),
+            ul({ class: 'checkout-lines' }, forNode(checkout.checkoutLines, { track: (line) => lineKey(line.line), empty: () => li({ class: 'muted' }, 'Votre panier est vide.') }, (line) => li([
+              span(function* () { return (yield* line()).nameLabel; }),
+              span({ class: 'price' }, function* () { return (yield* line()).totalLabel; }),
             ]))),
           ]),
           aside({ class: 'summary' }, [
-            div({ class: 'summary-total' }, [span('À régler au comptoir'), strong(function* () { return euros(yield* pricing.total(yield* cart.cartLines())); })]),
-            button('confirm-order', { type: 'button', class: 'button button-block', disabled: function* () { return (yield* placeOrderProcess.isLoading()) || (yield* cart.cartCount()) === 0; }, *click() {
+            div({ class: 'summary-total' }, [span('À régler au comptoir'), strong(checkout.totalLabel)]),
+            button('confirm-order', { type: 'button', class: 'button button-block', disabled: checkout.confirmDisabled, *click() {
               const lines = yield* cart.cartLines();
               if (lines.length) yield* placeOrderProcess.call(lines);
-            } }, function* () { return (yield* placeOrderProcess.isLoading()) ? 'Validation…' : 'Confirmer la commande'; }),
-            ifNode(placeOrderProcess.hasException, () => p({ class: 'notice error' }, function* () { return failureOf(yield* placeOrderProcess.exception())?.message ?? 'La commande n’a pas pu être validée. Vérifiez le stock et réessayez.'; })),
+            } }, checkout.confirmLabel),
+            ifNode(placeOrderProcess.hasException, () => p({ class: 'notice error' }, checkout.failureLabel)),
             a('cancel-checkout', { class: 'text-link center' }, '← Retour au panier').pipe(CraftRouterLink({ to: 'panier' })),
           ]),
         ]),

@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const rule = require('./require-reactive-template-bindings.cjs');
+const plugin = require('./index.cjs');
 const tempDirectories: string[] = [];
 
 describe('require-reactive-template-bindings', () => {
@@ -17,6 +18,14 @@ describe('require-reactive-template-bindings', () => {
         .splice(0)
         .map((directory) => rm(directory, { force: true, recursive: true })),
     );
+  });
+
+  it('is enabled as an error by the recommended preset', () => {
+    expect(
+      plugin.configs.recommended.rules[
+        'craft-ts/require-reactive-template-bindings'
+      ],
+    ).toBe('error');
   });
 
   it('reports direct reactive reads in text and element properties', async () => {
@@ -89,7 +98,64 @@ describe('require-reactive-template-bindings', () => {
     `);
 
     expect(messages).toEqual([
-      'Do not call a derived business helper from a reactive Craft template binding. Move the derivation to state(), craftComputed(), or query(), then bind the resulting value.',
+      'Do not call a derived helper or data transformation from a reactive Craft template binding. Expose the value through an insertion or service computed, then bind that value.',
+    ]);
+  });
+
+  it('reports derived calls after a reactive value has been assigned locally', async () => {
+    const messages = await lintFixture(`
+      declare const YIELDABLE_VALUE: unique symbol;
+      type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
+      type Saved = { readonly createdAt: string };
+      declare const item: CraftValue<Saved>;
+      declare const sessionDate: { format(date: Date): string };
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () =>
+        span(function* () {
+          const saved = yield* item();
+          return sessionDate.format(new Date(saved.createdAt));
+        }),
+      );
+    `);
+
+    expect(messages).toEqual([
+      'Do not call a derived helper or data transformation from a reactive Craft template binding. Expose the value through an insertion or service computed, then bind that value.',
+    ]);
+  });
+
+  it('reports joining derived names inside a reactive binding', async () => {
+    const messages = await lintFixture(`
+      declare const YIELDABLE_VALUE: unique symbol;
+      type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
+      declare const selectedNames: CraftValue<readonly string[]>;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () =>
+        span(function* () {
+          return (yield* selectedNames()).join(', ');
+        }),
+      );
+    `);
+
+    expect(messages).toEqual([
+      'Do not call a derived helper or data transformation from a reactive Craft template binding. Expose the value through an insertion or service computed, then bind that value.',
+    ]);
+  });
+
+  it('reports zero-argument derived helpers but allows renderer and structural callbacks', async () => {
+    const messages = await lintFixture(`
+      declare function loadLabel(): string;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () => [
+        span(function* () { return loadLabel(); }),
+        ifNode('ready', () => true, () => p('Ready'), () => p('Waiting')),
+      ]);
+    `);
+
+    expect(messages).toEqual([
+      'Do not call a derived helper or data transformation from a reactive Craft template binding. Expose the value through an insertion or service computed, then bind that value.',
     ]);
   });
 

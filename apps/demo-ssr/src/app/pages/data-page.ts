@@ -43,6 +43,12 @@ export const { SsrDataPageView, provideSsrDataPageView } = craftService(
     yield* craftComputed('resolvedPagesDataPage', function* () {
       return yield* settled(data);
     });
+    yield* craftComputed('visitorsLabel', function* () {
+      const value = yield* settled(data);
+      return typeof value === 'object' && value !== null && 'visitors' in value
+        ? value.visitors.toLocaleString('fr-FR')
+        : '';
+    });
   },
 );
 
@@ -59,9 +65,7 @@ export const DataPage = craftComponent(
           span({ class: pageStyle.badge }, 'SSR fetch'),
           h2({ class: pageStyle.cardTitle }, 'Données prêtes'),
           div({ class: pageStyle.metric }, [
-            strong({ class: pageStyle.metricValue }, function* () {
-              return (yield* SsrDataPageView.resolvedPagesDataPage()).visitors.toLocaleString('fr-FR');
-            }),
+            strong(SsrDataPageView.visitorsLabel),
             span({ class: pageStyle.muted }, 'visiteurs servis aujourd’hui'),
           ]),
           p(

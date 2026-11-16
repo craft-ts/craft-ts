@@ -27,6 +27,7 @@ export const ARCHITECTURE_RULE_NAMES = [
   'no-unused-primitive-methods',
   'no-dependency-cycles',
   'no-event-only-craft-method',
+  'source-trigger-ownership',
   'server-function-architecture',
   'input-action-forms',
   'mutation-react-on',

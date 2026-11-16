@@ -12,6 +12,7 @@ const products = initialStore.products.filter(
   (product): product is Extract<Product, { kind: 'simple' }> =>
     product.kind === 'simple',
 );
+const currency = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
 function* logAction(
   name: string,
@@ -85,8 +86,10 @@ export const { CartLogsPageState, provideCartLogsPageState } = craftService(
       yield* lines.clear();
     });
 
-    yield* craftComputed('products', () => products);
-    yield* craftComputed('total', function* () {
+    yield* craftComputed('products', () =>
+      products.map((product) => ({ ...product, priceLabel: currency.format(product.price) })),
+    );
+    const total = yield* craftComputed('total', function* () {
       const current = yield* lines();
       return current.reduce((sum, line) => {
         const product = products.find((item) => item.id === line.productId);
@@ -95,6 +98,20 @@ export const { CartLogsPageState, provideCartLogsPageState } = craftService(
     });
     yield* craftComputed('itemCount', function* () {
       return (yield* lines()).reduce((count, line) => count + line.quantity, 0);
+    });
+    yield* craftComputed('displayLines', function* () {
+      const current = yield* lines();
+      return current.map((line) => {
+        const product = products.find((item) => item.id === line.productId);
+        return {
+          ...line,
+          product,
+          unitPriceLabel: currency.format(product?.price ?? 0),
+        };
+      });
+    });
+    yield* craftComputed('totalLabel', function* () {
+      return currency.format(yield* total());
     });
   },
 );

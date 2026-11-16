@@ -123,6 +123,12 @@ import {
   type DeepYieldableReactiveValue,
 } from './reactive-read';
 import { craftUse } from './craft-use';
+import {
+  isCraftResourceMethodStream,
+  reportResourceMethodStreamError,
+  subscribeCraftResourceMethodStream,
+  type CraftResourceMethodStream,
+} from './resource-method-stream';
 
 type MutationConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -190,7 +196,10 @@ type MutationConfig<
   MethodYielded = never,
   LoaderYielded = never,
   StreamYielded = never,
-> = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
+> = Omit<
+  ResourceOptions<NoInfer<ResourceState>, Params>,
+  'params' | 'loader' | 'method'
+> &
   (
     | {
         /**
@@ -207,7 +216,8 @@ type MutationConfig<
               (args: ParamsArgs) => Params,
               MethodYielded
             >
-          | ReadonlySource<SourceParams>;
+          | ReadonlySource<SourceParams>
+          | CraftResourceMethodStream<Params, MethodYielded>;
         fromResourceById?: never;
         /**
          * A unique identifier for the resource, derived from the params.
@@ -245,7 +255,8 @@ type MutationConfig<
               (args: ParamsArgs) => Params,
               MethodYielded
             >
-          | ReadonlySource<SourceParams>;
+          | ReadonlySource<SourceParams>
+          | CraftResourceMethodStream<Params, MethodYielded>;
         loader?: never;
         fromResourceById?: never;
         identifier?: (
@@ -699,8 +710,8 @@ export type MutationRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  MutationExceptions extends ResourceExceptionConstraints =
-    ResourceExceptionConstraints,
+  MutationExceptions extends
+    ResourceExceptionConstraints = ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
@@ -799,6 +810,149 @@ type SchemaMutationConfig<
   ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
+
+export function mutation<
+  Name extends string,
+  Params,
+  State extends object | undefined,
+  MethodYielded = never,
+  LoaderYielded = never,
+  GroupIdentifier = unknown,
+  Providers extends readonly Provider[] = never[],
+  Exceptions extends ResourceExceptionConstraints = {
+    params:
+      | ExtractCraftException<Params>
+      | Extract<ExtractCraftGenExceptions<MethodYielded>, AnyCraftException>;
+    loader:
+      | ExtractCraftException<State>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
+  },
+>(
+  name: Name,
+  mutationConfig: Omit<
+    ResourceOptions<NoInfer<State>, Params>,
+    'params' | 'loader' | 'method'
+  > & {
+    method: CraftResourceMethodStream<Params, MethodYielded>;
+    loader: GeneratorCompatibleFactory<
+      (
+        param: ResourceLoaderParams<StripCraftException<Params>>,
+      ) => Promise<State> | State,
+      LoaderYielded
+    >;
+    identifier?: (
+      params: NoInfer<NonNullable<StripCraftException<Params>>>,
+    ) => GroupIdentifier;
+    providers?: Providers;
+    paramsSchema?: CraftSchema;
+    loaderSchema?: CraftSchema;
+    params?: never;
+    stream?: never;
+    fromResourceById?: never;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  MutationOutput<
+    StripCraftException<Awaited<State>>,
+    StripCraftException<Params>,
+    Params,
+    StripCraftException<Params>,
+    GroupIdentifier,
+    {},
+    Exceptions,
+    MutationTrackedDependencies<
+      never,
+      MethodYielded,
+      LoaderYielded,
+      never,
+      never,
+      Providers
+    >,
+    false,
+    MethodYielded,
+    true,
+    Name
+  >
+>;
+
+export function mutation<
+  Name extends string,
+  Params,
+  State extends object | undefined,
+  MethodYielded = never,
+  LoaderYielded = never,
+  GroupIdentifier = unknown,
+  Insertion = {},
+  InsertionYielded = never,
+  Providers extends readonly Provider[] = never[],
+  Exceptions extends ResourceExceptionConstraints = {
+    params:
+      | ExtractCraftException<Params>
+      | Extract<ExtractCraftGenExceptions<MethodYielded>, AnyCraftException>;
+    loader:
+      | ExtractCraftException<State>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
+  },
+>(
+  name: Name,
+  mutationConfig: Omit<
+    ResourceOptions<NoInfer<State>, Params>,
+    'params' | 'loader' | 'method'
+  > & {
+    method: CraftResourceMethodStream<Params, MethodYielded>;
+    loader: GeneratorCompatibleFactory<
+      (
+        param: ResourceLoaderParams<StripCraftException<Params>>,
+      ) => Promise<State> | State,
+      LoaderYielded
+    >;
+    identifier?: (
+      params: NoInfer<NonNullable<StripCraftException<Params>>>,
+    ) => GroupIdentifier;
+    providers?: Providers;
+    paramsSchema?: CraftSchema;
+    loaderSchema?: CraftSchema;
+    params?: never;
+    stream?: never;
+    fromResourceById?: never;
+    [key: string]: unknown;
+  },
+  insertion: InsertionsResourcesFactory<
+    NoInfer<GroupIdentifier>,
+    NoInfer<StripCraftException<Awaited<State>>>,
+    NoInfer<StripCraftException<Params>>,
+    NoInfer<Exceptions>,
+    Insertion,
+    {},
+    InsertionYielded,
+    Name
+  >,
+): NamedCraftPrimitiveGen<
+  Name,
+  MutationOutput<
+    StripCraftException<Awaited<State>>,
+    StripCraftException<Params>,
+    Params,
+    StripCraftException<Params>,
+    GroupIdentifier,
+    Insertion,
+    Exceptions,
+    MutationTrackedDependencies<
+      never,
+      MethodYielded,
+      LoaderYielded,
+      never,
+      InsertionYielded,
+      Providers,
+      Insertion
+    >,
+    false,
+    MethodYielded,
+    true,
+    Name
+  >
+>;
 
 export function mutation<
   Name extends string,
@@ -1418,6 +1572,12 @@ function createMutationRef<
     'method' in mutationConfig &&
     typeof mutationConfig.method === 'function' &&
     !isSignal(mutationConfig.method);
+  const methodStream =
+    'method' in mutationConfig &&
+    isCraftResourceMethodStream(mutationConfig.method)
+      ? mutationConfig.method
+      : undefined;
+  const hasMethodTrigger = hasMethodFn || !!methodStream;
   const isUsingIdentifier = 'identifier' in mutationConfig;
 
   const methodParamsException = signal<AnyCraftException | undefined>(
@@ -1774,10 +1934,10 @@ function createMutationRef<
 
   const mutationResourceOptions = {
     ...mutationConfig,
-    params: hasMethodFn
+    params: hasMethodTrigger
       ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
       : resourceParamsSrc,
-    equal: hasMethodFn
+    equal: hasMethodTrigger
       ? methodParamsWrapperEqual(
           (mutationConfig as { equal?: (a: any, b: any) => boolean }).equal,
         )
@@ -1964,6 +2124,50 @@ function createMutationRef<
         ('method' in mutationConfig && isSignal(mutationConfig.method))
           ? undefined
           : (arg: MutationArgsParams) => {
+              if (methodStream) {
+                let paramsResult = arg as unknown as MutationParams;
+                if (configuredSchemas.params) {
+                  const parsed =
+                    schemaValidation.params.parseSync<MutationParams>(
+                      arg,
+                      'params',
+                      'method',
+                    );
+                  if (!parsed.accepted) {
+                    methodParamsException.set(
+                      enrichResourceException(parsed.exception, {
+                        scope: 'params',
+                      }),
+                    );
+                    return yieldableInvocation<MethodYielded, MutationParams>(
+                      parsed.exception as MutationParams,
+                    );
+                  }
+                  paramsResult = parsed.value;
+                }
+                methodParamsException.set(undefined);
+                batch(() => {
+                  methodTriggerSeq.update((n) => n + 1);
+                  mutationResourceParamsFnSignal.set(paramsResult);
+                });
+                if (isUsingIdentifier) {
+                  const id = mutationConfig.identifier?.(
+                    paramsResult as NonNullable<
+                      StripCraftException<MutationParams>
+                    >,
+                  );
+                  (
+                    resourceTarget as ResourceByIdRef<
+                      GroupIdentifier & string,
+                      MutationState,
+                      MutationParams
+                    >
+                  ).addById(id as GroupIdentifier & string);
+                }
+                return yieldableInvocation<MethodYielded, MutationParams>(
+                  paramsResult,
+                );
+              }
               let methodArg: unknown = arg;
               if (configuredSchemas.method) {
                 const parsedMethod = schemaValidation.method.parseSync<unknown>(
@@ -2076,6 +2280,61 @@ function createMutationRef<
     MethodYielded,
     MutationIsMethod<Config, MutationArgsParams>
   >;
+
+  if (methodStream) {
+    subscribeCraftResourceMethodStream(methodStream, getInjector(), {
+      next: (value) => {
+        if (isCraftException(value)) {
+          methodParamsException.set(
+            enrichResourceException(value, { scope: 'params' }),
+          );
+          return;
+        }
+        let paramsResult = value as unknown as MutationParams;
+        if (configuredSchemas.params) {
+          const parsed = schemaValidation.params.parseSync<MutationParams>(
+            value,
+            'params',
+            'stream',
+          );
+          if (!parsed.accepted) {
+            methodParamsException.set(
+              enrichResourceException(parsed.exception, { scope: 'params' }),
+            );
+            return;
+          }
+          paramsResult = parsed.value;
+        }
+        methodParamsException.set(undefined);
+        batch(() => {
+          methodTriggerSeq.update((n) => n + 1);
+          mutationResourceParamsFnSignal.set(paramsResult);
+        });
+        if (isUsingIdentifier) {
+          const id = mutationConfig.identifier?.(
+            paramsResult as NonNullable<StripCraftException<MutationParams>>,
+          );
+          (
+            resourceTarget as ResourceByIdRef<
+              GroupIdentifier & string,
+              MutationState,
+              MutationParams
+            >
+          ).addById(id as GroupIdentifier & string);
+        }
+      },
+      exception: (exception) => {
+        if (isCraftException(exception)) {
+          methodParamsException.set(
+            enrichResourceException(exception, { scope: 'params' }),
+          );
+        } else {
+          reportResourceMethodStreamError(getInjector(), exception);
+        }
+      },
+      error: (error) => reportResourceMethodStreamError(getInjector(), error),
+    });
+  }
 
   if (!isUsingIdentifier) {
     attachCraftSettledValue(name, output);
@@ -2230,8 +2489,10 @@ function createMutationRef<
                     iterator: result,
                     injector: methodInjector,
                     hostScope: 'function',
-                    invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+                    invalidYieldErrorMessage:
+                      MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage:
+                      MUTATION_APP_START_ERROR_MESSAGE,
                     onAppStartNotSupportedErrorMessage:
                       MUTATION_APP_START_ERROR_MESSAGE,
                   }).value

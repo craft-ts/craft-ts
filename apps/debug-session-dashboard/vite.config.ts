@@ -42,6 +42,7 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       '@craft-ts/core': path.resolve(root, '../../libs/core/src/index.ts'),
+      '@craft-ts/stream': path.resolve(root, '../../libs/stream/src/index.ts'),
       '@craft-ts/ui/style': path.resolve(root, '../../libs/ui/src/style.ts'),
       '@craft-ts/ui': path.resolve(root, '../../libs/ui/src/index.ts'),
       '@craft-ts/component/style': path.resolve(

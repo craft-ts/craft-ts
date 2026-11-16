@@ -9,7 +9,7 @@ import {
   section,
   span,
 } from '@craft-ts/component';
-import { craftExpose, craftService, subject } from '@craft-ts/core';
+import { craftComputed, craftExpose, craftService, subject } from '@craft-ts/core';
 import {
   debounce,
   distinctUntilChanged,
@@ -42,7 +42,7 @@ export const { StreamDemoView, provideStreamDemoView } = craftService(
 
     // Typed search: the handler yields the SearchApi service, so the service is
     // part of the stream's type — and so is the exception it may end with.
-    yield* streamSignal(
+    const results = yield* streamSignal(
       'results',
       fromSubscribable(terms).pipe(
         traceStage('typed'),
@@ -57,6 +57,13 @@ export const { StreamDemoView, provideStreamDemoView } = craftService(
         traceStage('answered'),
       ),
     );
+    yield* craftComputed('resultJson', function* () {
+      return JSON.stringify((yield* results.value()) ?? null);
+    });
+    yield* craftComputed('exceptionJson', function* () {
+      return JSON.stringify((yield* results.exception()) ?? null);
+    });
+    yield* craftComputed('traceText', () => traceLines().join('\n'));
 
     yield* streamSignal(
       'ticker',
@@ -107,19 +114,11 @@ const StreamDemo = craftComponent(
         p(['Status: ', span(StreamDemoView.results.status)]),
         p([
           'Result: ',
-          span(function* () {
-            return JSON.stringify(
-              (yield* StreamDemoView.results.value()) ?? null,
-            );
-          }),
+          span(StreamDemoView.resultJson),
         ]),
         p([
           'Exception: ',
-          span(function* () {
-            return JSON.stringify(
-              (yield* StreamDemoView.results.exception()) ?? null,
-            );
-          }),
+          span(StreamDemoView.exceptionJson),
         ]),
       ]),
       section({ class: demo.card }, [
@@ -167,9 +166,7 @@ const StreamDemo = craftComponent(
           { class: demo.hint },
           'Every root subscription, with the gesture that started it.',
         ),
-        pre({ class: demo.trace, 'data-testid': 'trace' }, () =>
-          traceLines().join('\n'),
-        ),
+        pre({ class: demo.trace, 'data-testid': 'trace' }, StreamDemoView.traceText),
       ]),
     ]),
 );

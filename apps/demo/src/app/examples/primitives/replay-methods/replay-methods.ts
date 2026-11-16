@@ -2,12 +2,14 @@ import {
   button,
   craftComponent,
   div,
+  forNode,
   heading,
   p,
   section,
   span,
 } from '@craft-ts/component';
 import {
+  craftComputed,
   craftPipe,
   craftMethod,
   craftService,
@@ -19,8 +21,6 @@ import {
 import { buttonUi } from '@craft-ts/ui/style';
 import { example } from '../../shared/example.style';
 
-const ITEM_INDEXES: readonly [0, 1] = [0, 1];
-
 export const { ReplayMethodsView, provideReplayMethodsView } = craftService(
   { name: 'replayMethodsView', providedIn: 'toProvide' },
   function* () {
@@ -30,11 +30,20 @@ export const { ReplayMethodsView, provideReplayMethodsView } = craftService(
         { name: 'Premier élément', actions: 0 },
         { name: 'Second élément', actions: 0 },
       ],
-      insertSelect('cell', function* ({ update }) {
+      insertSelect('cell', function* ({ state, update }) {
         return {
           recordAction: function* () {
             yield* update((cell) => ({ ...cell, actions: cell.actions + 1 }));
           },
+          cellSummaries: yield* craftComputed(
+            'cellSummaries',
+            function* () {
+              return (yield* state()).map((cell, index) => ({
+                index,
+                label: `${cell.name}: ${cell.actions} action(s)`,
+              }));
+            },
+          ),
         };
       }),
     );
@@ -87,27 +96,42 @@ const ReplayMethods = craftComponent(
           { class: example.text, 'data-exampleText': 'muted' },
           'Chaque bouton appelle une méthode exposée par la sélection de son élément.',
         ),
-        div({ class: example.stack },
-          ITEM_INDEXES.map((index) =>
-            div({ class: example.toolbar, 'data-testid': `cell-${index}` }, [
-              span(function* () {
-                const { cells } = yield* ReplayMethodsView();
-                return `${cells.selectCell(index)?.name}: ${cells.selectCell(index)?.actions ?? 0} action(s)`;
-              }),
+        div(
+          { class: example.stack },
+          forNode(
+            ReplayMethodsView.cells.cellSummaries,
+            { track: (item) => item.index },
+            (item) =>
+              div(
+                {
+                  class: example.toolbar,
+                  'data-testid': function* () {
+                    return `cell-${(yield* item()).index}`;
+                  },
+                },
+                [
+                  span(function* () {
+                    return (yield* item()).label;
+                  }),
               button(
                 'recordCellAction',
                 {
                   class: buttonUi.root,
                   'data-variant': 'secondary',
                   type: 'button',
-                  'data-testid': `record-cell-action-${index}`,
+                  'data-testid': function* () {
+                    return `record-cell-action-${(yield* item()).index}`;
+                  },
                   click: function* () {
-                    yield* ReplayMethodsView.recordCellAction(index);
+                    yield* ReplayMethodsView.recordCellAction(
+                      (yield* item()).index,
+                    );
                   },
                 },
                 'Déclencher',
               ),
-            ]),
+                ],
+              ),
           ),
         ),
       ]),

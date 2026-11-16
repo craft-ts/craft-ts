@@ -34,6 +34,10 @@ export const { SsrFallbackPageView, provideSsrFallbackPageView } = craftService(
     yield* craftComputed('resolvedPagesFallbackPage', function* () {
       return yield* settled(data);
     });
+    yield* craftComputed('message', function* () {
+      const value = yield* settled(data);
+      return hasMessage(value) ? value.message : '';
+    });
   },
 );
 
@@ -56,10 +60,7 @@ export const FallbackPage = craftComponent(
             { class: pageStyle.text },
             'Le titre et cette carte sont dans la réponse initiale.',
           ),
-          span({ class: pageStyle.pendingBox }, function* () {
-            const value = yield* SsrFallbackPageView.resolvedPagesFallbackPage();
-            return hasMessage(value) ? value.message : '';
-          }),
+          span(SsrFallbackPageView.message),
         ]),
         article({ class: pageStyle.card }, [
           h2({ class: pageStyle.cardTitle }, 'Quand choisir ce mode ?'),
