@@ -23,7 +23,7 @@ timing navigations.
 Default measurement: seven fresh browser contexts per case, seeded randomized
 order, 100/1,000/5,000 rows, five action loops after two warmups. JSON includes
 all samples, min/median/max, heap after GC, minified/gzip bundle bytes, build
-cost, compiler coverage, CPU/browser/Node versions source revision and SHA-256 fingerprints of the measured sources.
+cost, compiler coverage, CPU/browser/Node versions, source revision and SHA-256 fingerprints of the measured sources.
 
 - `rows`, `indexed`: ordinary list components, with and without reactive index.
 - `fields`: one fixed tree of 128 independent reactive fields.
