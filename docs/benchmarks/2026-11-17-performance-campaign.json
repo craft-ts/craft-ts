@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "goal": "teste et mesure toutes tes pistes",
+  "baseline": "89f1e46de",
+  "status": "active",
+  "protocol": {
+    "isolation": "Each candidate is materialized from the baseline in tmp/performance-campaign; no experimental runtime is enabled in production sources.",
+    "contractsBeforeTimings": true,
+    "minimumTimingRuns": 5,
+    "timingBuild": "minified production, fresh browser contexts, seeded interleaving",
+    "metrics": [
+      "mount",
+      "updates",
+      "retained JS heap",
+      "JS/gzip bytes",
+      "build time",
+      "layout/paint where relevant"
+    ],
+    "decisions": [
+      "retained",
+      "rejected",
+      "restricted",
+      "non-equivalent ceiling"
+    ],
+    "completion": "Every item requires tests, measurements or a measured feasibility ceiling, provenance and a documented decision. A count/profile alone is not a timing result."
+  },
+  "items": [
+    {
+      "id": "index-lazy",
+      "title": "Index de liste paresseux",
+      "status": "audited historical measurements",
+      "evidence": "2026-11-17-lazy-list-indexes-summary.json",
+      "decision": "retained only for proven lean lists"
+    },
+    {
+      "id": "effectless-bindings",
+      "title": "Bindings prouvés résolus sans effet éphémère",
+      "status": "measured",
+      "decision": "restricted prototype, not enabled",
+      "evidence": "2026-11-17-performance-campaign-summary.json",
+      "coverage": "Only exact framework constant scalar readers and direct input expressions. Object member reads are intentionally excluded; primitive fixture improves, realistic page does not."
+    },
+    {
+      "id": "scalar-binding-fusion",
+      "title": "Fusion de bindings d'une source scalaire prouvée",
+      "status": "pending"
+    },
+    {
+      "id": "incremental-rebind",
+      "title": "Dépendances d'inputs et rebinds partiels",
+      "status": "pending"
+    },
+    {
+      "id": "local-list-specialization",
+      "title": "Listes de composants constants locaux",
+      "status": "measured",
+      "decision": "retained",
+      "evidence": "2026-11-17-performance-campaign-summary.json",
+      "coverage": "Local const components after definite initialization; conservative fallback through hoisted declarations. Default and lean compiler modes retain their existing contracts."
+    },
+    {
+      "id": "imported-list-specialization",
+      "title": "Listes de composants importés et graphe du bundler",
+      "status": "pending"
+    },
+    {
+      "id": "service-empty-wrapper",
+      "title": "Éviter le contexte de résolution quand il n'y a pas de wrapper",
+      "status": "measured",
+      "decision": "not retained: timing gain not confirmed",
+      "evidence": "2026-11-17-performance-campaign-summary.json"
+    },
+    {
+      "id": "service-request-records",
+      "title": "Records de requêtes et résolveurs partagés",
+      "status": "measured",
+      "decision": "rejected: bound shared resolvers give negligible memory savings and regress focused resolution",
+      "evidence": "2026-11-17-performance-campaign-summary.json"
+    },
+    {
+      "id": "service-marking",
+      "title": "Scans de marquage versionnés sur objets possédés par Craft",
+      "status": "partial",
+      "decision": "two cache prototypes rejected by contracts; owned/versioned design remains pending",
+      "evidence": "2026-11-17-performance-campaign-summary.json"
+    },
+    {
+      "id": "coverage-style-attrs",
+      "title": "Couverture des styles, attrs et helpers de propriétés",
+      "status": "pending"
+    },
+    {
+      "id": "coverage-controls",
+      "title": "Couverture des éléments de formulaire",
+      "status": "pending"
+    },
+    {
+      "id": "coverage-multiple-roots",
+      "title": "Plans à plusieurs racines",
+      "status": "pending"
+    },
+    {
+      "id": "structural-for-if",
+      "title": "forNode et ifNode dans les plans plutôt qu'en trous",
+      "status": "pending"
+    },
+    {
+      "id": "joint-dom-factories",
+      "title": "Fabrique DOM commune parent/enfants avec propriétaires conservés",
+      "status": "pending"
+    },
+    {
+      "id": "inert-fragment-staging",
+      "title": "Insertions groupées des sous-arbres prouvés inertes",
+      "status": "pending"
+    },
+    {
+      "id": "lazy-owner-injector",
+      "title": "Matérialisation paresseuse de l'injecteur, propriétaire logique conservé",
+      "status": "pending"
+    },
+    {
+      "id": "runtime-tree-shaking",
+      "title": "Isoler le support du compilateur du bundle sans plugin",
+      "status": "pending"
+    },
+    {
+      "id": "fallback-specialized-build",
+      "title": "Réduction du template de repli dans un build spécialisé",
+      "status": "pending"
+    },
+    {
+      "id": "compiled-hydration",
+      "title": "Hydratation compilée et récupération des mismatches",
+      "status": "pending"
+    },
+    {
+      "id": "oxc-build",
+      "title": "Parse/bind/emit : intérêt mesuré d'OXC",
+      "status": "pending"
+    },
+    {
+      "id": "css-content-visibility",
+      "title": "content-visibility et contain-intrinsic-size",
+      "status": "pending"
+    },
+    {
+      "id": "css-fixed-table",
+      "title": "table-layout: fixed avec colonnes explicites",
+      "status": "pending"
+    },
+    {
+      "id": "virtualization",
+      "title": "Fenêtre de lignes visible, composants Craft conservés",
+      "status": "pending"
+    },
+    {
+      "id": "progressive-scheduling",
+      "title": "scheduleFor : premier affichage, tâches longues et temps complet",
+      "status": "pending"
+    },
+    {
+      "id": "existing-compiler-ablation",
+      "title": "Événements/trous, lowering, lectures directes de services, clone/create",
+      "status": "historical-audit",
+      "evidence": "2026-11-17-lean-compiler.md",
+      "note": "Report exists, but raw lean ablation data is not committed here; rerun/archive the ablations before closing this item."
+    },
+    {
+      "id": "existing-runtime-ablation",
+      "title": "Nettoyage et raccourci de contexte injecteur",
+      "status": "audited historical measurements",
+      "evidence": "2026-11-17-compiler-followup-summary.json",
+      "decision": "cleanup retained; injector-context shortcut rejected"
+    },
+    {
+      "id": "imperative-retired",
+      "title": "Rendu impératif retiré : observations conservées, sans réintroduction",
+      "status": "audited historical measurements",
+      "evidence": "2026-11-17-imperative-rendering-summary.json",
+      "decision": "removed as requested; measured observations retained"
+    }
+  ],
+  "updatedAt": "2026-11-17T12:11:50.204Z",
+  "progress": {
+    "newItemsMeasured": 4,
+    "partialItems": 1,
+    "historicalItemsAudited": 3,
+    "complete": false
+  }
+}
