@@ -1,13 +1,15 @@
 /** Run every synchronous release in order before surfacing any failures. */
 export function runCraftCleanups(cleanups: Iterable<() => void>): void {
-  const errors: unknown[] = [];
+  let errors: unknown[] | undefined;
   for (const cleanup of cleanups) {
     try {
       cleanup();
     } catch (error) {
-      errors.push(error);
+      if (errors) errors.push(error);
+      else errors = [error];
     }
   }
+  if (!errors) return;
   if (errors.length === 1) throw errors[0];
   if (errors.length > 1) {
     throw new AggregateError(errors, 'Craft cleanup failed.');

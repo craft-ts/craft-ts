@@ -5427,6 +5427,7 @@ function canUseCompiledDefinition(
 /** Fixed DOM shape; native DI ownership and independent binding effects. */
 class CompiledComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
+  private destroyed = false;
   private readonly component: CraftComponent<object>;
   private readonly plan: CompiledTemplatePlan;
   private readonly injector: EnvironmentInjector;
@@ -5628,29 +5629,72 @@ class CompiledComponentRenderedNode implements RenderedNode {
     return true;
   }
   destroy(detached = false): void {
-    ɵdestroyCraftOwner(this, [
-      () => this.unregister?.(),
-      () =>
-        ɵrunCraftCleanups(
-          this.effects.splice(0).map((effect) => () => effect.destroy()),
-        ),
-      () =>
-        ɵrunCraftCleanups(
-          this.targets
-            .splice(0)
-            .map((target) => () => ɵunlinkCraftReplayTarget(target)),
-        ),
-      () => this.release?.(),
-      () => {
-        if (!detached && this.nodes[0])
-          removeNode(this.context.renderer, this.nodes[0]);
-      },
-      () => this.injector.destroy(),
-      () => {
-        this.nodes = [];
-      },
-    ]);
+    if (this.destroyed) return;
+    this.destroyed = true;
+    let errors: unknown[] | undefined;
+    try {
+      this.unregister?.();
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    try {
+      destroyCompiledEffects(this.effects);
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    try {
+      unlinkCompiledTargets(this.targets);
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    try {
+      this.release?.();
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    if (!detached && this.nodes[0]) {
+      try {
+        removeNode(this.context.renderer, this.nodes[0]);
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    try {
+      this.injector.destroy();
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    this.nodes.length = 0;
+    throwCleanupErrors(errors);
   }
+}
+
+// As on the generic renderer, successful teardown needs no temporary cleanup
+// arrays or per-resource closures. Keep each group's error aggregation intact.
+function destroyCompiledEffects(effects: EffectRef[]): void {
+  let errors: unknown[] | undefined;
+  for (const effect of effects) {
+    try {
+      effect.destroy();
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+  }
+  effects.length = 0;
+  throwCleanupErrors(errors);
+}
+
+function unlinkCompiledTargets(targets: ɵCraftReplayTargetRecord[]): void {
+  let errors: unknown[] | undefined;
+  for (const target of targets) {
+    try {
+      ɵunlinkCraftReplayTarget(target);
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+  }
+  targets.length = 0;
+  throwCleanupErrors(errors);
 }
 
 class ComponentRenderedNode implements RenderedNode {
