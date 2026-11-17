@@ -124,6 +124,42 @@ const html = (host: Element) => {
 };
 
 describe('light compiled instances', () => {
+  it('updates input shells forwarded by a generic parent through the owned fallback', () => {
+    const value = signal('before');
+    function* reader() {
+      return value();
+    }
+    const { lean, generic } = load(`
+      export const Child=craftComponent('ForwardedFallback' + suffix, {},
+        (inputs:{label:Input<string>}) =>
+          span(function*(){return yield* inputs.label();}));`);
+    const create = vi.spyOn(compiledTemplateFor(lean.Child)!, 'create');
+    const Parent = componentApi.craftComponent(
+      'ForwardingParent' + serial++,
+      {},
+      (inputs: { label: componentApi.Input<string> }) =>
+        lean.Child({ label: inputs.label }),
+    );
+    const GenericParent = componentApi.craftComponent(
+      'GenericForwardingParent' + serial++,
+      {},
+      (inputs: { label: componentApi.Input<string> }) =>
+        generic.Child({ label: inputs.label }),
+    );
+    const compiled = mount(() => Parent({ label: reader }));
+    const reference = mount(() => GenericParent({ label: reader }));
+    expect(create).toHaveBeenCalledOnce();
+    const element = compiled.host.querySelector('span');
+    expect(html(compiled.host)).toBe(html(reference.host));
+    value.set('after');
+    compiled.flush();
+    reference.flush();
+    expect(compiled.host.textContent).toBe('after');
+    expect(compiled.host.querySelector('span')).toBe(element);
+    expect(html(compiled.host)).toBe(html(reference.host));
+    expect(leanReadScope.injector).toBeUndefined();
+  });
+
   it('runs lowered bindings in the owned fallback when inputs cannot be light', () => {
     const value = signal('before');
     const scopes: EnvironmentInjector[] = [];
@@ -133,13 +169,13 @@ describe('light compiled instances', () => {
     }
     const { lean } = load(`
       export const Child=craftComponent('FallbackChild' + suffix, {},
-        (inputs: {label:Input<string>;unusedData:unknown}) =>
+        (inputs: {label:Input<string>;unusedCallback:import('@craft-ts/component').Output<()=>void>}) =>
           span(function*(){return yield* inputs.label();}));`);
     const create = vi.spyOn(compiledTemplateFor(lean.Child)!, 'create');
     let parent: EnvironmentInjector | undefined;
     const compiled = mount(() => {
       parent = inject(Injector) as EnvironmentInjector;
-      return lean.Child({ label: reader, unusedData: {} });
+      return lean.Child({ label: reader, unusedCallback: () => undefined });
     });
     expect(create).toHaveBeenCalledOnce();
     expect(compiled.host.textContent).toBe('before');
