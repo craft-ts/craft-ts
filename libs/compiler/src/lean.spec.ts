@@ -285,6 +285,41 @@ describe('light compiled instances', () => {
     expect(compiled.host.innerHTML).toBe('');
   });
 
+  it('reads a light list index for the first time after earlier moves', () => {
+    const items = signal([1, 2, 3]);
+    const show = signal(false);
+    const { lean, generic, code } = load(
+      `
+      export const Row = craftComponent('LateRow' + suffix, {}, (inputs: { row: Input<number>; position: Input<number> }) =>
+        div({ 'data-id': inputs.row }, function* () {
+          return show() ? String(yield* inputs.position()) : 'hidden';
+        }));
+      export const List = craftComponent('LateList' + suffix, {}, () =>
+        div(forNode(items, { track: (row) => row }, (row, position) => Row({ row, position }))));`,
+      { items, show },
+    );
+    expect(code).toContain('ɵwithCompiledItem');
+    const compiled = mount(() => lean.List({}));
+    const reference = mount(() => generic.List({}));
+    const first = compiled.host.querySelector('[data-id="1"]');
+    for (const order of [[3, 1, 2], [2, 3, 1]]) {
+      items.set(order);
+      compiled.flush();
+      reference.flush();
+      expect(html(compiled.host)).toBe(html(reference.host));
+    }
+    show.set(true);
+    compiled.flush();
+    reference.flush();
+    expect(compiled.host.textContent).toBe('012');
+    expect(html(compiled.host)).toBe(html(reference.host));
+    items.set([1, 2, 3]);
+    compiled.flush();
+    reference.flush();
+    expect(html(compiled.host)).toBe(html(reference.host));
+    expect(compiled.host.querySelector('[data-id="1"]')).toBe(first);
+  });
+
   it('binds the same nodes again when its parent gives it other inputs', () => {
     const items = signal([{ id: 1, label: 'one' }]);
     const { lean } = load(

@@ -3607,7 +3607,9 @@ class ForRenderedNode implements RenderedNode {
         }
       } else {
         const traceState = { renderCount: 0 };
-        const indexSignal = ɵcraftLazyPrivateCell(index);
+        const indexSignal = lean
+          ? ɵcraftLazyPrivateCell(index)
+          : ɵcraftPrivateCell(index);
         const indexReader = createForIndexReader(indexSignal);
         if (lean) {
           // Mounted by the ordering pass, in the list's own context.
