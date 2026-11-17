@@ -1,0 +1,16 @@
+diff --git a/libs/core/src/lib/host/craft-injector.ts b/libs/core/src/lib/host/craft-injector.ts
+index 32ade270c..f2b34c34e 100644
+--- a/libs/core/src/lib/host/craft-injector.ts
++++ b/libs/core/src/lib/host/craft-injector.ts
+@@ -322,6 +322,11 @@ class NativeCraftInjector implements CraftInjector {
+     if (injectorStorage) {
+       return injectorStorage.run(this, fn);
+     }
++    // A nested read in the same browser context already has the owner it
++    // needs. Keep AsyncLocalStorage.run above intact for Node request isolation.
++    if (browserInjectorStack[browserInjectorStack.length - 1] === this) {
++      return fn();
++    }
+     browserInjectorStack.push(this);
+     try {
+       return fn();
