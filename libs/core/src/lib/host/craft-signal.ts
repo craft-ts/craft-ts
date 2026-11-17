@@ -2,6 +2,7 @@ import {
   computed,
   effect,
   endBatch,
+  getActiveSub,
   setActiveSub,
   signal,
   startBatch,
@@ -253,6 +254,33 @@ export function ɵcraftDetachedEffect(fn: () => void): () => void {
   const previous = setActiveSub();
   try {
     return effect(fn);
+  } finally {
+    setActiveSub(previous);
+  }
+}
+
+/**
+ * {@link ɵcraftDetachedEffect} for a renderer binding: when its first run
+ * read no reactive source, nothing can ever run it again, so it is stopped at
+ * once and `undefined` is returned — the binding keeps no subscriber.
+ */
+export function ɵcraftBindingEffect(fn: () => void): (() => void) | undefined {
+  let node: { deps?: unknown } | undefined;
+  let first = true;
+  const previous = setActiveSub();
+  try {
+    const stop = effect(() => {
+      if (first) {
+        first = false;
+        node = getActiveSub() as { deps?: unknown } | undefined;
+      }
+      fn();
+    });
+    if (node !== undefined && node.deps === undefined) {
+      stop();
+      return undefined;
+    }
+    return stop;
   } finally {
     setActiveSub(previous);
   }

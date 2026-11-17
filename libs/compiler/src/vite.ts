@@ -6,6 +6,14 @@ export interface CraftCompilerOptions {
   dom?: 'create' | 'clone';
   /** Also specialize statically proven single-component list factories (default true). */
   lists?: boolean;
+  /**
+   * Light instances (opt-in trade-off): a compiled instance renders in its
+   * parent's injector, receives its inputs as given, has no replay record nor
+   * registry entry, and mounts anew when a parent passes it other inputs.
+   */
+  lean?: boolean;
+  /** With `lean`: rewrite binding generators into plain functions (default true). */
+  lower?: boolean;
   /** Receive decisions for every inspected module, including unsupported components. */
   onReport?: (
     filename: string,

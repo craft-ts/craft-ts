@@ -7,6 +7,8 @@ export interface ComponentCompilation {
   reason?: string;
   nodes?: number;
   bindings?: number;
+  events?: number;
+  holes?: number;
 }
 export interface CompilationResult {
   code: string;
@@ -51,6 +53,47 @@ const tags = new Set([
   'h5',
   'h6',
 ]);
+// The renderer's event names (EVENT_NAMES in the interpreter).
+const events = new Set([
+  'abort',
+  'blur',
+  'change',
+  'click',
+  'contextmenu',
+  'dblclick',
+  'error',
+  'focus',
+  'input',
+  'keydown',
+  'keypress',
+  'keyup',
+  'load',
+  'mousedown',
+  'mouseenter',
+  'mouseleave',
+  'mousemove',
+  'mouseout',
+  'mouseover',
+  'mouseup',
+  'paste',
+  'pointerdown',
+  'pointerenter',
+  'pointerleave',
+  'pointermove',
+  'pointerup',
+  'reset',
+  'scroll',
+  'submit',
+  'touchend',
+  'touchmove',
+  'touchstart',
+]);
+const eventName = (key: string): string | undefined =>
+  events.has(key)
+    ? key
+    : /^on[A-Z]/.test(key) && events.has(key[2].toLowerCase() + key.slice(3))
+      ? key[2].toLowerCase() + key.slice(3)
+      : undefined;
 const q = JSON.stringify;
 const unwrap = (n: ts.Expression): ts.Expression =>
   ts.isParenthesizedExpression(n) ||
@@ -67,7 +110,12 @@ const fail = (message: string): never => {
 export function compileModule(
   source: string,
   filename = 'component.ts',
-  options: { lists?: boolean; dom?: 'create' | 'clone' } = {},
+  options: {
+    lists?: boolean;
+    dom?: 'create' | 'clone';
+    lean?: boolean;
+    lower?: boolean;
+  } = {},
 ): CompilationResult {
   const ast = ts.createSourceFile(
     filename,
@@ -173,6 +221,79 @@ export function compileModule(
   const attach = fresh('compiled');
   const attachItem = fresh('item');
   const text = (node: ts.Node) => source.slice(node.getStart(ast), node.end);
+  // Code copied into a plan is read from the transformed module once every
+  // pass is done: a list callback inside it keeps its own compilation.
+  const ranges: [number, number][] = [];
+  const code = (node: ts.Node) =>
+    `\uE000${ranges.push([node.getStart(ast), node.end]) - 1}\uE000`;
+  const resolveCode = (plan: string) =>
+    plan.replace(/\uE000(\d+)\uE000/g, (_, index: string) =>
+      output.slice(...ranges[Number(index)]),
+    );
+  const lowerRead = fresh('y');
+  const lowerService = fresh('ys');
+  let servicesLowered = 0;
+  let lowered = 0;
+  /**
+   * A binding generator as a plain function: each `yield* x` of its own body
+   * becomes `ɵy(x)`, which hands a settled read back at once and drives
+   * anything else like the generator did. Undefined when the shape is not
+   * one where both behave the same: a bare `yield`, a `yield*` under `try`
+   * (a driver error is not thrown into the generator), or a parameter list.
+   */
+  function lower(
+    fn: ts.FunctionExpression,
+    inputName: string | undefined,
+  ): string | undefined {
+    if (!fn.asteriskToken || fn.parameters.length || fn.name) return undefined;
+    const yields: ts.YieldExpression[] = [];
+    let refused = false;
+    const visit = (n: ts.Node, underTry: boolean): void => {
+      if (refused) return;
+      if (ts.isFunctionLike(n) && n !== fn) return;
+      if (ts.isYieldExpression(n)) {
+        if (!n.asteriskToken || !n.expression || underTry) {
+          refused = true;
+          return;
+        }
+        yields.push(n);
+      }
+      ts.forEachChild(n, (child) =>
+        visit(child, underTry || ts.isTryStatement(n)),
+      );
+    };
+    visit(fn.body, false);
+    if (refused || !yields.length) return undefined;
+    const emit = (start: number, end: number): string => {
+      let out = '';
+      let cursor = start;
+      for (const y of yields) {
+        const from = y.getStart(ast);
+        if (from < cursor || y.end > end) continue;
+        out += source.slice(cursor, from);
+        const operand = unwrap(y.expression!);
+        if (
+          ts.isCallExpression(operand) &&
+          !operand.arguments.length &&
+          !operand.questionDotToken &&
+          ts.isPropertyAccessExpression(operand.expression) &&
+          !operand.expression.questionDotToken &&
+          ts.isIdentifier(operand.expression.expression) &&
+          operand.expression.expression.text !== inputName &&
+          ts.isIdentifier(operand.expression.name)
+        ) {
+          // `yield* Service.member()`: read the member, or call it as before.
+          servicesLowered++;
+          out += `(${lowerService}(${operand.expression.expression.text}, ${q(operand.expression.name.text)}))`;
+        } else
+          out += `(${lowerRead}(${emit(y.expression!.getStart(ast), y.expression!.end)}))`;
+        cursor = y.end;
+      }
+      return out + source.slice(cursor, end);
+    };
+    lowered++;
+    return `function () ${emit(fn.body.getStart(ast), fn.body.end)}`;
+  }
   function compile(call: ts.CallExpression): string {
     if (call.arguments.length !== 3 || !ts.isStringLiteral(call.arguments[0]))
       fail('requires the three-argument component declaration');
@@ -217,17 +338,28 @@ export function compileModule(
     }
     checkContext(fn);
     let root: ts.Expression;
+    // Light instances run the template's setup once, where the generic
+    // renderer runs the template once: only declarations precede the return.
+    const setup: string[] = [];
     if (ts.isBlock(fn.body)) {
       const statements = fn.body.statements;
+      const last = statements[statements.length - 1];
       if (
-        statements.length !== 1 ||
-        !ts.isReturnStatement(statements[0]) ||
-        !statements[0].expression
+        !last ||
+        !ts.isReturnStatement(last) ||
+        !last.expression ||
+        (statements.length > 1 &&
+          (!options.lean ||
+            statements
+              .slice(0, -1)
+              .some((statement) => !ts.isVariableStatement(statement))))
       )
         throw new Error(
           'template setup statements require the generic renderer',
         );
-      root = (statements[0] as ts.ReturnStatement).expression as ts.Expression;
+      for (const statement of statements.slice(0, -1))
+        setup.push(code(statement));
+      root = last.expression;
     } else root = fn.body;
     const renderer = fresh('renderer'),
       nodes = fresh('nodes');
@@ -236,11 +368,31 @@ export function compileModule(
     const bindings: {
       slot: number;
       key?: string;
+      lowered?: boolean;
       path: number[];
       indirect?: boolean;
       input?: string;
     }[] = [];
     const readers: string[] = [];
+    const eventReaders: string[] = [];
+    const eventPlans: {
+      slot: number;
+      event: string;
+      tag: string;
+      name?: string;
+    }[] = [];
+    const holeReaders: string[] = [];
+    const holePlans: { parent: number; before: number; path: number[] }[] = [];
+    // Children of each element in order: a slot, or a hole by its index.
+    const childOrder = new Map<
+      number,
+      ({ slot: number } | { hole: number })[]
+    >();
+    const ordered = (parent: number) => {
+      let list = childOrder.get(parent);
+      if (!list) childOrder.set(parent, (list = []));
+      return list;
+    };
     const locateRoot = fresh('root');
     const locations: string[] = [];
     const lastChild = new Map<number, number>();
@@ -268,6 +420,18 @@ export function compileModule(
         ts.isPropertyAccessExpression(n) &&
         ts.isIdentifier(n.expression) &&
         n.expression.text === input;
+      if (
+        options.lean &&
+        key !== undefined &&
+        !ts.isArrowFunction(n) &&
+        !ts.isFunctionExpression(n)
+      ) {
+        // Evaluated once, where the generic template evaluates it once:
+        // a reader, or the value itself.
+        readers.push(`(${code(n)})`);
+        bindings.push({ slot, path, key });
+        return;
+      }
       if (!indirect && !ts.isArrowFunction(n) && !ts.isFunctionExpression(n))
         fail('binding requires a function literal or direct input');
       if (
@@ -277,11 +441,18 @@ export function compileModule(
         )
       )
         fail('async binding');
-      readers.push(indirect ? `() => (${text(n)})` : text(n));
+      const plain =
+        options.lean && options.lower !== false && ts.isFunctionExpression(n)
+          ? lower(n, input)
+          : undefined;
+      readers.push(
+        indirect ? `() => (${code(n)})` : plain !== undefined ? plain : code(n),
+      );
       bindings.push({
         slot,
         path,
         ...(key ? { key } : {}),
+        ...(plain !== undefined ? { lowered: true } : {}),
         ...(indirect
           ? {
               indirect: true,
@@ -310,7 +481,27 @@ export function compileModule(
           ]);
         return children;
       }
+      const isTag =
+        ts.isCallExpression(n) &&
+        ts.isIdentifier(n.expression) &&
+        helpers.has(n.expression.text) &&
+        sameBinding(n.expression, helperDeclarations.get(n.expression.text));
+      const isText =
+        literal(n) !== undefined ||
+        ts.isArrowFunction(n) ||
+        ts.isFunctionExpression(n) ||
+        (ts.isPropertyAccessExpression(n) &&
+          ts.isIdentifier(n.expression) &&
+          n.expression.text === input);
+      if (!isTag && !isText && parent !== undefined && options.lean) {
+        // Anything else is rendered by the generic renderer at its place.
+        holeReaders.push(`(${code(n)})`);
+        holePlans.push({ parent, before: -1, path });
+        ordered(parent).push({ hole: holePlans.length - 1 });
+        return 1;
+      }
       const slot = count++;
+      if (parent !== undefined) ordered(parent).push({ slot });
       const previous = parent === undefined ? undefined : lastChild.get(parent);
       locations.push(
         `${nodes}[${slot}] = ${parent === undefined ? locateRoot : previous === undefined ? `${nodes}[${parent}].firstChild!` : `${nodes}[${previous}].nextSibling!`};`,
@@ -349,6 +540,35 @@ export function compileModule(
         elements.push({ slot, path, ...(name !== undefined ? { name } : {}) });
         const propertyKeys = new Set<string>();
         for (const prop of props?.properties ?? []) {
+          const propName =
+            prop.name &&
+            (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name))
+              ? prop.name.text
+              : undefined;
+          const event =
+            propName !== undefined ? eventName(propName) : undefined;
+          if (options.lean && event !== undefined) {
+            if (propertyKeys.has(propName!)) fail('duplicate DOM properties');
+            propertyKeys.add(propName!);
+            if (ts.isMethodDeclaration(prop)) {
+              if (prop.typeParameters?.length || prop.modifiers?.length)
+                fail('unsupported event method');
+              eventReaders.push(
+                `function${prop.asteriskToken ? '*' : ''} (${prop.parameters.map(code).join(', ')}) ${code(prop.body ?? fail('event method without body'))}`,
+              );
+            } else if (ts.isPropertyAssignment(prop))
+              eventReaders.push(`(${code(prop.initializer)})`);
+            else if (ts.isShorthandPropertyAssignment(prop))
+              eventReaders.push(`(${prop.name.text})`);
+            else fail('unsupported event property');
+            eventPlans.push({
+              slot,
+              event,
+              tag,
+              ...(name !== undefined ? { name } : {}),
+            });
+            continue;
+          }
           if (
             !ts.isPropertyAssignment(prop) ||
             (!ts.isIdentifier(prop.name) && !ts.isStringLiteral(prop.name))
@@ -423,6 +643,28 @@ export function compileModule(
           creation.push(
             `${renderer}.appendChild(${nodes}[${parent}], ${nodes}[${slot}]);`,
           );
+        if (
+          args[0] &&
+          !props &&
+          n.arguments.length === 1 &&
+          !ts.isCallExpression(unwrap(args[0])) &&
+          !ts.isArrayLiteralExpression(unwrap(args[0])) &&
+          !ts.isArrowFunction(unwrap(args[0])) &&
+          !ts.isFunctionExpression(unwrap(args[0])) &&
+          literal(args[0]) === undefined &&
+          !(
+            ts.isPropertyAccessExpression(unwrap(args[0])) &&
+            ts.isIdentifier(
+              (unwrap(args[0]) as ts.PropertyAccessExpression).expression,
+            ) &&
+            (
+              (unwrap(args[0]) as ts.PropertyAccessExpression)
+                .expression as ts.Identifier
+            ).text === input
+          )
+        )
+          // `div(value)`: the helper decides at runtime whether it is props.
+          fail('ambiguous single tag argument');
         if (args[0]) tree(args[0], slot, [...path, 0]);
         return 1;
       }
@@ -438,6 +680,13 @@ export function compileModule(
       return 1;
     }
     const rootCount = tree(root, undefined, []);
+    for (const [, list] of childOrder)
+      for (let index = 0; index < list.length; index++) {
+        const entry = list[index];
+        if (!('hole' in entry)) continue;
+        const next = list.slice(index + 1).find((item) => 'slot' in item);
+        holePlans[entry.hole].before = next && 'slot' in next ? next.slot : -1;
+      }
     if (rootCount !== 1 || elements[0]?.slot !== 0 || elements[0].path.length)
       fail('requires one native element root');
     const parameters = fn.parameters.map(text).join(', ');
@@ -446,13 +695,20 @@ export function compileModule(
       status: 'compiled',
       nodes: count,
       bindings: bindings.length,
+      ...(eventPlans.length ? { events: eventPlans.length } : {}),
+      ...(holePlans.length ? { holes: holePlans.length } : {}),
     });
     const locator =
       options.dom === 'clone'
         ? `locate: (${locateRoot}: Node) => {const ${nodes}: Node[] = []; ${locations.join('\n')} return ${nodes};},`
         : '';
-    return `{ version: 1, ${locator} create: (${renderer}: any) => { ${creation.join('\n')} return ${nodes}; }, bind: (${parameters}) => [${readers.join(',\n')}], elements: ${q(elements)}, bindings: ${q(bindings)} }`;
+    const all = [...readers, ...eventReaders, ...holeReaders].join(',\n');
+    const bind = setup.length
+      ? `(${parameters}) => { ${setup.join('\n')} return [${all}]; }`
+      : `(${parameters}) => [${all}]`;
+    return `{ version: 1, ${options.lean ? 'lean: true, ' : ''}${locator} create: (${renderer}: any) => { ${creation.join('\n')} return ${nodes}; }, bind: ${bind}, elements: ${q(elements)}, bindings: ${q(bindings)}${eventPlans.length ? `, events: ${q(eventPlans)}` : ''}${holePlans.length ? `, holes: ${q(holePlans)}` : ''} }`;
   }
+  const pendingPlans: { call: ts.CallExpression; plan: string }[] = [];
   function walk(n: ts.Node): void {
     if (
       ts.isCallExpression(n) &&
@@ -477,8 +733,7 @@ export function compileModule(
         ) {
           compiledDefinitions.set(n.parent.name.text, n.parent);
         }
-        output.prependLeft(n.getStart(ast), `${attach}(`);
-        output.appendLeft(n.end, `, ${plan})`);
+        pendingPlans.push({ call: n, plan });
       } catch (error) {
         components.push({
           component:
@@ -556,13 +811,22 @@ export function compileModule(
     ts.forEachChild(n, compileItems);
   }
   compileItems(ast);
+  // Plans copy code from the module as transformed by the list pass.
+  const resolvedPlans = pendingPlans.map(({ call, plan }) => ({
+    call,
+    plan: resolveCode(plan),
+  }));
+  for (const { call, plan } of resolvedPlans) {
+    output.prependLeft(call.getStart(ast), `${attach}(`);
+    output.appendLeft(call.end, `, ${plan})`);
+  }
   if (components.some((c) => c.status === 'compiled')) {
     const first = ast.statements.find(
       (s) => !(ts.isExpressionStatement(s) && ts.isStringLiteral(s.expression)),
     );
     output.prependLeft(
       first?.getStart(ast) ?? source.length,
-      `import { ɵwithCompiledTemplate as ${attach}${optimizedLists ? `, ɵwithCompiledItem as ${attachItem}` : ''} } from '@craft-ts/component/compiler-runtime';\n`,
+      `import { ɵwithCompiledTemplate as ${attach}${optimizedLists ? `, ɵwithCompiledItem as ${attachItem}` : ''}${lowered ? `, ɵy as ${lowerRead}` : ''}${servicesLowered ? `, ɵys as ${lowerService}` : ''} } from '@craft-ts/component/compiler-runtime';\n`,
     );
   }
   return {

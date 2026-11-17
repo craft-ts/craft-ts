@@ -193,6 +193,8 @@ export {
   craftComputed as ɵcraftComputed,
   craftWatch as ɵcraftWatch,
   ɵcraftPrivateCell,
+  ɵcraftDetachedEffect,
+  ɵcraftBindingEffect,
 } from './lib/host/craft-signal';
 export type {
   CraftSignal as ɵCraftSignal,

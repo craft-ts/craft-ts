@@ -2,5 +2,7 @@
 export {
   ɵwithCompiledTemplate,
   ɵwithCompiledItem,
+  ɵy,
+  ɵys,
   type CompiledTemplatePlan,
 } from './lib/render/compiled-template';

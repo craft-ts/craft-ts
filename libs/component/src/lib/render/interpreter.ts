@@ -1,6 +1,20 @@
-import { ɵrunCraftCleanups, ɵdestroyCraftOwner, ɵbeginCraftOwnerDestruction } from '@craft-ts/core';
-import { ɵIDENTITY_FN_ADAPTER, ɵREACTIVE_READ_OBSERVERS, ɵinjectTemplateTraces } from '@craft-ts/core';
-import { createCompiledNodes, compiledItemComponent, compiledTemplateFor, type CompiledTemplatePlan } from './compiled-template';
+import {
+  ɵrunCraftCleanups,
+  ɵdestroyCraftOwner,
+  ɵbeginCraftOwnerDestruction,
+} from '@craft-ts/core';
+import {
+  ɵIDENTITY_FN_ADAPTER,
+  ɵREACTIVE_READ_OBSERVERS,
+  ɵinjectTemplateTraces,
+} from '@craft-ts/core';
+import {
+  createCompiledNodes,
+  compiledItemComponent,
+  compiledTemplateFor,
+  leanReadScope,
+  type CompiledTemplatePlan,
+} from './compiled-template';
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   SERVICE_RUNTIME_OVERRIDES,
@@ -92,6 +106,8 @@ import {
   craftUse,
   ɵcurrentCorrelationId,
   ɵcraftPrivateCell,
+  ɵcraftDetachedEffect,
+  ɵcraftBindingEffect,
   type ɵCraftPrivateCell,
 } from '@craft-ts/core';
 import {
@@ -3325,6 +3341,83 @@ function sameForItems(
   );
 }
 
+/**
+ * The view of a light list entry: the item's instance itself, mounted where
+ * the entry belongs, without boundary comments or a context of its own.
+ */
+class LeanEntryView {
+  private rendered: RenderedNode | undefined;
+  // The single root of a light instance: what the ordering pass asks for.
+  private root: NativeNode | undefined;
+  private readonly parent: NativeParent;
+  private readonly context: RenderContext;
+
+  constructor(parent: NativeParent, context: RenderContext) {
+    this.parent = parent;
+    this.context = context;
+  }
+
+  mount(children: CraftNodeChildren, before: NativeNode | null): void {
+    this.rendered = mountNode(
+      children as CraftNode,
+      this.parent,
+      before,
+      this.context,
+    );
+    this.root =
+      this.rendered instanceof LeanComponentRenderedNode
+        ? this.rendered.firstNode()
+        : undefined;
+  }
+
+  patchChildren(children: CraftNodeChildren): void {
+    const previous = this.rendered!;
+    if (previous.patch(children as CraftNode)) return;
+    this.rendered = mountNode(
+      children as CraftNode,
+      previous.firstNode().parentNode ?? this.parent,
+      previous.firstNode(),
+      this.context,
+    );
+    this.root =
+      this.rendered instanceof LeanComponentRenderedNode
+        ? this.rendered.firstNode()
+        : undefined;
+    previous.destroy();
+  }
+
+  firstNode(): NativeNode {
+    return this.root ?? this.rendered!.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.root ?? this.rendered!.lastNode();
+  }
+
+  moveBefore(before: NativeNode): void {
+    const last = this.rendered!.lastNode();
+    let current: NativeNode | null = this.rendered!.firstNode();
+    const parent = current.parentNode ?? this.parent;
+    while (current) {
+      const next: NativeNode | null =
+        current === last ? null : current.nextSibling;
+      insertBefore(
+        this.context.renderer,
+        parent as NativeParent,
+        current,
+        before,
+      );
+      current = next;
+    }
+  }
+
+  destroy(detached?: boolean): void {
+    const rendered = this.rendered;
+    this.rendered = undefined;
+    rendered?.destroy(detached);
+  }
+}
+
 interface ForRenderedEntry {
   readonly key: unknown;
   item: unknown;
@@ -3332,9 +3425,11 @@ interface ForRenderedEntry {
   // Read only through `indexReader`: a renderer-private cell.
   readonly indexSignal: ɵCraftPrivateCell<number>;
   readonly indexReader: InputValue<number>;
-  view: FragmentRenderedNode;
+  view: FragmentRenderedNode | LeanEntryView;
   /** Context of a view the ordering pass has yet to create. */
   pendingContext: RenderContext | undefined;
+  /** A light entry the ordering pass mounted where it belongs. */
+  leanMounted?: boolean;
   readonly traceState: TemplateTraceState;
   renderEffect?: EffectRef;
   rendered: boolean;
@@ -3490,6 +3585,7 @@ class ForRenderedNode implements RenderedNode {
     // around it. While server HTML is being claimed, boundaries are claimed
     // in document order, so entries are created here, in that order.
     const createInPlace = !isHydrating(this.context);
+    const lean = createInPlace && this.leanItems();
 
     const entriesToRender: ForRenderedEntry[] = [];
     collection.forEach((item, index) => {
@@ -3512,6 +3608,25 @@ class ForRenderedNode implements RenderedNode {
         const traceState = { renderCount: 0 };
         const indexSignal = ɵcraftPrivateCell(index);
         const indexReader = createForIndexReader(indexSignal);
+        if (lean) {
+          // Mounted by the ordering pass, in the list's own context.
+          entry = {
+            key,
+            item,
+            index,
+            indexSignal,
+            indexReader,
+            traceState,
+            rendered: false,
+            pendingContext: this.context,
+            view: undefined as unknown as LeanEntryView,
+            leanMounted: false,
+          };
+          next.set(key, entry);
+          nextOrdered.push(entry);
+          entriesToRender.push(entry);
+          return;
+        }
         const entryContext = childContext(this.context, {
           identity: ɵchildCraftRenderIdentity(
             this.context.identity,
@@ -3558,7 +3673,14 @@ class ForRenderedNode implements RenderedNode {
     for (let index = nextOrdered.length - 1; index >= 0; index -= 1) {
       const entry = nextOrdered[index];
       const entryContext = entry.pendingContext;
-      if (entryContext !== undefined) {
+      if (entryContext !== undefined && lean && entry.view === undefined) {
+        entry.pendingContext = undefined;
+        const view = new LeanEntryView(this.parent, this.context);
+        untracked(() => view.mount(this.renderLeanItem(entry), before));
+        entry.view = view;
+        entry.rendered = true;
+        entry.leanMounted = true;
+      } else if (entryContext !== undefined) {
         entry.pendingContext = undefined;
         entry.view = this.canCompileItem()
           ? createSingleRootFragment(
@@ -3582,7 +3704,49 @@ class ForRenderedNode implements RenderedNode {
 
     this.entries = next;
 
-    entriesToRender.forEach((entry) => this.scheduleEntryRender(entry));
+    entriesToRender.forEach((entry) => {
+      if (entry.leanMounted) {
+        entry.leanMounted = false;
+        return;
+      }
+      this.scheduleEntryRender(entry);
+    });
+  }
+
+  /** Items are light compiled instances, rendered synchronously. */
+  private leanItems(): boolean {
+    if (this.scheduler.constructor !== SyncForScheduler) return false;
+    const component = compiledItemComponent(this.node.itemTemplate) as
+      | CraftComponent<object>
+      | undefined;
+    return (
+      !!component &&
+      !!compiledTemplateFor(component)?.lean &&
+      this.context.settledReadObserver === undefined &&
+      canUseCompiledDefinition(component, this.context)
+    );
+  }
+
+  /** The item's node, from the list's context: a light entry has none of its own. */
+  private renderLeanItem(entry: ForRenderedEntry): CraftNodeChildren {
+    const itemReader = ɵsettledValueReader(entry.item);
+    const source = this.node.source;
+    if (source !== this.deepSourceOf) {
+      this.deepSourceOf = source;
+      this.deepSource = isDeepYieldable(source);
+    }
+    const itemInput = this.deepSource
+      ? deepYieldable(
+          markYieldableValue(
+            itemReader,
+            `${this.node.sourceName ?? 'forNode'}.item`,
+          ),
+        )
+      : itemReader;
+    return invokeChildrenCallback(this.context, this.node.itemTemplate, [
+      itemInput,
+      entry.indexReader,
+    ]);
   }
 
   private configureScheduler(policy: ForSchedulePolicy | undefined): void {
@@ -3642,6 +3806,12 @@ class ForRenderedNode implements RenderedNode {
   }
 
   private renderEntry(entry: ForRenderedEntry): void {
+    if (entry.view instanceof LeanEntryView) {
+      const view = entry.view;
+      untracked(() => view.patchChildren(this.renderLeanItem(entry)));
+      entry.rendered = true;
+      return;
+    }
     if (this.canCompileItem()) {
       untracked(() =>
         entry.view.patchChildren(
@@ -5376,6 +5546,8 @@ function canMountCompiledComponent(
   const plan = compiledTemplateFor(node.component);
   if (
     !plan ||
+    plan.events?.length ||
+    plan.holes?.length ||
     plan.bindings.some((binding) => {
       if (!binding.input || binding.key) return false;
       const property = Object.getOwnPropertyDescriptor(
@@ -5412,16 +5584,27 @@ function canUseCompiledDefinition(
     context.fieldExceptionBoundary
   )
     return false;
-  const definition = component[CRAFT_COMPONENT];
-  if (
-    definition.composition ||
-    definition.service.length ||
-    definition.meta.providers?.length ||
-    Object.keys(definition.meta.host ?? {}).length ||
-    definition.scopeOwners.length !== 1
-  )
-    return false;
+  if (!compilableDefinition(component)) return false;
   return ambientOf(context).compilationAllowed;
+}
+
+const compilableDefinitions = new WeakMap<object, boolean>();
+
+/** What a definition says once and for all: a plan can stand for it. */
+function compilableDefinition(component: CraftComponent<object>): boolean {
+  const definition = component[CRAFT_COMPONENT];
+  let known = compilableDefinitions.get(definition);
+  if (known === undefined) {
+    known = !(
+      definition.composition ||
+      definition.service.length ||
+      definition.meta.providers?.length ||
+      Object.keys(definition.meta.host ?? {}).length ||
+      definition.scopeOwners.length !== 1
+    );
+    compilableDefinitions.set(definition, known);
+  }
+  return known;
 }
 
 /** Fixed DOM shape; native DI ownership and independent binding effects. */
@@ -5693,6 +5876,358 @@ function unlinkCompiledTargets(targets: ɵCraftReplayTargetRecord[]): void {
   }
   targets.length = 0;
   throwCleanupErrors(errors);
+}
+
+/**
+ * Inputs of a light instance: the values the parent passed, readable with
+ * `yield*` like an input shell, without a proxy, a cell or a shell per key.
+ * Returns undefined when a value needs the generic shell (content, callbacks,
+ * objects): the instance then takes the ordinary compiled path.
+ */
+function leanInputs(props: object): Record<string, unknown> | undefined {
+  const inputs: Record<string, unknown> = {};
+  for (const key in props) {
+    if (!Object.prototype.hasOwnProperty.call(props, key)) continue;
+    if (isHostProperty(key)) return undefined;
+    const value = (props as Record<string, unknown>)[key];
+    if (typeof value === 'function') {
+      if (isGeneratorFunction(value)) inputs[key] = value;
+      else if (isYieldableValue(value))
+        inputs[key] = (...args: unknown[]) => {
+          const result = (value as unknown as (...a: unknown[]) => unknown)(
+            ...args,
+          );
+          return isGenerator(result) ? result : yieldableInvocation(result);
+        };
+      else return undefined;
+    } else if (value === null || typeof value !== 'object') {
+      inputs[key] = ɵsettledValueReader(value);
+    } else return undefined;
+  }
+  return inputs;
+}
+
+function canMountLeanComponent(
+  node: Extract<CraftNode, { kind: 'component' }>,
+  context: RenderContext,
+): boolean {
+  const plan = compiledTemplateFor(node.component);
+  return (
+    !!plan?.lean &&
+    !node.injector &&
+    context.settledReadObserver === undefined &&
+    canUseCompiledDefinition(node.component, context)
+  );
+}
+
+/**
+ * A compiled instance with nothing of its own but its DOM and its binding
+ * effects: it renders in its parent's injector, its inputs are the values it
+ * was given, and its elements carry no replay record (an address is still
+ * captured through the nearest recorded ancestor and the DOM path). Opted
+ * into by the build, which accepts those differences.
+ */
+class LeanComponentRenderedNode implements RenderedNode {
+  readonly kind = 'component';
+  private readonly component: CraftComponent<object>;
+  private props: object;
+  private readonly context: RenderContext;
+  private readonly plan: CompiledTemplatePlan;
+  private nodes: Node[] | undefined;
+  private stops: (() => void)[] | undefined;
+  private holes: RenderedNode[][] | undefined;
+  private holeContexts: RenderContext[] | undefined;
+  private holeEnvironment: RenderContext | undefined;
+  private readonly declarationContext: RenderContext;
+  private destroyed = false;
+
+  constructor(
+    node: Extract<CraftNode, { kind: 'component' }>,
+    inputs: Record<string, unknown>,
+    parent: NativeParent,
+    before: NativeNode | null,
+    context: RenderContext,
+  ) {
+    this.component = node.component;
+    this.props = node.props;
+    this.context = context;
+    this.declarationContext =
+      (node.declarationContext as RenderContext | undefined) ?? context;
+    const renderer = context.renderer;
+    const plan = (this.plan = compiledTemplateFor(node.component)!);
+    const definition = node.component[CRAFT_COMPONENT];
+    const rootScope = scopeTokens(
+      context.rootScope,
+      scopeIdFor(definition.scopeDefinition, definition.name),
+    );
+    try {
+      const nodes = (this.nodes = createCompiledNodes(plan, renderer));
+      const root = nodes[0] as Element;
+      renderer.setAttribute(root, 'data-craft-root', rootScope);
+      this.bind(inputs);
+      insertBefore(renderer, parent, root, before);
+    } catch (error) {
+      try {
+        this.destroy();
+      } catch {
+        /* Preserve the mounting failure. */
+      }
+      throw error;
+    }
+  }
+
+  /** One kernel effect per binding, writing to the nodes created once. */
+  private bind(inputs: Record<string, unknown>): void {
+    const context = this.context;
+    const plan = this.plan;
+    const nodes = this.nodes!;
+    const renderer = context.renderer;
+    untracked(() =>
+      runInInjectionContext(context.injector, () => {
+        const readers = plan.bind(inputs);
+        const bindings = plan.bindings;
+        const stops: (() => void)[] = (this.stops = []);
+        for (let index = 0; index < bindings.length; index++) {
+          const binding = bindings[index];
+          const reader = readers[index];
+          const target = nodes[binding.slot];
+          const key = binding.key;
+          let seen = false,
+            previous: unknown;
+          const stop = ɵcraftBindingEffect(() => {
+            let value: unknown;
+            if (binding.lowered) {
+              const previousInjector = leanReadScope.injector;
+              leanReadScope.injector = context.injector;
+              try {
+                value = readResolvedBinding(
+                  (reader as () => unknown)(),
+                  context,
+                );
+              } finally {
+                leanReadScope.injector = previousInjector;
+              }
+            } else
+              value = resolveTemplateValue(
+                binding.indirect ? (reader as () => unknown)() : reader,
+                context,
+              );
+            if (key === 'class') value = className(value, context);
+            else if (!key)
+              value =
+                value === null || value === undefined || value === false
+                  ? ''
+                  : String(value);
+            if (seen && Object.is(previous, value)) return;
+            const first = !seen;
+            previous = value;
+            seen = true;
+            if (key === 'class') {
+              if (value)
+                renderer.setAttribute(
+                  target as Element,
+                  'class',
+                  value as string,
+                );
+              else if (!first)
+                renderer.removeAttribute(target as Element, 'class');
+            } else if (key)
+              applyAttribute(renderer, target as Element, key, value, context);
+            else renderer.setValue(target as Text, value as string);
+          });
+          if (stop) stops.push(stop);
+        }
+        const events = plan.events;
+        if (events)
+          for (let index = 0; index < events.length; index++) {
+            const listener = readers[bindings.length + index];
+            if (typeof listener === 'function')
+              stops.push(this.listen(events[index], listener as EventListener));
+          }
+        const holes = plan.holes;
+        if (holes) {
+          const offset = bindings.length + (events?.length ?? 0);
+          const mounted = (this.holes ??= []);
+          for (let index = 0; index < holes.length; index++)
+            mounted[index] = this.renderHole(
+              index,
+              readers[offset + index],
+              mounted[index],
+            );
+        }
+      }),
+    );
+  }
+
+  /** The same dispatch as an interpreted element's listener. */
+  private listen(
+    plan: NonNullable<CompiledTemplatePlan['events']>[number],
+    listener: EventListener,
+  ): () => void {
+    const context = this.context;
+    const element = this.nodes![plan.slot] as Element;
+    const componentName = this.component[CRAFT_COMPONENT].name;
+    return context.renderer.listen(element, plan.event, (event: Event) => {
+      const interaction: CraftDomEvent = {
+        event,
+        eventName: plan.event,
+        element,
+        elementTag: plan.tag,
+        elementName: plan.name,
+        componentName,
+        interactionName: interactionName(
+          plan.event,
+          plan.tag,
+          plan.name,
+          componentName,
+        ),
+      };
+      const hooks = ɵinjectCraftDomEventHooks(context.injector);
+      runInInjectionContext(context.injector, () =>
+        executeDomEventHooks(hooks, interaction, () =>
+          runResolvedAction(
+            executeTemplateCallback(listener, [event], context),
+            [event],
+            context,
+          ),
+        ),
+      );
+      return undefined;
+    });
+  }
+
+  /** A child the build left to the generic renderer, at its place. */
+  private renderHole(
+    index: number,
+    value: unknown,
+    previous: RenderedNode[] | undefined,
+  ): RenderedNode[] {
+    const plan = this.plan.holes![index];
+    const children = normalizeChildren(value as CraftNodeChildren);
+    if (
+      previous &&
+      previous.length === children.length &&
+      previous.every((rendered, child) => rendered.patch(children[child]))
+    )
+      return previous;
+    if (previous) for (const rendered of previous) rendered.destroy();
+    const parent = this.nodes![plan.parent] as Element;
+    const before = plan.before === -1 ? null : this.nodes![plan.before];
+    const contexts = (this.holeContexts ??= []);
+    let holeContext = contexts[index];
+    if (!holeContext) {
+      // One environment for the instance; each hole only has its identity.
+      const definition = this.component[CRAFT_COMPONENT];
+      const shared = (this.holeEnvironment ??= childContext(this.context, {
+        rootScope: undefined,
+        componentName: definition.name,
+        ownerScope: scopeIdFor(definition.scopeDefinition, definition.name),
+        declarationContext: this.declarationContext,
+        directiveNames: [],
+        traceState: { renderCount: 1 },
+      }));
+      holeContext = contexts[index] = childContext(shared, {
+        identity: ɵchildCraftRenderIdentity(
+          this.context.identity,
+          0,
+          ...plan.path,
+        ),
+      });
+    }
+    const rendered: RenderedNode[] = [];
+    for (let child = 0; child < children.length; child++)
+      rendered.push(
+        mountNode(
+          children[child],
+          parent,
+          before as NativeNode | null,
+          childNodeContext(holeContext, children[child], child),
+        ),
+      );
+    return rendered;
+  }
+
+  firstNode(): NativeNode {
+    return this.nodes![0] as NativeNode;
+  }
+  lastNode(): NativeNode {
+    return this.nodes![0] as NativeNode;
+  }
+  patch(node: CraftNode): boolean {
+    if (
+      node.kind !== 'component' ||
+      node.component !== this.component ||
+      this.destroyed
+    )
+      return false;
+    const previous = this.props as Record<string, unknown>;
+    const next = node.props as Record<string, unknown>;
+    let same = true,
+      count = 0;
+    for (const key in next) {
+      count++;
+      if (!Object.is(previous[key], next[key])) {
+        same = false;
+        break;
+      }
+    }
+    if (same) {
+      for (const _ in previous) count--;
+      if (count === 0) return true;
+    }
+    // Other inputs: the same nodes, bound again to the new values.
+    const inputs = leanInputs(next);
+    if (!inputs) return false;
+    this.stopBindings();
+    this.props = next;
+    this.bind(inputs);
+    return true;
+  }
+  private stopBindings(): void {
+    const stops = this.stops;
+    this.stops = undefined;
+    if (!stops) return;
+    let errors: unknown[] | undefined;
+    for (let index = 0; index < stops.length; index++) {
+      try {
+        stops[index]();
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    throwCleanupErrors(errors);
+  }
+  destroy(detached = false): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    let errors: unknown[] | undefined;
+    try {
+      this.stopBindings();
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    // The root's removal takes the holes' DOM with it.
+    if (this.holes)
+      for (const rendered of this.holes)
+        for (const child of rendered ?? []) {
+          try {
+            child.destroy(true);
+          } catch (error) {
+            errors = keepCleanupError(errors, error);
+          }
+        }
+    this.holes = undefined;
+    const root = this.nodes?.[0];
+    if (!detached && root) {
+      try {
+        removeNode(this.context.renderer, root as NativeNode);
+      } catch (error) {
+        errors = keepCleanupError(errors, error);
+      }
+    }
+    this.nodes = undefined;
+    throwCleanupErrors(errors);
+  }
 }
 
 class ComponentRenderedNode implements RenderedNode {
@@ -7266,6 +7801,17 @@ function mountNode(
       );
     }
     case 'component':
+      if (canMountLeanComponent(node, context)) {
+        const inputs = leanInputs(node.props);
+        if (inputs)
+          return new LeanComponentRenderedNode(
+            node,
+            inputs,
+            parent,
+            before,
+            context,
+          );
+      }
       if (canMountCompiledComponent(node, context)) {
         return new CompiledComponentRenderedNode(node, parent, before, context);
       }
