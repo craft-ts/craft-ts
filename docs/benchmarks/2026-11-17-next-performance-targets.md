@@ -36,6 +36,13 @@ Ce constat concerne ces fixtures, pas tous les usages de `forNode`.
 
 ## 1. Créer la cellule d'index à sa première lecture
 
+Suite de l'investigation : une [implémentation mesurée](2026-11-17-lazy-list-indexes.md)
+est retenue uniquement pour les listes lean spécialisées. Elle diffère le nœud
+réactif derrière le lecteur existant : 275 nœuds évités sur la page étudiée,
+et un gain de mémoire sur les grandes listes dédiées. Le bénéfice sur le montage
+de la page reste non démontré ; les chiffres ci-dessous décrivent le diagnostic
+initial et non un gain obtenu sur toutes les listes.
+
 Aujourd'hui, `ForRenderedNode.reconcile` alloue pour chaque nouvelle entrée une
 cellule privée et son lecteur, même si le callback ne demande que l'item. Les
 743 lecteurs jamais appelés de la page impliquent autant de cellules inutilisées.
