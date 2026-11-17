@@ -2,16 +2,18 @@
 
 17 novembre 2026. Base `3d258485d`, après le compilateur `lean` de la
 [PR #22](https://github.com/craft-ts/craft-ts/pull/22).
-Expérience séparée sur `codex/imperative-render-investigation` ; aucune modification
-du renderer distribué. Le prototype est un banc de recherche, pas une API publique.
+Expérience réalisée au commit `bbca9fca1`, sur
+`codex/imperative-render-investigation`. **Prototype et commande de benchmark
+retirés à la demande de l'utilisateur.** Seuls ce compte rendu et les mesures
+archivées sont conservés ; aucune modification du renderer distribué.
 
 Verdict : cette voie réduit nettement le travail JS et le heap des cellules
 simples. Sur un tableau de 10 000 lignes avec un bouton Craft complet par ligne,
 le gain médian de montage JS est d’environ 17 %, mais seulement 4 % avec la mise
-en page ; la restauration régresse de 23 %. Les distributions sont larges. Je
-retiens l’idée comme capacité spécialisée et comme piste pour compiler des plans
-de lignes ; la virtualisation reste prioritaire pour les très grandes listes
-dont seule une petite partie est visible.
+en page ; la restauration régresse de 23 %. Les distributions sont larges.
+Ces résultats ne justifient pas l'ajout d'un chemin impératif public. Les pistes
+à poursuivre concernent les plans de lignes du compilateur et la limitation
+du nombre de lignes montées pour les très grandes collections.
 
 L'idée est viable : un bloc écrit en TypeScript peut construire directement ses
 cellules avec un adaptateur DOM, garder les références utiles, puis ne modifier
@@ -37,8 +39,8 @@ Le maillon testé est donc un **emplacement enfant possédé**, raccordé au
 
 ## Expérience
 
-Le [banc reproductible](../../apps/imperative-render-prototype/README.md) compare
-trois builds production sur le même tableau :
+Le banc expérimental, désormais retiré, comparait trois builds production sur
+le même tableau :
 
 1. `runtime` : `forNode` avec un composant de ligne interprété ;
 2. `lean` : même code, compilateur léger activé ;
@@ -164,10 +166,10 @@ ligne, une requête async dans un enfant ou des scopes CSS demandent des essais
 spécifiques avant de stabiliser l'API. Les clés doivent être uniques. Ce banc
 ne certifie pas ces comportements supplémentaires.
 
-## API à viser
+## Contraintes identifiées pour une éventuelle API
 
-Je recommande un bloc de rendu possédé, utilisable sans compilateur, que l'on
-peut ensuite cacher derrière un composant de tableau. Son contexte fournirait :
+Une éventuelle nouvelle exploration devrait définir un bloc de rendu possédé,
+utilisable sans compilateur. Son contexte devrait fournir :
 
 - une façade DOM avec création, texte, attributs/propriétés validés et déplacements ;
 - des effets et nettoyages automatiquement rattachés au bloc ;
@@ -181,13 +183,26 @@ passer par la même façade que le renderer. Exposer un `document` brut ne suffi
 pas à définir ces contrats. L'accès est une capacité du contexte de montage,
 pas une variable globale ou un singleton partagé entre requêtes.
 
-Pour un premier produit utilisable, un tableau à schéma fixe et emplacements
-Craft me paraît préférable à une liberté impérative sans contrat : clé de ligne,
-descripteurs de colonnes, patchs de cellules, emplacements d'action. Le mécanisme
-bas niveau reste disponible pour les cas spécialisés. Une autre exploitation
-des mêmes résultats serait une compilation de `forNode` en plan de lignes,
-avec le même diff natif et des trous Craft ; cela éviterait aux applications de
-réécrire chacune la réconciliation.
+Un tableau à schéma fixe et emplacements Craft limiterait le contrat à définir :
+clé de ligne, descripteurs de colonnes, patchs de cellules et emplacements
+d'action. Cette API n'est pas retenue. Une autre exploitation des observations
+serait une compilation de `forNode` en plan de lignes, avec un diff natif et des
+trous Craft ; cela éviterait aux applications de réécrire la réconciliation.
+
+## Retrouver l'expérience historique
+
+Les données JSON restent consultables sans restaurer de code. Pour reproduire
+l'expérience exacte, créer un checkout isolé du commit qui contenait le banc :
+
+```sh
+git worktree add --detach ../craft-imperative-archive bbca9fca1
+cd ../craft-imperative-archive
+npm ci
+IMPERATIVE_ROWS=5000,10000 npm run perf:imperative:prototype
+```
+
+La commande n'existe plus dans la branche courante. Les empreintes des sources,
+les distributions et les 84 navigations sont conservées dans les données JSON.
 
 ## Très grandes collections
 
