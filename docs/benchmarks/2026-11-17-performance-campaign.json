@@ -48,7 +48,10 @@
     {
       "id": "incremental-rebind",
       "title": "Dépendances d'inputs et rebinds partiels",
-      "status": "pending"
+      "status": "measured",
+      "decision": "restricted prototype, not enabled: ordinary row update gain not established and retained heap increases",
+      "evidence": "2026-11-17-incremental-rebind-summary.json",
+      "coverage": "Only proven lean list factories own the input objects. Static dependency analysis, stable primitive index readers, getter refusal, Proxy fallback, DOM observation order and destruction are tested. Standard rows, indexed/nested controls, realistic page and a sixteen-index-cell synthetic control are measured."
     },
     {
       "id": "local-list-specialization",
@@ -202,9 +205,9 @@
       "decision": "removed as requested; measured observations retained"
     }
   ],
-  "updatedAt": "2026-11-17T16:49:19.901Z",
+  "updatedAt": "2026-11-17T17:18:59.063Z",
   "progress": {
-    "newItemsMeasured": 11,
+    "newItemsMeasured": 12,
     "partialItems": 1,
     "historicalItemsAudited": 3,
     "complete": false
