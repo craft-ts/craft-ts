@@ -9,7 +9,12 @@ const integrated = await import(
 );
 const measured = await import(
   pathToFileURL(
-    join(lab, 'roots/local-lists/dist/libs/compiler/src/compiler.js'),
+    join(
+      lab,
+      'roots',
+      process.env.VERIFY_CANDIDATE ?? 'local-lists',
+      'dist/libs/compiler/src/compiler.js',
+    ),
   )
 );
 async function files(directory) {
@@ -55,8 +60,39 @@ for (const file of sources) {
     passed: true,
   });
 }
+if (process.env.VERIFY_CANDIDATE === 'imported-lists') {
+  const file = join(workspace, 'apps/compiler-benchmark/main.ts');
+  let source = await readFile(file, 'utf8');
+  const start = source.indexOf('const Row = craftComponent('),
+    end = source.indexOf('const Leaf = craftComponent(');
+  source =
+    "import {Row,IndexedRow} from 'campaign-imported-rows';\n" +
+    source.slice(0, start) +
+    source.slice(end);
+  const options = {
+    lean: true,
+    importedComponents: [
+      { module: 'campaign-imported-rows', local: 'Row', exported: 'Row' },
+      {
+        module: 'campaign-imported-rows',
+        local: 'IndexedRow',
+        exported: 'IndexedRow',
+      },
+    ],
+  };
+  const a = measured.compileModule(source, file, options),
+    b = integrated.compileModule(source, file, options);
+  assert.equal(a.code, b.code);
+  assert.equal(a.optimizedLists, b.optimizedLists);
+  results.push({
+    file: file + ' (imported fixture)',
+    generatedCodeSha256: createHash('sha256').update(b.code).digest('hex'),
+    optimizedLists: b.optimizedLists,
+    passed: true,
+  });
+}
 await writeFile(
-  join(lab, 'tests/integrated-output.json'),
+  join(lab, process.env.VERIFY_OUTPUT ?? 'tests/integrated-output.json'),
   JSON.stringify({ passed: true, results }, null, 2) + '\n',
 );
 console.log(

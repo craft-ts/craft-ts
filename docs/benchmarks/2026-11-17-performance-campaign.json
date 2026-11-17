@@ -4,7 +4,7 @@
   "baseline": "89f1e46de",
   "status": "active",
   "protocol": {
-    "isolation": "Each candidate is materialized from the baseline in tmp/performance-campaign; no experimental runtime is enabled in production sources.",
+    "isolation": "Candidates are materialized from the baseline in tmp/performance-campaign. Retained local/imported compiler passes are integrated separately; experimental runtime strategies remain isolated.",
     "contractsBeforeTimings": true,
     "minimumTimingRuns": 5,
     "timingBuild": "minified production, fresh browser contexts, seeded interleaving",
@@ -61,7 +61,10 @@
     {
       "id": "imported-list-specialization",
       "title": "Listes de composants importés et graphe du bundler",
-      "status": "pending"
+      "status": "measured",
+      "decision": "retained behind imports: true, default false",
+      "evidence": "2026-11-17-imported-lists-summary.json",
+      "coverage": "Direct named imports of compiled const exports in a proven acyclic loaded application graph. Import aliases, lexical scope, cycle refusal, opt-in, SSR exclusion and real Vite watch rebuilds are tested. Imported 5000-row fixtures improve with lean; the realistic page does not."
     },
     {
       "id": "service-empty-wrapper",
@@ -196,9 +199,9 @@
       "decision": "removed as requested; measured observations retained"
     }
   ],
-  "updatedAt": "2026-11-17T14:57:12.455Z",
+  "updatedAt": "2026-11-17T16:32:41.733Z",
   "progress": {
-    "newItemsMeasured": 9,
+    "newItemsMeasured": 10,
     "partialItems": 1,
     "historicalItemsAudited": 3,
     "complete": false

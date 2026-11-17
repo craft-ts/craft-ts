@@ -79,8 +79,11 @@ process.env.PAGE_VARIANTS = ids
   .map((id) => id + '=craft-page@' + join(lab, 'roots', id))
   .join(',');
 process.env.PAGE_COMPILER_LABELS = ids.join(',');
+const requestedOptions = JSON.parse(process.env.PAGE_COMPILER_OPTIONS ?? '{}');
 process.env.PAGE_COMPILER_OPTIONS = JSON.stringify(
-  Object.fromEntries(ids.map((id) => [id, { lean: true }])),
+  Object.fromEntries(
+    ids.map((id) => [id, { lean: true, ...requestedOptions[id] }]),
+  ),
 );
 process.env.PAGE_COUNT = 'false';
 process.env.PAGE_SCALES ??= '2';
