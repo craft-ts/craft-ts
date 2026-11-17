@@ -63,7 +63,8 @@
     "compiler:build": "nx build craft-ts-compiler",
     "compiler:test": "vitest run --config libs/compiler/vitest.config.ts",
     "perf:compiler": "tsc -p libs/compiler/tsconfig.lib.json && node apps/compiler-benchmark/run.mjs",
-    "perf:compiler:profile": "tsc -p libs/compiler/tsconfig.lib.json && node apps/compiler-benchmark/profile.mjs"
+    "perf:compiler:profile": "tsc -p libs/compiler/tsconfig.lib.json && node apps/compiler-benchmark/profile.mjs",
+    "perf:imperative:prototype": "tsc -p libs/compiler/tsconfig.lib.json && node apps/imperative-render-prototype/run.mjs"
   },
   "private": true,
   "devDependencies": {

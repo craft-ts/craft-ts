@@ -1,0 +1,3737 @@
+{
+  "timestamp": "2026-11-17T08:09:31.969Z",
+  "base": "3d258485d9f050d2a992cd6f59f68e3a86317a4a",
+  "environment": {
+    "cpu": "Apple M3",
+    "node": "v25.2.1",
+    "chromium": "153.0.8010.12"
+  },
+  "runs": 7,
+  "iterations": 5,
+  "sourceSha256": {
+    "fixture.ts": "4678c8fe5917c2d5ff4f8f4efbd79c50e0f7047b20bd9740c2121b1a10d2260b",
+    "main.ts": "193bf3b0fa60915c3e7e6db2abbfeef2e31206d8844f70e9406b5297b12d6326",
+    "bridge.mjs": "d943ad44f712fc1431071b010d472183d695854cc9bf5b8dc5235531b1e789c2",
+    "run.mjs": "7ead8056e8c8f92e23611e13fe467766c69083b18af3c240e6a5e88f205034ff",
+    "server.ts": "576d071fc25ec7ddfcac96f4ac9dfdd4c34878b2ad4e78355f41a2eb0e81270d"
+  },
+  "builds": {
+    "runtime": {
+      "decisions": []
+    },
+    "lean": {
+      "decisions": [
+        {
+          "file": "apps/imperative-render-prototype/fixture.ts",
+          "components": [
+            {
+              "component": "PrototypeEdit",
+              "status": "fallback",
+              "reason": "component metadata requires the generic renderer"
+            },
+            {
+              "component": "PrototypePlainRow",
+              "status": "compiled",
+              "nodes": 7,
+              "bindings": 4
+            },
+            {
+              "component": "PrototypeInteractiveRow",
+              "status": "compiled",
+              "nodes": 8,
+              "bindings": 4,
+              "holes": 1
+            },
+            {
+              "component": "PrototypeTable",
+              "status": "compiled",
+              "nodes": 1,
+              "bindings": 0,
+              "holes": 1
+            }
+          ]
+        }
+      ]
+    },
+    "manual": {
+      "decisions": []
+    }
+  },
+  "contracts": [
+    {
+      "buttons": false,
+      "steps": 6,
+      "passed": true
+    },
+    {
+      "buttons": true,
+      "steps": 7,
+      "passed": true
+    }
+  ],
+  "ssr": [
+    {
+      "mode": "runtime",
+      "buttons": false,
+      "html": "<craft-root data-craft-hk=\"PrototypeTable/0\"><!--craft-component:start|hk:PrototypeTable/0--><table data-craft-hk=\"PrototypeTable/0/0\" data-craft-root=\"PrototypeTable\"><tbody data-craft-hk=\"PrototypeTable/0/0/0\"><!--craft-for:start|hk:PrototypeTable/0/0/0/for%3A0--><!--craft-for:0:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"0\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/0/0-->0<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/1/0-->&lt;unsafe &amp; text&gt;<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/2/0-->0<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypePlainRow/0--><!--craft-for:0:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0--><!--craft-for:1:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"1\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/0/0-->1<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/1/0-->Row 1<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/2/0-->1<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypePlainRow/0--><!--craft-for:1:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1--><!--craft-for:2:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"2\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/0/0-->2<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/1/0-->Row 2<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/2/0-->2<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypePlainRow/0--><!--craft-for:2:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2--><!--craft-for:3:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"3\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/0/0-->3<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/1/0-->Row 3<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/2/0-->3<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypePlainRow/0--><!--craft-for:3:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3--><!--craft-for:4:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"4\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/0/0-->4<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/1/0-->Row 4<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/2/0-->4<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypePlainRow/0--><!--craft-for:4:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4--><!--craft-for:5:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"5\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/0/0-->5<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/1/0-->Row 5<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/2/0-->5<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypePlainRow/0--><!--craft-for:5:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5--><!--craft-for:6:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"6\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/0/0-->6<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/1/0-->Row 6<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/2/0-->6<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypePlainRow/0--><!--craft-for:6:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6--><!--craft-for:7:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"7\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/0/0-->7<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/1/0-->Row 7<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/2/0-->7<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypePlainRow/0--><!--craft-for:7:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7--><!--craft-for:8:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"8\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/0/0-->8<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/1/0-->Row 8<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/2/0-->8<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypePlainRow/0--><!--craft-for:8:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8--><!--craft-for:9:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"9\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/0/0-->9<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/1/0-->Row 9<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/2/0-->9<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypePlainRow/0--><!--craft-for:9:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9--><!--craft-for:10:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"10\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/0/0-->10<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/1/0-->Row 10<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/2/0-->10<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypePlainRow/0--><!--craft-for:10:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10--><!--craft-for:11:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"11\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/0/0-->11<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/1/0-->Row 11<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/2/0-->11<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypePlainRow/0--><!--craft-for:11:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11--><!--craft-for:12:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"12\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/0/0-->12<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/1/0-->Row 12<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/2/0-->12<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypePlainRow/0--><!--craft-for:12:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12--><!--craft-for:13:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"13\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/0/0-->13<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/1/0-->Row 13<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/2/0-->13<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypePlainRow/0--><!--craft-for:13:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13--><!--craft-for:14:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"14\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/0/0-->14<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/1/0-->Row 14<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/2/0-->14<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypePlainRow/0--><!--craft-for:14:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14--><!--craft-for:15:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"15\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/0/0-->15<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/1/0-->Row 15<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/2/0-->15<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypePlainRow/0--><!--craft-for:15:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15--><!--craft-for:16:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"16\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/0/0-->16<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/1/0-->Row 16<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/2/0-->16<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypePlainRow/0--><!--craft-for:16:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16--><!--craft-for:17:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"17\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/0/0-->17<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/1/0-->Row 17<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/2/0-->17<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypePlainRow/0--><!--craft-for:17:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17--><!--craft-for:18:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"18\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/0/0-->18<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/1/0-->Row 18<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/2/0-->18<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypePlainRow/0--><!--craft-for:18:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18--><!--craft-for:19:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0\" data-craft-root=\"PrototypePlainRow\" data-row=\"19\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/0/0-->19<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/1/0-->Row 19<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/2/0-->19<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0/0/2/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypePlainRow/0--><!--craft-for:19:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19--><!--craft-for:end|hk:PrototypeTable/0/0/0/for%3A0--></tbody></table><!--craft-component:end|hk:PrototypeTable/0--></craft-root><script id=\"__CRAFT_TRANSFER__\" type=\"application/json\">{\"version\":1,\"values\":{},\"queries\":{}}</script>",
+      "lifecycle": {
+        "mounted": 0,
+        "destroyed": 0,
+        "clicks": []
+      }
+    },
+    {
+      "mode": "manual",
+      "buttons": false,
+      "html": "<craft-root data-craft-hk=\"PrototypeTable/0\"><!--craft-component:start|hk:PrototypeTable/0--><table data-craft-hk=\"PrototypeTable/0/0\" data-craft-root=\"PrototypeTable\"><tbody data-craft-hk=\"PrototypeTable/0/0/0\"><tr data-row=\"0\"><td>0</td><td>&lt;unsafe &amp; text&gt;</td><td>0</td></tr><tr data-row=\"1\"><td>1</td><td>Row 1</td><td>1</td></tr><tr data-row=\"2\"><td>2</td><td>Row 2</td><td>2</td></tr><tr data-row=\"3\"><td>3</td><td>Row 3</td><td>3</td></tr><tr data-row=\"4\"><td>4</td><td>Row 4</td><td>4</td></tr><tr data-row=\"5\"><td>5</td><td>Row 5</td><td>5</td></tr><tr data-row=\"6\"><td>6</td><td>Row 6</td><td>6</td></tr><tr data-row=\"7\"><td>7</td><td>Row 7</td><td>7</td></tr><tr data-row=\"8\"><td>8</td><td>Row 8</td><td>8</td></tr><tr data-row=\"9\"><td>9</td><td>Row 9</td><td>9</td></tr><tr data-row=\"10\"><td>10</td><td>Row 10</td><td>10</td></tr><tr data-row=\"11\"><td>11</td><td>Row 11</td><td>11</td></tr><tr data-row=\"12\"><td>12</td><td>Row 12</td><td>12</td></tr><tr data-row=\"13\"><td>13</td><td>Row 13</td><td>13</td></tr><tr data-row=\"14\"><td>14</td><td>Row 14</td><td>14</td></tr><tr data-row=\"15\"><td>15</td><td>Row 15</td><td>15</td></tr><tr data-row=\"16\"><td>16</td><td>Row 16</td><td>16</td></tr><tr data-row=\"17\"><td>17</td><td>Row 17</td><td>17</td></tr><tr data-row=\"18\"><td>18</td><td>Row 18</td><td>18</td></tr><tr data-row=\"19\"><td>19</td><td>Row 19</td><td>19</td></tr></tbody></table><!--craft-component:end|hk:PrototypeTable/0--></craft-root><script id=\"__CRAFT_TRANSFER__\" type=\"application/json\">{\"version\":1,\"values\":{},\"queries\":{}}</script>",
+      "lifecycle": {
+        "mounted": 0,
+        "destroyed": 0,
+        "clicks": []
+      }
+    },
+    {
+      "mode": "runtime",
+      "buttons": true,
+      "html": "<craft-root data-craft-hk=\"PrototypeTable/0\"><!--craft-component:start|hk:PrototypeTable/0--><table data-craft-hk=\"PrototypeTable/0/0\" data-craft-root=\"PrototypeTable\"><tbody data-craft-hk=\"PrototypeTable/0/0/0\"><!--craft-for:start|hk:PrototypeTable/0/0/0/for%3A0--><!--craft-for:0:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"0\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/0/0-->0<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/1/0-->&lt;unsafe &amp; text&gt;<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/2/0-->0<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"0\" title=\"&lt;unsafe &amp; text&gt;\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0/PrototypeInteractiveRow/0--><!--craft-for:0:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A0--><!--craft-for:1:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"1\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/0/0-->1<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/1/0-->Row 1<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/2/0-->1<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"1\" title=\"Row 1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1/PrototypeInteractiveRow/0--><!--craft-for:1:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A1--><!--craft-for:2:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"2\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/0/0-->2<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/1/0-->Row 2<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/2/0-->2<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"2\" title=\"Row 2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2/PrototypeInteractiveRow/0--><!--craft-for:2:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A2--><!--craft-for:3:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"3\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/0/0-->3<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/1/0-->Row 3<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/2/0-->3<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"3\" title=\"Row 3\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3/PrototypeInteractiveRow/0--><!--craft-for:3:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A3--><!--craft-for:4:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"4\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/0/0-->4<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/1/0-->Row 4<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/2/0-->4<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"4\" title=\"Row 4\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4/PrototypeInteractiveRow/0--><!--craft-for:4:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A4--><!--craft-for:5:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"5\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/0/0-->5<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/1/0-->Row 5<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/2/0-->5<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"5\" title=\"Row 5\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5/PrototypeInteractiveRow/0--><!--craft-for:5:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A5--><!--craft-for:6:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"6\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/0/0-->6<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/1/0-->Row 6<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/2/0-->6<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"6\" title=\"Row 6\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6/PrototypeInteractiveRow/0--><!--craft-for:6:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A6--><!--craft-for:7:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"7\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/0/0-->7<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/1/0-->Row 7<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/2/0-->7<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"7\" title=\"Row 7\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7/PrototypeInteractiveRow/0--><!--craft-for:7:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A7--><!--craft-for:8:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"8\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/0/0-->8<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/1/0-->Row 8<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/2/0-->8<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"8\" title=\"Row 8\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8/PrototypeInteractiveRow/0--><!--craft-for:8:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A8--><!--craft-for:9:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"9\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/0/0-->9<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/1/0-->Row 9<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/2/0-->9<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"9\" title=\"Row 9\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9/PrototypeInteractiveRow/0--><!--craft-for:9:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A9--><!--craft-for:10:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"10\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/0/0-->10<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/1/0-->Row 10<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/2/0-->10<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"10\" title=\"Row 10\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10/PrototypeInteractiveRow/0--><!--craft-for:10:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A10--><!--craft-for:11:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"11\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/0/0-->11<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/1/0-->Row 11<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/2/0-->11<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"11\" title=\"Row 11\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11/PrototypeInteractiveRow/0--><!--craft-for:11:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A11--><!--craft-for:12:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"12\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/0/0-->12<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/1/0-->Row 12<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/2/0-->12<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"12\" title=\"Row 12\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12/PrototypeInteractiveRow/0--><!--craft-for:12:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A12--><!--craft-for:13:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"13\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/0/0-->13<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/1/0-->Row 13<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/2/0-->13<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"13\" title=\"Row 13\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13/PrototypeInteractiveRow/0--><!--craft-for:13:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A13--><!--craft-for:14:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"14\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/0/0-->14<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/1/0-->Row 14<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/2/0-->14<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"14\" title=\"Row 14\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14/PrototypeInteractiveRow/0--><!--craft-for:14:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A14--><!--craft-for:15:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"15\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/0/0-->15<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/1/0-->Row 15<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/2/0-->15<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"15\" title=\"Row 15\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15/PrototypeInteractiveRow/0--><!--craft-for:15:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A15--><!--craft-for:16:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"16\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/0/0-->16<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/1/0-->Row 16<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/2/0-->16<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"16\" title=\"Row 16\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16/PrototypeInteractiveRow/0--><!--craft-for:16:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A16--><!--craft-for:17:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"17\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/0/0-->17<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/1/0-->Row 17<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/2/0-->17<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"17\" title=\"Row 17\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17/PrototypeInteractiveRow/0--><!--craft-for:17:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A17--><!--craft-for:18:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"18\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/0/0-->18<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/1/0-->Row 18<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/2/0-->18<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"18\" title=\"Row 18\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18/PrototypeInteractiveRow/0--><!--craft-for:18:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A18--><!--craft-for:19:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19--><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0--><tr data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0\" data-craft-root=\"PrototypeInteractiveRow\" data-row=\"19\"><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/0\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/0/0-->19<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/0/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/1/0-->Row 19<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/1/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/2/0-->19<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/2/0--></td><td data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/3\"><!--craft-component:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--><button data-craft-hk=\"PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"19\" title=\"Row 19\"><!--craft-text:start|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0/0/3/PrototypeEdit/0--></td></tr><!--craft-component:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19/PrototypeInteractiveRow/0--><!--craft-for:19:end|hk:PrototypeTable/0/0/0/for%3A0/item%3A19--><!--craft-for:end|hk:PrototypeTable/0/0/0/for%3A0--></tbody></table><!--craft-component:end|hk:PrototypeTable/0--></craft-root><script id=\"__CRAFT_TRANSFER__\" type=\"application/json\">{\"version\":1,\"values\":{},\"queries\":{}}</script>",
+      "lifecycle": {
+        "mounted": 20,
+        "destroyed": 20,
+        "clicks": []
+      }
+    },
+    {
+      "mode": "manual",
+      "buttons": true,
+      "html": "<craft-root data-craft-hk=\"PrototypeTable/0\"><!--craft-component:start|hk:PrototypeTable/0--><table data-craft-hk=\"PrototypeTable/0/0\" data-craft-root=\"PrototypeTable\"><tbody data-craft-hk=\"PrototypeTable/0/0/0\"><tr data-row=\"0\"><td>0</td><td>&lt;unsafe &amp; text&gt;</td><td>0</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/0--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/0/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"0\" title=\"&lt;unsafe &amp; text&gt;\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/0/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/0/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/0--></td></tr><tr data-row=\"1\"><td>1</td><td>Row 1</td><td>1</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/1--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/1/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"1\" title=\"Row 1\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/1/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/1/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/1--></td></tr><tr data-row=\"2\"><td>2</td><td>Row 2</td><td>2</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/2--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/2/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"2\" title=\"Row 2\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/2/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/2/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/2--></td></tr><tr data-row=\"3\"><td>3</td><td>Row 3</td><td>3</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/3--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/3/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"3\" title=\"Row 3\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/3/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/3/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/3--></td></tr><tr data-row=\"4\"><td>4</td><td>Row 4</td><td>4</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/4--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/4/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"4\" title=\"Row 4\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/4/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/4/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/4--></td></tr><tr data-row=\"5\"><td>5</td><td>Row 5</td><td>5</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/5--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/5/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"5\" title=\"Row 5\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/5/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/5/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/5--></td></tr><tr data-row=\"6\"><td>6</td><td>Row 6</td><td>6</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/6--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/6/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"6\" title=\"Row 6\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/6/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/6/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/6--></td></tr><tr data-row=\"7\"><td>7</td><td>Row 7</td><td>7</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/7--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/7/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"7\" title=\"Row 7\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/7/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/7/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/7--></td></tr><tr data-row=\"8\"><td>8</td><td>Row 8</td><td>8</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/8--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/8/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"8\" title=\"Row 8\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/8/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/8/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/8--></td></tr><tr data-row=\"9\"><td>9</td><td>Row 9</td><td>9</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/9--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/9/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"9\" title=\"Row 9\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/9/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/9/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/9--></td></tr><tr data-row=\"10\"><td>10</td><td>Row 10</td><td>10</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/10--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/10/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"10\" title=\"Row 10\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/10/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/10/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/10--></td></tr><tr data-row=\"11\"><td>11</td><td>Row 11</td><td>11</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/11--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/11/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"11\" title=\"Row 11\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/11/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/11/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/11--></td></tr><tr data-row=\"12\"><td>12</td><td>Row 12</td><td>12</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/12--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/12/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"12\" title=\"Row 12\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/12/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/12/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/12--></td></tr><tr data-row=\"13\"><td>13</td><td>Row 13</td><td>13</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/13--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/13/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"13\" title=\"Row 13\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/13/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/13/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/13--></td></tr><tr data-row=\"14\"><td>14</td><td>Row 14</td><td>14</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/14--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/14/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"14\" title=\"Row 14\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/14/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/14/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/14--></td></tr><tr data-row=\"15\"><td>15</td><td>Row 15</td><td>15</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/15--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/15/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"15\" title=\"Row 15\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/15/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/15/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/15--></td></tr><tr data-row=\"16\"><td>16</td><td>Row 16</td><td>16</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/16--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/16/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"16\" title=\"Row 16\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/16/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/16/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/16--></td></tr><tr data-row=\"17\"><td>17</td><td>Row 17</td><td>17</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/17--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/17/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"17\" title=\"Row 17\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/17/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/17/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/17--></td></tr><tr data-row=\"18\"><td>18</td><td>Row 18</td><td>18</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/18--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/18/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"18\" title=\"Row 18\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/18/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/18/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/18--></td></tr><tr data-row=\"19\"><td>19</td><td>Row 19</td><td>19</td><td><!--craft-component:start|hk:PrototypeTable/0/0/0/prototype-slot/19--><button data-craft-hk=\"PrototypeTable/0/0/0/prototype-slot/19/0\" data-craft-root=\"PrototypeEdit\" data-edit=\"19\" title=\"Row 19\"><!--craft-text:start|hk:PrototypeTable/0/0/0/prototype-slot/19/0/0-->Edit<!--craft-text:end|hk:PrototypeTable/0/0/0/prototype-slot/19/0/0--></button><!--craft-component:end|hk:PrototypeTable/0/0/0/prototype-slot/19--></td></tr></tbody></table><!--craft-component:end|hk:PrototypeTable/0--></craft-root><script id=\"__CRAFT_TRANSFER__\" type=\"application/json\">{\"version\":1,\"values\":{},\"queries\":{}}</script>",
+      "lifecycle": {
+        "mounted": 20,
+        "destroyed": 20,
+        "clicks": []
+      }
+    }
+  ],
+  "concurrentSsr": {
+    "counts": [
+      7,
+      9
+    ],
+    "passed": true
+  },
+  "summary": [
+    {
+      "count": 5000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": {
+        "median": 63.299999952316284,
+        "min": 61.60000014305115,
+        "max": 90,
+        "samples": [
+          72.79999995231628,
+          79.90000009536743,
+          61.89999985694885,
+          61.60000014305115,
+          90,
+          62.89999985694885,
+          63.299999952316284
+        ]
+      },
+      "layout": {
+        "median": 41.5,
+        "min": 39.700000047683716,
+        "max": 51,
+        "samples": [
+          45.200000047683716,
+          50.700000047683716,
+          40.200000047683716,
+          39.700000047683716,
+          51,
+          41.5,
+          40.30000019073486
+        ]
+      },
+      "mountAndLayout": {
+        "median": 104.39999985694885,
+        "min": 101.30000019073486,
+        "max": 141,
+        "samples": [
+          118,
+          130.60000014305115,
+          102.09999990463257,
+          101.30000019073486,
+          141,
+          104.39999985694885,
+          103.60000014305115
+        ]
+      },
+      "frame": {
+        "median": 118.79999995231628,
+        "min": 114.90000009536743,
+        "max": 160.09999990463257,
+        "samples": [
+          133.39999985694885,
+          149.10000014305115,
+          116.20000004768372,
+          114.90000009536743,
+          160.09999990463257,
+          118.79999995231628,
+          117.29999995231628
+        ]
+      },
+      "heapMiB": {
+        "median": 36.53422546386719,
+        "min": 36.3988151550293,
+        "max": 36.54085159301758,
+        "samples": [
+          36.537925720214844,
+          36.491371154785156,
+          36.509761810302734,
+          36.3988151550293,
+          36.54085159301758,
+          36.53711700439453,
+          36.53422546386719
+        ]
+      },
+      "destroy": {
+        "median": 14.700000047683716,
+        "min": 13.799999952316284,
+        "max": 30,
+        "samples": [
+          14,
+          30,
+          13.799999952316284,
+          14.700000047683716,
+          15.699999809265137,
+          16.5,
+          14.400000095367432
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 0.9000000953674316,
+          "min": 0.7999999523162842,
+          "max": 1.2000000476837158,
+          "samples": [
+            0.7999999523162842,
+            1.2000000476837158,
+            0.9000000953674316,
+            0.9000000953674316,
+            1.1999998092651367,
+            0.9000000953674316,
+            0.8000001907348633
+          ]
+        },
+        "tenth": {
+          "median": 3.299999952316284,
+          "min": 3.0999999046325684,
+          "max": 4.8999998569488525,
+          "samples": [
+            3.299999952316284,
+            4.8999998569488525,
+            3.299999952316284,
+            3.200000047683716,
+            4.799999952316284,
+            3.200000047683716,
+            3.0999999046325684
+          ]
+        },
+        "reverse": {
+          "median": 11.900000095367432,
+          "min": 11,
+          "max": 17.800000190734863,
+          "samples": [
+            11.400000095367432,
+            17.800000190734863,
+            11.900000095367432,
+            11,
+            16.5,
+            12.299999952316284,
+            11.399999856948853
+          ]
+        },
+        "filter": {
+          "median": 8.799999952316284,
+          "min": 7.699999809265137,
+          "max": 12,
+          "samples": [
+            8.799999952316284,
+            12,
+            9.099999904632568,
+            7.700000047683716,
+            11.5,
+            7.699999809265137,
+            8.599999904632568
+          ]
+        },
+        "restore": {
+          "median": 25.299999952316284,
+          "min": 23.299999952316284,
+          "max": 33.40000009536743,
+          "samples": [
+            26,
+            33.40000009536743,
+            25.299999952316284,
+            24.700000047683716,
+            29.200000047683716,
+            23.5,
+            23.299999952316284
+          ]
+        }
+      }
+    },
+    {
+      "count": 5000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": {
+        "median": 36.40000009536743,
+        "min": 24.5,
+        "max": 42.90000009536743,
+        "samples": [
+          39.799999952316284,
+          42.69999980926514,
+          42.90000009536743,
+          24.800000190734863,
+          25.5,
+          36.40000009536743,
+          24.5
+        ]
+      },
+      "layout": {
+        "median": 54.69999980926514,
+        "min": 39.09999990463257,
+        "max": 73.60000014305115,
+        "samples": [
+          55.5,
+          73.60000014305115,
+          63.799999952316284,
+          39.09999990463257,
+          41.90000009536743,
+          54.69999980926514,
+          40.10000014305115
+        ]
+      },
+      "mountAndLayout": {
+        "median": 91.09999990463257,
+        "min": 63.90000009536743,
+        "max": 116.29999995231628,
+        "samples": [
+          95.29999995231628,
+          116.29999995231628,
+          106.70000004768372,
+          63.90000009536743,
+          67.40000009536743,
+          91.09999990463257,
+          64.60000014305115
+        ]
+      },
+      "frame": {
+        "median": 110.79999995231628,
+        "min": 77.5,
+        "max": 137.19999980926514,
+        "samples": [
+          114.40000009536743,
+          137.19999980926514,
+          128.10000014305115,
+          77.5,
+          82.60000014305115,
+          110.79999995231628,
+          78.40000009536743
+        ]
+      },
+      "heapMiB": {
+        "median": 9.094432830810547,
+        "min": 9.092548370361328,
+        "max": 9.096202850341797,
+        "samples": [
+          9.096202850341797,
+          9.093833923339844,
+          9.092781066894531,
+          9.092548370361328,
+          9.094501495361328,
+          9.094432830810547,
+          9.094741821289062
+        ]
+      },
+      "destroy": {
+        "median": 9.799999952316284,
+        "min": 7.599999904632568,
+        "max": 13.400000095367432,
+        "samples": [
+          13.400000095367432,
+          9.799999952316284,
+          13,
+          8.299999952316284,
+          9,
+          13.099999904632568,
+          7.599999904632568
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 1,
+          "min": 0.7999999523162842,
+          "max": 1.2000000476837158,
+          "samples": [
+            1.1999998092651367,
+            1,
+            1.2000000476837158,
+            0.8999998569488525,
+            0.9000000953674316,
+            1.2000000476837158,
+            0.7999999523162842
+          ]
+        },
+        "tenth": {
+          "median": 2.6000001430511475,
+          "min": 1.9000000953674316,
+          "max": 3.4000000953674316,
+          "samples": [
+            3.200000047683716,
+            2.6000001430511475,
+            3.4000000953674316,
+            1.9000000953674316,
+            2.200000047683716,
+            3.1000001430511475,
+            2
+          ]
+        },
+        "reverse": {
+          "median": 18,
+          "min": 11.200000047683716,
+          "max": 20.600000143051147,
+          "samples": [
+            18.300000190734863,
+            18.200000047683716,
+            20.600000143051147,
+            12,
+            12.399999856948853,
+            18,
+            11.200000047683716
+          ]
+        },
+        "filter": {
+          "median": 8.299999952316284,
+          "min": 5.3999998569488525,
+          "max": 11,
+          "samples": [
+            9.300000190734863,
+            8.5,
+            11,
+            5.5,
+            7,
+            8.299999952316284,
+            5.3999998569488525
+          ]
+        },
+        "restore": {
+          "median": 11.299999952316284,
+          "min": 7.699999809265137,
+          "max": 13.5,
+          "samples": [
+            12.700000047683716,
+            11.299999952316284,
+            13.5,
+            7.699999809265137,
+            9.900000095367432,
+            11.700000047683716,
+            8.800000190734863
+          ]
+        }
+      }
+    },
+    {
+      "count": 5000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": {
+        "median": 12.100000143051147,
+        "min": 9.700000047683716,
+        "max": 49.40000009536743,
+        "samples": [
+          11.799999952316284,
+          49.40000009536743,
+          13.799999952316284,
+          15.400000095367432,
+          12.100000143051147,
+          11.600000143051147,
+          9.700000047683716
+        ]
+      },
+      "layout": {
+        "median": 50.299999952316284,
+        "min": 40.10000014305115,
+        "max": 81.29999995231628,
+        "samples": [
+          50.200000047683716,
+          81.29999995231628,
+          53.40000009536743,
+          59.59999990463257,
+          47.39999985694885,
+          50.299999952316284,
+          40.10000014305115
+        ]
+      },
+      "mountAndLayout": {
+        "median": 62,
+        "min": 49.80000019073486,
+        "max": 130.70000004768372,
+        "samples": [
+          62,
+          130.70000004768372,
+          67.20000004768372,
+          75,
+          59.5,
+          61.90000009536743,
+          49.80000019073486
+        ]
+      },
+      "frame": {
+        "median": 80.20000004768372,
+        "min": 62.90000009536743,
+        "max": 155.70000004768372,
+        "samples": [
+          80.20000004768372,
+          155.70000004768372,
+          87.09999990463257,
+          96.79999995231628,
+          76.60000014305115,
+          78.70000004768372,
+          62.90000009536743
+        ]
+      },
+      "heapMiB": {
+        "median": 3.037181854248047,
+        "min": 2.887767791748047,
+        "max": 3.0382232666015625,
+        "samples": [
+          2.9620704650878906,
+          3.0382232666015625,
+          3.0371627807617188,
+          2.887767791748047,
+          3.0372161865234375,
+          3.037181854248047,
+          3.0374717712402344
+        ]
+      },
+      "destroy": {
+        "median": 11,
+        "min": 7.200000047683716,
+        "max": 12.5,
+        "samples": [
+          12.5,
+          11,
+          9.700000047683716,
+          11.099999904632568,
+          10,
+          12.199999809265137,
+          7.200000047683716
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 1,
+          "min": 0.6000001430511475,
+          "max": 1.8000001907348633,
+          "samples": [
+            1,
+            1.2999999523162842,
+            1,
+            1.8000001907348633,
+            0.7999999523162842,
+            0.9000000953674316,
+            0.6000001430511475
+          ]
+        },
+        "tenth": {
+          "median": 1.4000000953674316,
+          "min": 1,
+          "max": 2.0999999046325684,
+          "samples": [
+            1.5,
+            2.0999999046325684,
+            1.4000000953674316,
+            1.5999999046325684,
+            1.1999998092651367,
+            1.1000001430511475,
+            1
+          ]
+        },
+        "reverse": {
+          "median": 14.299999952316284,
+          "min": 9.299999952316284,
+          "max": 16.700000047683716,
+          "samples": [
+            16.700000047683716,
+            16.299999952316284,
+            14.299999952316284,
+            16.40000009536743,
+            11.800000190734863,
+            11.700000047683716,
+            9.299999952316284
+          ]
+        },
+        "filter": {
+          "median": 6.299999952316284,
+          "min": 4,
+          "max": 9.599999904632568,
+          "samples": [
+            8.099999904632568,
+            9.599999904632568,
+            6.299999952316284,
+            7.5,
+            5.799999952316284,
+            6.200000047683716,
+            4
+          ]
+        },
+        "restore": {
+          "median": 4.3999998569488525,
+          "min": 3.5,
+          "max": 6.5,
+          "samples": [
+            6,
+            5.599999904632568,
+            4.299999952316284,
+            6.5,
+            4.3999998569488525,
+            4.299999952316284,
+            3.5
+          ]
+        }
+      }
+    },
+    {
+      "count": 5000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": {
+        "median": 104.90000009536743,
+        "min": 101.59999990463257,
+        "max": 324.2999999523163,
+        "samples": [
+          105.40000009536743,
+          103.20000004768372,
+          324.2999999523163,
+          202.29999995231628,
+          104.90000009536743,
+          104.29999995231628,
+          101.59999990463257
+        ]
+      },
+      "layout": {
+        "median": 83.79999995231628,
+        "min": 81,
+        "max": 235.70000004768372,
+        "samples": [
+          85.5,
+          81,
+          235.70000004768372,
+          220.09999990463257,
+          83.79999995231628,
+          82.40000009536743,
+          82.29999995231628
+        ]
+      },
+      "mountAndLayout": {
+        "median": 188.70000004768372,
+        "min": 183.89999985694885,
+        "max": 560,
+        "samples": [
+          190.90000009536743,
+          184.20000004768372,
+          560,
+          422.39999985694885,
+          188.70000004768372,
+          186.70000004768372,
+          183.89999985694885
+        ]
+      },
+      "frame": {
+        "median": 208,
+        "min": 202.09999990463257,
+        "max": 611.2999999523163,
+        "samples": [
+          211.59999990463257,
+          202.79999995231628,
+          611.2999999523163,
+          459,
+          208,
+          205.29999995231628,
+          202.09999990463257
+        ]
+      },
+      "heapMiB": {
+        "median": 57.02586364746094,
+        "min": 57.01853561401367,
+        "max": 57.164527893066406,
+        "samples": [
+          57.02397537231445,
+          57.02586364746094,
+          57.0371208190918,
+          57.01853561401367,
+          57.150390625,
+          57.02406692504883,
+          57.164527893066406
+        ]
+      },
+      "destroy": {
+        "median": 28,
+        "min": 25.899999856948853,
+        "max": 67.79999995231628,
+        "samples": [
+          29.699999809265137,
+          25.899999856948853,
+          67.79999995231628,
+          43.200000047683716,
+          26.90000009536743,
+          27.09999990463257,
+          28
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 1,
+          "min": 0.8999998569488525,
+          "max": 2.799999952316284,
+          "samples": [
+            1,
+            1,
+            2.799999952316284,
+            1.4000000953674316,
+            0.9000000953674316,
+            0.8999998569488525,
+            1
+          ]
+        },
+        "tenth": {
+          "median": 8.600000143051147,
+          "min": 6.599999904632568,
+          "max": 21.5,
+          "samples": [
+            7.799999952316284,
+            8.600000143051147,
+            21.5,
+            13.900000095367432,
+            8.600000143051147,
+            6.599999904632568,
+            7.400000095367432
+          ]
+        },
+        "reverse": {
+          "median": 20.300000190734863,
+          "min": 16.90000009536743,
+          "max": 40.700000047683716,
+          "samples": [
+            20.300000190734863,
+            24.899999856948853,
+            38.89999985694885,
+            40.700000047683716,
+            19,
+            17.799999952316284,
+            16.90000009536743
+          ]
+        },
+        "filter": {
+          "median": 17.5,
+          "min": 15.899999856948853,
+          "max": 43.299999952316284,
+          "samples": [
+            17.5,
+            18.5,
+            43.299999952316284,
+            34,
+            16.899999856948853,
+            16.799999952316284,
+            15.899999856948853
+          ]
+        },
+        "restore": {
+          "median": 42.59999990463257,
+          "min": 37.80000019073486,
+          "max": 109.29999995231628,
+          "samples": [
+            44.40000009536743,
+            39.39999985694885,
+            109.29999995231628,
+            72.29999995231628,
+            42.59999990463257,
+            41.39999985694885,
+            37.80000019073486
+          ]
+        }
+      }
+    },
+    {
+      "count": 5000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": {
+        "median": 88.09999990463257,
+        "min": 60.30000019073486,
+        "max": 184.90000009536743,
+        "samples": [
+          184.90000009536743,
+          104.39999985694885,
+          60.30000019073486,
+          88.09999990463257,
+          118.29999995231628,
+          61.200000047683716,
+          61
+        ]
+      },
+      "layout": {
+        "median": 116,
+        "min": 82.69999980926514,
+        "max": 240.89999985694885,
+        "samples": [
+          240.89999985694885,
+          130.09999990463257,
+          85.29999995231628,
+          116,
+          163.60000014305115,
+          82.69999980926514,
+          85.10000014305115
+        ]
+      },
+      "mountAndLayout": {
+        "median": 204.09999990463257,
+        "min": 143.89999985694885,
+        "max": 425.7999999523163,
+        "samples": [
+          425.7999999523163,
+          234.49999976158142,
+          145.60000014305115,
+          204.09999990463257,
+          281.90000009536743,
+          143.89999985694885,
+          146.10000014305115
+        ]
+      },
+      "frame": {
+        "median": 230.79999995231628,
+        "min": 162.90000009536743,
+        "max": 475.2999999523163,
+        "samples": [
+          475.2999999523163,
+          262.39999985694885,
+          166.40000009536743,
+          230.79999995231628,
+          312,
+          162.90000009536743,
+          165.70000004768372
+        ]
+      },
+      "heapMiB": {
+        "median": 30.723770141601562,
+        "min": 30.71887969970703,
+        "max": 30.734886169433594,
+        "samples": [
+          30.723770141601562,
+          30.72472381591797,
+          30.719417572021484,
+          30.734886169433594,
+          30.72640609741211,
+          30.721057891845703,
+          30.71887969970703
+        ]
+      },
+      "destroy": {
+        "median": 26.40000009536743,
+        "min": 18.09999990463257,
+        "max": 36.5,
+        "samples": [
+          36.5,
+          26.799999952316284,
+          18.799999952316284,
+          32.59999990463257,
+          26.40000009536743,
+          20.299999952316284,
+          18.09999990463257
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 1,
+          "min": 0.8999998569488525,
+          "max": 2.0999999046325684,
+          "samples": [
+            2.0999999046325684,
+            1.3999998569488525,
+            0.9000000953674316,
+            1.1000001430511475,
+            1,
+            0.8999998569488525,
+            1
+          ]
+        },
+        "tenth": {
+          "median": 5.299999952316284,
+          "min": 3.799999952316284,
+          "max": 8.799999952316284,
+          "samples": [
+            8.799999952316284,
+            7.5,
+            3.799999952316284,
+            5.299999952316284,
+            6,
+            4,
+            4
+          ]
+        },
+        "reverse": {
+          "median": 23.5,
+          "min": 17.40000009536743,
+          "max": 37.299999952316284,
+          "samples": [
+            37.299999952316284,
+            30.600000143051147,
+            17.700000047683716,
+            25.59999990463257,
+            23.5,
+            17.40000009536743,
+            17.59999990463257
+          ]
+        },
+        "filter": {
+          "median": 15.599999904632568,
+          "min": 11.399999856948853,
+          "max": 27.299999952316284,
+          "samples": [
+            27.299999952316284,
+            21.799999952316284,
+            12.5,
+            22.600000143051147,
+            15.599999904632568,
+            11.399999856948853,
+            11.5
+          ]
+        },
+        "restore": {
+          "median": 25.799999952316284,
+          "min": 20.299999952316284,
+          "max": 49,
+          "samples": [
+            49,
+            31.09999990463257,
+            20.299999952316284,
+            34.10000014305115,
+            23.40000009536743,
+            22.699999809265137,
+            25.799999952316284
+          ]
+        }
+      }
+    },
+    {
+      "count": 5000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": {
+        "median": 56.5,
+        "min": 53.09999990463257,
+        "max": 94.5,
+        "samples": [
+          56,
+          94.5,
+          82.10000014305115,
+          81.59999990463257,
+          54.09999990463257,
+          56.5,
+          53.09999990463257
+        ]
+      },
+      "layout": {
+        "median": 91.79999995231628,
+        "min": 84.09999990463257,
+        "max": 153.5,
+        "samples": [
+          89.29999995231628,
+          153.5,
+          118.79999995231628,
+          118.79999995231628,
+          91.79999995231628,
+          91.79999995231628,
+          84.09999990463257
+        ]
+      },
+      "mountAndLayout": {
+        "median": 148.29999995231628,
+        "min": 137.19999980926514,
+        "max": 248,
+        "samples": [
+          145.29999995231628,
+          248,
+          200.90000009536743,
+          200.39999985694885,
+          145.89999985694885,
+          148.29999995231628,
+          137.19999980926514
+        ]
+      },
+      "frame": {
+        "median": 169,
+        "min": 158.39999985694885,
+        "max": 283.5,
+        "samples": [
+          166,
+          283.5,
+          227.40000009536743,
+          229.5,
+          167.5,
+          169,
+          158.39999985694885
+        ]
+      },
+      "heapMiB": {
+        "median": 24.511852264404297,
+        "min": 24.405498504638672,
+        "max": 24.518638610839844,
+        "samples": [
+          24.513195037841797,
+          24.412094116210938,
+          24.518638610839844,
+          24.511852264404297,
+          24.40658950805664,
+          24.405498504638672,
+          24.51470947265625
+        ]
+      },
+      "destroy": {
+        "median": 21.799999952316284,
+        "min": 19.799999952316284,
+        "max": 42.5,
+        "samples": [
+          20.899999856948853,
+          34.60000014305115,
+          24.799999952316284,
+          42.5,
+          21.799999952316284,
+          20.59999990463257,
+          19.799999952316284
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 1.5,
+          "min": 1.3999998569488525,
+          "max": 2.700000047683716,
+          "samples": [
+            1.4000000953674316,
+            2.200000047683716,
+            2.299999952316284,
+            2.700000047683716,
+            1.5,
+            1.4000000953674316,
+            1.3999998569488525
+          ]
+        },
+        "tenth": {
+          "median": 4,
+          "min": 3.5999999046325684,
+          "max": 6.8999998569488525,
+          "samples": [
+            4,
+            6.8999998569488525,
+            5.799999952316284,
+            6.1000001430511475,
+            3.700000047683716,
+            3.5999999046325684,
+            3.5999999046325684
+          ]
+        },
+        "reverse": {
+          "median": 16.299999952316284,
+          "min": 14.400000095367432,
+          "max": 25,
+          "samples": [
+            15.400000095367432,
+            25,
+            20.799999952316284,
+            25,
+            14.699999809265137,
+            14.400000095367432,
+            16.299999952316284
+          ]
+        },
+        "filter": {
+          "median": 11.399999856948853,
+          "min": 10.5,
+          "max": 24.09999990463257,
+          "samples": [
+            11.399999856948853,
+            17.40000009536743,
+            16.799999952316284,
+            24.09999990463257,
+            10.5,
+            10.5,
+            10.799999952316284
+          ]
+        },
+        "restore": {
+          "median": 21.59999990463257,
+          "min": 21.40000009536743,
+          "max": 33.89999985694885,
+          "samples": [
+            21.5,
+            27.600000143051147,
+            28.600000143051147,
+            33.89999985694885,
+            21.5,
+            21.40000009536743,
+            21.59999990463257
+          ]
+        }
+      }
+    },
+    {
+      "count": 10000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": {
+        "median": 124.29999995231628,
+        "min": 111.89999985694885,
+        "max": 233.70000004768372,
+        "samples": [
+          117.90000009536743,
+          233.70000004768372,
+          114.29999995231628,
+          111.89999985694885,
+          124.29999995231628,
+          169.79999995231628,
+          146.89999985694885
+        ]
+      },
+      "layout": {
+        "median": 102.59999990463257,
+        "min": 91.20000004768372,
+        "max": 157.09999990463257,
+        "samples": [
+          97,
+          157.09999990463257,
+          92.20000004768372,
+          91.20000004768372,
+          102.59999990463257,
+          135.5,
+          117.19999980926514
+        ]
+      },
+      "mountAndLayout": {
+        "median": 226.89999985694885,
+        "min": 203.09999990463257,
+        "max": 390.7999999523163,
+        "samples": [
+          214.90000009536743,
+          390.7999999523163,
+          206.5,
+          203.09999990463257,
+          226.89999985694885,
+          305.2999999523163,
+          264.099999666214
+        ]
+      },
+      "frame": {
+        "median": 253.40000009536743,
+        "min": 226.89999985694885,
+        "max": 429.90000009536743,
+        "samples": [
+          239.80000019073486,
+          429.90000009536743,
+          231.40000009536743,
+          226.89999985694885,
+          253.40000009536743,
+          338.09999990463257,
+          294.59999990463257
+        ]
+      },
+      "heapMiB": {
+        "median": 70.4334487915039,
+        "min": 70.42637634277344,
+        "max": 70.43966674804688,
+        "samples": [
+          70.4334487915039,
+          70.43733215332031,
+          70.42706298828125,
+          70.43354797363281,
+          70.43267059326172,
+          70.43966674804688,
+          70.42637634277344
+        ]
+      },
+      "destroy": {
+        "median": 48,
+        "min": 30.700000047683716,
+        "max": 69,
+        "samples": [
+          38.89999985694885,
+          69,
+          30.700000047683716,
+          31.59999990463257,
+          50.80000019073486,
+          48,
+          53.10000014305115
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 2.5,
+          "min": 1.7999999523162842,
+          "max": 3.299999952316284,
+          "samples": [
+            1.7999999523162842,
+            3.299999952316284,
+            1.7999999523162842,
+            2,
+            2.700000047683716,
+            2.5,
+            2.5999999046325684
+          ]
+        },
+        "tenth": {
+          "median": 11.700000047683716,
+          "min": 6.799999952316284,
+          "max": 14.400000095367432,
+          "samples": [
+            7.700000047683716,
+            14.400000095367432,
+            7.200000047683716,
+            6.799999952316284,
+            12.099999904632568,
+            14,
+            11.700000047683716
+          ]
+        },
+        "reverse": {
+          "median": 31.90000009536743,
+          "min": 24,
+          "max": 45.59999990463257,
+          "samples": [
+            27.5,
+            45.59999990463257,
+            25.09999990463257,
+            24,
+            39.59999990463257,
+            37.09999990463257,
+            31.90000009536743
+          ]
+        },
+        "filter": {
+          "median": 27.200000047683716,
+          "min": 18.40000009536743,
+          "max": 31.59999990463257,
+          "samples": [
+            20.09999990463257,
+            31.59999990463257,
+            18.40000009536743,
+            19.5,
+            27.899999856948853,
+            27.200000047683716,
+            28.399999856948853
+          ]
+        },
+        "restore": {
+          "median": 70.60000014305115,
+          "min": 52,
+          "max": 99.40000009536743,
+          "samples": [
+            56.40000009536743,
+            99.40000009536743,
+            55.200000047683716,
+            52,
+            94.59999990463257,
+            70.60000014305115,
+            73.70000004768372
+          ]
+        }
+      }
+    },
+    {
+      "count": 10000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": {
+        "median": 41.200000047683716,
+        "min": 40.5,
+        "max": 84.09999990463257,
+        "samples": [
+          75.19999980926514,
+          84.09999990463257,
+          74.10000014305115,
+          40.799999952316284,
+          40.799999952316284,
+          40.5,
+          41.200000047683716
+        ]
+      },
+      "layout": {
+        "median": 82.40000009536743,
+        "min": 80.59999990463257,
+        "max": 166.79999995231628,
+        "samples": [
+          131.79999995231628,
+          127.20000004768372,
+          166.79999995231628,
+          82.40000009536743,
+          80.59999990463257,
+          81.10000014305115,
+          81.29999995231628
+        ]
+      },
+      "mountAndLayout": {
+        "median": 123.20000004768372,
+        "min": 121.39999985694885,
+        "max": 240.90000009536743,
+        "samples": [
+          206.99999976158142,
+          211.29999995231628,
+          240.90000009536743,
+          123.20000004768372,
+          121.39999985694885,
+          121.60000014305115,
+          122.5
+        ]
+      },
+      "frame": {
+        "median": 149.40000009536743,
+        "min": 146.79999995231628,
+        "max": 290.60000014305115,
+        "samples": [
+          260.59999990463257,
+          260,
+          290.60000014305115,
+          149.40000009536743,
+          146.79999995231628,
+          146.90000009536743,
+          147.90000009536743
+        ]
+      },
+      "heapMiB": {
+        "median": 16.098323822021484,
+        "min": 16.095741271972656,
+        "max": 16.102195739746094,
+        "samples": [
+          16.09766387939453,
+          16.098899841308594,
+          16.102195739746094,
+          16.09823226928711,
+          16.098323822021484,
+          16.095741271972656,
+          16.098323822021484
+        ]
+      },
+      "destroy": {
+        "median": 18.600000143051147,
+        "min": 16.5,
+        "max": 30.299999952316284,
+        "samples": [
+          22.90000009536743,
+          24.799999952316284,
+          30.299999952316284,
+          18.600000143051147,
+          18,
+          18.299999952316284,
+          16.5
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 1.7999999523162842,
+          "min": 1.7000000476837158,
+          "max": 3.8999998569488525,
+          "samples": [
+            3.799999952316284,
+            2.3000001907348633,
+            3.8999998569488525,
+            1.7000000476837158,
+            1.7999999523162842,
+            1.7999999523162842,
+            1.7999999523162842
+          ]
+        },
+        "tenth": {
+          "median": 4.200000047683716,
+          "min": 3.8999998569488525,
+          "max": 9.700000047683716,
+          "samples": [
+            9.700000047683716,
+            7.3999998569488525,
+            6.300000190734863,
+            3.8999998569488525,
+            4.200000047683716,
+            4,
+            4.099999904632568
+          ]
+        },
+        "reverse": {
+          "median": 25.600000143051147,
+          "min": 24.899999856948853,
+          "max": 53.40000009536743,
+          "samples": [
+            53.40000009536743,
+            35.700000047683716,
+            39.09999990463257,
+            25.299999952316284,
+            24.899999856948853,
+            25.600000143051147,
+            25
+          ]
+        },
+        "filter": {
+          "median": 12.5,
+          "min": 12.299999952316284,
+          "max": 26.800000190734863,
+          "samples": [
+            26.800000190734863,
+            23.200000047683716,
+            21,
+            12.299999952316284,
+            12.299999952316284,
+            12.299999952316284,
+            12.5
+          ]
+        },
+        "restore": {
+          "median": 16.5,
+          "min": 15.799999952316284,
+          "max": 45.40000009536743,
+          "samples": [
+            45.40000009536743,
+            26.5,
+            27.90000009536743,
+            15.799999952316284,
+            16.5,
+            16.100000143051147,
+            15.800000190734863
+          ]
+        }
+      }
+    },
+    {
+      "count": 10000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": {
+        "median": 23.09999990463257,
+        "min": 16,
+        "max": 31,
+        "samples": [
+          24.299999952316284,
+          16.5,
+          31,
+          24.59999990463257,
+          16.100000143051147,
+          23.09999990463257,
+          16
+        ]
+      },
+      "layout": {
+        "median": 107.10000014305115,
+        "min": 81.10000014305115,
+        "max": 139.29999995231628,
+        "samples": [
+          129.29999995231628,
+          107.10000014305115,
+          138.20000004768372,
+          139.29999995231628,
+          86.29999995231628,
+          107.10000014305115,
+          81.10000014305115
+        ]
+      },
+      "mountAndLayout": {
+        "median": 130.20000004768372,
+        "min": 97.10000014305115,
+        "max": 169.20000004768372,
+        "samples": [
+          153.59999990463257,
+          123.60000014305115,
+          169.20000004768372,
+          163.89999985694885,
+          102.40000009536743,
+          130.20000004768372,
+          97.10000014305115
+        ]
+      },
+      "frame": {
+        "median": 163,
+        "min": 120.5,
+        "max": 207.90000009536743,
+        "samples": [
+          204.29999995231628,
+          147.09999990463257,
+          207.90000009536743,
+          203.09999990463257,
+          125.90000009536743,
+          163,
+          120.5
+        ]
+      },
+      "heapMiB": {
+        "median": 4.370189666748047,
+        "min": 4.136875152587891,
+        "max": 4.370937347412109,
+        "samples": [
+          4.136875152587891,
+          4.3704986572265625,
+          4.229595184326172,
+          4.3705902099609375,
+          4.370189666748047,
+          4.163707733154297,
+          4.370937347412109
+        ]
+      },
+      "destroy": {
+        "median": 16.09999990463257,
+        "min": 14.700000047683716,
+        "max": 25,
+        "samples": [
+          16.09999990463257,
+          15.100000143051147,
+          25,
+          14.700000047683716,
+          17.399999856948853,
+          20,
+          15.799999952316284
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 1.5,
+          "min": 1.2999999523162842,
+          "max": 3.200000047683716,
+          "samples": [
+            2.9000000953674316,
+            1.5,
+            2.9000000953674316,
+            1.2999999523162842,
+            1.2999999523162842,
+            3.200000047683716,
+            1.5
+          ]
+        },
+        "tenth": {
+          "median": 2.200000047683716,
+          "min": 1.9000000953674316,
+          "max": 3.3999998569488525,
+          "samples": [
+            2.8999998569488525,
+            1.9000000953674316,
+            3.3999998569488525,
+            2.200000047683716,
+            2.0999999046325684,
+            2.6999998092651367,
+            1.9000000953674316
+          ]
+        },
+        "reverse": {
+          "median": 19.699999809265137,
+          "min": 18,
+          "max": 30.5,
+          "samples": [
+            23.199999809265137,
+            19.699999809265137,
+            30.5,
+            19.299999952316284,
+            18,
+            25.799999952316284,
+            19
+          ]
+        },
+        "filter": {
+          "median": 9.599999904632568,
+          "min": 8.599999904632568,
+          "max": 16.5,
+          "samples": [
+            10.400000095367432,
+            8.599999904632568,
+            16.5,
+            9.599999904632568,
+            9.300000190734863,
+            12.899999856948853,
+            8.899999856948853
+          ]
+        },
+        "restore": {
+          "median": 7.599999904632568,
+          "min": 6.799999952316284,
+          "max": 16.899999856948853,
+          "samples": [
+            9.099999904632568,
+            7.299999952316284,
+            16.899999856948853,
+            7.599999904632568,
+            7.1000001430511475,
+            9.700000047683716,
+            6.799999952316284
+          ]
+        }
+      }
+    },
+    {
+      "count": 10000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": {
+        "median": 338.7999999523163,
+        "min": 223,
+        "max": 725.2999999523163,
+        "samples": [
+          223,
+          338.7999999523163,
+          342.39999985694885,
+          330.59999990463257,
+          520.5999999046326,
+          725.2999999523163,
+          234.70000004768372
+        ]
+      },
+      "layout": {
+        "median": 192.60000014305115,
+        "min": 149.20000004768372,
+        "max": 400,
+        "samples": [
+          173.90000009536743,
+          199.29999995231628,
+          192.60000014305115,
+          179,
+          290.5,
+          400,
+          149.20000004768372
+        ]
+      },
+      "mountAndLayout": {
+        "median": 535,
+        "min": 383.90000009536743,
+        "max": 1125.2999999523163,
+        "samples": [
+          396.90000009536743,
+          538.0999999046326,
+          535,
+          509.59999990463257,
+          811.0999999046326,
+          1125.2999999523163,
+          383.90000009536743
+        ]
+      },
+      "frame": {
+        "median": 581,
+        "min": 420.60000014305115,
+        "max": 1191.5,
+        "samples": [
+          441.7000000476837,
+          585.2999999523163,
+          581,
+          554.7999999523163,
+          879.2999999523163,
+          1191.5,
+          420.60000014305115
+        ]
+      },
+      "heapMiB": {
+        "median": 111.5726547241211,
+        "min": 111.55099105834961,
+        "max": 111.7666130065918,
+        "samples": [
+          111.61515808105469,
+          111.57009887695312,
+          111.57003784179688,
+          111.7666130065918,
+          111.5726547241211,
+          111.55099105834961,
+          111.57478713989258
+        ]
+      },
+      "destroy": {
+        "median": 115.5,
+        "min": 57.200000047683716,
+        "max": 147.40000009536743,
+        "samples": [
+          67.09999990463257,
+          147.40000009536743,
+          115.5,
+          102.5,
+          143.69999980926514,
+          121.29999995231628,
+          57.200000047683716
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 2.6000001430511475,
+          "min": 1.7000000476837158,
+          "max": 5.400000095367432,
+          "samples": [
+            1.9000000953674316,
+            2.6000001430511475,
+            2.8999998569488525,
+            2.5999999046325684,
+            5.400000095367432,
+            4,
+            1.7000000476837158
+          ]
+        },
+        "tenth": {
+          "median": 27.90000009536743,
+          "min": 18.200000047683716,
+          "max": 60.5,
+          "samples": [
+            22.5,
+            33.90000009536743,
+            27.90000009536743,
+            21.40000009536743,
+            60.5,
+            30.799999952316284,
+            18.200000047683716
+          ]
+        },
+        "reverse": {
+          "median": 55.5,
+          "min": 38.09999990463257,
+          "max": 101,
+          "samples": [
+            38.09999990463257,
+            62.09999990463257,
+            55.5,
+            53.80000019073486,
+            101,
+            82,
+            38.5
+          ]
+        },
+        "filter": {
+          "median": 70.5,
+          "min": 34.299999952316284,
+          "max": 94.79999995231628,
+          "samples": [
+            34.799999952316284,
+            87,
+            58.59999990463257,
+            70.5,
+            94.79999995231628,
+            91.79999995231628,
+            34.299999952316284
+          ]
+        },
+        "restore": {
+          "median": 218,
+          "min": 105.20000004768372,
+          "max": 384.69999980926514,
+          "samples": [
+            116.10000014305115,
+            276.2000000476837,
+            218,
+            180.90000009536743,
+            384.69999980926514,
+            339.60000014305115,
+            105.20000004768372
+          ]
+        }
+      }
+    },
+    {
+      "count": 10000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": {
+        "median": 157.79999995231628,
+        "min": 111.20000004768372,
+        "max": 239.80000019073486,
+        "samples": [
+          131.90000009536743,
+          160.5,
+          176.30000019073486,
+          157.79999995231628,
+          239.80000019073486,
+          154.20000004768372,
+          111.20000004768372
+        ]
+      },
+      "layout": {
+        "median": 210.79999995231628,
+        "min": 156.29999995231628,
+        "max": 333.90000009536743,
+        "samples": [
+          181.69999980926514,
+          225,
+          333.90000009536743,
+          210.79999995231628,
+          330.90000009536743,
+          203.79999995231628,
+          156.29999995231628
+        ]
+      },
+      "mountAndLayout": {
+        "median": 368.59999990463257,
+        "min": 267.5,
+        "max": 570.7000002861023,
+        "samples": [
+          313.59999990463257,
+          385.5,
+          510.2000002861023,
+          368.59999990463257,
+          570.7000002861023,
+          358,
+          267.5
+        ]
+      },
+      "frame": {
+        "median": 432.90000009536743,
+        "min": 301.10000014305115,
+        "max": 640.9000000953674,
+        "samples": [
+          352,
+          434.5,
+          578.7000000476837,
+          432.90000009536743,
+          640.9000000953674,
+          404.10000014305115,
+          301.10000014305115
+        ]
+      },
+      "heapMiB": {
+        "median": 58.94816589355469,
+        "min": 58.9436149597168,
+        "max": 58.96867752075195,
+        "samples": [
+          58.9439811706543,
+          58.94670104980469,
+          58.95477294921875,
+          58.9436149597168,
+          58.95406723022461,
+          58.94816589355469,
+          58.96867752075195
+        ]
+      },
+      "destroy": {
+        "median": 56.80000019073486,
+        "min": 38.700000047683716,
+        "max": 77.59999990463257,
+        "samples": [
+          39.5,
+          66.30000019073486,
+          77.59999990463257,
+          77.29999995231628,
+          56.80000019073486,
+          55.89999985694885,
+          38.700000047683716
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 4.5,
+          "min": 2,
+          "max": 9.699999809265137,
+          "samples": [
+            9.699999809265137,
+            3.0999999046325684,
+            7,
+            4.5,
+            4.5,
+            2.5999999046325684,
+            2
+          ]
+        },
+        "tenth": {
+          "median": 18.399999856948853,
+          "min": 10.299999952316284,
+          "max": 28.300000190734863,
+          "samples": [
+            10.900000095367432,
+            13.900000095367432,
+            28.300000190734863,
+            18.399999856948853,
+            18.40000009536743,
+            19.300000190734863,
+            10.299999952316284
+          ]
+        },
+        "reverse": {
+          "median": 51.09999990463257,
+          "min": 35.09999990463257,
+          "max": 92.59999990463257,
+          "samples": [
+            40,
+            48.09999990463257,
+            92.59999990463257,
+            77,
+            65.29999995231628,
+            51.09999990463257,
+            35.09999990463257
+          ]
+        },
+        "filter": {
+          "median": 40.39999985694885,
+          "min": 23.300000190734863,
+          "max": 58.200000047683716,
+          "samples": [
+            27.59999990463257,
+            40.39999985694885,
+            58.200000047683716,
+            55.90000009536743,
+            50.700000047683716,
+            38.799999952316284,
+            23.300000190734863
+          ]
+        },
+        "restore": {
+          "median": 66.70000004768372,
+          "min": 53.200000047683716,
+          "max": 116,
+          "samples": [
+            58.799999952316284,
+            66.70000004768372,
+            104.5,
+            116,
+            78.60000014305115,
+            65,
+            53.200000047683716
+          ]
+        }
+      }
+    },
+    {
+      "count": 10000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": {
+        "median": 131,
+        "min": 94.5,
+        "max": 171.5,
+        "samples": [
+          94.5,
+          131,
+          171.5,
+          161,
+          136.70000004768372,
+          130.89999985694885,
+          98.09999990463257
+        ]
+      },
+      "layout": {
+        "median": 223.40000009536743,
+        "min": 161.5,
+        "max": 342.7999999523163,
+        "samples": [
+          161.5,
+          223.10000014305115,
+          265.2000000476837,
+          342.7999999523163,
+          225.40000009536743,
+          223.40000009536743,
+          166.59999990463257
+        ]
+      },
+      "mountAndLayout": {
+        "median": 354.2999999523163,
+        "min": 256,
+        "max": 503.7999999523163,
+        "samples": [
+          256,
+          354.10000014305115,
+          436.7000000476837,
+          503.7999999523163,
+          362.10000014305115,
+          354.2999999523163,
+          264.69999980926514
+        ]
+      },
+      "frame": {
+        "median": 403.2000000476837,
+        "min": 290,
+        "max": 579.4000000953674,
+        "samples": [
+          290,
+          403.2000000476837,
+          500,
+          579.4000000953674,
+          410.2000000476837,
+          401.59999990463257,
+          299.39999985694885
+        ]
+      },
+      "heapMiB": {
+        "median": 46.26301956176758,
+        "min": 46.24050521850586,
+        "max": 46.62140655517578,
+        "samples": [
+          46.26301956176758,
+          46.25974655151367,
+          46.62140655517578,
+          46.2741813659668,
+          46.25349807739258,
+          46.24050521850586,
+          46.26960754394531
+        ]
+      },
+      "destroy": {
+        "median": 59.59999990463257,
+        "min": 43,
+        "max": 81.60000014305115,
+        "samples": [
+          46.60000014305115,
+          81.60000014305115,
+          53.299999952316284,
+          59.59999990463257,
+          64.29999995231628,
+          80.10000014305115,
+          43
+        ]
+      },
+      "actions": {
+        "one": {
+          "median": 5.299999952316284,
+          "min": 2.799999952316284,
+          "max": 7.900000095367432,
+          "samples": [
+            4.799999952316284,
+            4.5,
+            5.6000001430511475,
+            5.299999952316284,
+            7.900000095367432,
+            6,
+            2.799999952316284
+          ]
+        },
+        "tenth": {
+          "median": 17.600000143051147,
+          "min": 7.299999952316284,
+          "max": 23.09999990463257,
+          "samples": [
+            12.099999904632568,
+            17.600000143051147,
+            12.899999856948853,
+            23.09999990463257,
+            20,
+            19.899999856948853,
+            7.299999952316284
+          ]
+        },
+        "reverse": {
+          "median": 54.90000009536743,
+          "min": 31.199999809265137,
+          "max": 68.70000004768372,
+          "samples": [
+            48.700000047683716,
+            54.90000009536743,
+            44.700000047683716,
+            68.70000004768372,
+            61.799999952316284,
+            63.19999980926514,
+            31.199999809265137
+          ]
+        },
+        "filter": {
+          "median": 48.19999980926514,
+          "min": 19.399999856948853,
+          "max": 54.299999952316284,
+          "samples": [
+            48.19999980926514,
+            38.799999952316284,
+            40.40000009536743,
+            51,
+            49.700000047683716,
+            54.299999952316284,
+            19.399999856948853
+          ]
+        },
+        "restore": {
+          "median": 82.29999995231628,
+          "min": 39,
+          "max": 94.09999990463257,
+          "samples": [
+            91.5,
+            71.60000014305115,
+            70.59999990463257,
+            94.09999990463257,
+            87.10000014305115,
+            82.29999995231628,
+            39
+          ]
+        }
+      }
+    }
+  ],
+  "raw": [
+    {
+      "run": 1,
+      "count": 10000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 24.299999952316284,
+      "layout": 129.29999995231628,
+      "frame": 204.29999995231628,
+      "nodes": 40002,
+      "mountAndLayout": 153.59999990463257,
+      "actions": {
+        "one": 2.9000000953674316,
+        "tenth": 2.8999998569488525,
+        "reverse": 23.199999809265137,
+        "filter": 10.400000095367432,
+        "restore": 9.099999904632568
+      },
+      "heapMiB": 4.136875152587891,
+      "destroy": 16.09999990463257
+    },
+    {
+      "run": 4,
+      "count": 5000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 72.79999995231628,
+      "layout": 45.200000047683716,
+      "frame": 133.39999985694885,
+      "nodes": 20002,
+      "mountAndLayout": 118,
+      "actions": {
+        "one": 0.7999999523162842,
+        "tenth": 3.299999952316284,
+        "reverse": 11.400000095367432,
+        "filter": 8.799999952316284,
+        "restore": 26
+      },
+      "heapMiB": 36.537925720214844,
+      "destroy": 14
+    },
+    {
+      "run": 0,
+      "count": 10000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 223,
+      "layout": 173.90000009536743,
+      "frame": 441.7000000476837,
+      "nodes": 60002,
+      "mountAndLayout": 396.90000009536743,
+      "actions": {
+        "one": 1.9000000953674316,
+        "tenth": 22.5,
+        "reverse": 38.09999990463257,
+        "filter": 34.799999952316284,
+        "restore": 116.10000014305115
+      },
+      "heapMiB": 111.61515808105469,
+      "destroy": 67.09999990463257
+    },
+    {
+      "run": 2,
+      "count": 10000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 117.90000009536743,
+      "layout": 97,
+      "frame": 239.80000019073486,
+      "nodes": 40002,
+      "mountAndLayout": 214.90000009536743,
+      "actions": {
+        "one": 1.7999999523162842,
+        "tenth": 7.700000047683716,
+        "reverse": 27.5,
+        "filter": 20.09999990463257,
+        "restore": 56.40000009536743
+      },
+      "heapMiB": 70.4334487915039,
+      "destroy": 38.89999985694885
+    },
+    {
+      "run": 0,
+      "count": 10000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 131.90000009536743,
+      "layout": 181.69999980926514,
+      "frame": 352,
+      "nodes": 60002,
+      "mountAndLayout": 313.59999990463257,
+      "actions": {
+        "one": 9.699999809265137,
+        "tenth": 10.900000095367432,
+        "reverse": 40,
+        "filter": 27.59999990463257,
+        "restore": 58.799999952316284
+      },
+      "heapMiB": 58.9439811706543,
+      "destroy": 39.5
+    },
+    {
+      "run": 3,
+      "count": 10000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 16.5,
+      "layout": 107.10000014305115,
+      "frame": 147.09999990463257,
+      "nodes": 40002,
+      "mountAndLayout": 123.60000014305115,
+      "actions": {
+        "one": 1.5,
+        "tenth": 1.9000000953674316,
+        "reverse": 19.699999809265137,
+        "filter": 8.599999904632568,
+        "restore": 7.299999952316284
+      },
+      "heapMiB": 4.3704986572265625,
+      "destroy": 15.100000143051147
+    },
+    {
+      "run": 3,
+      "count": 5000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 105.40000009536743,
+      "layout": 85.5,
+      "frame": 211.59999990463257,
+      "nodes": 30002,
+      "mountAndLayout": 190.90000009536743,
+      "actions": {
+        "one": 1,
+        "tenth": 7.799999952316284,
+        "reverse": 20.300000190734863,
+        "filter": 17.5,
+        "restore": 44.40000009536743
+      },
+      "heapMiB": 57.02397537231445,
+      "destroy": 29.699999809265137
+    },
+    {
+      "run": 6,
+      "count": 5000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 56,
+      "layout": 89.29999995231628,
+      "frame": 166,
+      "nodes": 30002,
+      "mountAndLayout": 145.29999995231628,
+      "actions": {
+        "one": 1.4000000953674316,
+        "tenth": 4,
+        "reverse": 15.400000095367432,
+        "filter": 11.399999856948853,
+        "restore": 21.5
+      },
+      "heapMiB": 24.513195037841797,
+      "destroy": 20.899999856948853
+    },
+    {
+      "run": 1,
+      "count": 5000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 103.20000004768372,
+      "layout": 81,
+      "frame": 202.79999995231628,
+      "nodes": 30002,
+      "mountAndLayout": 184.20000004768372,
+      "actions": {
+        "one": 1,
+        "tenth": 8.600000143051147,
+        "reverse": 24.899999856948853,
+        "filter": 18.5,
+        "restore": 39.39999985694885
+      },
+      "heapMiB": 57.02586364746094,
+      "destroy": 25.899999856948853
+    },
+    {
+      "run": 0,
+      "count": 10000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 94.5,
+      "layout": 161.5,
+      "frame": 290,
+      "nodes": 60002,
+      "mountAndLayout": 256,
+      "actions": {
+        "one": 4.799999952316284,
+        "tenth": 12.099999904632568,
+        "reverse": 48.700000047683716,
+        "filter": 48.19999980926514,
+        "restore": 91.5
+      },
+      "heapMiB": 46.26301956176758,
+      "destroy": 46.60000014305115
+    },
+    {
+      "run": 4,
+      "count": 10000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 131,
+      "layout": 223.10000014305115,
+      "frame": 403.2000000476837,
+      "nodes": 60002,
+      "mountAndLayout": 354.10000014305115,
+      "actions": {
+        "one": 4.5,
+        "tenth": 17.600000143051147,
+        "reverse": 54.90000009536743,
+        "filter": 38.799999952316284,
+        "restore": 71.60000014305115
+      },
+      "heapMiB": 46.25974655151367,
+      "destroy": 81.60000014305115
+    },
+    {
+      "run": 3,
+      "count": 5000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 39.799999952316284,
+      "layout": 55.5,
+      "frame": 114.40000009536743,
+      "nodes": 20002,
+      "mountAndLayout": 95.29999995231628,
+      "actions": {
+        "one": 1.1999998092651367,
+        "tenth": 3.200000047683716,
+        "reverse": 18.300000190734863,
+        "filter": 9.300000190734863,
+        "restore": 12.700000047683716
+      },
+      "heapMiB": 9.096202850341797,
+      "destroy": 13.400000095367432
+    },
+    {
+      "run": 2,
+      "count": 5000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 11.799999952316284,
+      "layout": 50.200000047683716,
+      "frame": 80.20000004768372,
+      "nodes": 20002,
+      "mountAndLayout": 62,
+      "actions": {
+        "one": 1,
+        "tenth": 1.5,
+        "reverse": 16.700000047683716,
+        "filter": 8.099999904632568,
+        "restore": 6
+      },
+      "heapMiB": 2.9620704650878906,
+      "destroy": 12.5
+    },
+    {
+      "run": 6,
+      "count": 10000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 75.19999980926514,
+      "layout": 131.79999995231628,
+      "frame": 260.59999990463257,
+      "nodes": 40002,
+      "mountAndLayout": 206.99999976158142,
+      "actions": {
+        "one": 3.799999952316284,
+        "tenth": 9.700000047683716,
+        "reverse": 53.40000009536743,
+        "filter": 26.800000190734863,
+        "restore": 45.40000009536743
+      },
+      "heapMiB": 16.09766387939453,
+      "destroy": 22.90000009536743
+    },
+    {
+      "run": 1,
+      "count": 5000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 42.69999980926514,
+      "layout": 73.60000014305115,
+      "frame": 137.19999980926514,
+      "nodes": 20002,
+      "mountAndLayout": 116.29999995231628,
+      "actions": {
+        "one": 1,
+        "tenth": 2.6000001430511475,
+        "reverse": 18.200000047683716,
+        "filter": 8.5,
+        "restore": 11.299999952316284
+      },
+      "heapMiB": 9.093833923339844,
+      "destroy": 9.799999952316284
+    },
+    {
+      "run": 2,
+      "count": 5000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 79.90000009536743,
+      "layout": 50.700000047683716,
+      "frame": 149.10000014305115,
+      "nodes": 20002,
+      "mountAndLayout": 130.60000014305115,
+      "actions": {
+        "one": 1.2000000476837158,
+        "tenth": 4.8999998569488525,
+        "reverse": 17.800000190734863,
+        "filter": 12,
+        "restore": 33.40000009536743
+      },
+      "heapMiB": 36.491371154785156,
+      "destroy": 30
+    },
+    {
+      "run": 5,
+      "count": 10000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 171.5,
+      "layout": 265.2000000476837,
+      "frame": 500,
+      "nodes": 60002,
+      "mountAndLayout": 436.7000000476837,
+      "actions": {
+        "one": 5.6000001430511475,
+        "tenth": 12.899999856948853,
+        "reverse": 44.700000047683716,
+        "filter": 40.40000009536743,
+        "restore": 70.59999990463257
+      },
+      "heapMiB": 46.62140655517578,
+      "destroy": 53.299999952316284
+    },
+    {
+      "run": 4,
+      "count": 10000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 160.5,
+      "layout": 225,
+      "frame": 434.5,
+      "nodes": 60002,
+      "mountAndLayout": 385.5,
+      "actions": {
+        "one": 3.0999999046325684,
+        "tenth": 13.900000095367432,
+        "reverse": 48.09999990463257,
+        "filter": 40.39999985694885,
+        "restore": 66.70000004768372
+      },
+      "heapMiB": 58.94670104980469,
+      "destroy": 66.30000019073486
+    },
+    {
+      "run": 6,
+      "count": 10000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 338.7999999523163,
+      "layout": 199.29999995231628,
+      "frame": 585.2999999523163,
+      "nodes": 60002,
+      "mountAndLayout": 538.0999999046326,
+      "actions": {
+        "one": 2.6000001430511475,
+        "tenth": 33.90000009536743,
+        "reverse": 62.09999990463257,
+        "filter": 87,
+        "restore": 276.2000000476837
+      },
+      "heapMiB": 111.57009887695312,
+      "destroy": 147.40000009536743
+    },
+    {
+      "run": 4,
+      "count": 5000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 94.5,
+      "layout": 153.5,
+      "frame": 283.5,
+      "nodes": 30002,
+      "mountAndLayout": 248,
+      "actions": {
+        "one": 2.200000047683716,
+        "tenth": 6.8999998569488525,
+        "reverse": 25,
+        "filter": 17.40000009536743,
+        "restore": 27.600000143051147
+      },
+      "heapMiB": 24.412094116210938,
+      "destroy": 34.60000014305115
+    },
+    {
+      "run": 5,
+      "count": 10000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 342.39999985694885,
+      "layout": 192.60000014305115,
+      "frame": 581,
+      "nodes": 60002,
+      "mountAndLayout": 535,
+      "actions": {
+        "one": 2.8999998569488525,
+        "tenth": 27.90000009536743,
+        "reverse": 55.5,
+        "filter": 58.59999990463257,
+        "restore": 218
+      },
+      "heapMiB": 111.57003784179688,
+      "destroy": 115.5
+    },
+    {
+      "run": 4,
+      "count": 10000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 330.59999990463257,
+      "layout": 179,
+      "frame": 554.7999999523163,
+      "nodes": 60002,
+      "mountAndLayout": 509.59999990463257,
+      "actions": {
+        "one": 2.5999999046325684,
+        "tenth": 21.40000009536743,
+        "reverse": 53.80000019073486,
+        "filter": 70.5,
+        "restore": 180.90000009536743
+      },
+      "heapMiB": 111.7666130065918,
+      "destroy": 102.5
+    },
+    {
+      "run": 1,
+      "count": 5000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 82.10000014305115,
+      "layout": 118.79999995231628,
+      "frame": 227.40000009536743,
+      "nodes": 30002,
+      "mountAndLayout": 200.90000009536743,
+      "actions": {
+        "one": 2.299999952316284,
+        "tenth": 5.799999952316284,
+        "reverse": 20.799999952316284,
+        "filter": 16.799999952316284,
+        "restore": 28.600000143051147
+      },
+      "heapMiB": 24.518638610839844,
+      "destroy": 24.799999952316284
+    },
+    {
+      "run": 3,
+      "count": 10000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 84.09999990463257,
+      "layout": 127.20000004768372,
+      "frame": 260,
+      "nodes": 40002,
+      "mountAndLayout": 211.29999995231628,
+      "actions": {
+        "one": 2.3000001907348633,
+        "tenth": 7.3999998569488525,
+        "reverse": 35.700000047683716,
+        "filter": 23.200000047683716,
+        "restore": 26.5
+      },
+      "heapMiB": 16.098899841308594,
+      "destroy": 24.799999952316284
+    },
+    {
+      "run": 3,
+      "count": 5000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 81.59999990463257,
+      "layout": 118.79999995231628,
+      "frame": 229.5,
+      "nodes": 30002,
+      "mountAndLayout": 200.39999985694885,
+      "actions": {
+        "one": 2.700000047683716,
+        "tenth": 6.1000001430511475,
+        "reverse": 25,
+        "filter": 24.09999990463257,
+        "restore": 33.89999985694885
+      },
+      "heapMiB": 24.511852264404297,
+      "destroy": 42.5
+    },
+    {
+      "run": 1,
+      "count": 10000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 233.70000004768372,
+      "layout": 157.09999990463257,
+      "frame": 429.90000009536743,
+      "nodes": 40002,
+      "mountAndLayout": 390.7999999523163,
+      "actions": {
+        "one": 3.299999952316284,
+        "tenth": 14.400000095367432,
+        "reverse": 45.59999990463257,
+        "filter": 31.59999990463257,
+        "restore": 99.40000009536743
+      },
+      "heapMiB": 70.43733215332031,
+      "destroy": 69
+    },
+    {
+      "run": 4,
+      "count": 5000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 49.40000009536743,
+      "layout": 81.29999995231628,
+      "frame": 155.70000004768372,
+      "nodes": 20002,
+      "mountAndLayout": 130.70000004768372,
+      "actions": {
+        "one": 1.2999999523162842,
+        "tenth": 2.0999999046325684,
+        "reverse": 16.299999952316284,
+        "filter": 9.599999904632568,
+        "restore": 5.599999904632568
+      },
+      "heapMiB": 3.0382232666015625,
+      "destroy": 11
+    },
+    {
+      "run": 1,
+      "count": 10000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 176.30000019073486,
+      "layout": 333.90000009536743,
+      "frame": 578.7000000476837,
+      "nodes": 60002,
+      "mountAndLayout": 510.2000002861023,
+      "actions": {
+        "one": 7,
+        "tenth": 28.300000190734863,
+        "reverse": 92.59999990463257,
+        "filter": 58.200000047683716,
+        "restore": 104.5
+      },
+      "heapMiB": 58.95477294921875,
+      "destroy": 77.59999990463257
+    },
+    {
+      "run": 3,
+      "count": 10000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 520.5999999046326,
+      "layout": 290.5,
+      "frame": 879.2999999523163,
+      "nodes": 60002,
+      "mountAndLayout": 811.0999999046326,
+      "actions": {
+        "one": 5.400000095367432,
+        "tenth": 60.5,
+        "reverse": 101,
+        "filter": 94.79999995231628,
+        "restore": 384.69999980926514
+      },
+      "heapMiB": 111.5726547241211,
+      "destroy": 143.69999980926514
+    },
+    {
+      "run": 5,
+      "count": 5000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 184.90000009536743,
+      "layout": 240.89999985694885,
+      "frame": 475.2999999523163,
+      "nodes": 30002,
+      "mountAndLayout": 425.7999999523163,
+      "actions": {
+        "one": 2.0999999046325684,
+        "tenth": 8.799999952316284,
+        "reverse": 37.299999952316284,
+        "filter": 27.299999952316284,
+        "restore": 49
+      },
+      "heapMiB": 30.723770141601562,
+      "destroy": 36.5
+    },
+    {
+      "run": 2,
+      "count": 5000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 324.2999999523163,
+      "layout": 235.70000004768372,
+      "frame": 611.2999999523163,
+      "nodes": 30002,
+      "mountAndLayout": 560,
+      "actions": {
+        "one": 2.799999952316284,
+        "tenth": 21.5,
+        "reverse": 38.89999985694885,
+        "filter": 43.299999952316284,
+        "restore": 109.29999995231628
+      },
+      "heapMiB": 57.0371208190918,
+      "destroy": 67.79999995231628
+    },
+    {
+      "run": 1,
+      "count": 10000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 725.2999999523163,
+      "layout": 400,
+      "frame": 1191.5,
+      "nodes": 60002,
+      "mountAndLayout": 1125.2999999523163,
+      "actions": {
+        "one": 4,
+        "tenth": 30.799999952316284,
+        "reverse": 82,
+        "filter": 91.79999995231628,
+        "restore": 339.60000014305115
+      },
+      "heapMiB": 111.55099105834961,
+      "destroy": 121.29999995231628
+    },
+    {
+      "run": 4,
+      "count": 5000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 42.90000009536743,
+      "layout": 63.799999952316284,
+      "frame": 128.10000014305115,
+      "nodes": 20002,
+      "mountAndLayout": 106.70000004768372,
+      "actions": {
+        "one": 1.2000000476837158,
+        "tenth": 3.4000000953674316,
+        "reverse": 20.600000143051147,
+        "filter": 11,
+        "restore": 13.5
+      },
+      "heapMiB": 9.092781066894531,
+      "destroy": 13
+    },
+    {
+      "run": 5,
+      "count": 10000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 31,
+      "layout": 138.20000004768372,
+      "frame": 207.90000009536743,
+      "nodes": 40002,
+      "mountAndLayout": 169.20000004768372,
+      "actions": {
+        "one": 2.9000000953674316,
+        "tenth": 3.3999998569488525,
+        "reverse": 30.5,
+        "filter": 16.5,
+        "restore": 16.899999856948853
+      },
+      "heapMiB": 4.229595184326172,
+      "destroy": 25
+    },
+    {
+      "run": 2,
+      "count": 10000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 74.10000014305115,
+      "layout": 166.79999995231628,
+      "frame": 290.60000014305115,
+      "nodes": 40002,
+      "mountAndLayout": 240.90000009536743,
+      "actions": {
+        "one": 3.8999998569488525,
+        "tenth": 6.300000190734863,
+        "reverse": 39.09999990463257,
+        "filter": 21,
+        "restore": 27.90000009536743
+      },
+      "heapMiB": 16.102195739746094,
+      "destroy": 30.299999952316284
+    },
+    {
+      "run": 4,
+      "count": 5000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 202.29999995231628,
+      "layout": 220.09999990463257,
+      "frame": 459,
+      "nodes": 30002,
+      "mountAndLayout": 422.39999985694885,
+      "actions": {
+        "one": 1.4000000953674316,
+        "tenth": 13.900000095367432,
+        "reverse": 40.700000047683716,
+        "filter": 34,
+        "restore": 72.29999995231628
+      },
+      "heapMiB": 57.01853561401367,
+      "destroy": 43.200000047683716
+    },
+    {
+      "run": 1,
+      "count": 5000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 104.39999985694885,
+      "layout": 130.09999990463257,
+      "frame": 262.39999985694885,
+      "nodes": 30002,
+      "mountAndLayout": 234.49999976158142,
+      "actions": {
+        "one": 1.3999998569488525,
+        "tenth": 7.5,
+        "reverse": 30.600000143051147,
+        "filter": 21.799999952316284,
+        "restore": 31.09999990463257
+      },
+      "heapMiB": 30.72472381591797,
+      "destroy": 26.799999952316284
+    },
+    {
+      "run": 1,
+      "count": 10000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 161,
+      "layout": 342.7999999523163,
+      "frame": 579.4000000953674,
+      "nodes": 60002,
+      "mountAndLayout": 503.7999999523163,
+      "actions": {
+        "one": 5.299999952316284,
+        "tenth": 23.09999990463257,
+        "reverse": 68.70000004768372,
+        "filter": 51,
+        "restore": 94.09999990463257
+      },
+      "heapMiB": 46.2741813659668,
+      "destroy": 59.59999990463257
+    },
+    {
+      "run": 6,
+      "count": 10000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 136.70000004768372,
+      "layout": 225.40000009536743,
+      "frame": 410.2000000476837,
+      "nodes": 60002,
+      "mountAndLayout": 362.10000014305115,
+      "actions": {
+        "one": 7.900000095367432,
+        "tenth": 20,
+        "reverse": 61.799999952316284,
+        "filter": 49.700000047683716,
+        "restore": 87.10000014305115
+      },
+      "heapMiB": 46.25349807739258,
+      "destroy": 64.29999995231628
+    },
+    {
+      "run": 0,
+      "count": 5000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 13.799999952316284,
+      "layout": 53.40000009536743,
+      "frame": 87.09999990463257,
+      "nodes": 20002,
+      "mountAndLayout": 67.20000004768372,
+      "actions": {
+        "one": 1,
+        "tenth": 1.4000000953674316,
+        "reverse": 14.299999952316284,
+        "filter": 6.299999952316284,
+        "restore": 4.299999952316284
+      },
+      "heapMiB": 3.0371627807617188,
+      "destroy": 9.700000047683716
+    },
+    {
+      "run": 3,
+      "count": 10000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 157.79999995231628,
+      "layout": 210.79999995231628,
+      "frame": 432.90000009536743,
+      "nodes": 60002,
+      "mountAndLayout": 368.59999990463257,
+      "actions": {
+        "one": 4.5,
+        "tenth": 18.399999856948853,
+        "reverse": 77,
+        "filter": 55.90000009536743,
+        "restore": 116
+      },
+      "heapMiB": 58.9436149597168,
+      "destroy": 77.29999995231628
+    },
+    {
+      "run": 2,
+      "count": 10000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 239.80000019073486,
+      "layout": 330.90000009536743,
+      "frame": 640.9000000953674,
+      "nodes": 60002,
+      "mountAndLayout": 570.7000002861023,
+      "actions": {
+        "one": 4.5,
+        "tenth": 18.40000009536743,
+        "reverse": 65.29999995231628,
+        "filter": 50.700000047683716,
+        "restore": 78.60000014305115
+      },
+      "heapMiB": 58.95406723022461,
+      "destroy": 56.80000019073486
+    },
+    {
+      "run": 2,
+      "count": 10000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 130.89999985694885,
+      "layout": 223.40000009536743,
+      "frame": 401.59999990463257,
+      "nodes": 60002,
+      "mountAndLayout": 354.2999999523163,
+      "actions": {
+        "one": 6,
+        "tenth": 19.899999856948853,
+        "reverse": 63.19999980926514,
+        "filter": 54.299999952316284,
+        "restore": 82.29999995231628
+      },
+      "heapMiB": 46.24050521850586,
+      "destroy": 80.10000014305115
+    },
+    {
+      "run": 0,
+      "count": 10000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 24.59999990463257,
+      "layout": 139.29999995231628,
+      "frame": 203.09999990463257,
+      "nodes": 40002,
+      "mountAndLayout": 163.89999985694885,
+      "actions": {
+        "one": 1.2999999523162842,
+        "tenth": 2.200000047683716,
+        "reverse": 19.299999952316284,
+        "filter": 9.599999904632568,
+        "restore": 7.599999904632568
+      },
+      "heapMiB": 4.3705902099609375,
+      "destroy": 14.700000047683716
+    },
+    {
+      "run": 4,
+      "count": 10000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 114.29999995231628,
+      "layout": 92.20000004768372,
+      "frame": 231.40000009536743,
+      "nodes": 40002,
+      "mountAndLayout": 206.5,
+      "actions": {
+        "one": 1.7999999523162842,
+        "tenth": 7.200000047683716,
+        "reverse": 25.09999990463257,
+        "filter": 18.40000009536743,
+        "restore": 55.200000047683716
+      },
+      "heapMiB": 70.42706298828125,
+      "destroy": 30.700000047683716
+    },
+    {
+      "run": 5,
+      "count": 10000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 40.799999952316284,
+      "layout": 82.40000009536743,
+      "frame": 149.40000009536743,
+      "nodes": 40002,
+      "mountAndLayout": 123.20000004768372,
+      "actions": {
+        "one": 1.7000000476837158,
+        "tenth": 3.8999998569488525,
+        "reverse": 25.299999952316284,
+        "filter": 12.299999952316284,
+        "restore": 15.799999952316284
+      },
+      "heapMiB": 16.09823226928711,
+      "destroy": 18.600000143051147
+    },
+    {
+      "run": 6,
+      "count": 10000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 16.100000143051147,
+      "layout": 86.29999995231628,
+      "frame": 125.90000009536743,
+      "nodes": 40002,
+      "mountAndLayout": 102.40000009536743,
+      "actions": {
+        "one": 1.2999999523162842,
+        "tenth": 2.0999999046325684,
+        "reverse": 18,
+        "filter": 9.300000190734863,
+        "restore": 7.1000001430511475
+      },
+      "heapMiB": 4.370189666748047,
+      "destroy": 17.399999856948853
+    },
+    {
+      "run": 0,
+      "count": 5000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 61.89999985694885,
+      "layout": 40.200000047683716,
+      "frame": 116.20000004768372,
+      "nodes": 20002,
+      "mountAndLayout": 102.09999990463257,
+      "actions": {
+        "one": 0.9000000953674316,
+        "tenth": 3.299999952316284,
+        "reverse": 11.900000095367432,
+        "filter": 9.099999904632568,
+        "restore": 25.299999952316284
+      },
+      "heapMiB": 36.509761810302734,
+      "destroy": 13.799999952316284
+    },
+    {
+      "run": 5,
+      "count": 5000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 104.90000009536743,
+      "layout": 83.79999995231628,
+      "frame": 208,
+      "nodes": 30002,
+      "mountAndLayout": 188.70000004768372,
+      "actions": {
+        "one": 0.9000000953674316,
+        "tenth": 8.600000143051147,
+        "reverse": 19,
+        "filter": 16.899999856948853,
+        "restore": 42.59999990463257
+      },
+      "heapMiB": 57.150390625,
+      "destroy": 26.90000009536743
+    },
+    {
+      "run": 3,
+      "count": 10000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 111.89999985694885,
+      "layout": 91.20000004768372,
+      "frame": 226.89999985694885,
+      "nodes": 40002,
+      "mountAndLayout": 203.09999990463257,
+      "actions": {
+        "one": 2,
+        "tenth": 6.799999952316284,
+        "reverse": 24,
+        "filter": 19.5,
+        "restore": 52
+      },
+      "heapMiB": 70.43354797363281,
+      "destroy": 31.59999990463257
+    },
+    {
+      "run": 5,
+      "count": 5000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 61.60000014305115,
+      "layout": 39.700000047683716,
+      "frame": 114.90000009536743,
+      "nodes": 20002,
+      "mountAndLayout": 101.30000019073486,
+      "actions": {
+        "one": 0.9000000953674316,
+        "tenth": 3.200000047683716,
+        "reverse": 11,
+        "filter": 7.700000047683716,
+        "restore": 24.700000047683716
+      },
+      "heapMiB": 36.3988151550293,
+      "destroy": 14.700000047683716
+    },
+    {
+      "run": 6,
+      "count": 5000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 60.30000019073486,
+      "layout": 85.29999995231628,
+      "frame": 166.40000009536743,
+      "nodes": 30002,
+      "mountAndLayout": 145.60000014305115,
+      "actions": {
+        "one": 0.9000000953674316,
+        "tenth": 3.799999952316284,
+        "reverse": 17.700000047683716,
+        "filter": 12.5,
+        "restore": 20.299999952316284
+      },
+      "heapMiB": 30.719417572021484,
+      "destroy": 18.799999952316284
+    },
+    {
+      "run": 0,
+      "count": 5000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 24.800000190734863,
+      "layout": 39.09999990463257,
+      "frame": 77.5,
+      "nodes": 20002,
+      "mountAndLayout": 63.90000009536743,
+      "actions": {
+        "one": 0.8999998569488525,
+        "tenth": 1.9000000953674316,
+        "reverse": 12,
+        "filter": 5.5,
+        "restore": 7.699999809265137
+      },
+      "heapMiB": 9.092548370361328,
+      "destroy": 8.299999952316284
+    },
+    {
+      "run": 6,
+      "count": 5000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 25.5,
+      "layout": 41.90000009536743,
+      "frame": 82.60000014305115,
+      "nodes": 20002,
+      "mountAndLayout": 67.40000009536743,
+      "actions": {
+        "one": 0.9000000953674316,
+        "tenth": 2.200000047683716,
+        "reverse": 12.399999856948853,
+        "filter": 7,
+        "restore": 9.900000095367432
+      },
+      "heapMiB": 9.094501495361328,
+      "destroy": 9
+    },
+    {
+      "run": 5,
+      "count": 10000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 124.29999995231628,
+      "layout": 102.59999990463257,
+      "frame": 253.40000009536743,
+      "nodes": 40002,
+      "mountAndLayout": 226.89999985694885,
+      "actions": {
+        "one": 2.700000047683716,
+        "tenth": 12.099999904632568,
+        "reverse": 39.59999990463257,
+        "filter": 27.899999856948853,
+        "restore": 94.59999990463257
+      },
+      "heapMiB": 70.43267059326172,
+      "destroy": 50.80000019073486
+    },
+    {
+      "run": 2,
+      "count": 10000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 23.09999990463257,
+      "layout": 107.10000014305115,
+      "frame": 163,
+      "nodes": 40002,
+      "mountAndLayout": 130.20000004768372,
+      "actions": {
+        "one": 3.200000047683716,
+        "tenth": 2.6999998092651367,
+        "reverse": 25.799999952316284,
+        "filter": 12.899999856948853,
+        "restore": 9.700000047683716
+      },
+      "heapMiB": 4.163707733154297,
+      "destroy": 20
+    },
+    {
+      "run": 5,
+      "count": 10000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 154.20000004768372,
+      "layout": 203.79999995231628,
+      "frame": 404.10000014305115,
+      "nodes": 60002,
+      "mountAndLayout": 358,
+      "actions": {
+        "one": 2.5999999046325684,
+        "tenth": 19.300000190734863,
+        "reverse": 51.09999990463257,
+        "filter": 38.799999952316284,
+        "restore": 65
+      },
+      "heapMiB": 58.94816589355469,
+      "destroy": 55.89999985694885
+    },
+    {
+      "run": 0,
+      "count": 10000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 169.79999995231628,
+      "layout": 135.5,
+      "frame": 338.09999990463257,
+      "nodes": 40002,
+      "mountAndLayout": 305.2999999523163,
+      "actions": {
+        "one": 2.5,
+        "tenth": 14,
+        "reverse": 37.09999990463257,
+        "filter": 27.200000047683716,
+        "restore": 70.60000014305115
+      },
+      "heapMiB": 70.43966674804688,
+      "destroy": 48
+    },
+    {
+      "run": 0,
+      "count": 5000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 88.09999990463257,
+      "layout": 116,
+      "frame": 230.79999995231628,
+      "nodes": 30002,
+      "mountAndLayout": 204.09999990463257,
+      "actions": {
+        "one": 1.1000001430511475,
+        "tenth": 5.299999952316284,
+        "reverse": 25.59999990463257,
+        "filter": 22.600000143051147,
+        "restore": 34.10000014305115
+      },
+      "heapMiB": 30.734886169433594,
+      "destroy": 32.59999990463257
+    },
+    {
+      "run": 6,
+      "count": 5000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 15.400000095367432,
+      "layout": 59.59999990463257,
+      "frame": 96.79999995231628,
+      "nodes": 20002,
+      "mountAndLayout": 75,
+      "actions": {
+        "one": 1.8000001907348633,
+        "tenth": 1.5999999046325684,
+        "reverse": 16.40000009536743,
+        "filter": 7.5,
+        "restore": 6.5
+      },
+      "heapMiB": 2.887767791748047,
+      "destroy": 11.099999904632568
+    },
+    {
+      "run": 5,
+      "count": 5000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 36.40000009536743,
+      "layout": 54.69999980926514,
+      "frame": 110.79999995231628,
+      "nodes": 20002,
+      "mountAndLayout": 91.09999990463257,
+      "actions": {
+        "one": 1.2000000476837158,
+        "tenth": 3.1000001430511475,
+        "reverse": 18,
+        "filter": 8.299999952316284,
+        "restore": 11.700000047683716
+      },
+      "heapMiB": 9.094432830810547,
+      "destroy": 13.099999904632568
+    },
+    {
+      "run": 3,
+      "count": 5000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 118.29999995231628,
+      "layout": 163.60000014305115,
+      "frame": 312,
+      "nodes": 30002,
+      "mountAndLayout": 281.90000009536743,
+      "actions": {
+        "one": 1,
+        "tenth": 6,
+        "reverse": 23.5,
+        "filter": 15.599999904632568,
+        "restore": 23.40000009536743
+      },
+      "heapMiB": 30.72640609741211,
+      "destroy": 26.40000009536743
+    },
+    {
+      "run": 1,
+      "count": 5000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 12.100000143051147,
+      "layout": 47.39999985694885,
+      "frame": 76.60000014305115,
+      "nodes": 20002,
+      "mountAndLayout": 59.5,
+      "actions": {
+        "one": 0.7999999523162842,
+        "tenth": 1.1999998092651367,
+        "reverse": 11.800000190734863,
+        "filter": 5.799999952316284,
+        "restore": 4.3999998569488525
+      },
+      "heapMiB": 3.0372161865234375,
+      "destroy": 10
+    },
+    {
+      "run": 5,
+      "count": 5000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 11.600000143051147,
+      "layout": 50.299999952316284,
+      "frame": 78.70000004768372,
+      "nodes": 20002,
+      "mountAndLayout": 61.90000009536743,
+      "actions": {
+        "one": 0.9000000953674316,
+        "tenth": 1.1000001430511475,
+        "reverse": 11.700000047683716,
+        "filter": 6.200000047683716,
+        "restore": 4.299999952316284
+      },
+      "heapMiB": 3.037181854248047,
+      "destroy": 12.199999809265137
+    },
+    {
+      "run": 6,
+      "count": 10000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 146.89999985694885,
+      "layout": 117.19999980926514,
+      "frame": 294.59999990463257,
+      "nodes": 40002,
+      "mountAndLayout": 264.099999666214,
+      "actions": {
+        "one": 2.5999999046325684,
+        "tenth": 11.700000047683716,
+        "reverse": 31.90000009536743,
+        "filter": 28.399999856948853,
+        "restore": 73.70000004768372
+      },
+      "heapMiB": 70.42637634277344,
+      "destroy": 53.10000014305115
+    },
+    {
+      "run": 1,
+      "count": 5000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 90,
+      "layout": 51,
+      "frame": 160.09999990463257,
+      "nodes": 20002,
+      "mountAndLayout": 141,
+      "actions": {
+        "one": 1.1999998092651367,
+        "tenth": 4.799999952316284,
+        "reverse": 16.5,
+        "filter": 11.5,
+        "restore": 29.200000047683716
+      },
+      "heapMiB": 36.54085159301758,
+      "destroy": 15.699999809265137
+    },
+    {
+      "run": 2,
+      "count": 5000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 54.09999990463257,
+      "layout": 91.79999995231628,
+      "frame": 167.5,
+      "nodes": 30002,
+      "mountAndLayout": 145.89999985694885,
+      "actions": {
+        "one": 1.5,
+        "tenth": 3.700000047683716,
+        "reverse": 14.699999809265137,
+        "filter": 10.5,
+        "restore": 21.5
+      },
+      "heapMiB": 24.40658950805664,
+      "destroy": 21.799999952316284
+    },
+    {
+      "run": 6,
+      "count": 10000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 111.20000004768372,
+      "layout": 156.29999995231628,
+      "frame": 301.10000014305115,
+      "nodes": 60002,
+      "mountAndLayout": 267.5,
+      "actions": {
+        "one": 2,
+        "tenth": 10.299999952316284,
+        "reverse": 35.09999990463257,
+        "filter": 23.300000190734863,
+        "restore": 53.200000047683716
+      },
+      "heapMiB": 58.96867752075195,
+      "destroy": 38.700000047683716
+    },
+    {
+      "run": 6,
+      "count": 5000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 104.29999995231628,
+      "layout": 82.40000009536743,
+      "frame": 205.29999995231628,
+      "nodes": 30002,
+      "mountAndLayout": 186.70000004768372,
+      "actions": {
+        "one": 0.8999998569488525,
+        "tenth": 6.599999904632568,
+        "reverse": 17.799999952316284,
+        "filter": 16.799999952316284,
+        "restore": 41.39999985694885
+      },
+      "heapMiB": 57.02406692504883,
+      "destroy": 27.09999990463257
+    },
+    {
+      "run": 0,
+      "count": 5000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 56.5,
+      "layout": 91.79999995231628,
+      "frame": 169,
+      "nodes": 30002,
+      "mountAndLayout": 148.29999995231628,
+      "actions": {
+        "one": 1.4000000953674316,
+        "tenth": 3.5999999046325684,
+        "reverse": 14.400000095367432,
+        "filter": 10.5,
+        "restore": 21.40000009536743
+      },
+      "heapMiB": 24.405498504638672,
+      "destroy": 20.59999990463257
+    },
+    {
+      "run": 4,
+      "count": 10000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 16,
+      "layout": 81.10000014305115,
+      "frame": 120.5,
+      "nodes": 40002,
+      "mountAndLayout": 97.10000014305115,
+      "actions": {
+        "one": 1.5,
+        "tenth": 1.9000000953674316,
+        "reverse": 19,
+        "filter": 8.899999856948853,
+        "restore": 6.799999952316284
+      },
+      "heapMiB": 4.370937347412109,
+      "destroy": 15.799999952316284
+    },
+    {
+      "run": 3,
+      "count": 5000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 62.89999985694885,
+      "layout": 41.5,
+      "frame": 118.79999995231628,
+      "nodes": 20002,
+      "mountAndLayout": 104.39999985694885,
+      "actions": {
+        "one": 0.9000000953674316,
+        "tenth": 3.200000047683716,
+        "reverse": 12.299999952316284,
+        "filter": 7.699999809265137,
+        "restore": 23.5
+      },
+      "heapMiB": 36.53711700439453,
+      "destroy": 16.5
+    },
+    {
+      "run": 2,
+      "count": 5000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 61.200000047683716,
+      "layout": 82.69999980926514,
+      "frame": 162.90000009536743,
+      "nodes": 30002,
+      "mountAndLayout": 143.89999985694885,
+      "actions": {
+        "one": 0.8999998569488525,
+        "tenth": 4,
+        "reverse": 17.40000009536743,
+        "filter": 11.399999856948853,
+        "restore": 22.699999809265137
+      },
+      "heapMiB": 30.721057891845703,
+      "destroy": 20.299999952316284
+    },
+    {
+      "run": 5,
+      "count": 5000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 53.09999990463257,
+      "layout": 84.09999990463257,
+      "frame": 158.39999985694885,
+      "nodes": 30002,
+      "mountAndLayout": 137.19999980926514,
+      "actions": {
+        "one": 1.3999998569488525,
+        "tenth": 3.5999999046325684,
+        "reverse": 16.299999952316284,
+        "filter": 10.799999952316284,
+        "restore": 21.59999990463257
+      },
+      "heapMiB": 24.51470947265625,
+      "destroy": 19.799999952316284
+    },
+    {
+      "run": 4,
+      "count": 5000,
+      "buttons": true,
+      "mode": "lean",
+      "mount": 61,
+      "layout": 85.10000014305115,
+      "frame": 165.70000004768372,
+      "nodes": 30002,
+      "mountAndLayout": 146.10000014305115,
+      "actions": {
+        "one": 1,
+        "tenth": 4,
+        "reverse": 17.59999990463257,
+        "filter": 11.5,
+        "restore": 25.799999952316284
+      },
+      "heapMiB": 30.71887969970703,
+      "destroy": 18.09999990463257
+    },
+    {
+      "run": 0,
+      "count": 10000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 40.799999952316284,
+      "layout": 80.59999990463257,
+      "frame": 146.79999995231628,
+      "nodes": 40002,
+      "mountAndLayout": 121.39999985694885,
+      "actions": {
+        "one": 1.7999999523162842,
+        "tenth": 4.200000047683716,
+        "reverse": 24.899999856948853,
+        "filter": 12.299999952316284,
+        "restore": 16.5
+      },
+      "heapMiB": 16.098323822021484,
+      "destroy": 18
+    },
+    {
+      "run": 6,
+      "count": 5000,
+      "buttons": false,
+      "mode": "runtime",
+      "mount": 63.299999952316284,
+      "layout": 40.30000019073486,
+      "frame": 117.29999995231628,
+      "nodes": 20002,
+      "mountAndLayout": 103.60000014305115,
+      "actions": {
+        "one": 0.8000001907348633,
+        "tenth": 3.0999999046325684,
+        "reverse": 11.399999856948853,
+        "filter": 8.599999904632568,
+        "restore": 23.299999952316284
+      },
+      "heapMiB": 36.53422546386719,
+      "destroy": 14.400000095367432
+    },
+    {
+      "run": 1,
+      "count": 10000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 40.5,
+      "layout": 81.10000014305115,
+      "frame": 146.90000009536743,
+      "nodes": 40002,
+      "mountAndLayout": 121.60000014305115,
+      "actions": {
+        "one": 1.7999999523162842,
+        "tenth": 4,
+        "reverse": 25.600000143051147,
+        "filter": 12.299999952316284,
+        "restore": 16.100000143051147
+      },
+      "heapMiB": 16.095741271972656,
+      "destroy": 18.299999952316284
+    },
+    {
+      "run": 2,
+      "count": 10000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 234.70000004768372,
+      "layout": 149.20000004768372,
+      "frame": 420.60000014305115,
+      "nodes": 60002,
+      "mountAndLayout": 383.90000009536743,
+      "actions": {
+        "one": 1.7000000476837158,
+        "tenth": 18.200000047683716,
+        "reverse": 38.5,
+        "filter": 34.299999952316284,
+        "restore": 105.20000004768372
+      },
+      "heapMiB": 111.57478713989258,
+      "destroy": 57.200000047683716
+    },
+    {
+      "run": 2,
+      "count": 5000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 24.5,
+      "layout": 40.10000014305115,
+      "frame": 78.40000009536743,
+      "nodes": 20002,
+      "mountAndLayout": 64.60000014305115,
+      "actions": {
+        "one": 0.7999999523162842,
+        "tenth": 2,
+        "reverse": 11.200000047683716,
+        "filter": 5.3999998569488525,
+        "restore": 8.800000190734863
+      },
+      "heapMiB": 9.094741821289062,
+      "destroy": 7.599999904632568
+    },
+    {
+      "run": 4,
+      "count": 10000,
+      "buttons": false,
+      "mode": "lean",
+      "mount": 41.200000047683716,
+      "layout": 81.29999995231628,
+      "frame": 147.90000009536743,
+      "nodes": 40002,
+      "mountAndLayout": 122.5,
+      "actions": {
+        "one": 1.7999999523162842,
+        "tenth": 4.099999904632568,
+        "reverse": 25,
+        "filter": 12.5,
+        "restore": 15.800000190734863
+      },
+      "heapMiB": 16.098323822021484,
+      "destroy": 16.5
+    },
+    {
+      "run": 3,
+      "count": 10000,
+      "buttons": true,
+      "mode": "manual",
+      "mount": 98.09999990463257,
+      "layout": 166.59999990463257,
+      "frame": 299.39999985694885,
+      "nodes": 60002,
+      "mountAndLayout": 264.69999980926514,
+      "actions": {
+        "one": 2.799999952316284,
+        "tenth": 7.299999952316284,
+        "reverse": 31.199999809265137,
+        "filter": 19.399999856948853,
+        "restore": 39
+      },
+      "heapMiB": 46.26960754394531,
+      "destroy": 43
+    },
+    {
+      "run": 3,
+      "count": 5000,
+      "buttons": false,
+      "mode": "manual",
+      "mount": 9.700000047683716,
+      "layout": 40.10000014305115,
+      "frame": 62.90000009536743,
+      "nodes": 20002,
+      "mountAndLayout": 49.80000019073486,
+      "actions": {
+        "one": 0.6000001430511475,
+        "tenth": 1,
+        "reverse": 9.299999952316284,
+        "filter": 4,
+        "restore": 3.5
+      },
+      "heapMiB": 3.0374717712402344,
+      "destroy": 7.200000047683716
+    },
+    {
+      "run": 0,
+      "count": 5000,
+      "buttons": true,
+      "mode": "runtime",
+      "mount": 101.59999990463257,
+      "layout": 82.29999995231628,
+      "frame": 202.09999990463257,
+      "nodes": 30002,
+      "mountAndLayout": 183.89999985694885,
+      "actions": {
+        "one": 1,
+        "tenth": 7.400000095367432,
+        "reverse": 16.90000009536743,
+        "filter": 15.899999856948853,
+        "restore": 37.80000019073486
+      },
+      "heapMiB": 57.164527893066406,
+      "destroy": 28
+    }
+  ]
+}
