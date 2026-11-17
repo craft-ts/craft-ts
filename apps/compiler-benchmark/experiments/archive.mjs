@@ -158,9 +158,13 @@ update('existing-compiler-ablation', {
 });
 manifest.updatedAt = new Date().toISOString();
 manifest.progress = {
-  newItemsMeasured: 4,
-  partialItems: 1,
-  historicalItemsAudited: 3,
+  newItemsMeasured: manifest.items.filter((item) => item.status === 'measured')
+    .length,
+  partialItems: manifest.items.filter((item) => item.status === 'partial')
+    .length,
+  historicalItemsAudited: manifest.items.filter(
+    (item) => item.status === 'audited historical measurements',
+  ).length,
   complete: false,
 };
 await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');

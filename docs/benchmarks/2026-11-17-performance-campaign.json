@@ -137,27 +137,42 @@
     {
       "id": "oxc-build",
       "title": "Parse/bind/emit : intérêt mesuré d'OXC",
-      "status": "pending"
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "not retained for the current JavaScript AST pipeline",
+      "coverage": "Thirteen real modules, fully materialized ASTs, seventeen syntax/output contracts, seven fresh processes, compiler stage timings and a measured zero-parser counterfactual. OXC AST incompatibility is tested; no backend migration is claimed."
     },
     {
       "id": "css-content-visibility",
       "title": "content-visibility et contain-intrinsic-size",
-      "status": "pending"
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "restricted; no automatic activation",
+      "coverage": "Fixed-height blocks retain all components and save layout work. A missing offscreen button in the CDP AX tree is reproduced with complete accessibility enabled; focus activates it. Keyboard, window.find, print override and dimensions are tested."
     },
     {
       "id": "css-fixed-table",
       "title": "table-layout: fixed avec colonnes explicites",
-      "status": "pending"
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "restricted application layout policy",
+      "coverage": "Known width and explicit columns reduce layout time on this table. A long-label control proves truncation versus growth; no compiler rewrite is enabled."
     },
     {
       "id": "virtualization",
       "title": "Fenêtre de lignes visible, composants Craft conservés",
-      "status": "pending"
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "restricted benchmark prototype; no public component added",
+      "coverage": "Window plus overscan and pinned focus, with Craft row buttons and global indexes. Offscreen DOM/AX/search/print scope differs; native Tab across a pinned gap skips unmounted rows."
     },
     {
       "id": "progressive-scheduling",
       "title": "scheduleFor : premier affichage, tâches longues et temps complet",
-      "status": "pending"
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "measured trade-off; initial-only policy remains a benchmark prototype",
+      "coverage": "Default scheduling, provided FrameForScheduler, and initial-only wrapping of the same FrameForScheduler are interleaved. First rows, full completion, updates, reorder, late append, cancellation and source changes are tested. Total CPU and later long tasks remain visible."
     },
     {
       "id": "existing-compiler-ablation",
@@ -181,9 +196,9 @@
       "decision": "removed as requested; measured observations retained"
     }
   ],
-  "updatedAt": "2026-11-17T12:11:50.204Z",
+  "updatedAt": "2026-11-17T14:57:12.455Z",
   "progress": {
-    "newItemsMeasured": 4,
+    "newItemsMeasured": 9,
     "partialItems": 1,
     "historicalItemsAudited": 3,
     "complete": false
