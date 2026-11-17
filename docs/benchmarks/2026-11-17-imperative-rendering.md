@@ -54,6 +54,17 @@ générique et conserve son injecteur propre. On mesure ainsi le coût de garder
 ces îlots interactifs complets. Le rapport du compilateur confirme que les deux
 formes de ligne sont compilées en `lean`, et que le bouton reste générique.
 
+**Limite de couverture découverte après l'expérience :** ces composants de
+ligne étaient déclarés dans `fixture()`. Le compilateur actuel spécialise les
+callbacks de liste seulement pour une déclaration `const` au niveau du module.
+L'analyse du source archivé confirme `optimizedLists: 0` : la variante lean
+compilait les composants, mais gardait les entrées génériques du `forNode`.
+Les chiffres ne comparent donc pas le bloc impératif à une liste bénéficiant
+de toutes les spécialisations lean disponibles. Cette limite réduit la portée
+du gain attribuable au nouveau procédé ; les mesures historiques restent
+inchangées. Élargir la spécialisation aux constantes locales prouvées est une
+piste de compilateur distincte, sans API impérative.
+
 Le pont expérimental est injecté par Vite dans le contexte des directives, sans
 modifier les sources des bibliothèques. Il transmet le contexte parent et
 l'injecteur de la directive, dérive l'identité de la clé et délègue au renderer.
