@@ -133,7 +133,7 @@ export function compileModule(
   let componentImport: ts.Identifier | undefined;
   let forImport: ts.Identifier | undefined;
   const attachedNames = new Set<string>();
-  const compiledDefinitions = new Map<string, ts.VariableDeclaration>();
+  const compiledDefinitions = new Map<ts.Symbol, ts.VariableDeclaration>();
   let optimizedLists = 0;
   for (const statement of ast.statements) {
     if (
@@ -731,7 +731,8 @@ export function compileModule(
           ts.isVariableDeclarationList(n.parent.parent) &&
           n.parent.parent.flags & ts.NodeFlags.Const
         ) {
-          compiledDefinitions.set(n.parent.name.text, n.parent);
+          const symbol = checker.getSymbolAtLocation(n.parent.name);
+          if (symbol) compiledDefinitions.set(symbol, n.parent);
         }
         pendingPlans.push({ call: n, plan });
       } catch (error) {
@@ -771,10 +772,11 @@ export function compileModule(
         !ts.isBlock(callback.body)
       ) {
         const body = unwrap(callback.body);
-        const declaration =
-          ts.isCallExpression(body) &&
-          ts.isIdentifier(body.expression) &&
-          compiledDefinitions.get(body.expression.text);
+        let declaration: ts.VariableDeclaration | undefined;
+        if (ts.isCallExpression(body) && ts.isIdentifier(body.expression)) {
+          const symbol = checker.getSymbolAtLocation(body.expression);
+          if (symbol) declaration = compiledDefinitions.get(symbol);
+        }
         if (
           declaration &&
           ts.isCallExpression(body) &&
@@ -792,12 +794,28 @@ export function compileModule(
                 ts.isIdentifier(p.initializer) &&
                 params.has(p.initializer.text),
           );
-          // Restrict to module constants, and refuse any lexical shadow of the
-          // component or forNode import along the callback's scope chain.
+          // Read metadata only after the constant's initialization. A hoisted
+          // function can be called earlier than its source position suggests.
+          const statement = declaration.parent.parent;
+          function initializedBeforeCall(): boolean {
+            if (!ts.isVariableStatement(statement)) return false;
+            const container = statement.parent;
+            if (!ts.isSourceFile(container) && !ts.isBlock(container))
+              return false;
+            let cursor: ts.Node = n;
+            while (cursor.parent && cursor.parent !== container) {
+              if (ts.isFunctionDeclaration(cursor)) return false;
+              cursor = cursor.parent;
+            }
+            return (
+              !ts.isFunctionDeclaration(cursor) &&
+              cursor.parent === container &&
+              cursor.getStart(ast) >= statement.end
+            );
+          }
           const name = (declaration.name as ts.Identifier).text;
           const visible =
-            ts.isVariableStatement(declaration.parent.parent) &&
-            ts.isSourceFile(declaration.parent.parent.parent) &&
+            initializedBeforeCall() &&
             sameBinding(body.expression, declaration.name) &&
             sameBinding(n.expression, forImport);
           if (safe && visible) {
