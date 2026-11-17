@@ -6,12 +6,16 @@ import {
   craftSignal,
   craftWatch,
   ɵcraftPrivateCell,
+  ɵcraftLazyPrivateCell,
 } from './craft-signal';
 import { RAW_REACTIVE_VALUE } from '../reactive-read';
 
-describe('ɵcraftPrivateCell', () => {
+describe.each([
+  { name: 'ɵcraftPrivateCell', create: ɵcraftPrivateCell },
+  { name: 'ɵcraftLazyPrivateCell', create: ɵcraftLazyPrivateCell },
+])('$name', ({ create }) => {
   it('notifies like a default craftSignal: Object.is, NaN and signed zeros', () => {
-    const cell = ɵcraftPrivateCell<number>(NaN);
+    const cell = create<number>(NaN);
     const reference = craftSignal<number>(NaN);
     const seen: number[] = [];
     const expected: number[] = [];
@@ -35,7 +39,7 @@ describe('ɵcraftPrivateCell', () => {
 
   it('publishes a new object written in place only when its identity changes', () => {
     const value = { count: 0 };
-    const cell = ɵcraftPrivateCell(value);
+    const cell = create(value);
     let runs = 0;
     const watch = craftWatch(() => {
       cell();
@@ -50,7 +54,7 @@ describe('ɵcraftPrivateCell', () => {
   });
 
   it('joins the ambient batch and stops notifying a destroyed watch', () => {
-    const cell = ɵcraftPrivateCell(0);
+    const cell = create(0);
     const seen: number[] = [];
     const watch = craftWatch(() => {
       seen.push(cell());
@@ -67,8 +71,8 @@ describe('ɵcraftPrivateCell', () => {
   });
 
   it('does not subscribe the writing effect to the equality read inside set/update', () => {
-    const written = ɵcraftPrivateCell(0);
-    const trigger = ɵcraftPrivateCell(0);
+    const written = create(0);
+    const trigger = create(0);
     let runs = 0;
     const watch = craftWatch(() => {
       runs++;
@@ -84,7 +88,7 @@ describe('ɵcraftPrivateCell', () => {
   });
 
   it('is not a public signal: no brand, no raw marker, no asReadonly', () => {
-    const cell = ɵcraftPrivateCell(0);
+    const cell = create(0);
     expect(isSignal(cell)).toBe(false);
     expect(isWritableSignal(cell)).toBe(false);
     expect((cell as unknown as Record<symbol, unknown>)[CRAFT_SIGNAL]).toBe(
@@ -94,5 +98,22 @@ describe('ɵcraftPrivateCell', () => {
       (cell as unknown as Record<symbol, unknown>)[RAW_REACTIVE_VALUE],
     ).toBe(undefined);
     expect('asReadonly' in cell).toBe(false);
+  });
+
+  it('observes the latest unread writes and then tracks subsequent batches', () => {
+    const cell = create(0);
+    cell.set(2);
+    cell.update((value) => value + 3);
+    const seen: number[] = [];
+    const watch = craftWatch(() => {
+      seen.push(cell());
+    });
+    expect(seen).toEqual([5]);
+    craftBatch(() => {
+      cell.set(7);
+      cell.update((value) => value + 1);
+    });
+    expect(seen).toEqual([5, 8]);
+    watch.destroy();
   });
 });
