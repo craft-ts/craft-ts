@@ -10,7 +10,15 @@ export interface ComponentCompilation {
   events?: number;
   holes?: number;
 }
+export interface ImportedComponentProof {
+  module: string;
+  local: string;
+  exported: string;
+}
 export interface CompilationResult {
+  /** @internal Build graph facts; not runtime exports. */
+  compiledExports?: readonly string[];
+  hasForNode?: boolean;
   code: string;
   map: ReturnType<MagicString['generateMap']>;
   components: ComponentCompilation[];
@@ -115,6 +123,8 @@ export function compileModule(
     dom?: 'create' | 'clone';
     lean?: boolean;
     lower?: boolean;
+    /** @internal Facts proved by the bundler for this module. */
+    importedComponents?: readonly ImportedComponentProof[];
   } = {},
 ): CompilationResult {
   const ast = ts.createSourceFile(
@@ -135,6 +145,7 @@ export function compileModule(
   const attachedNames = new Set<string>();
   const compiledDefinitions = new Map<ts.Symbol, ts.VariableDeclaration>();
   let optimizedLists = 0;
+  const compiledExports: string[] = [];
   for (const statement of ast.statements) {
     if (
       !ts.isImportDeclaration(statement) ||
@@ -191,6 +202,33 @@ export function compileModule(
       host,
     )
     .getTypeChecker();
+  const importedDefinitions = new Map<ts.Symbol, ts.ImportSpecifier>();
+  if (options.importedComponents?.length)
+    for (const statement of ast.statements) {
+      if (
+        !ts.isImportDeclaration(statement) ||
+        !ts.isStringLiteral(statement.moduleSpecifier) ||
+        statement.importClause?.isTypeOnly
+      )
+        continue;
+      const named = statement.importClause?.namedBindings;
+      if (!named || !ts.isNamedImports(named)) continue;
+      const moduleName = statement.moduleSpecifier.text;
+      for (const item of named.elements) {
+        if (item.isTypeOnly) continue;
+        if (
+          !options.importedComponents?.some(
+            (proof) =>
+              proof.module === moduleName &&
+              proof.local === item.name.text &&
+              proof.exported === (item.propertyName ?? item.name).text,
+          )
+        )
+          continue;
+        const symbol = checker.getSymbolAtLocation(item.name);
+        if (symbol) importedDefinitions.set(symbol, item);
+      }
+    }
   const sameBinding = (reference: ts.Node, declaration: ts.Node | undefined) =>
     !!declaration &&
     checker.getSymbolAtLocation(reference) !== undefined &&
@@ -733,6 +771,15 @@ export function compileModule(
         ) {
           const symbol = checker.getSymbolAtLocation(n.parent.name);
           if (symbol) compiledDefinitions.set(symbol, n.parent);
+          const statement = n.parent.parent.parent;
+          if (
+            ts.isVariableStatement(statement) &&
+            ts.isSourceFile(statement.parent) &&
+            statement.modifiers?.some(
+              (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+            )
+          )
+            compiledExports.push(n.parent.name.text);
         }
         pendingPlans.push({ call: n, plan });
       } catch (error) {
@@ -773,12 +820,18 @@ export function compileModule(
       ) {
         const body = unwrap(callback.body);
         let declaration: ts.VariableDeclaration | undefined;
+        let imported: ts.ImportSpecifier | undefined;
         if (ts.isCallExpression(body) && ts.isIdentifier(body.expression)) {
           const symbol = checker.getSymbolAtLocation(body.expression);
-          if (symbol) declaration = compiledDefinitions.get(symbol);
+          if (symbol) {
+            declaration = compiledDefinitions.get(symbol);
+            imported = importedDefinitions.get(symbol);
+          }
         }
+        const bindingName = declaration?.name ?? imported?.name;
         if (
-          declaration &&
+          bindingName &&
+          ts.isIdentifier(bindingName) &&
           ts.isCallExpression(body) &&
           body.arguments.length === 1 &&
           ts.isObjectLiteralExpression(body.arguments[0])
@@ -796,9 +849,10 @@ export function compileModule(
           );
           // Read metadata only after the constant's initialization. A hoisted
           // function can be called earlier than its source position suggests.
-          const statement = declaration.parent.parent;
+          const statement = declaration?.parent.parent;
           function initializedBeforeCall(): boolean {
-            if (!ts.isVariableStatement(statement)) return false;
+            if (imported) return true;
+            if (!statement || !ts.isVariableStatement(statement)) return false;
             const container = statement.parent;
             if (!ts.isSourceFile(container) && !ts.isBlock(container))
               return false;
@@ -813,10 +867,10 @@ export function compileModule(
               cursor.getStart(ast) >= statement.end
             );
           }
-          const name = (declaration.name as ts.Identifier).text;
+          const name = bindingName.text;
           const visible =
             initializedBeforeCall() &&
-            sameBinding(body.expression, declaration.name) &&
+            sameBinding(body.expression, bindingName) &&
             sameBinding(n.expression, forImport);
           if (safe && visible) {
             output.prependLeft(callback.getStart(ast), `${attachItem}(`);
@@ -838,7 +892,7 @@ export function compileModule(
     output.prependLeft(call.getStart(ast), `${attach}(`);
     output.appendLeft(call.end, `, ${plan})`);
   }
-  if (components.some((c) => c.status === 'compiled')) {
+  if (optimizedLists || components.some((c) => c.status === 'compiled')) {
     const first = ast.statements.find(
       (s) => !(ts.isExpressionStatement(s) && ts.isStringLiteral(s.expression)),
     );
@@ -848,6 +902,8 @@ export function compileModule(
     );
   }
   return {
+    compiledExports,
+    hasForNode: !!forImport,
     code: output.toString(),
     map: output.generateMap({
       source: filename,

@@ -87,7 +87,7 @@ export function ɵwithCompiledItem<Factory extends Function>(
   factory: Factory,
   component: object,
 ): Factory {
-  itemComponents.set(factory, component);
+  if (templates.has(component)) itemComponents.set(factory, component);
   return factory;
 }
 

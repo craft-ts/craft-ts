@@ -54,6 +54,46 @@ references remain per instance. It is not the default because cloning is not
 consistently faster than direct creation. Adapters without `cloneNode` use the
 ordinary creation factory.
 
+## Imported list components: `imports: true`
+
+`craftCompiler({ lean: true, imports: true })` also specializes a list callback
+that only forwards its arguments to a directly imported component:
+
+```ts
+// row.ts
+import { craftComponent, div, type Input } from '@craft-ts/component';
+type RowData = { id: number; label: string };
+export const Row = craftComponent(
+  'Row',
+  {},
+  (inputs: { row: Input<RowData> }) =>
+    div(function* () {
+      return (yield* inputs.row()).label;
+    }),
+);
+
+// app.ts
+import { forNode } from '@craft-ts/component';
+import { Row } from './row';
+const rows = [{ id: 1, label: 'First row' }];
+const list = forNode(rows, { track: (row) => row.id }, (row) => Row({ row }));
+```
+
+This option is off by default. The Vite plugin uses its resolver and loaded
+module sources to prove the exported constant and an acyclic application import
+graph. Import aliases are allowed. Mutable exports, barrels, default/namespace
+exports, dynamic imports, `require`, import attributes and unresolved or external
+dependencies retain the ordinary path. Whole `import type` declarations are
+ignored; inline type specifiers and empty imports remain conservative graph
+edges because they can preserve side effects with `verbatimModuleSyntax`.
+
+The graph is cleared for each build and its dependencies are watched. A rebuild
+that changes an export from `const` to `let` removes the specialization.
+Development and SSR remain untouched. `lists: false` disables list
+specialization, including imported factories. Without `lean`, the ordinary
+compiled component owners remain; with `lean`, the existing light-instance
+trade-offs below also apply to these lists.
+
 ## Light instances: `lean: true` (opt-in trade-offs)
 
 `craftCompiler({ lean: true })` gives up a few runtime features of compiled
@@ -78,7 +118,7 @@ above. What changes for a compiled component in a production browser build:
   devtools cannot read these keys), no context of its own.
 - **More shapes compile.** Setup declarations before the `return`, events
   (including `*click() {}` methods, with the same hooks and interaction
-  names), any attribute expression, and *holes*: any child the compiler does
+  names), any attribute expression, and _holes_: any child the compiler does
   not know (a component call, `forNode`, `ifNode`, a helper call) is rendered
   by the generic renderer at its place.
 - **Binding generators become plain functions** (`lower: false` keeps
