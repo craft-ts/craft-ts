@@ -52,17 +52,17 @@ cas prennent le chemin générique comme avant.
 
 ## Compromis acceptés
 
-| Comportement | Avant | En mode léger |
-| --- | --- | --- |
-| `inject(Injector / ElementRef / DestroyRef)` dans un binding | celui du composant | celui du parent |
-| Registre des cibles (devtools, registre IA), effets dans les snapshots | présents | absents pour ces composants |
-| Adresse replay de leurs éléments | enregistrement propre | ancêtre enregistré le plus proche + chemin DOM (moins stable si la liste est réordonnée) |
-| Clés de liste lisibles par l'acteur de page | commentaires `craft-for:<clé>` | absentes pour les listes légères |
-| Un input change | seuls les bindings qui le lisent repartent | tous les bindings de l'instance sont reliés |
-| Service lu dans un binding | résolu à chaque lecture (inscription, marquage) | résolu une fois par injecteur |
+| Comportement                                                           | Avant                                           | En mode léger                                                                            |
+| ---------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `inject(Injector / ElementRef / DestroyRef)` dans un binding           | celui du composant                              | celui du parent                                                                          |
+| Registre des cibles (devtools, registre IA), effets dans les snapshots | présents                                        | absents pour ces composants                                                              |
+| Adresse replay de leurs éléments                                       | enregistrement propre                           | ancêtre enregistré le plus proche + chemin DOM (moins stable si la liste est réordonnée) |
+| Clés de liste lisibles par l'acteur de page                            | commentaires `craft-for:<clé>`                  | absentes pour les listes légères                                                         |
+| Un input change                                                        | seuls les bindings qui le lisent repartent      | tous les bindings de l'instance sont reliés                                              |
+| Service lu dans un binding                                             | résolu à chaque lecture (inscription, marquage) | résolu une fois par injecteur                                                            |
 
 Les services `providedIn: 'function'`, les injecteurs avec wrappers de
-résolution, les méthodes et les membres lus par génératrice gardent le chemin
+résolution et les méthodes gardent le chemin
 générique. Un composant compilé n'a jamais de providers propres (métadonnées
 `{}` exigées).
 
@@ -75,42 +75,47 @@ conservées, index, granularité à 128 champs et destruction pour les lignes).
 
 ### Page réaliste (7 navigations, médianes, ms)
 
-| Cas | Runtime | Compilé actuel | **Léger** | Solid |
-| --- | ---: | ---: | ---: | ---: |
-| Montage, échelle 1 (2 579 éléments) | 40,0 | 40,7 | **27,0** (−33 %) | 9,3 |
-| Remontage, échelle 1 | 20,7 | 19,2 | **12,9** (−38 %) | 4,9 |
-| Retour d'onglet, échelle 1 | 6,85 | 6,95 | **3,70** (−46 %) | 1,65 |
-| Rétablir après filtre, échelle 1 | 4,25 | 4,25 | **2,55** | 1,30 |
-| Tas après montage, échelle 1 | 10,3 Mio | 10,1 | **5,6** (−46 %) | 3,0 |
-| Montage, échelle 2 (4 788 éléments) | 56,2 | 59,5 | **37,1** (−34 %) | 14,9 |
-| Remontage, échelle 2 | 36,0 | 35,0 | **18,5** (−49 %) | 7,8 |
-| Tas après montage, échelle 2 | 16,6 Mio | 16,1 | **7,8** (−53 %) | 4,2 |
+| Cas                                 |  Runtime | Compilé actuel |        **Léger** | Solid |
+| ----------------------------------- | -------: | -------------: | ---------------: | ----: |
+| Montage, échelle 1 (2 579 éléments) |     40,0 |           40,7 | **27,0** (−33 %) |   9,3 |
+| Remontage, échelle 1                |     20,7 |           19,2 | **12,9** (−38 %) |   4,9 |
+| Retour d'onglet, échelle 1          |     6,85 |           6,95 | **3,70** (−46 %) |  1,65 |
+| Rétablir après filtre, échelle 1    |     4,25 |           4,25 |         **2,55** |  1,30 |
+| Tas après montage, échelle 1        | 10,3 Mio |           10,1 |  **5,6** (−46 %) |   3,0 |
+| Montage, échelle 2 (4 788 éléments) |     56,2 |           59,5 | **37,1** (−34 %) |  14,9 |
+| Remontage, échelle 2                |     36,0 |           35,0 | **18,5** (−49 %) |   7,8 |
+| Tas après montage, échelle 2        | 16,6 Mio |           16,1 |  **7,8** (−53 %) |   4,2 |
 
 Les petites mises à jour (une case, un compteur, le tri, le thème) restent
 au niveau d'avant ou un peu en dessous ; aucune ne régresse.
 
 ### Lignes, 5 000 éléments (5 navigations, médianes, ms)
 
-| Cas | Runtime | Compilé actuel | **Léger** |
-| --- | ---: | ---: | ---: |
-| Lignes : montage | 52,3 | 44,4 | **16,8** |
-| Lignes : filtrer / rétablir | 5,2 / 20,5 | 5,7 / 15,7 | **1,8 / 4,4** |
-| Lignes : tas après parcours | 25,6 Mio | 23,4 | **5,3** |
-| Avec index : montage | 71,5 | 62,0 | **22,1** |
-| Avec index : inverser | 19,8 | 19,5 | **12,1** |
-| Quatre niveaux : montage | 103,2 | 107,3 | **33,0** |
-| Quatre niveaux : rétablir | 42,8 | 40,3 | **10,6** |
-| Modifier une ligne (avec index) | 1,00 | 1,00 | 1,25 |
+| Cas                             |    Runtime | Compilé actuel |     **Léger** |
+| ------------------------------- | ---------: | -------------: | ------------: |
+| Lignes : montage                |       52,3 |           44,4 |      **16,8** |
+| Lignes : filtrer / rétablir     | 5,2 / 20,5 |     5,7 / 15,7 | **1,8 / 4,4** |
+| Lignes : tas après parcours     |   25,6 Mio |           23,4 |       **5,3** |
+| Avec index : montage            |       71,5 |           62,0 |      **22,1** |
+| Avec index : inverser           |       19,8 |           19,5 |      **12,1** |
+| Quatre niveaux : montage        |      103,2 |          107,3 |      **33,0** |
+| Quatre niveaux : rétablir       |       42,8 |           40,3 |      **10,6** |
+| Modifier une ligne (avec index) |       1,00 |           1,00 |          1,25 |
 
 « Modifier une ligne » reste un peu plus lent (+0,1 à +0,25 ms) : l'entrée
 modifiée est reliée entièrement. Une première version était à +0,6 ms ; mettre
 en cache la racine de l'entrée dans la boucle d'ordonnancement l'a ramenée là.
 
-Attribution, même cohorte (5 000 lignes) : instance légère seule 42,4 →
-23,8 ms ; entrées de liste légères 23,8 → 16,8 ms. Sur la page, abaissement
+Attribution historique, même cohorte (5 000 lignes) : mode léger sans entrées
+de liste légères 42,4 → 23,8 ms ; avec ces entrées 23,8 → 16,8 ms. Le premier
+écart regroupe plusieurs mécanismes, dont l'abaissement : il n'isole pas le coût
+de l'instance. Sur la page, abaissement
 des génératrices et lecture directe des services : −2 % au montage, −6 % au
 remontage (25,7 → 25,2 ms ; 13,5 → 12,7 ms) — le protocole des génératrices
-n'est toujours pas le gros du coût, comme le 6 novembre.
+n'est pas le gros du coût dans cet écran historique. Les
+[ablations contrôlées suivantes](2026-11-17-compiler-ablations.md) réarchivent
+les données, précisent leurs limites de provenance et montrent aussi un gain
+plus net sur une fixture de service partagé après correction des lecteurs.
 
 ### Poids
 

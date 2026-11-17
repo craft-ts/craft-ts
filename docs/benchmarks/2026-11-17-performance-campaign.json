@@ -186,9 +186,10 @@
     {
       "id": "existing-compiler-ablation",
       "title": "Événements/trous, lowering, lectures directes de services, clone/create",
-      "status": "historical-audit",
-      "evidence": "2026-11-17-lean-compiler.md",
-      "note": "Report exists, but raw lean ablation data is not committed here; rerun/archive the ablations before closing this item."
+      "status": "measured",
+      "evidence": "2026-11-17-compiler-ablations-summary.json",
+      "decision": "retain proven lean mechanisms and corrected service reads; create default, clone opt-in",
+      "coverage": "Seven controlled variants, realistic page and 5000-row fixtures, focused service-state updates, no-compiler declaration control, recovered historical raw data, and red/green owner/reader contracts."
     },
     {
       "id": "existing-runtime-ablation",
@@ -205,9 +206,9 @@
       "decision": "removed as requested; measured observations retained"
     }
   ],
-  "updatedAt": "2026-11-17T17:18:59.063Z",
+  "updatedAt": "2026-11-17T21:08:06.781Z",
   "progress": {
-    "newItemsMeasured": 12,
+    "newItemsMeasured": 13,
     "partialItems": 1,
     "historicalItemsAudited": 3,
     "complete": false

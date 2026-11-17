@@ -68,7 +68,7 @@ runner = replaceOnce(
   runner,
   '      plugins: enabled',
   `      plugins: [
-        ...(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true' || process.env.CAMPAIGN_SCALAR_FIXTURE === 'true' || process.env.CAMPAIGN_IMPORTED_FIXTURE === 'true' || process.env.CAMPAIGN_WIDE_INDEX === 'true' ? [{
+        ...(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true' || process.env.CAMPAIGN_SCALAR_FIXTURE === 'true' || process.env.CAMPAIGN_IMPORTED_FIXTURE === 'true' || process.env.CAMPAIGN_WIDE_INDEX === 'true' || process.env.CAMPAIGN_SERVICE_FIXTURE === 'true' ? [{
           name:'campaign-local-fixture', enforce:'pre',
           resolveId(specifier){if(specifier==='campaign-imported-rows')return ${JSON.stringify(importedFixture)};},
           transform(source,id) {
@@ -88,6 +88,13 @@ runner = replaceOnce(
               const cells=Array.from({length:16},()=>"span({'data-position':inputs.position},function*(){return (yield* inputs.position())+1;})");
               source=source.slice(0,start)+"const IndexedRow=craftComponent('CompilerBenchIndexedRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>div({'data-row':function*(){return (yield* inputs.row()).id;}},["+cells.join(',')+",function*(){return (yield* inputs.row()).label;}]));\\n"+source.slice(end);
             }
+            if(process.env.CAMPAIGN_SERVICE_FIXTURE === 'true') {
+              const start=source.indexOf('const Row = craftComponent('),end=source.indexOf('const IndexedRow = craftComponent(');
+              if(start<0||end<0)throw Error('Service fixture anchors missing');
+              source=source.slice(0,start)+"const Row=craftComponent('CompilerBenchRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>div({'data-row':function*(){return (yield* inputs.row()).id;}},function*(){return (yield* inputs.row()).label+' / '+(yield* __benchCounter.value());}));\\n"+source.slice(end);
+              source="import {craftService as __benchService,state as __benchState} from '@craft-ts/core';\\nlet __benchBump:()=>void=()=>{throw Error('Counter not resolved');};\\nconst {BenchCounter:__benchCounter}=__benchService({name:'BenchCounter',providedIn:'global'},function*(){yield* __benchState('value',0,({update})=>{__benchBump=()=>update(value=>value+1);return {bump:__benchBump};});});\\n"+source;
+              source=source.replace("  else if (action === 'update-one' || action === 'update-tenth')","  else if(action === 'update-tenth') __benchBump();\\n  else if (action === 'update-one')");
+            }
             if(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true') source=source.replace('const Row = craftComponent(', 'function fixture() {\\nconst Row = craftComponent(').replace('const start = performance.now();','return App; }\\nconst App = fixture();\\nconst start = performance.now();');
             return source;
           },
@@ -100,6 +107,28 @@ runner = replaceOnce(
   '        : []),\n      ],\n      resolve:',
 );
 const runnerPath = join(lab, 'micro.mjs');
+if (process.env.CAMPAIGN_COMMENT_COUNTS === 'true') {
+  runner = replaceOnce(
+    runner,
+    "      await page.evaluate(() => window.__compilerBench.run('destroy'));",
+    `      const comments = await page.evaluate(() => {
+        const walker=document.createTreeWalker(document.getElementById('mount'),NodeFilter.SHOW_COMMENT);
+        let all=0,forComments=0;while(walker.nextNode()){all++;if(walker.currentNode.nodeValue.startsWith('craft-for:'))forComments++;}
+        return {all,forComments};
+      });
+      await page.evaluate(() => window.__compilerBench.run('destroy'));`,
+  );
+  runner = replaceOnce(
+    runner,
+    '      traces.push({ label, trace });',
+    '      traces.push({ label, trace, comments });',
+  );
+  runner = replaceOnce(
+    runner,
+    'contracts.push({ case: kind, passed: true, steps: traces[0].trace.length });',
+    'contracts.push({ case: kind, passed: true, steps: traces[0].trace.length, variants: traces.map(({label,comments})=>({label,comments})) });',
+  );
+}
 if (process.env.CAMPAIGN_BLOCKED === 'true') {
   runner = replaceOnce(
     runner,
