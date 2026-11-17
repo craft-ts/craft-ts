@@ -124,6 +124,197 @@ const html = (host: Element) => {
 };
 
 describe('light compiled instances', () => {
+  it.each(['light', 'owned'] as const)(
+    'keeps direct injection in a lowered %s binding inside its owner on reruns',
+    (mode) => {
+      const value = signal('before');
+      const scopes: EnvironmentInjector[] = [];
+      function* source() {
+        return value();
+      }
+      const { lean } = load(
+        `export const Child=craftComponent('InjectedBinding' + suffix,{},
+        (inputs:{unusedCallback:import('@craft-ts/component').Output<()=>void>})=>
+        span(function*(){record(inject(Injector));return yield* source();}));`,
+        {
+          source,
+          inject,
+          Injector,
+          record: (scope: EnvironmentInjector) => scopes.push(scope),
+        },
+      );
+      const create = vi.spyOn(compiledTemplateFor(lean.Child)!, 'create');
+      let parent: EnvironmentInjector | undefined;
+      const compiled = mount(() => {
+        parent = inject(Injector) as EnvironmentInjector;
+        return lean.Child({
+          unusedCallback:
+            mode === 'owned'
+              ? () => undefined
+              : function* () {
+                  return;
+                },
+        });
+      });
+      expect(compiled.host.textContent).toBe('before');
+      expect(create).toHaveBeenCalledOnce();
+      const owner = scopes[0];
+      expect(owner).toBeDefined();
+      if (mode === 'light') expect(owner).toBe(parent);
+      else expect(owner).not.toBe(parent);
+      value.set('after');
+      compiled.flush();
+      expect(compiled.host.textContent).toBe('after');
+      expect(scopes).toEqual([owner, owner]);
+      expect(leanReadScope.injector).toBeUndefined();
+    },
+  );
+
+  it.each(['settled', 'generator', 'nested'] as const)(
+    'invokes a %s service reader once per binding evaluation',
+    (kind) => {
+      const value = signal('before');
+      let calls = 0;
+      const scopes: EnvironmentInjector[] = [];
+      const nested = core.createYieldableReactiveValue(value, 'nested');
+      const read = core.markYieldableValue(
+        kind === 'settled'
+          ? core.ɵsettledReader(() => {
+              calls++;
+              scopes.push(inject(Injector) as EnvironmentInjector);
+              return value();
+            })
+          : () => {
+              calls++;
+              scopes.push(inject(Injector) as EnvironmentInjector);
+              if (kind === 'nested') return core.yieldableInvocation(nested);
+              return (function* () {
+                return value();
+              })();
+            },
+        'value',
+      );
+      const name = 'SingleRead' + serial++;
+      const service = craftService(
+        { name, providedIn: 'global' },
+        function* () {
+          yield* core.craftExpose('value', read);
+        },
+      );
+      const { lean } = load(
+        `export const Child=craftComponent('SingleReadChild' + suffix,{},()=>
+          span(function*(){return yield* Service.value();}));`,
+        { Service: (service as any)[name] },
+      );
+      const compiled = mount(() => lean.Child({}));
+      expect(compiled.host.textContent).toBe('before');
+      expect(calls).toBe(1);
+      value.set('after');
+      compiled.flush();
+      expect(compiled.host.textContent).toBe('after');
+      expect(calls).toBe(2);
+      expect(scopes.every((scope) => scope === scopes[0])).toBe(true);
+      expect(leanReadScope.injector).toBeUndefined();
+    },
+  );
+
+  it('leaves an unknown method receiver free of metadata probes', () => {
+    const keys: PropertyKey[] = [];
+    const helper = new Proxy(
+      {
+        *read() {
+          return 'value';
+        },
+      },
+      {
+        get(target, key, receiver) {
+          keys.push(key);
+          if (typeof key === 'symbol')
+            throw new Error('unexpected metadata probe');
+          return Reflect.get(target, key, receiver);
+        },
+      },
+    );
+    const { lean } = load(
+      `export const Child=craftComponent('UnknownReceiver' + suffix,{},()=>
+        span(function*(){return yield* Helper.read();}));`,
+      { Helper: helper },
+    );
+    const compiled = mount(() => lean.Child({}));
+    expect(compiled.host.textContent).toBe('value');
+    expect(keys).toEqual(['read']);
+  });
+
+  it('keeps an aliased nested service path instead of reading the root member', () => {
+    const name = 'NestedService' + serial++;
+    const service = craftService({ name, providedIn: 'global' }, function* () {
+      yield* core.craftExpose('value', 'root');
+      yield* core.craftExpose('nested', {
+        value: core.markYieldableValue(
+          core.ɵsettledValueReader('nested'),
+          'value',
+        ),
+      });
+    });
+    const { lean } = load(
+      `export const Child=craftComponent('NestedReceiver' + suffix,{},()=>
+        span(function*(){return yield* Nested.value();}));`,
+      { Nested: (service as any)[name].nested },
+    );
+    const compiled = mount(() => lean.Child({}));
+    expect(compiled.host.textContent).toBe('nested');
+  });
+
+  it.each(['function', 'wrapped'] as const)(
+    'keeps %s service resolution on its ordinary path',
+    (mode) => {
+      const value = signal('before');
+      let creations = 0;
+      let wrapped = 0;
+      const name = 'ResolutionGuard' + serial++;
+      const service = craftService(
+        { name, providedIn: mode === 'function' ? 'function' : 'global' },
+        function* () {
+          creations++;
+          yield* core.craftExpose(
+            'value',
+            core.markYieldableValue(
+              core.ɵsettledReader(() => value()),
+              'value',
+            ),
+          );
+        },
+      );
+      const { lean } = load(
+        `export const Child=craftComponent('ResolutionGuardChild' + suffix,{},()=>
+          span(function*(){return yield* Service.value();}));`,
+        { Service: (service as any)[name] },
+      );
+      const create = vi.spyOn(compiledTemplateFor(lean.Child)!, 'create');
+      const providers = [provideCraftProduction()];
+      if (mode === 'wrapped')
+        providers.push(
+          core.provideServiceYieldWrapper(
+            'test wrapper',
+            function* (context, next) {
+              if (context.name === name) wrapped++;
+              return yield* next();
+            },
+          ),
+        );
+      const compiled = mount(() => lean.Child({}), providers);
+      expect(create).toHaveBeenCalledOnce();
+      expect(compiled.host.textContent).toBe('before');
+      expect(creations).toBe(1);
+      value.set('after');
+      compiled.flush();
+      expect(compiled.host.textContent).toBe('after');
+      expect(creations).toBe(mode === 'function' ? 2 : 1);
+      expect(wrapped).toBe(mode === 'wrapped' ? 2 : 0);
+      expect(leanReadScope.injector).toBeUndefined();
+    },
+  );
+
   it('updates input shells forwarded by a generic parent through the owned fallback', () => {
     const value = signal('before');
     function* reader() {

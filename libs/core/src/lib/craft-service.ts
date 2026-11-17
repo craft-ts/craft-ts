@@ -107,6 +107,9 @@ const SERVICE_RUNTIME_META_GLOBAL = Symbol.for(
 );
 const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
 const REGISTERED_SERVICES = new Map<string, ServiceReference>();
+// Exact root helpers only: metadata on a nested shortcut describes its parent
+// service and is insufficient to resolve the shortcut's path.
+const definitionByReference = new WeakMap<object, ConcreteRuntimeDefinition>();
 const REGISTERED_APP_START_SERVICES = new Map<string, ServiceReference>();
 
 type DerivedPropertiesTracking<
@@ -3274,6 +3277,7 @@ function createCraftServiceApi(
 
     attachServiceRuntimeMeta(abstractHelper, abstractMetaData);
     attachServiceRuntimeMeta(abstractInjectHelper, abstractMetaData);
+    definitionByReference.set(abstractHelper, abstractYieldDefinition);
 
     REGISTERED_SERVICES.set(
       options.name,
@@ -3351,6 +3355,7 @@ function createCraftServiceApi(
 
   attachServiceRuntimeMeta(injectHelper, serviceMetaData);
   attachServiceRuntimeMeta(api[serviceName], serviceMetaData);
+  definitionByReference.set(api[serviceName] as object, runtimeDefinition);
 
   REGISTERED_SERVICES.set(
     runtimeDefinition.name,
@@ -4208,10 +4213,6 @@ export function ɵresolveOptionalService(
 /** @internal What {@link ɵreadServiceMember} answers when the caller must read the generic way. */
 export const ɵSERVICE_MEMBER_UNREAD = Symbol('CraftService.memberUnread');
 
-const definitionByReference = new WeakMap<
-  object,
-  ConcreteRuntimeDefinition | null
->();
 // Services an injector resolved for direct member reads; null when the
 // injector wraps service resolution, which then always takes the generic way.
 const resolvedForReads = new WeakMap<
@@ -4224,8 +4225,9 @@ const resolvedForReads = new WeakMap<
  * code the build compiled: the service is resolved once per injector (it is
  * the same instance each time: neither a function-scoped service nor an
  * injector with service-yield wrappers takes this way), then its member is
- * read like a shortcut reads it. A method, a member read through a generator
- * or anything that is not a service answers {@link ɵSERVICE_MEMBER_UNREAD}.
+ * returned without invoking it. The caller drives readable members once in
+ * its binding context. Methods and references not owned by Craft answer
+ * {@link ɵSERVICE_MEMBER_UNREAD} without probing their properties.
  */
 export function ɵreadServiceMember(
   reference: unknown,
@@ -4237,15 +4239,7 @@ export function ɵreadServiceMember(
     reference === null
   )
     return ɵSERVICE_MEMBER_UNREAD;
-  let definition = definitionByReference.get(reference);
-  if (definition === undefined) {
-    const meta = (Reflect.get(reference, SERVICE_RUNTIME_META) ??
-      Reflect.get(reference, SERVICE_RUNTIME_META_GLOBAL)) as
-      | InternalServiceMetaData
-      | undefined;
-    definition = meta?.[SERVICE_RUNTIME_DEFINITION] ?? null;
-    definitionByReference.set(reference, definition);
-  }
+  const definition = definitionByReference.get(reference);
   if (!definition || definition.providedIn === 'function')
     return ɵSERVICE_MEMBER_UNREAD;
   let resolved = resolvedForReads.get(injector);
@@ -4266,14 +4260,7 @@ export function ɵreadServiceMember(
   }
   const member = Reflect.get(Object(service), key);
   if (isShortcutMethod(member)) return ɵSERVICE_MEMBER_UNREAD;
-  if (
-    !isYieldableValue(member) ||
-    isCraftMethod(member) ||
-    typeof (member as { type?: unknown }).type === 'string'
-  )
-    return member;
-  const read = (member as unknown as () => unknown)();
-  return isGenerator(read) ? ɵSERVICE_MEMBER_UNREAD : read;
+  return member;
 }
 
 function resolveConcreteService(

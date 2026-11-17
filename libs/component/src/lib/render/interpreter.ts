@@ -5736,7 +5736,7 @@ class CompiledComponentRenderedNode implements RenderedNode {
                     leanReadScope.injector = bindingContext.injector;
                     try {
                       value = readResolvedBinding(
-                        (source as () => unknown)(),
+                        bindingContext.injector.run(source as () => unknown),
                         bindingContext,
                       );
                     } finally {
@@ -6016,7 +6016,7 @@ class LeanComponentRenderedNode implements RenderedNode {
               leanReadScope.injector = context.injector;
               try {
                 value = readResolvedBinding(
-                  (reader as () => unknown)(),
+                  context.injector.run(reader as () => unknown),
                   context,
                 );
               } finally {

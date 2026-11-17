@@ -1,5 +1,7 @@
 import {
   executeYieldable,
+  isCraftMethod,
+  isYieldableValue,
   ɵIDENTITY_FN_ADAPTER,
   ɵreadServiceMember,
   ɵSERVICE_MEMBER_UNREAD,
@@ -154,8 +156,16 @@ export function ɵy(value: unknown): unknown {
 export function ɵys(reference: unknown, key: string): unknown {
   const injector = leanReadScope.injector;
   if (injector) {
-    const value = ɵreadServiceMember(reference, key, injector as never);
-    if (value !== ɵSERVICE_MEMBER_UNREAD) return value;
+    const member = ɵreadServiceMember(reference, key, injector as never);
+    if (member !== ɵSERVICE_MEMBER_UNREAD) {
+      if (
+        isYieldableValue(member) &&
+        !isCraftMethod(member) &&
+        typeof (member as { type?: unknown }).type !== 'string'
+      )
+        return ɵy((member as unknown as () => unknown)());
+      return member;
+    }
   }
   return ɵy((reference as Record<string, () => unknown>)[key]());
 }
