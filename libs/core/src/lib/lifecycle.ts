@@ -28,12 +28,18 @@ export function createCraftCleanup(cleanups: Iterable<() => void>): () => void {
   };
 }
 
+/** @internal Shared one-shot ownership for grouped and allocation-free teardown. */
+export function beginCraftOwnerDestruction(owner: object): boolean {
+  if (destroyedOwners.has(owner)) return false;
+  destroyedOwners.add(owner);
+  return true;
+}
+
 /** Close an owner before releasing it, including reentrant destruction. */
 export function destroyCraftOwner(
   owner: object,
   cleanups: Iterable<() => void>,
 ): void {
-  if (destroyedOwners.has(owner)) return;
-  destroyedOwners.add(owner);
+  if (!beginCraftOwnerDestruction(owner)) return;
   runCraftCleanups(cleanups);
 }

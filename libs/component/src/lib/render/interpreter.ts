@@ -1,4 +1,4 @@
-import { ɵrunCraftCleanups, ɵdestroyCraftOwner } from '@craft-ts/core';
+import { ɵrunCraftCleanups, ɵdestroyCraftOwner, ɵbeginCraftOwnerDestruction } from '@craft-ts/core';
 import { ɵIDENTITY_FN_ADAPTER, ɵREACTIVE_READ_OBSERVERS, ɵinjectTemplateTraces } from '@craft-ts/core';
 import { createCompiledNodes, compiledItemComponent, compiledTemplateFor, type CompiledTemplatePlan } from './compiled-template';
 import {
@@ -5427,7 +5427,6 @@ function canUseCompiledDefinition(
 /** Fixed DOM shape; native DI ownership and independent binding effects. */
 class CompiledComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
-  private destroyed = false;
   private readonly component: CraftComponent<object>;
   private readonly plan: CompiledTemplatePlan;
   private readonly injector: EnvironmentInjector;
@@ -5629,8 +5628,7 @@ class CompiledComponentRenderedNode implements RenderedNode {
     return true;
   }
   destroy(detached = false): void {
-    if (this.destroyed) return;
-    this.destroyed = true;
+    if (!ɵbeginCraftOwnerDestruction(this)) return;
     let errors: unknown[] | undefined;
     try {
       this.unregister?.();

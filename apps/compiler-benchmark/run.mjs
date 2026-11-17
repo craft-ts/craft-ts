@@ -47,6 +47,7 @@ const measuredFiles = [
   'libs/component/src/lib/render/interpreter.ts',
   'libs/component/src/lib/render/compiled-template.ts',
   'libs/component/src/compiler-runtime.ts',
+  'libs/core/src/index.ts',
   'libs/core/src/lib/lifecycle.ts',
   'libs/core/src/lib/host/craft-injector.ts',
   'libs/core/src/lib/host/craft-signal.ts',
@@ -178,6 +179,7 @@ try {
       runtimeSha256: Object.fromEntries(
         await Promise.all(
           [
+            'libs/core/src/index.ts',
             'libs/core/src/lib/lifecycle.ts',
             'libs/core/src/lib/host/craft-injector.ts',
             'libs/component/src/lib/render/interpreter.ts',

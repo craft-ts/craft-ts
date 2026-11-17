@@ -2,6 +2,7 @@ export * from './lib/after-recomputation';
 export {
   runCraftCleanups as ɵrunCraftCleanups,
   destroyCraftOwner as ɵdestroyCraftOwner,
+  beginCraftOwnerDestruction as ɵbeginCraftOwnerDestruction,
   createCraftCleanup as ɵcreateCraftCleanup,
 } from './lib/lifecycle';
 export * from './lib/app-checked-di';

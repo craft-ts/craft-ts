@@ -5,7 +5,11 @@ import {
   signal,
   ɵdestroyCraftDestroyRef,
 } from './host/craft-compat';
-import { runCraftCleanups } from './lifecycle';
+import {
+  runCraftCleanups,
+  beginCraftOwnerDestruction,
+  destroyCraftOwner,
+} from './lifecycle';
 import { craftEffect } from './craft-effect';
 import { craftUse } from './craft-use';
 import { setupCraftServiceTest } from './setup-craft-service-test';
@@ -181,4 +185,16 @@ describe('lazy cleanup failures', () => {
     expect((value as AggregateError).errors).toEqual([undefined, null]);
     expect(released).toHaveBeenCalledOnce();
   });
+});
+
+it('shares one-shot state between direct and grouped owner teardown', () => {
+  const owner = {},
+    other = {},
+    release = vi.fn();
+  expect(beginCraftOwnerDestruction(owner)).toBe(true);
+  destroyCraftOwner(owner, [release]);
+  expect(release).not.toHaveBeenCalled();
+  destroyCraftOwner(other, [release]);
+  expect(beginCraftOwnerDestruction(other)).toBe(false);
+  expect(release).toHaveBeenCalledOnce();
 });
