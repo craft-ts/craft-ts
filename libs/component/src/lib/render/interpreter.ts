@@ -3319,32 +3319,24 @@ function createSingleRootFragment(
   });
 }
 
-// A saved reader retains only its position, not its entry, view or list Maps.
-// Most callbacks never read their index: keep a number until the first read
-// needs a reactive cell. Later moves notify only positions that were read.
-class ForIndex {
-  value: number;
-  readonly reader: InputValue<number>;
-  private cell: ɵCraftPrivateCell<number> | undefined;
+const FOR_INDEX_VALUE = Symbol('for-index-value');
+const FOR_INDEX_CELL = Symbol('for-index-cell');
 
-  constructor(value: number) {
-    this.value = value;
-    this.reader = createForIndexReader(this);
-  }
+type ForIndexReader = InputValue<number> & {
+  [FOR_INDEX_VALUE]: number;
+  [FOR_INDEX_CELL]: ɵCraftPrivateCell<number> | undefined;
+};
 
-  read(): number {
-    return (this.cell ??= ɵcraftPrivateCell(this.value))();
-  }
-
-  set(value: number): void {
-    this.value = value;
-    this.cell?.set(value);
-  }
-}
-
-// Keep the closure outside reconciliation so it cannot retain an old pass.
-function createForIndexReader(index: ForIndex): InputValue<number> {
-  return ɵsettledReader(() => index.read()) as InputValue<number>;
+// The reader itself carries the position: no extra owner record or reactive
+// cell until the first read. Its closure retains only itself, never an entry,
+// its DOM, or a previous reconciliation's Maps.
+function createForIndexReader(value: number): ForIndexReader {
+  const reader = ɵsettledReader(() =>
+    (reader[FOR_INDEX_CELL] ??= ɵcraftPrivateCell(reader[FOR_INDEX_VALUE]))(),
+  ) as ForIndexReader;
+  reader[FOR_INDEX_VALUE] = value;
+  reader[FOR_INDEX_CELL] = undefined;
+  return reader;
 }
 
 const MAX_FOR_SOURCE_PASSES = 8;
@@ -3443,7 +3435,7 @@ class LeanEntryView {
 interface ForRenderedEntry {
   readonly key: unknown;
   item: unknown;
-  readonly index: ForIndex;
+  readonly index: ForIndexReader;
   view: FragmentRenderedNode | LeanEntryView;
   /** Context of a view the ordering pass has yet to create. */
   pendingContext: RenderContext | undefined;
@@ -3619,12 +3611,13 @@ class ForRenderedNode implements RenderedNode {
           entry.item = item;
           entriesToRender.push(entry);
         }
-        if (entry.index.value !== index) {
-          entry.index.set(index);
+        if (entry.index[FOR_INDEX_VALUE] !== index) {
+          entry.index[FOR_INDEX_VALUE] = index;
+          entry.index[FOR_INDEX_CELL]?.set(index);
         }
       } else {
         const traceState = { renderCount: 0 };
-        const position = new ForIndex(index);
+        const position = createForIndexReader(index);
         if (lean) {
           // Mounted by the ordering pass, in the list's own context.
           entry = {
@@ -3758,7 +3751,7 @@ class ForRenderedNode implements RenderedNode {
       : itemReader;
     return invokeChildrenCallback(this.context, this.node.itemTemplate, [
       itemInput,
-      entry.index.reader,
+      entry.index,
     ]);
   }
 
@@ -3831,7 +3824,7 @@ class ForRenderedNode implements RenderedNode {
           this.renderItem(
             entry.traceState,
             entry.item,
-            entry.index.reader,
+            entry.index,
             entry.key,
           ),
         ),
@@ -3844,7 +3837,7 @@ class ForRenderedNode implements RenderedNode {
         this.renderItem(
           entry.traceState,
           entry.item,
-          entry.index.reader,
+          entry.index,
           entry.key,
         ),
       ),
