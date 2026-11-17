@@ -3319,10 +3319,32 @@ function createSingleRootFragment(
   });
 }
 
-// Keep the reader's closure outside reconciliation: a surviving sibling must
-// not retain the previous/next entry maps and the removed rows they contained.
-function createForIndexReader(read: () => number): InputValue<number> {
-  return ɵsettledReader(read) as InputValue<number>;
+// A saved reader retains only its position, not its entry, view or list Maps.
+// Most callbacks never read their index: keep a number until the first read
+// needs a reactive cell. Later moves notify only positions that were read.
+class ForIndex {
+  value: number;
+  readonly reader: InputValue<number>;
+  private cell: ɵCraftPrivateCell<number> | undefined;
+
+  constructor(value: number) {
+    this.value = value;
+    this.reader = createForIndexReader(this);
+  }
+
+  read(): number {
+    return (this.cell ??= ɵcraftPrivateCell(this.value))();
+  }
+
+  set(value: number): void {
+    this.value = value;
+    this.cell?.set(value);
+  }
+}
+
+// Keep the closure outside reconciliation so it cannot retain an old pass.
+function createForIndexReader(index: ForIndex): InputValue<number> {
+  return ɵsettledReader(() => index.read()) as InputValue<number>;
 }
 
 const MAX_FOR_SOURCE_PASSES = 8;
@@ -3421,10 +3443,7 @@ class LeanEntryView {
 interface ForRenderedEntry {
   readonly key: unknown;
   item: unknown;
-  index: number;
-  // Read only through `indexReader`: a renderer-private cell.
-  readonly indexSignal: ɵCraftPrivateCell<number>;
-  readonly indexReader: InputValue<number>;
+  readonly index: ForIndex;
   view: FragmentRenderedNode | LeanEntryView;
   /** Context of a view the ordering pass has yet to create. */
   pendingContext: RenderContext | undefined;
@@ -3600,22 +3619,18 @@ class ForRenderedNode implements RenderedNode {
           entry.item = item;
           entriesToRender.push(entry);
         }
-        if (entry.index !== index) {
-          entry.index = index;
-          entry.indexSignal.set(index);
+        if (entry.index.value !== index) {
+          entry.index.set(index);
         }
       } else {
         const traceState = { renderCount: 0 };
-        const indexSignal = ɵcraftPrivateCell(index);
-        const indexReader = createForIndexReader(indexSignal);
+        const position = new ForIndex(index);
         if (lean) {
           // Mounted by the ordering pass, in the list's own context.
           entry = {
             key,
             item,
-            index,
-            indexSignal,
-            indexReader,
+            index: position,
             traceState,
             rendered: false,
             pendingContext: this.context,
@@ -3639,9 +3654,7 @@ class ForRenderedNode implements RenderedNode {
         entry = {
           key,
           item,
-          index,
-          indexSignal,
-          indexReader,
+          index: position,
           traceState,
           rendered: false,
           pendingContext: createInPlace ? entryContext : undefined,
@@ -3745,7 +3758,7 @@ class ForRenderedNode implements RenderedNode {
       : itemReader;
     return invokeChildrenCallback(this.context, this.node.itemTemplate, [
       itemInput,
-      entry.indexReader,
+      entry.index.reader,
     ]);
   }
 
@@ -3818,7 +3831,7 @@ class ForRenderedNode implements RenderedNode {
           this.renderItem(
             entry.traceState,
             entry.item,
-            entry.indexReader,
+            entry.index.reader,
             entry.key,
           ),
         ),
@@ -3831,7 +3844,7 @@ class ForRenderedNode implements RenderedNode {
         this.renderItem(
           entry.traceState,
           entry.item,
-          entry.indexReader,
+          entry.index.reader,
           entry.key,
         ),
       ),
