@@ -45,6 +45,8 @@ const throttle = Number(process.env.PAGE_CPU ?? 1);
 const checkMode = process.env.PAGE_CHECK ?? 'true';
 const countMode = (process.env.PAGE_COUNT ?? 'true') === 'true';
 const compilerLabels = new Set((process.env.PAGE_COMPILER_LABELS ?? '').split(',').filter(Boolean));
+// Per-label compiler options, e.g. PAGE_COMPILER_OPTIONS='{"lean":{"lean":true}}'.
+const compilerOptions = JSON.parse(process.env.PAGE_COMPILER_OPTIONS ?? '{}');
 if (compilerLabels.size && countMode) throw new Error('Use PAGE_COUNT=false: instance-counting wrappers disable compiled rendering.');
 const columns = [
   'mount',
@@ -66,6 +68,7 @@ async function buildVariant(variant, { minify, count }) {
   const compilation = [];
   const compiler = compilerLabels.has(variant.label)
     ? (await import('../../dist/libs/compiler/src/vite.js')).craftCompiler({
+        ...(compilerOptions[variant.label] ?? {}),
         onReport: (file, components) => compilation.push({ file, components }),
       })
     : undefined;

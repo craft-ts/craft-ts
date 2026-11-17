@@ -42,7 +42,8 @@ await build({
   configFile: join(app, 'vite.config.mjs'),
   logLevel: 'error',
   plugins: [
-    craftCompiler(),
+    // COMPILER_PROFILE_OPTIONS='{"lean":true}' profiles another compiler mode.
+    craftCompiler(JSON.parse(process.env.COMPILER_PROFILE_OPTIONS ?? '{}')),
     {
       name: 'profile-gate',
       enforce: 'pre',

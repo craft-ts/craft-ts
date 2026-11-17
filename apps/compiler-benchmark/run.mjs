@@ -139,13 +139,14 @@ try {
     const mode = selectedMode ?? label;
     const libraryRoot = libraryPath ? resolve(root, libraryPath) : root;
     assert(
-      ['runtime', 'dom', 'compiled', 'clone'].includes(mode),
+      ['runtime', 'dom', 'compiled', 'clone', 'lean'].includes(mode),
       'Unknown variant ' + mode,
     );
     const enabled = mode !== 'runtime';
     const variantOptions = {
       dom: mode === 'clone' ? 'clone' : 'create',
       lists: mode !== 'dom',
+      lean: mode === 'lean',
     };
     const dist = join(output, 'dist', label),
       decisions = [];
