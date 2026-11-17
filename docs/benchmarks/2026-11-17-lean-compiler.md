@@ -1,7 +1,7 @@
 # Compilateur : instances légères (`lean: true`)
 
 17 novembre 2026. Base : `425a62db4` (`codex/optional-performance-compiler`).
-Changements non commités dans le worktree `craft-ts-compiler`.
+Implémentation : `7d2c8f75b` ; outils de mesure : `e67e2d2f1`.
 
 Le compilateur optionnel ne faisait presque rien gagner sur la page réaliste :
 il ne couvrait que 7 définitions sur 62 et, surtout, une instance compilée
