@@ -94,6 +94,26 @@ runner = replaceOnce(
   '        : []),\n      ],\n      resolve:',
 );
 const runnerPath = join(lab, 'micro.mjs');
+if (process.env.CAMPAIGN_BLOCKED === 'true') {
+  runner = replaceOnce(
+    runner,
+    `  for (let i = jobs.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [jobs[i], jobs[j]] = [jobs[j], jobs[i]];
+  }`,
+    `  // Randomized blocks keep both variants of a case adjacent; their order
+  // alternates by run to balance order effects during this confirmation.
+  const blocks=[];
+  for(const job of jobs){
+    const previous=blocks.at(-1);
+    if(previous&&previous[0].run===job.run&&previous[0].kind===job.kind&&previous[0].count===job.count)previous.push(job);
+    else blocks.push([job]);
+  }
+  for(const block of blocks)if(block[0].run%2)block.reverse();
+  for(let i=blocks.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[blocks[i],blocks[j]]=[blocks[j],blocks[i]];}
+  jobs.splice(0,jobs.length,...blocks.flat());`,
+  );
+}
 await writeFile(runnerPath, runner);
 process.env.COMPILER_VARIANTS = ids
   .map(

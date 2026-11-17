@@ -125,7 +125,10 @@
     {
       "id": "runtime-tree-shaking",
       "title": "Isoler le support du compilateur du bundle sans plugin",
-      "status": "pending"
+      "status": "measured",
+      "decision": "restricted prototype, not enabled: bundle reduction proved; latency is noisy and activation introduces an ESM cycle",
+      "evidence": "2026-11-17-compiler-activation-summary.json",
+      "coverage": "Both compiled component renderer classes and their plan lookup/create helpers disappear without plans and remain with the plugin. Some list bookkeeping remains. Ordinary, lean and standard browser contracts, realistic page, late activation, invalidation, TypeScript and library suites are checked. Bundle reduction is measured; no mounting improvement is established."
     },
     {
       "id": "fallback-specialized-build",
@@ -199,9 +202,9 @@
       "decision": "removed as requested; measured observations retained"
     }
   ],
-  "updatedAt": "2026-11-17T16:32:41.733Z",
+  "updatedAt": "2026-11-17T16:49:19.901Z",
   "progress": {
-    "newItemsMeasured": 10,
+    "newItemsMeasured": 11,
     "partialItems": 1,
     "historicalItemsAudited": 3,
     "complete": false

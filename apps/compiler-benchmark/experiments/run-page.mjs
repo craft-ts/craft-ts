@@ -78,7 +78,8 @@ for (const id of ids) {
 process.env.PAGE_VARIANTS = ids
   .map((id) => id + '=craft-page@' + join(lab, 'roots', id))
   .join(',');
-process.env.PAGE_COMPILER_LABELS = ids.join(',');
+process.env.PAGE_COMPILER_LABELS =
+  process.env.CAMPAIGN_MODE === 'runtime' ? '' : ids.join(',');
 const requestedOptions = JSON.parse(process.env.PAGE_COMPILER_OPTIONS ?? '{}');
 process.env.PAGE_COMPILER_OPTIONS = JSON.stringify(
   Object.fromEntries(
