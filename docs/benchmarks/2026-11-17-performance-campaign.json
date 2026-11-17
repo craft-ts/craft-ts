@@ -43,7 +43,10 @@
     {
       "id": "scalar-binding-fusion",
       "title": "Fusion de bindings d'une source scalaire prouvée",
-      "status": "pending"
+      "status": "measured",
+      "decision": "non-equivalent ceiling: reject the current prototype; input-reader replacement changes callback granularity and ordinary cases gain no established benefit",
+      "evidence": "2026-11-17-scalar-fusion-summary.json",
+      "coverage": "Consecutive exact reads of renderer-owned numeric indexes or normalized primitive constants. Unknown-reader side effects, DOM observation order, Proxy probes, primitive rebinds, identity and destruction are tested. A reader-replacement counterexample rejects general activation. Ordinary rows, a favorable repeated-index fixture, the realistic page and no-plugin controls are measured."
     },
     {
       "id": "incremental-rebind",
@@ -206,9 +209,9 @@
       "decision": "removed as requested; measured observations retained"
     }
   ],
-  "updatedAt": "2026-11-17T21:08:06.781Z",
+  "updatedAt": "2026-11-17T21:29:46.268Z",
   "progress": {
-    "newItemsMeasured": 13,
+    "newItemsMeasured": 14,
     "partialItems": 1,
     "historicalItemsAudited": 3,
     "complete": false
