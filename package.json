@@ -62,7 +62,8 @@
     "release:local": "node tools/release-local.mjs",
     "compiler:build": "nx build craft-ts-compiler",
     "compiler:test": "vitest run --config libs/compiler/vitest.config.ts",
-    "perf:compiler": "tsc -p libs/compiler/tsconfig.lib.json && node apps/compiler-benchmark/run.mjs"
+    "perf:compiler": "tsc -p libs/compiler/tsconfig.lib.json && node apps/compiler-benchmark/run.mjs",
+    "perf:compiler:profile": "tsc -p libs/compiler/tsconfig.lib.json && node apps/compiler-benchmark/profile.mjs"
   },
   "private": true,
   "devDependencies": {

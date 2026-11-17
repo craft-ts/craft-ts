@@ -68,3 +68,24 @@ It checks the compiled and generic pages after every benchmark action and real
 UI interaction, then measures them. `PAGE_COUNT=false` is required because the
 instance-counting proxy intentionally changes the component definitions and
 would prevent the compiled path from being exercised.
+
+For controlled comparisons against a frozen runtime checkout, each selection
+also accepts `label=mode@libraryRoot` (the mode is `runtime`, `dom`, `compiled`
+or `clone`). Both variants still use the exact same application entry:
+
+```sh
+COMPILER_VARIANTS="before=compiled@/absolute/frozen/root,after=compiled" \
+  COMPILER_CASES=rows,indexed COMPILER_ROWS=5000 npm run perf:compiler
+```
+
+The report records the selected mode, library root and checksums of the changed
+runtime sources for every variant. Use this to distinguish independent passes
+instead of adding percentages from different campaigns.
+
+`npm run perf:compiler:profile` records named CPU profiles for mounting, theme
+changes and filtering on the realistic page. These are separate, unminified
+production builds; sampling and default CPU throttling x4 are diagnostic only.
+Configure `COMPILER_PROFILE_LIB_ROOT`, `COMPILER_PROFILE_OUTPUT`,
+`COMPILER_PROFILE_RUNS`, `COMPILER_PROFILE_SCALE` and `COMPILER_PROFILE_CPU` to
+reproduce a specific experiment. Do not compare their wall-clock times with the
+minified timing cohort.

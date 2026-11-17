@@ -30,14 +30,14 @@ assert(
     Number.isInteger(iterations) &&
     iterations > 0,
 );
-const aliases = [
+const aliases = (libraryRoot = root) => [
   {
     find: '@craft-ts/component/compiler-runtime',
-    replacement: join(root, 'libs/component/src/compiler-runtime.ts'),
+    replacement: join(libraryRoot, 'libs/component/src/compiler-runtime.ts'),
   },
   ...['core', 'component', 'style'].map((name) => ({
     find: '@craft-ts/' + name,
-    replacement: join(root, 'libs/' + name + '/src/index.ts'),
+    replacement: join(libraryRoot, 'libs/' + name + '/src/index.ts'),
   })),
 ];
 await mkdir(output, { recursive: true });
@@ -47,6 +47,8 @@ const measuredFiles = [
   'libs/component/src/lib/render/interpreter.ts',
   'libs/component/src/lib/render/compiled-template.ts',
   'libs/component/src/compiler-runtime.ts',
+  'libs/core/src/lib/lifecycle.ts',
+  'libs/core/src/lib/host/craft-injector.ts',
   'libs/core/src/lib/host/craft-signal.ts',
   'libs/core/src/lib/host/craft-dom.ts',
   'apps/compiler-benchmark/main.ts',
@@ -130,15 +132,19 @@ try {
     process.env.COMPILER_VARIANT ??
     'runtime,dom,compiled,clone'
   ).split(',');
-  for (const label of labels) {
+  for (const spec of labels) {
+    const [selection, libraryPath] = spec.split('@');
+    const [label, selectedMode] = selection.split('=');
+    const mode = selectedMode ?? label;
+    const libraryRoot = libraryPath ? resolve(root, libraryPath) : root;
     assert(
-      ['runtime', 'dom', 'compiled', 'clone'].includes(label),
-      'Unknown variant ' + label,
+      ['runtime', 'dom', 'compiled', 'clone'].includes(mode),
+      'Unknown variant ' + mode,
     );
-    const enabled = label !== 'runtime';
+    const enabled = mode !== 'runtime';
     const variantOptions = {
-      dom: label === 'clone' ? 'clone' : 'create',
-      lists: label !== 'dom',
+      dom: mode === 'clone' ? 'clone' : 'create',
+      lists: mode !== 'dom',
     };
     const dist = join(output, 'dist', label),
       decisions = [];
@@ -156,7 +162,7 @@ try {
             }),
           ]
         : [],
-      resolve: { alias: aliases },
+      resolve: { alias: aliases(libraryRoot) },
       build: {
         outDir: dist,
         emptyOutDir: true,
@@ -167,6 +173,22 @@ try {
     });
     builds[label] = {
       options: variantOptions,
+      mode,
+      libraryRoot,
+      runtimeSha256: Object.fromEntries(
+        await Promise.all(
+          [
+            'libs/core/src/lib/lifecycle.ts',
+            'libs/core/src/lib/host/craft-injector.ts',
+            'libs/component/src/lib/render/interpreter.ts',
+          ].map(async (file) => [
+            file,
+            createHash('sha256')
+              .update(await readFile(join(libraryRoot, file)))
+              .digest('hex'),
+          ]),
+        ),
+      ),
       buildMs: performance.now() - started,
       ...(await bytes(dist)),
       decisions,
