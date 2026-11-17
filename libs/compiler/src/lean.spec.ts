@@ -17,9 +17,14 @@ import {
   type EnvironmentInjector,
   signal,
   ɵEffectScheduler,
+  inject,
+  DestroyRef,
 } from '../../component/src/lib/host-runtime';
 import { mountInterpretedComponent } from '../../component/src/lib/render/interpreter';
-import { compiledTemplateFor } from '../../component/src/lib/render/compiled-template';
+import {
+  compiledTemplateFor,
+  leanReadScope,
+} from '../../component/src/lib/render/compiled-template';
 import { compileModule } from './compiler.js';
 
 let serial = 0;
@@ -119,6 +124,52 @@ const html = (host: Element) => {
 };
 
 describe('light compiled instances', () => {
+  it('runs lowered bindings in the owned fallback when inputs cannot be light', () => {
+    const value = signal('before');
+    const scopes: EnvironmentInjector[] = [];
+    function* reader() {
+      scopes.push(inject(Injector) as EnvironmentInjector);
+      return value();
+    }
+    const { lean } = load(`
+      export const Child=craftComponent('FallbackChild' + suffix, {},
+        (inputs: {label:Input<string>;unusedData:unknown}) =>
+          span(function*(){return yield* inputs.label();}));`);
+    const create = vi.spyOn(compiledTemplateFor(lean.Child)!, 'create');
+    let parent: EnvironmentInjector | undefined;
+    const compiled = mount(() => {
+      parent = inject(Injector) as EnvironmentInjector;
+      return lean.Child({ label: reader, unusedData: {} });
+    });
+    expect(create).toHaveBeenCalledOnce();
+    expect(compiled.host.textContent).toBe('before');
+    const owner = scopes[0];
+    expect(owner).toBeDefined();
+    expect(owner).not.toBe(parent);
+    expect(leanReadScope.injector).toBeUndefined();
+    const element = compiled.host.querySelector('span');
+    leanReadScope.injector = parent;
+    try {
+      value.set('after');
+      compiled.flush();
+      expect(compiled.host.textContent).toBe('after');
+      expect(compiled.host.querySelector('span')).toBe(element);
+      expect(scopes.every((scope) => scope === owner)).toBe(true);
+      expect(leanReadScope.injector).toBe(parent);
+    } finally {
+      leanReadScope.injector = undefined;
+    }
+    expect(leanReadScope.injector).toBeUndefined();
+    const destroyed = vi.fn();
+    owner.get(DestroyRef).onDestroy(destroyed);
+    compiled.mounted.destroy();
+    const reads = scopes.length;
+    value.set('released');
+    compiled.flush();
+    expect(scopes).toHaveLength(reads);
+    expect(destroyed).toHaveBeenCalledOnce();
+  });
+
   it('renders what the generic renderer renders, binding by binding', () => {
     const a = signal('a'),
       b = signal(1);
@@ -302,7 +353,10 @@ describe('light compiled instances', () => {
     const compiled = mount(() => lean.List({}));
     const reference = mount(() => generic.List({}));
     const first = compiled.host.querySelector('[data-id="1"]');
-    for (const order of [[3, 1, 2], [2, 3, 1]]) {
+    for (const order of [
+      [3, 1, 2],
+      [2, 3, 1],
+    ]) {
       items.set(order);
       compiled.flush();
       reference.flush();

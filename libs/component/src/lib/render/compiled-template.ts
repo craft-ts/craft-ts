@@ -116,7 +116,7 @@ export function createCompiledNodes(
   return plan.locate(renderer.cloneNode(root));
 }
 
-/** The injector a light binding evaluates in, while it evaluates. */
+/** The injector a lowered binding evaluates in, while it evaluates. */
 export const leanReadScope: { injector: Injector | undefined } = {
   injector: undefined,
 };

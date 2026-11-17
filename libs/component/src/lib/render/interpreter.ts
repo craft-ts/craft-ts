@@ -5730,7 +5730,19 @@ class CompiledComponentRenderedNode implements RenderedNode {
                   const source = (binding as { indirect?: boolean }).indirect
                     ? (readers[index] as () => unknown)()
                     : readers[index];
-                  let value = resolveTemplateValue(source, bindingContext);
+                  let value: unknown;
+                  if (binding.lowered) {
+                    const previousInjector = leanReadScope.injector;
+                    leanReadScope.injector = bindingContext.injector;
+                    try {
+                      value = readResolvedBinding(
+                        (source as () => unknown)(),
+                        bindingContext,
+                      );
+                    } finally {
+                      leanReadScope.injector = previousInjector;
+                    }
+                  } else value = resolveTemplateValue(source, bindingContext);
                   if (binding.key === 'class')
                     value = className(value, bindingContext);
                   else if (!binding.key)
