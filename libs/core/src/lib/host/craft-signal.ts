@@ -114,7 +114,7 @@ function setPrivateCell<T>(this: PrivateCell<T>, next: T): void {
 }
 
 function updatePrivateCell<T>(
-  this: PrivateCell<T>,
+  this: ɵCraftPrivateCell<T>,
   update: (value: T) => T,
 ): void {
   this.set(update(untracked(this)));
@@ -145,20 +145,11 @@ function setLazyPrivateCell<T>(this: LazyPrivateCell<T>, next: T): void {
   else if (!Object.is(untracked(this), next)) raw({ value: next });
 }
 
-function updateLazyPrivateCell<T>(
-  this: LazyPrivateCell<T>,
-  update: (value: T) => T,
-): void {
-  const previous =
-    this.ɵraw === undefined ? (this.ɵinitial as T) : untracked(this);
-  this.set(update(previous));
-}
-
 /**
  * A private cell whose kernel node and value box are created on its first read.
- * Unread writes keep only the current value; once read, equality, tracking and
- * batching are the same as an ordinary private cell. Useful for optional inputs
- * such as a list index. Like ɵcraftPrivateCell, this stays inside the renderer.
+ * set() before a read keeps only the current value; update() reads it untracked,
+ * like an ordinary private cell. Once read, the normal write methods apply.
+ * Useful for optional inputs such as a list index. This stays in the renderer.
  */
 export function ɵcraftLazyPrivateCell<T>(initial: T): ɵCraftPrivateCell<T> {
   const cell = (() => {
@@ -166,13 +157,14 @@ export function ɵcraftLazyPrivateCell<T>(initial: T): ɵCraftPrivateCell<T> {
     if (raw === undefined) {
       raw = cell.ɵraw = signal<{ value: T }>({ value: cell.ɵinitial as T });
       cell.ɵinitial = undefined;
+      cell.set = setPrivateCell;
     }
     return raw().value;
   }) as LazyPrivateCell<T>;
   cell.ɵraw = undefined;
   cell.ɵinitial = initial;
   cell.set = setLazyPrivateCell;
-  cell.update = updateLazyPrivateCell;
+  cell.update = updatePrivateCell;
   return cell;
 }
 
