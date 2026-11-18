@@ -281,3 +281,14 @@ RUNTIME_ONLY_SKIP_TIMING=true node apps/framework-benchmark/runtime-only.mjs
   computeds, effets, passages du driver de générateurs). Ces builds ne servent
   jamais aux timings.
 - Taille : JS minifié et gzip de l'entrée générique seule.
+
+## Fixture tests
+
+From the workspace root, run `node --test apps/framework-benchmark/common.test.mjs`
+to check row identities, updates, filtering and the DOM timing harness. These
+tests also run in the repository's Behaviours workflow. From this directory,
+the equivalent command is `npm test`.
+
+This lab installs its comparison frameworks separately. Nx therefore does not
+infer Vitest targets from its Vite configurations during workspace checks; the
+fixture tests above do not need those optional comparison dependencies.

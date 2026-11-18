@@ -40,7 +40,7 @@
     },
     {
       "plugin": "@nx/vitest",
-      "exclude": [".references/**"],
+      "exclude": [".references/**", "apps/framework-benchmark/**"],
       "options": {
         "testTargetName": "test",
         "ciTargetName": "test-ci",
