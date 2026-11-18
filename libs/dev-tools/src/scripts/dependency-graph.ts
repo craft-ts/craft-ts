@@ -403,6 +403,7 @@ const INSERTION_CONTEXT_NAMES = new Set([
 
 type ReactiveBinding = {
   primitiveId: string;
+  bindingKey?: string;
   service?: ServiceInfo;
 };
 
@@ -4902,6 +4903,7 @@ function collectReactiveBindings(
     if (declarationName && Node.isIdentifier(declarationName)) {
       bindings.set(declarationName.getText(), {
         primitiveId: primitiveNode.id,
+        bindingKey: symbolKey(declarationName.getSymbol()),
       });
     }
 
@@ -5765,6 +5767,10 @@ function resolveReactiveChain(
   const binding = bindings.get(root);
   const reference = rootIdentifier(Node.isCallExpression(node) ? node.getExpression() : node);
   const referenceKey = reference ? symbolKey(reference.getSymbol()) : undefined;
+  if (binding?.bindingKey && referenceKey && binding.bindingKey !== referenceKey) {
+    // A local value can shadow a primitive declared in the enclosing service.
+    return undefined;
+  }
   const service = binding?.service ?? component?.bindings.get(root) ??
     (referenceKey ? builder.serviceByHelperKey.get(referenceKey) : undefined);
   const method = isLikelyMethod(rest, node, builder, binding?.primitiveId);

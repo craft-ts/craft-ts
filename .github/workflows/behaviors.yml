@@ -28,7 +28,8 @@ concurrency:
 jobs:
   ratchet:
     env:
-      VITEST_MAX_WORKERS: 2
+      VITEST_MAX_WORKERS: 1
+      NODE_OPTIONS: --max-old-space-size=6144
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -61,7 +62,7 @@ jobs:
           fi
 
       # `architecture` depends on `test`, which writes the unit proof index.
-      - run: npx nx run-many -t architecture --parallel=2
+      - run: npx nx run-many -t architecture --parallel=1
         env:
           CRAFT_BEHAVIOR_BASE: origin/main
 

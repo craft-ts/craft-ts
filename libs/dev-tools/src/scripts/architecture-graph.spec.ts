@@ -2105,6 +2105,22 @@ describe('declarative architecture rules', () => {
     );
   });
 
+  it('does not confuse a local array with a shadowed computed of the same name', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          const recipes = yield* craftComputed('recipes', function* () { return []; });
+          yield* craftComputed('derived', function* () {
+            const recipes = [{ id: 'local' }];
+            return recipes.find(recipe => recipe.id === 'local');
+          });
+        });
+      `,
+    });
+    expect(craftComputedPureViolations(graph.graph)).toEqual([]);
+  });
+
   it('allows a craftComputed that only reads reactive values', async () => {
     const graph = await graphOf({
       'app.ts': `
