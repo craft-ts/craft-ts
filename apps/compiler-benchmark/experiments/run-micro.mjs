@@ -68,7 +68,7 @@ runner = replaceOnce(
   runner,
   '      plugins: enabled',
   `      plugins: [
-        ...(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true' || process.env.CAMPAIGN_SCALAR_FIXTURE === 'true' || process.env.CAMPAIGN_IMPORTED_FIXTURE === 'true' || process.env.CAMPAIGN_WIDE_INDEX === 'true' || process.env.CAMPAIGN_SERVICE_FIXTURE === 'true' || process.env.CAMPAIGN_FUSION_FIXTURE === 'true' ? [{
+        ...(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true' || process.env.CAMPAIGN_SCALAR_FIXTURE === 'true' || process.env.CAMPAIGN_IMPORTED_FIXTURE === 'true' || process.env.CAMPAIGN_WIDE_INDEX === 'true' || process.env.CAMPAIGN_SERVICE_FIXTURE === 'true' || process.env.CAMPAIGN_FUSION_FIXTURE === 'true' || process.env.CAMPAIGN_MULTIPLE_ROOTS === 'true' ? [{
           name:'campaign-local-fixture', enforce:'pre',
           resolveId(specifier){if(specifier==='campaign-imported-rows')return ${JSON.stringify(importedFixture)};},
           transform(source,id) {
@@ -100,6 +100,11 @@ runner = replaceOnce(
               if(start<0||end<0)throw Error('Fusion fixture anchors missing');
               const cells=Array.from({length:16},()=>"span({'data-position':inputs.position},inputs.position)");
               source=source.slice(0,start)+"const IndexedRow=craftComponent('CompilerBenchIndexedRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>div({'data-row':function*(){return (yield* inputs.row()).id;}},["+cells.join(',')+",function*(){return (yield* inputs.row()).label;}]));\\n"+source.slice(end);
+            }
+            if(process.env.CAMPAIGN_MULTIPLE_ROOTS === 'true') {
+              const start=source.indexOf('const Row = craftComponent('),end=source.indexOf('const IndexedRow = craftComponent(');
+              if(start<0||end<0)throw Error('Multiple roots fixture anchors missing');
+              source=source.slice(0,start)+"const Row=craftComponent('CompilerBenchRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>[div({'data-row':function*(){return (yield* inputs.row()).id;}},function*(){return (yield* inputs.row()).label;}),' / ',span({'data-position':inputs.position},inputs.position)]);\\n"+source.slice(end);
             }
             if(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true') source=source.replace('const Row = craftComponent(', 'function fixture() {\\nconst Row = craftComponent(').replace('const start = performance.now();','return App; }\\nconst App = fixture();\\nconst start = performance.now();');
             return source;

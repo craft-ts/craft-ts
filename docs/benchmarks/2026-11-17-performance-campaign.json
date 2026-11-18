@@ -106,7 +106,10 @@
     {
       "id": "coverage-multiple-roots",
       "title": "Plans à plusieurs racines",
-      "status": "pending"
+      "status": "measured",
+      "decision": "restricted measured prototype, not integrated: connected-DOM observation differs and ordinary-case overhead needs removal",
+      "evidence": "2026-11-17-multiple-roots-summary.json",
+      "coverage": "Nonempty fixed element/text ranges, nested arrays, scopes, replay identities, owners, range reorders, rebinds, events/holes, cloning and cleanup failures are tested. Favorable standard/lean/list-ablation/clone cohorts, ordinary standard/lean controls, realistic page and no-plugin controls are measured. A connected-DOM counterexample is reproduced against both the prototype and existing compiler."
     },
     {
       "id": "structural-for-if",
@@ -209,9 +212,9 @@
       "decision": "removed as requested; measured observations retained"
     }
   ],
-  "updatedAt": "2026-11-17T21:29:46.268Z",
+  "updatedAt": "2026-11-17T21:57:43.326Z",
   "progress": {
-    "newItemsMeasured": 14,
+    "newItemsMeasured": 15,
     "partialItems": 1,
     "historicalItemsAudited": 3,
     "complete": false

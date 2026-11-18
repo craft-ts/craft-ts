@@ -48,6 +48,13 @@ template invalidates its plan. Component injectors, input shells, CSS scopes,
 DOM replay addresses and cleanup ownership are preserved. Existing replay
 archives have not been certified against this compiler.
 
+Known initial-mount limitation: both compiled modes evaluate initial bindings
+before attaching their tree. A callback that queries the connected DOM can
+therefore observe a different initial value than the generic renderer, even
+when its syntax compiles. Keep views that depend on this observation on the
+generic renderer. The [reproduced counterexamples](../../docs/benchmarks/2026-11-17-multiple-roots.md)
+cover both the current single-root compiler and the unmerged multiple-root experiment.
+
 `craftCompiler({ dom: 'clone' })` opts into native blueprint cloning. Blueprints
 contain static DOM only and are cached weakly per adapter; readers and DOM node
 references remain per instance. It is not the default because cloning is not
