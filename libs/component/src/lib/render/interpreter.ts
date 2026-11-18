@@ -5549,6 +5549,7 @@ function canMountCompiledComponent(
   const plan = compiledTemplateFor(node.component);
   if (
     !plan ||
+    plan.watchBind ||
     plan.events?.length ||
     plan.holes?.length ||
     plan.bindings.some((binding) => {

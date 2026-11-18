@@ -99,7 +99,10 @@
       "status": "partial",
       "decision": "retain attrs/h coverage with tracked eager reads, ordered captures and ABI-2 fallback; style coverage remains pending",
       "evidence": "2026-11-18-attrs-properties-summary.json",
-      "coverage": "Closed nested attrs and literal h helpers measured and integrated with eager-source tracking, ordered captures, safe old-runtime fallback, shadow/collision refusals and null-overload contracts. 232 final timed navigations plus two superseded screens (80 and 88), ordinary controls in three modes, 80 integrated output comparisons, 118 compiler and 609 component tests. Style binding coverage remains pending."
+      "coverage": "Closed nested attrs and literal h helpers measured and integrated with eager-source tracking, ordered captures, safe old-runtime fallback, shadow/collision refusals and null-overload contracts. 232 final timed navigations plus two superseded screens (80 and 88), ordinary controls in three modes, 80 integrated output comparisons, 118 compiler and 609 component tests. Style binding coverage remains pending. Owned-input source tracking is additionally protected by a generic fallback, two red/green cases, 120 current compiler tests and 104 follow-up navigations, including 40 targeted indexed confirmations.",
+      "followUpEvidence": [
+        "2026-11-18-owned-source-summary.json"
+      ]
     },
     {
       "id": "coverage-controls",
@@ -215,7 +218,7 @@
       "decision": "removed as requested; measured observations retained"
     }
   ],
-  "updatedAt": "2026-11-18T08:49:21.180Z",
+  "updatedAt": "2026-11-18T09:00:19.821Z",
   "progress": {
     "newItemsMeasured": 15,
     "partialItems": 2,

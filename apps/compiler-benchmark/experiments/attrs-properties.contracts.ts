@@ -371,6 +371,25 @@ it('keeps source and deferred-binding dependencies separate while reusing DOM', 
     [1, 1, 'A'],
   ]);
 });
+it.each(['object', 'callback'])(
+  'keeps eager source updates when %s inputs require an owned component',
+  (kind) => {
+    const value = signal('first');
+    const { exports } = load(
+      `export const Row=craftComponent('OwnedSourceSUFFIX',{},()=>div({attrs:{role:'row'},title:value()},'row'));export const App=craftComponent('OwnedSourceOwnerSUFFIX',{},()=>Row({extra}));`,
+      { value, extra: kind === 'object' ? {} : () => undefined },
+      { lean: true },
+    );
+    const m = mount(exports.App);
+    try {
+      value.set('after');
+      m.flush();
+      expect(m.host.firstElementChild?.getAttribute('title')).toBe('after');
+    } finally {
+      m.destroy();
+    }
+  },
+);
 it('retracks conditional source dependencies', () => {
   const enabled = signal(true),
     a = signal('a'),

@@ -1,6 +1,6 @@
 # Attributs et helpers `h` : couverture retenue avec suivi des lectures
 
-18 novembre 2026. Référence : `8e5543797`. L'extension couvre les objets `attrs` explicites et les tags littéraux de `h`. Le runtime suit les lectures réactives effectuées pendant la construction d'un template léger et conserve son DOM lors des changements. Le compilateur reste optionnel.
+18 novembre 2026. Référence : `8e5543797` ; livraison mesurée : `0a078e8d0`. L'extension couvre les objets `attrs` explicites et les tags littéraux de `h`. Le runtime suit les lectures réactives effectuées pendant la construction d'un template léger et conserve son DOM lors des changements. Le compilateur reste optionnel.
 
 Les [données complètes](2026-11-18-attrs-properties-summary.json) contiennent **232 navigations finales**, résultats bruts, différences appariées, sources, patches, empreintes, tailles et contrats. Deux premiers essais, de 80 et 88 navigations, sont conservés comme prototypes invalidés. Leurs chiffres ne sont pas mélangés avec ceux du candidat corrigé.
 
@@ -94,3 +94,5 @@ node apps/compiler-benchmark/experiments/archive-attrs-properties.mjs
 Les blocs microbenchmarks sont adjacents et équilibrés, leur ordre est mélangé avec une graine fixe. Les contextes navigateur sont neufs. Aucun test ou build indépendant n'a tourné pendant les mesures. Les durées JS/DOM ne sont pas des mesures LCP/INP ; le tas après GC exclut la mémoire DOM native. Les variations entre séries empêchent de comparer leurs temps absolus.
 
 Les compromis de `lean` et la limite déjà reproduite d'observation du DOM connecté au premier montage restent documentés dans le README. Les styles, leurs validations CSS et leur ordre d'application restent à mesurer : cette livraison laisse cet item **partiel** et la campagne active.
+
+Le [suivi des inputs avec propriétaire](2026-11-18-owned-source.md) corrige ensuite un repli supplémentaire, porte la validation à 120 tests Compiler et ajoute 104 navigations indépendantes. Les commandes de comparaison avec les anciens candidats de ce rapport correspondent à la livraison `0a078e8d0`.

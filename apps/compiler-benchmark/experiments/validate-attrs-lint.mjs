@@ -32,7 +32,10 @@ const errors = (results) =>
       .map((message) => ({ ruleId: message.ruleId, message: message.message })),
   );
 await writeFile(
-  join(lab, 'tests/attrs-lint.json'),
+  join(
+    lab,
+    'tests/' + (process.env.ATTRS_LINT_OUTPUT ?? 'attrs-lint') + '.json',
+  ),
   JSON.stringify(
     {
       checks,

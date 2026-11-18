@@ -124,6 +124,7 @@ runner = replaceOnce(
               source="import {ɵsignal as __benchSignal} from '@craft-ts/core';\\nconst __benchEager=__benchSignal(0);\\n"+source.slice(0,start)+"const Row=craftComponent('CompilerBenchRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>div({attrs:{role:'row'},'data-row':function*(){return (yield* inputs.row()).id;},'data-eager':__benchEager()},function*(){return (yield* inputs.row()).label;}));\\n"+source.slice(end);
               source=source.replace("  else if (action === 'update-one' || action === 'update-tenth')","  else if(action === 'update-tenth') __benchEager.update(value=>value+1);\\n  else if (action === 'update-one')");
             }
+            if(process.env.CAMPAIGN_OWNED_INPUT === 'true') source=source.replace('(row, position) => Row({ row, position })','(row, position) => Row({ row, position, extra: {} })').replace("position:Input<number>})=>div({attrs:{role:'row'}", "position:Input<number>;extra?:unknown})=>div({attrs:{role:'row'}");
             if(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true') source=source.replace('const Row = craftComponent(', 'function fixture() {\\nconst Row = craftComponent(').replace('const start = performance.now();','return App; }\\nconst App = fixture();\\nconst start = performance.now();');
             return source;
           },
@@ -184,7 +185,9 @@ process.env.COMPILER_VARIANTS = ids
     (id) =>
       id +
       '=' +
-      (process.env.CAMPAIGN_MODE ?? 'lean') +
+      (JSON.parse(process.env.CAMPAIGN_MODES ?? '{}')[id] ??
+        process.env.CAMPAIGN_MODE ??
+        'lean') +
       '@' +
       join(lab, 'roots', id),
   )

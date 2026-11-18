@@ -6,7 +6,9 @@ import { join } from 'node:path';
 import { lab, workspace } from './prepare.mjs';
 const run = promisify(execFile),
   integrated = process.env.ATTRS_INTEGRATED === 'true',
-  prefix = integrated ? 'attrs-integrated' : 'attrs-watched',
+  prefix =
+    process.env.ATTRS_VALIDATION_PREFIX ??
+    (integrated ? 'attrs-integrated' : 'attrs-watched'),
   root = integrated ? workspace : join(lab, 'roots/attrs-final');
 const checks = [
   {

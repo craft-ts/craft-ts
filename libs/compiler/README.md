@@ -52,6 +52,8 @@ that source phase, and an effect with no reactive reads is released after
 its first run. Eager expressions keep their source order across attributes,
 event listeners and generic children. These plans use internal ABI version 2;
 an older component runtime ignores them and renders the original template.
+When object or callback inputs require an owned component, a source-watched
+plan also keeps the generic template so its eager reads retain their effect.
 The [attrs/h campaign](../../docs/benchmarks/2026-11-18-attrs-properties.md)
 records the contracts, measurements and rejected intermediate prototypes.
 
