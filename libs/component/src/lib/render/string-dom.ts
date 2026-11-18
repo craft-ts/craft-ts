@@ -176,6 +176,7 @@ class StringElement extends StringParentNode {
   readonly attributes = new Map<string, string>();
   readonly tagName: string;
   readonly localName: string;
+  readonly namespaceURI: string;
   readonly style: CSSStyleDeclaration;
   value: unknown = '';
   checked = false;
@@ -184,10 +185,21 @@ class StringElement extends StringParentNode {
   selected = false;
   open = false;
 
-  constructor(ownerDocument: StringDocument, tag: string) {
+  constructor(
+    ownerDocument: StringDocument,
+    tag: string,
+    namespace = 'http://www.w3.org/1999/xhtml',
+  ) {
     super(ownerDocument);
-    this.localName = assertTagName(tag).toLowerCase();
-    this.tagName = this.localName.toUpperCase();
+    this.namespaceURI = namespace;
+    this.localName =
+      namespace === 'http://www.w3.org/1999/xhtml'
+        ? assertTagName(tag).toLowerCase()
+        : assertTagName(tag);
+    this.tagName =
+      namespace === 'http://www.w3.org/1999/xhtml'
+        ? this.localName.toUpperCase()
+        : this.localName;
     this.style = createStyleDeclaration((css) => {
       if (css) this.attributes.set('style', css);
       else this.attributes.delete('style');
@@ -289,6 +301,10 @@ class StringDocument extends StringParentNode {
     return new StringElement(this, tag);
   }
 
+  createElementNS(namespace: string, tag: string): StringElement {
+    return new StringElement(this, tag, namespace);
+  }
+
   createTextNode(value: string): StringText {
     return new StringText(this, value);
   }
@@ -313,6 +329,8 @@ export function createStringDomAdapter(): StringDom {
   const document = new StringDocument();
   const adapter: CraftDomAdapter = {
     createElement: (tag) => document.createElement(tag) as unknown as Element,
+    createElementNS: (namespace, tag) =>
+      document.createElementNS(namespace, tag) as unknown as Element,
     createText: (value) => document.createTextNode(value) as unknown as Text,
     createComment: (value) =>
       document.createComment(value) as unknown as Comment,

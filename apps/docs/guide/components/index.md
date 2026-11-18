@@ -99,6 +99,21 @@ return [
 ];
 ```
 
+SVG icons use the same typed nodes and bindings:
+
+```typescript
+import { svg, path } from '@craft-ts/component';
+
+return svg({ viewBox: '0 0 24 24', 'aria-hidden': true }, [
+  path({ d: 'M5 12h14', stroke: 'currentColor', 'stroke-width': 2 }),
+]);
+```
+
+`svg` and its descendants are created in the SVG namespace, including during
+server rendering. `foreignObject` switches its children back to HTML. Shape
+helpers include `path`, `circle`, `rect`, and `g`; `h()` also accepts SVG tags.
+URL bindings retain the usual security checks.
+
 The same binding boundary applies to attributes, DOM properties, classes,
 styles, and host props. Prefer exposing a derived reader on the primitive
 (`tasks.isEmpty`) and passing it (`disabled: tasks.isEmpty`) over wrapping a
