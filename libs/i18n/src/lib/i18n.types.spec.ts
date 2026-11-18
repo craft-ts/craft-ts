@@ -82,6 +82,7 @@ const fr = defineLocaleLike(en, 'fr-FR', {
     heading: msg`Votre commande`,
     items: plural(count, {
       one: msg`${count} article est dans la commande.`,
+      many: msg`${count} articles sont dans la commande.`,
       other: msg`${count} articles sont dans la commande.`,
     }),
   },
@@ -194,6 +195,7 @@ export function _typeFixtures(): void {
       total: msg`Total de la commande : ${amount}.`,
       items: plural(count, {
         one: msg`${count} article est dans la commande.`,
+        many: msg`${count} articles sont dans la commande.`,
         other: msg`${count} articles sont dans la commande.`,
       }),
     },
@@ -206,6 +208,7 @@ export function _typeFixtures(): void {
       heading: msg`Votre commande`,
       items: plural(count, {
         one: msg`${count} article est dans la commande.`,
+        many: msg`${count} articles sont dans la commande.`,
         other: msg`${count} articles sont dans la commande.`,
       }),
     },
@@ -213,10 +216,11 @@ export function _typeFixtures(): void {
 
   // ─── 4. a plural must carry every category its locale requires ──────────────
 
-  // French needs `one` and `other`; both are there.
+  // French needs `one`, `many` and `other`.
   defineLocale('fr-FR', {
     items: plural(count, {
       one: msg`${count} article.`,
+      many: msg`${count} articles.`,
       other: msg`${count} articles.`,
     }),
   });

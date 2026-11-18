@@ -141,6 +141,7 @@ describe('demo pages', () => {
     ['herbier', 'demo:herbier'],
     ['component-composition', 'demo:component-composition'],
     ['content-projection', 'demo:content-projection'],
+    ['control-room', 'demo:control-room'],
     ['pixel-art', 'demo:pixel-art'],
     ['pending-node', 'demo:pending-node'],
     ['pending-node/exception', 'demo:pending-node/exception'],

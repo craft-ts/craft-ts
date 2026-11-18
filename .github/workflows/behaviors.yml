@@ -27,6 +27,9 @@ concurrency:
 
 jobs:
   ratchet:
+    env:
+      VITEST_MAX_WORKERS: 1
+      NODE_OPTIONS: --max-old-space-size=6144
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -40,8 +43,11 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # The Node-side log tools import this workspace package through its exports.
+      - run: npm run build --prefix packages/session-trace
+
       # No app or lib with code and no test.
-      - run: node --test tools/check-project-tests.test.mjs && npm run tests:check
+      - run: node --test tools/check-project-tests.test.mjs apps/framework-benchmark/common.test.mjs && npm run tests:check
 
       # The unit proofs stay out of git: main's come from its last green run.
       - name: Unit proofs of main
@@ -59,7 +65,7 @@ jobs:
           fi
 
       # `architecture` depends on `test`, which writes the unit proof index.
-      - run: npx nx run-many -t architecture
+      - run: npx nx run-many -t architecture --parallel=1
         env:
           CRAFT_BEHAVIOR_BASE: origin/main
 

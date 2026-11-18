@@ -198,6 +198,11 @@ export const behaviorCatalog = {
       "file": "apps/demo/src/app/app.routes.ts"
     },
     {
+      "id": "route:demo:control-room",
+      "kind": "route",
+      "file": "apps/demo/src/app/app.routes.ts"
+    },
+    {
       "id": "route:demo:craft-service/counter",
       "kind": "route",
       "file": "apps/demo/src/app/app.routes.ts"

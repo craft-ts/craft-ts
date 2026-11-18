@@ -38,6 +38,7 @@ const fr = defineLocaleLike(en, 'fr-FR', defineCatalog({
     updated: msg`Mis à jour ${when}.`,
     items: plural(count, {
       one: msg`Vous avez ${count} article.`,
+      many: msg`Vous avez ${count} articles.`,
       other: msg`Vous avez ${count} articles.`,
     }),
   },

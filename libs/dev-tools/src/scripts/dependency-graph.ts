@@ -403,6 +403,7 @@ const INSERTION_CONTEXT_NAMES = new Set([
 
 type ReactiveBinding = {
   primitiveId: string;
+  bindingKey?: string;
   service?: ServiceInfo;
 };
 
@@ -1992,7 +1993,7 @@ function linkServiceReferences(builder: GraphBuilder): void {
       if (!builder.edges.has(`${owner.id}:uses-property:${property.id}`)) {
         const templateRole = templateRoleOf(identifier);
         const templateHandlerId = templateHandlerIdOf(identifier);
-        const templateEventHandlerId = templateEventHandlerIdOf(identifier);
+        const templateEventHandlerId = templateEventHandlerIdOf(builder, identifier);
         const templateContexts = templateContextsOf(identifier);
         addEdge(builder, owner.id, property.id, 'uses-property', 'ast', {
           property: name,
@@ -2806,6 +2807,26 @@ function analyzeServiceBodies(builder: GraphBuilder): void {
       }
     }
     const bindings = collectReactiveBindings(builder, factory, service.node.id);
+    // An explicitly exposed callable is an alias, not a new action. Keep its
+    // target so a template output binding can own a source in another service.
+    for (const call of factory.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
+      if (call.getExpression().getText() !== 'craftExpose') continue;
+      const name = getStringArgument(call, 0);
+      const target = resolveReactiveTarget(
+        builder,
+        call.getArguments()[1],
+        bindings,
+        undefined,
+        service.node.id,
+      );
+      if (!name || !target) continue;
+      const property = addServiceMemberProperty(builder, service, name, call);
+      addEdge(builder, property.id, target.id, 'calls', 'ast', {
+        forwardedAlias: true,
+      });
+    }
     analyzeReactiveDependencies(builder, factory, bindings, service.node.id);
     analyzePrimitiveStateWrites(builder, service.node.id, factory);
     addSourceInteractions(builder, service.node.id, factory);
@@ -4617,7 +4638,7 @@ function addSourceInteractions(
           const templateHandlerId =
             usage === 'template' ? templateHandlerIdOf(access) : undefined;
           const templateEventHandlerId =
-            usage === 'template' ? templateEventHandlerIdOf(access) : undefined;
+            usage === 'template' ? templateEventHandlerIdOf(builder, access) : undefined;
           addEdge(builder, owner.id, source.node.id, 'writes', 'ast', {
             operation: text.split('.').pop(),
             callSite: {
@@ -4882,6 +4903,7 @@ function collectReactiveBindings(
     if (declarationName && Node.isIdentifier(declarationName)) {
       bindings.set(declarationName.getText(), {
         primitiveId: primitiveNode.id,
+        bindingKey: symbolKey(declarationName.getSymbol()),
       });
     }
 
@@ -5154,14 +5176,16 @@ function analyzeTemplateDependencies(
       const alias = methodAliases.get(symbolKey(expression.getSymbol()));
       if (alias) {
         const templateRole = templateRoleOf(expression);
-      const templateHandlerId = templateHandlerIdOf(expression);
-      const templateContexts = templateContextsOf(expression);
+        const templateHandlerId = templateHandlerIdOf(expression);
+        const templateEventHandlerId = templateEventHandlerIdOf(builder, expression);
+        const templateContexts = templateContextsOf(expression);
         addEdge(builder, component.node.id, alias.propertyId, 'calls', 'ast', {
           path: alias.method,
           usage: 'template',
           ...(templateRole ? { templateRole } : {}),
-        ...(templateHandlerId ? { templateHandlerId } : {}),
-        ...(templateContexts ? { templateContexts } : {}),
+          ...(templateHandlerId ? { templateHandlerId } : {}),
+          ...(templateEventHandlerId ? { templateEventHandlerId } : {}),
+          ...(templateContexts ? { templateContexts } : {}),
           callSite: {
             filePath: expression.getSourceFile().getFilePath(),
             line: expression.getStartLineNumber(),
@@ -5182,12 +5206,14 @@ function analyzeTemplateDependencies(
     const kind = target.kind === 'calls' ? 'calls' : 'uses-property';
     const templateRole = templateRoleOf(expression);
     const templateHandlerId = templateHandlerIdOf(expression);
+    const templateEventHandlerId = templateEventHandlerIdOf(builder, expression);
     const templateContexts = templateContextsOf(expression);
     addEdge(builder, component.node.id, target.id, kind, 'ast', {
       ...target.details,
       usage: 'template',
       ...(templateRole ? { templateRole } : {}),
       ...(templateHandlerId ? { templateHandlerId } : {}),
+      ...(templateEventHandlerId ? { templateEventHandlerId } : {}),
       ...(templateContexts ? { templateContexts } : {}),
       ...(kind === 'calls'
         ? {
@@ -5288,19 +5314,56 @@ const TEMPLATE_EVENT_HANDLER_NAMES = new Set([
   'onMouseUp',
 ]);
 
-function templateEventHandlerIdOf(node: Node): string | undefined {
+function isComponentOutputBinding(
+  builder: GraphBuilder,
+  owner: CallExpression,
+  propertyName: string,
+  location: Node,
+): boolean {
+  const component = findComponentForCall(builder, owner);
+  if (!component) return false;
+  const template = component.call.getArguments().at(-1);
+  const inputParameter =
+    template && isFunctionNode(template)
+      ? template.getParameters()[0]
+      : undefined;
+  const property = inputParameter?.getType().getProperty(propertyName);
+  return (
+    property
+      ?.getTypeAtLocation(location)
+      .getProperties()
+      .some((symbol) => symbol.getName().startsWith('__@OUTPUT_BRAND@')) ??
+    false
+  );
+}
+
+function templateEventHandlerIdOf(
+  builder: GraphBuilder,
+  node: Node,
+): string | undefined {
   let current: Node | undefined = node;
   while (current) {
-    if (Node.isPropertyAssignment(current)) {
-      const propertyName = current
-        .getNameNode()
-        .getText()
-        .replace(/["']/g, '');
+    if (
+      Node.isPropertyAssignment(current) ||
+      Node.isShorthandPropertyAssignment(current) ||
+      Node.isMethodDeclaration(current)
+    ) {
+      const propertyName = current.getNameNode().getText().replace(/["']/g, '');
       const options = current.getParentIfKind(
         SyntaxKind.ObjectLiteralExpression,
       );
       const owner = options?.getParentIfKind(SyntaxKind.CallExpression);
-      if (owner && TEMPLATE_EVENT_HANDLER_NAMES.has(propertyName)) {
+      if (
+        owner &&
+        options &&
+        (TEMPLATE_EVENT_HANDLER_NAMES.has(propertyName) ||
+          isComponentOutputBinding(
+            builder,
+            owner,
+            propertyName,
+            current,
+          ))
+      ) {
         return `${current.getSourceFile().getFilePath()}:${current.getStart()}`;
       }
     }
@@ -5648,7 +5711,10 @@ function resolvePrimitiveSymbolTarget(
     if (matches.length !== 1) continue;
     return {
       id: matches[0].id,
-      kind: Node.isCallExpression(expression) ? 'calls' : 'depends-on',
+      kind: Node.isCallExpression(expression) && !(
+        Node.isIdentifier(expression.getExpression()) &&
+        ['state', 'craftComputed'].includes(String(matches[0].details?.['primitive']))
+      ) ? 'calls' : 'depends-on',
       details: { path: name, symbolResolved: true },
     };
   }
@@ -5699,7 +5765,14 @@ function resolveReactiveChain(
     }
   }
   const binding = bindings.get(root);
-  const service = binding?.service ?? component?.bindings.get(root);
+  const reference = rootIdentifier(Node.isCallExpression(node) ? node.getExpression() : node);
+  const referenceKey = reference ? symbolKey(reference.getSymbol()) : undefined;
+  if (binding?.bindingKey && referenceKey && binding.bindingKey !== referenceKey) {
+    // A local value can shadow a primitive declared in the enclosing service.
+    return undefined;
+  }
+  const service = binding?.service ?? component?.bindings.get(root) ??
+    (referenceKey ? builder.serviceByHelperKey.get(referenceKey) : undefined);
   const method = isLikelyMethod(rest, node, builder, binding?.primitiveId);
 
   if (binding?.primitiveId && builder.nodes.has(binding.primitiveId)) {

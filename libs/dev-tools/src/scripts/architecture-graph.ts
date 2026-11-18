@@ -2177,6 +2177,35 @@ export function sourceTriggerOwnershipViolations(
     graph.nodes.filter((node) => node.kind === 'source').map((node) => node.id),
   );
 
+  const reachesWriter = (
+    from: string,
+    writer: DependencyGraphNode,
+    visited = new Set<string>(),
+  ): boolean => {
+    if (from === writer.id) return true;
+    if (visited.has(from)) return false;
+    visited.add(from);
+    const target = nodesById.get(from);
+    const methodName = writer.details?.['name'];
+    if (target?.kind === 'property' && typeof methodName === 'string') {
+      const owner = graph.edges.find(
+        (edge) => edge.kind === 'contains' && edge.to === target.id,
+      );
+      const member =
+        target.details?.['member'] ?? target.label.split('.').at(-1);
+      if (member === methodName && owner?.from === writer.details?.['ownerId'])
+        return true;
+    }
+    return graph.edges.some(
+      (edge) =>
+        edge.from === from &&
+        edge.kind === 'calls' &&
+        (edge.details?.['forwardedAlias'] === true ||
+          (nodesById.get(from)?.kind === 'primitive' &&
+            nodesById.get(from)?.details?.['primitive'] === 'craftMethod')) &&
+        reachesWriter(edge.to, writer, visited),
+    );
+  };
   return graph.edges.flatMap((edge) => {
     if (edge.kind !== 'writes' || !sources.has(edge.to)) return [];
     const writer = nodesById.get(edge.from);
@@ -2197,32 +2226,7 @@ export function sourceTriggerOwnershipViolations(
         ) {
           return false;
         }
-        if (candidate.to === writer.id) return true;
-
-        // Services can expose a yielded craftMethod directly by its name. In
-        // that shape the template edge targets the service property instead
-        // of the method primitive itself; prove that the property belongs to
-        // the writer's service and names that method.
-        const target = nodesById.get(candidate.to);
-        const methodName = writer.details?.['name'];
-        const ownerId = writer.details?.['ownerId'];
-        if (
-          target?.kind !== 'property' ||
-          typeof methodName !== 'string' ||
-          typeof ownerId !== 'string'
-        ) {
-          return false;
-        }
-        const member =
-          candidate.details?.['property'] ?? target.details?.['member'];
-        const propertyOwner = graph.edges.find(
-          (edge) => edge.kind === 'contains' && edge.to === target.id,
-        );
-        return (
-          typeof member === 'string' &&
-          member.split('.').at(-1) === methodName &&
-          propertyOwner?.from === ownerId
-        );
+        return reachesWriter(candidate.to, writer);
       });
     if (directTemplateAction || methodUsedByTemplate) return [];
 
@@ -5110,7 +5114,6 @@ export function architectureReport(
     ['no-unused-primitive-methods', assertNoUnusedPrimitiveMethods],
     ['no-dependency-cycles', assertNoDependencyCycles],
     ['no-event-only-craft-method', assertNoEventOnlyCraftMethods],
-    ['source-trigger-ownership', assertSourceTriggerOwnership],
     ['server-function-architecture', assertServerFunctionArchitecture],
     ['input-action-forms', assertInputActionForms],
     [
@@ -5133,6 +5136,23 @@ export function architectureReport(
       ];
     }
   });
+  // Native event bridges (for example a frozen iframe) can require a
+  // narrowly reviewed exception. Report each writer so its waiver cannot
+  // disable event ownership for the rest of the application.
+  for (const violation of sourceTriggerOwnershipViolations(graph)) {
+    const writer = graph.nodes.find(node => node.id === violation.writerId);
+    const ownerId = writer?.details?.['ownerId'];
+    const owner = graph.nodes.find(node => node.id === ownerId);
+    const target = writer?.kind === 'primitive'
+      ? `primitive:${owner?.label ?? 'unknown'}.${writer.details?.['name'] ?? writer.label}`
+      : `service:${violation.writerLabel}`;
+    const at = [violation.filePath, violation.line].filter(Boolean).join(':');
+    findings.push({
+      rule: 'source-trigger-ownership',
+      target,
+      message: `Source ${violation.sourceLabel} is emitted from ${violation.writerLabel}${at ? ` (${at})` : ''} without a template event owner. Emit it from a template event handler or from a method bound to that event.`,
+    });
+  }
   for (const [rule, find] of STYLE_ARCHITECTURE_RULES) {
     for (const finding of find(graph)) findings.push({ rule, ...finding });
   }

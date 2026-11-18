@@ -9,5 +9,12 @@ import { architectureCatalog } from './catalog';
  */
 export const architectureWaiverList = defineArchitectureWaivers(
   architectureCatalog,
-  [],
+  [
+    {
+      rule: 'source-trigger-ownership',
+      target: 'primitive:ReviewAppModel.trackSelection',
+      reason:
+        'The frozen replay iframe is outside the Craft template tree. frame.onPick installs native click and drag listeners and invokes selectNodes, which calls trackSelection. These pointer events own mentionEdited$; setup and background work do not invoke this action.',
+    },
+  ],
 );

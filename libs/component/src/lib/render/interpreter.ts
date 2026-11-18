@@ -1417,6 +1417,23 @@ function mountComment(
   return comment;
 }
 
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+
+function createNativeElement(
+  renderer: CraftDomAdapter,
+  tag: string,
+  parent: NativeParent,
+): Element {
+  const parentElement = parent as Element;
+  const svg =
+    tag === 'svg' ||
+    (parentElement.namespaceURI === SVG_NAMESPACE &&
+      parentElement.localName !== 'foreignObject');
+  return svg
+    ? renderer.createElementNS(SVG_NAMESPACE, tag)
+    : renderer.createElement(tag);
+}
+
 function createElementForRender(
   tag: string,
   parent: NativeParent,
@@ -1443,7 +1460,7 @@ function createElementForRender(
         mode: 'create',
         hydration: undefined,
       });
-      const element = createContext.renderer.createElement(tag);
+      const element = createNativeElement(createContext.renderer, tag, parent);
       if (createContext.emitHydrationKeys) {
         createContext.renderer.setAttribute(
           element,
@@ -1455,7 +1472,7 @@ function createElementForRender(
       return { element, context: createContext };
     }
   }
-  const element = context.renderer.createElement(tag);
+  const element = createNativeElement(context.renderer, tag, parent);
   if (context.emitHydrationKeys) {
     context.renderer.setAttribute(
       element,
@@ -6856,7 +6873,7 @@ function mountNode(
     }
     case 'element': {
       if (!isHydrating(context)) {
-        const element = context.renderer.createElement(node.tag);
+        const element = createNativeElement(context.renderer, node.tag, parent);
         if (context.emitHydrationKeys) {
           context.renderer.setAttribute(
             element,

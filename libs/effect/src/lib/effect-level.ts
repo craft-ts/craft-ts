@@ -129,7 +129,7 @@ type InjectorWithTeardown = Injector & {
 function onInjectorDestroy(injector: Injector, callback: () => void): void {
   const teardown = (injector as InjectorWithTeardown).ɵonDestroy;
   if (typeof teardown === 'function') {
-    teardown(callback);
+    teardown.call(injector, callback);
     return;
   }
   // No teardown hook (a bare test double): fail loudly rather than leak

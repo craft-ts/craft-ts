@@ -24,6 +24,7 @@ import {
   assertNoDependencyCycles,
   assertNoEventOnlyCraftMethods,
   architectureViolations,
+  architectureReport,
   unusedPrimitiveMethodViolations,
   assertNoAppConfigRouteCycles,
   assertPathBoundaries,
@@ -264,6 +265,114 @@ describe('source trigger ownership', () => {
     });
 
     expect(sourceTriggerOwnershipViolations(graph.graph)).toEqual([]);
+  });
+
+  it('keeps the event owner of a destructured method reference', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          const refresh$ = yield* source$<void>('refresh$');
+          yield* craftMethod('refresh', function* () { refresh$.emit(); });
+        });
+        const Page = craftComponent('Page', {}, function* () {
+          const { refresh } = yield* View();
+          return button({ click: refresh }, 'Refresh');
+        });
+      `,
+    });
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toEqual([]);
+  });
+
+  it('accepts a branded component output forwarding an exposed service action', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        declare function craftExpose(name: string, value: unknown): any;
+        declare const OUTPUT_BRAND: unique symbol;
+        type Output<F> = F & { readonly [OUTPUT_BRAND]: F };
+        const Child = craftComponent('Child', {}, function* (_inputs: { onRefresh: Output<() => unknown> }) {
+          return null;
+        });
+        const { Actions } = craftService({ name: 'Actions' }, function* () {
+          const refresh$ = yield* source$<void>('refresh$');
+          yield* craftMethod('refresh', function* () { refresh$.emit(); });
+        });
+        const { View } = craftService({ name: 'View' }, function* () {
+          yield* craftExpose('refresh', Actions.refresh);
+        });
+        const Page = craftComponent('Page', {}, function* () {
+          const { refresh } = yield* View();
+          return Child({ onRefresh: refresh });
+        });
+      `,
+    });
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toEqual([]);
+  });
+
+  it('follows an event action into a private craftMethod', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          const refresh$ = yield* source$<void>('refresh$');
+          const publish = yield* craftMethod('publish', function* () { refresh$.emit(); });
+          yield* craftMethod('refresh', function* () { yield* publish(); });
+        });
+        const Page = craftComponent('Page', {}, function* () {
+          return button({ click: View.refresh }, 'Refresh');
+        });
+      `,
+    });
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toEqual([]);
+  });
+
+  it('does not treat an ordinary template callback as an event owner', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        declare function widget(options: { render: unknown }): unknown;
+        const { View } = craftService({ name: 'View' }, function* () {
+          const refresh$ = yield* source$<void>('refresh$');
+          yield* craftMethod('refresh', function* () { refresh$.emit(); });
+        });
+        const Page = craftComponent('Page', {}, function* () {
+          const { refresh } = yield* View();
+          return widget({ render: refresh });
+        });
+      `,
+    });
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toHaveLength(1);
+  });
+
+  it('waives only the named native-event bridge and rejects a stale waiver', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          const native$ = yield* source$<void>('native$');
+          const background$ = yield* source$<void>('background$');
+          yield* craftMethod('nativePick', function* () { native$.emit(); });
+          yield* craftMethod('background', function* () { background$.emit(); });
+        });
+      `,
+    });
+    const waiver = {
+      rule: 'source-trigger-ownership' as const,
+      target: 'primitive:View.nativePick' as const,
+      reason: 'Native iframe pointer events invoke this bridge outside the Craft template tree.',
+    };
+    const report = architectureReport(graph.graph, { waivers: [waiver] });
+    expect(report.waived).toEqual([expect.objectContaining({ target: waiver.target })]);
+    expect(report.violations.find(finding => finding.rule === waiver.rule)?.messages)
+      .toEqual([expect.stringContaining('background$')]);
+    const cleanGraph = { ...graph.graph, edges: graph.graph.edges.filter(edge =>
+      !(edge.kind === 'writes' && edge.from.endsWith('craftMethod:nativePick/0')),
+    ) };
+    expect(architectureReport(cleanGraph, { waivers: [waiver] }).violations)
+      .toContainEqual(expect.objectContaining({ rule: 'architecture-waivers',
+        messages: [expect.stringContaining('is stale')],
+      }));
   });
 
   it('rejects a craftMethod that is not bound to a template event', async () => {
@@ -1994,6 +2103,36 @@ describe('declarative architecture rules', () => {
     expect(() => assertCraftComputedPure(graph.graph)).toThrow(
       /increment|calls/i,
     );
+  });
+
+  it('does not confuse a local array with a shadowed computed of the same name', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          const recipes = yield* craftComputed('recipes', function* () { return []; });
+          yield* craftComputed('derived', function* () {
+            const recipes = [{ id: 'local' }];
+            return recipes.find(recipe => recipe.id === 'local');
+          });
+        });
+      `,
+    });
+    expect(craftComputedPureViolations(graph.graph)).toEqual([]);
+  });
+
+  it('treats an insertion state reader alias as a read rather than an action', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          yield* state('showcase', { tone: 'info' }, function* ({ state: showcase }: { state: () => Generator<never, { tone: string }, unknown> }) {
+            return { tone: yield* craftComputed('tone', function* () { return (yield* showcase()).tone; }) };
+          });
+        });
+      `,
+    });
+    expect(craftComputedPureViolations(graph.graph)).toEqual([]);
   });
 
   it('allows a craftComputed that only reads reactive values', async () => {

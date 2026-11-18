@@ -1,5 +1,6 @@
 export interface CraftDomAdapter {
   createElement(tag: string): Element;
+  createElementNS(namespace: string, tag: string): Element;
   createText(value: string): Text;
   createComment(value: string): Comment;
   createFragment(): DocumentFragment;
@@ -21,6 +22,8 @@ export interface CraftDomAdapter {
 export function createBrowserDomAdapter(document: Document): CraftDomAdapter {
   return {
     createElement: (tag) => document.createElement(tag),
+    createElementNS: (namespace, tag) =>
+      document.createElementNS(namespace, tag),
     createText: (value) => document.createTextNode(value),
     createComment: (value) => document.createComment(value),
     createFragment: () => document.createDocumentFragment(),

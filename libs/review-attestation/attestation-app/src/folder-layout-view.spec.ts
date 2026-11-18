@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest';
+import { craftUse } from '@craft-ts/core';
 import { mountReviewApp } from '../test/review-app';
 
 it('folds and unfolds the proposed trees, then applies the accepted layout', async () => {
@@ -7,7 +8,7 @@ it('folds and unfolds the proposed trees, then applies the accepted layout', asy
     ...navigator,
     clipboard: { writeText: async (value: string) => void written.push(value) },
   });
-  const { click, element, queue, shows } = mountReviewApp('folderLayout');
+  const { click, element, model, queue, shows } = mountReviewApp('folderLayout');
   await click('ShowFolderLayout');
   await shows('order-page.ts');
   // Folder rows: a file row has nothing to fold.
@@ -35,4 +36,7 @@ it('folds and unfolds the proposed trees, then applies the accepted layout', asy
   await vi.waitFor(() => expect(written).toEqual([expect.stringContaining('npx craft-ts organize --apply')]));
   await click('RunFolderLayoutGitCommands');
   await vi.waitFor(async () => expect((await queue()).folderLayoutApply?.applied).toBe(true));
+  await vi.waitFor(() => {
+    expect(craftUse(model.applyFolderLayout.status())).toBe('resolved');
+  });
 });

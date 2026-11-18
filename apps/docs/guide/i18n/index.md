@@ -15,7 +15,7 @@ Six things are guaranteed, and all six are checked before the app runs.
 | the key set is a **closed union**                           | an unknown key does not compile — no silent `order.totl`            |
 | every locale has the **same keys with the same parameters** | a translation you forgot is a compile error, not a fallback         |
 | parameters are **typed by their token**                     | a date cannot be passed where a currency amount belongs             |
-| a plural carries **every category the locale requires**     | Polish needs `one`/`few`/`many`/`other`; French needs `one`/`other` |
+| a plural carries **every category the locale requires**     | Polish needs `one`/`few`/`many`/`other`; French needs `one`/`many`/`other` |
 | a DI-aware token declares its **CraftTS services**           | a missing provider is a compile error at the component/route boundary |
 | a token declared with a **schema** types its own input       | the call site passes what the schema parses, not what the formatter wants |
 

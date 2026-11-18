@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test common.test.mjs",
     "bench": "node run.mjs",
     "bench:component-prototype": "node component-granularity.prototype.mjs",
     "bench:mount-floor-prototypes": "node mount-floor.prototype.mjs",

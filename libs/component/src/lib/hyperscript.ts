@@ -104,11 +104,20 @@ type PrimitiveElementProps<Element> = {
     | YieldableRenderCallback<Element[Key]>;
 };
 
-type HostElementOf<Tag extends keyof HTMLElementTagNameMap> =
-  HTMLElementTagNameMap[Tag];
+/** Native tags accepted by h(), including SVG children. */
+export type ElementTagName =
+  | keyof HTMLElementTagNameMap
+  | keyof SVGElementTagNameMap;
+
+type HostElementOf<Tag extends ElementTagName> =
+  Tag extends keyof HTMLElementTagNameMap
+    ? HTMLElementTagNameMap[Tag]
+    : Tag extends keyof SVGElementTagNameMap
+      ? SVGElementTagNameMap[Tag]
+      : never;
 
 type ElementPropsContext<
-  Tag extends keyof HTMLElementTagNameMap,
+  Tag extends ElementTagName,
   El extends EventTarget = HostElementOf<Tag>,
 > = DomEvents<El> &
   OnDomEvents<El> & {
@@ -119,11 +128,12 @@ type ElementPropsContext<
     readonly [ariaAttribute: `aria-${string}`]: unknown;
   };
 
-export type ElementProps<Tag extends keyof HTMLElementTagNameMap> =
-  PrimitiveElementProps<HTMLElementTagNameMap[Tag]> &
-    ElementPropsContext<Tag> & {
-      readonly [property: string]: unknown;
-    };
+export type ElementProps<Tag extends ElementTagName> = PrimitiveElementProps<
+  HostElementOf<Tag>
+> &
+  ElementPropsContext<Tag> & {
+    readonly [property: string]: unknown;
+  };
 
 function looksLikeChildren(value: unknown): boolean {
   return (
@@ -137,11 +147,7 @@ function looksLikeChildren(value: unknown): boolean {
   );
 }
 
-type HChildren<
-  _Tag extends keyof HTMLElementTagNameMap,
-  PropsOrChildren,
-  MaybeChildren,
-> = (
+type HChildren<_Tag extends ElementTagName, PropsOrChildren, MaybeChildren> = (
   PropsOrChildren extends CraftNodeChildren ? PropsOrChildren : MaybeChildren
 ) extends infer Children extends CraftNodeChildren
   ? Children
@@ -154,7 +160,7 @@ type HProps<PropsOrChildren> = PropsOrChildren extends object
   : Readonly<Record<never, never>>;
 
 export function h<
-  Tag extends keyof HTMLElementTagNameMap,
+  Tag extends ElementTagName,
   const PropsOrChildren extends
     | ElementPropsContext<Tag>
     | CraftNodeChildren = CraftNodeChildren,
@@ -220,7 +226,7 @@ export function customElement(
 }
 
 function hNamed<
-  Tag extends keyof HTMLElementTagNameMap,
+  Tag extends ElementTagName,
   const Name extends string,
   const Props extends object,
   const Children extends CraftNodeChildren,
@@ -257,7 +263,7 @@ function hNamed<
   return node;
 }
 
-export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
+export interface TagHelper<Tag extends ElementTagName> {
   <const Children extends CraftNodeChildren = CraftNodeChildren>(
     children?: Children &
       CraftNodeChildren &
@@ -325,9 +331,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
   >;
 }
 
-function tagHelper<Tag extends keyof HTMLElementTagNameMap>(
-  tag: Tag,
-): TagHelper<Tag> {
+function tagHelper<Tag extends ElementTagName>(tag: Tag): TagHelper<Tag> {
   return ((
     first?: string | ElementPropsContext<Tag> | CraftNodeChildren | null,
     second?: ElementPropsContext<Tag> | CraftNodeChildren | null,
@@ -574,5 +578,16 @@ export const figure = tagHelper('figure');
 export const figcaption = tagHelper('figcaption');
 export const iframe = tagHelper('iframe');
 export const area = tagHelper('area') as RequiredAltTagHelper<'area'>;
-/** SVG is not an HTMLElement; the helper still produces a typed Craft element node. */
-export const svg = tagHelper('svg' as keyof HTMLElementTagNameMap);
+/** SVG elements inherit their namespace from their rendered parent. */
+export const svg = tagHelper('svg');
+export const path = tagHelper('path');
+export const circle = tagHelper('circle');
+export const ellipse = tagHelper('ellipse');
+export const g = tagHelper('g');
+export const line = tagHelper('line');
+export const polygon = tagHelper('polygon');
+export const polyline = tagHelper('polyline');
+export const rect = tagHelper('rect');
+export const defs = tagHelper('defs');
+export const use = tagHelper('use');
+export const foreignObject = tagHelper('foreignObject');

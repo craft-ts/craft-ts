@@ -126,8 +126,18 @@ export async function assertE2eSessionContract(options: E2eSessionContractOption
 }
 
 async function listTests(config: string, cwd: string): Promise<PlaywrightListing> {
-  const { stdout } = await execFileAsync('npx', ['playwright', 'test', '--list', '--reporter=json', '-c', config], { cwd, maxBuffer: 32 * 1024 * 1024 });
-  return JSON.parse(stdout) as PlaywrightListing;
+  try {
+    const { stdout } = await execFileAsync('npx', ['playwright', 'test', '--list', '--reporter=json', '-c', config], { cwd, maxBuffer: 32 * 1024 * 1024 });
+    return JSON.parse(stdout) as PlaywrightListing;
+  } catch (error) {
+    const failure = error as Error & { stdout?: string; stderr?: string };
+    let details = failure.stdout ?? '';
+    try {
+      const report = JSON.parse(details) as { errors?: Array<{ message?: string }> };
+      details = (report.errors ?? []).map(entry => entry.message ?? '').join('\n');
+    } catch { /* A config error can precede the JSON reporter. */ }
+    throw new Error([failure.message, failure.stderr, details].filter(Boolean).join('\n').slice(0, 12_000), { cause: error });
+  }
 }
 
 /** `testDir` as the config writes it, relative to the config; its folder otherwise. */

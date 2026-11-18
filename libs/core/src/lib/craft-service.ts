@@ -3181,7 +3181,7 @@ function createCraftServiceApi(
           collection: false,
           token,
           requirement,
-          hasPublicInput: factoryUsesPublicInput(factory),
+          hasPublicInput: false,
           hasProvidedInput: factoryUsesProvidedInput(factory),
           appStartHooks: new Map(),
           startedAppStartServices: new Set(),
@@ -3220,7 +3220,11 @@ function createCraftServiceApi(
     collection: options.collection ?? false,
     providers: options.providers,
     requirement: options.requirement,
-    hasPublicInput: factoryUsesPublicInput(concreteFactory),
+    // Only function-scoped services accept call-site inputs. A provider's
+    // factory parameter is its private $provided configuration, so shortcut
+    // arguments belong to the member even when that factory has arity one.
+    hasPublicInput:
+      options.providedIn === 'function' && concreteFactory.length > 0,
     hasProvidedInput: factoryUsesProvidedInput(concreteFactory),
     appStartHooks: new Map(),
     startedAppStartServices: new Set(),
@@ -4848,10 +4852,6 @@ function assertDependencyScope(
 
 function factoryUsesProvidedInput(factory: AnyFactory): boolean {
   return factory.toString().includes(SERVICE_PROVIDED_INPUT_KEY);
-}
-
-function factoryUsesPublicInput(factory: AnyFactory): boolean {
-  return factory.length > 0;
 }
 
 function provideFactoryUsesProvidedInput(

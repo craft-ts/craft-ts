@@ -20,6 +20,7 @@ const fr = defineLocaleLike(en, 'fr-FR', {
   cart: {
     items: plural(count, {
       one: msg`${count} article`,
+      many: msg`${count} articles`,
       other: msg`${count} articles`,
     }),
   },
