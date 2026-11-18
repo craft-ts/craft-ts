@@ -188,6 +188,9 @@ impératif restent absents des mutations de production.
 Le manifeste fait foi pour l'état courant. Ce rapport fige les premières
 cohortes ; les imports, rebinds, ablations réarchivées et essais suivants
 ont désormais leurs propres rapports. L'extension
-[`attrs` et `h`](2026-11-18-attrs-properties.md) est retenue ; les styles
-restent à mesurer dans cette même piste. Le marquage versionné reste partiel.
+[`attrs` et `h`](2026-11-18-attrs-properties.md) est retenue, ainsi que les
+[styles compilés et enfants stylés génériques](2026-11-18-styles.md), après
+384 navigations finales et de confirmation. Le manifeste compte désormais
+16 pistes nouvellement mesurées et sept en attente. Le marquage versionné
+reste partiel.
 **Cette livraison n'achève pas l'objectif de mesurer toutes les pistes.**

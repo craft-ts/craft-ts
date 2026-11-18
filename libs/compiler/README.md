@@ -57,7 +57,19 @@ plan also keeps the generic template so its eager reads retain their effect.
 The [attrs/h campaign](../../docs/benchmarks/2026-11-18-attrs-properties.md)
 records the contracts, measurements and rejected intermediate prototypes.
 
-Unknown structure, providers, composition, setup statements, events, styles,
+Lean plans also compile inline style callbacks and generator functions.
+They reuse the generic style resolver, shallow value comparison, CSS checks
+and injected resource-origin policy. Style generators stay interpreted.
+Attributes and class apply before style on each element, while eager source
+expressions keep their original order. Other styled descendants remain
+generic native children inside the compiled parent; reads made by their
+native property patching are tracked separately from independent bindings.
+Root object, string or opaque style expressions retain the generic component.
+Direct styles use ABI 3 and tracked styled children use ABI 4; older runtimes
+ignore these plans. The [styles campaign](../../docs/benchmarks/2026-11-18-styles.md)
+separates their list gains, fallback costs and ordinary-page controls.
+
+Unknown structure, providers, composition, setup statements, events,
 controls with special mounting behavior, arbitrary helper calls, namespaces,
 spread/computed properties, and receiver-dependent code use the generic renderer.
 A compiled child can coexist with generic parents, lists and siblings.

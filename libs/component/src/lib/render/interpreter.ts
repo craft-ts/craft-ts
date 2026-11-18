@@ -5588,6 +5588,7 @@ function canMountCompiledComponent(
   if (
     !plan ||
     plan.watchBind ||
+    plan.version === 3 ||
     plan.events?.length ||
     plan.holes?.length ||
     plan.bindings.some((binding) => {
@@ -5981,6 +5982,48 @@ function canMountLeanComponent(
  * captured through the nearest recorded ancestor and the DOM path). Opted
  * into by the build, which accepts those differences.
  */
+function compiledStyleBinding(
+  reader: unknown,
+  element: Element,
+  context: RenderContext,
+): (() => void) | undefined {
+  let seen = false,
+    previous: unknown,
+    initial = true,
+    failed = false,
+    failure: unknown;
+  const run = () =>
+    context.injector.run(() => {
+      const value = resolveStyleBindingValue(reader, context);
+      if (seen && sameStyleValue(previous, value)) return;
+      context.renderer.removeAttribute(element, 'style');
+      applyStyles(context.renderer, element, undefined, value, context);
+      previous = value;
+      seen = true;
+    });
+  const stop = ɵcraftBindingEffect(() => {
+    if (!initial) {
+      run();
+      return;
+    }
+    try {
+      run();
+    } catch (error) {
+      failed = true;
+      failure = error;
+    }
+  });
+  initial = false;
+  if (failed) {
+    try {
+      stop?.();
+    } catch {
+      /* Preserve the style failure. */
+    }
+    throw failure;
+  }
+  return stop;
+}
 class LeanComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
   protected readonly component: CraftComponent<object>;
@@ -6046,6 +6089,15 @@ class LeanComponentRenderedNode implements RenderedNode {
           const reader = readers[index];
           const target = nodes[binding.slot];
           const key = binding.key;
+          if (key === 'style') {
+            const stop = compiledStyleBinding(
+              reader,
+              target as Element,
+              context,
+            );
+            if (stop) this.stops!.push(stop);
+            continue;
+          }
           let seen = false,
             previous: unknown;
           const stop = ɵcraftBindingEffect(() => {
@@ -6293,10 +6345,8 @@ class WatchedLeanComponentRenderedNode extends LeanComponentRenderedNode {
       failure: unknown;
     const run = () => {
       const readers = this.context.injector.run(() => this.plan.bind(inputs));
-      untracked(() => {
-        super.stopBindings();
-        this.bindCaptured(readers);
-      });
+      untracked(() => super.stopBindings());
+      this.bindCaptured(readers);
     };
     const stop = ɵcraftBindingEffect(() => {
       if (!initial) {
@@ -6342,7 +6392,7 @@ class WatchedLeanComponentRenderedNode extends LeanComponentRenderedNode {
     const plan = this.plan;
     const nodes = this.nodes!;
     const renderer = context.renderer;
-    untracked(() =>
+    const run = () =>
       runInInjectionContext(context.injector, () => {
         const bindings = plan.bindings;
         const stops: (() => void)[] = (this.stops = []);
@@ -6351,6 +6401,15 @@ class WatchedLeanComponentRenderedNode extends LeanComponentRenderedNode {
           const reader = readers[index];
           const target = nodes[binding.slot];
           const key = binding.key;
+          if (key === 'style') {
+            const stop = compiledStyleBinding(
+              reader,
+              target as Element,
+              context,
+            );
+            if (stop) this.stops!.push(stop);
+            continue;
+          }
           let seen = false,
             previous: unknown;
           const stop = ɵcraftBindingEffect(() => {
@@ -6414,8 +6473,9 @@ class WatchedLeanComponentRenderedNode extends LeanComponentRenderedNode {
               mounted[index],
             );
         }
-      }),
-    );
+      });
+    if (this.plan.trackHoles) run();
+    else untracked(run);
   }
 
   protected override renderHole(

@@ -68,7 +68,7 @@ runner = replaceOnce(
   runner,
   '      plugins: enabled',
   `      plugins: [
-        ...(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true' || process.env.CAMPAIGN_SCALAR_FIXTURE === 'true' || process.env.CAMPAIGN_IMPORTED_FIXTURE === 'true' || process.env.CAMPAIGN_WIDE_INDEX === 'true' || process.env.CAMPAIGN_SERVICE_FIXTURE === 'true' || process.env.CAMPAIGN_FUSION_FIXTURE === 'true' || process.env.CAMPAIGN_MULTIPLE_ROOTS === 'true' || process.env.CAMPAIGN_ATTRS_FIXTURE === 'true' || process.env.CAMPAIGN_H_FIXTURE === 'true' || process.env.CAMPAIGN_EAGER_ATTRS === 'true' ? [{
+        ...(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true' || process.env.CAMPAIGN_SCALAR_FIXTURE === 'true' || process.env.CAMPAIGN_IMPORTED_FIXTURE === 'true' || process.env.CAMPAIGN_WIDE_INDEX === 'true' || process.env.CAMPAIGN_SERVICE_FIXTURE === 'true' || process.env.CAMPAIGN_FUSION_FIXTURE === 'true' || process.env.CAMPAIGN_MULTIPLE_ROOTS === 'true' || process.env.CAMPAIGN_ATTRS_FIXTURE === 'true' || process.env.CAMPAIGN_H_FIXTURE === 'true' || process.env.CAMPAIGN_EAGER_ATTRS === 'true' || ['root-dynamic','nested-static','nested-dynamic','root-static'].includes(process.env.CAMPAIGN_STYLE_FIXTURE) ? [{
           name:'campaign-local-fixture', enforce:'pre',
           resolveId(specifier){if(specifier==='campaign-imported-rows')return ${JSON.stringify(importedFixture)};},
           transform(source,id) {
@@ -125,6 +125,18 @@ runner = replaceOnce(
               source=source.replace("  else if (action === 'update-one' || action === 'update-tenth')","  else if(action === 'update-tenth') __benchEager.update(value=>value+1);\\n  else if (action === 'update-one')");
             }
             if(process.env.CAMPAIGN_OWNED_INPUT === 'true') source=source.replace('(row, position) => Row({ row, position })','(row, position) => Row({ row, position, extra: {} })').replace("position:Input<number>})=>div({attrs:{role:'row'}", "position:Input<number>;extra?:unknown})=>div({attrs:{role:'row'}");
+            if(['root-dynamic','nested-static','nested-dynamic','root-static'].includes(process.env.CAMPAIGN_STYLE_FIXTURE)) {
+              const start=source.indexOf('const Row = craftComponent('),end=source.indexOf('const IndexedRow = craftComponent(');
+              if(start<0||end<0)throw Error('Style fixture anchors missing');
+              const mode=process.env.CAMPAIGN_STYLE_FIXTURE;
+              const dynamic="function*(){const row=yield* inputs.row();return {width:(row.id%20+1)+'px',color:row.label.endsWith('!')?'blue':'red'};}";
+              const record="{display:'inline-block',height:'12px',width:function*(){return (yield* inputs.row()).label.length+'px';}}";
+              const style=mode.endsWith('dynamic')?dynamic:record;
+              const label="function*(){return (yield* inputs.row()).label;}";
+              const child=mode.startsWith('nested')?"span({style:"+style+"},"+label+")":label;
+              const rootStyle=mode.startsWith('root')?",style:"+style:'';
+              source=source.slice(0,start)+"const Row=craftComponent('CompilerBenchRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>div({'data-row':function*(){return (yield* inputs.row()).id;}"+rootStyle+"},"+child+"));\\n"+source.slice(end);
+            }
             if(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true') source=source.replace('const Row = craftComponent(', 'function fixture() {\\nconst Row = craftComponent(').replace('const start = performance.now();','return App; }\\nconst App = fixture();\\nconst start = performance.now();');
             return source;
           },

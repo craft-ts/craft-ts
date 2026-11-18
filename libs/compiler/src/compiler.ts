@@ -491,7 +491,10 @@ export function compileModule(
       )
         fail('async binding');
       const plain =
-        options.lean && options.lower !== false && ts.isFunctionExpression(n)
+        options.lean &&
+        key !== 'style' &&
+        options.lower !== false &&
+        ts.isFunctionExpression(n)
           ? lower(n, input)
           : undefined;
       readerPositions.push(indirect ? -1 : capturePosition(n));
@@ -510,6 +513,46 @@ export function compileModule(
             }
           : {}),
       });
+    }
+    let hasStyles = false,
+      hasStyleIslands = false;
+    function directStyle(n: ts.Expression): boolean {
+      n = unwrap(n);
+      return (
+        (ts.isArrowFunction(n) || ts.isFunctionExpression(n)) &&
+        !n.modifiers?.some(
+          (modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword,
+        )
+      );
+    }
+    function styleOf(
+      call: ts.CallExpression,
+    ): { value?: ts.Expression } | undefined {
+      const helper = helpers.get((call.expression as ts.Identifier).text),
+        args = [...call.arguments];
+      if (helper === 'h') args.shift();
+      else if (
+        args.length >= 2 &&
+        ts.isStringLiteral(args[0]) &&
+        (ts.isObjectLiteralExpression(unwrap(args[1])) ||
+          args[1].kind === ts.SyntaxKind.NullKeyword)
+      )
+        args.shift();
+      const props = args[0] && unwrap(args[0]);
+      if (!props || !ts.isObjectLiteralExpression(props)) return undefined;
+      const property = props.properties.find(
+        (prop) =>
+          prop.name &&
+          (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) &&
+          prop.name.text === 'style',
+      );
+      return property
+        ? {
+            value: ts.isPropertyAssignment(property)
+              ? property.initializer
+              : undefined,
+          }
+        : undefined;
     }
     function tree(
       expression: ts.Expression,
@@ -543,7 +586,14 @@ export function compileModule(
         (ts.isPropertyAccessExpression(n) &&
           ts.isIdentifier(n.expression) &&
           n.expression.text === input);
-      if (!isTag && !isText && parent !== undefined && options.lean) {
+      const style = isTag && ts.isCallExpression(n) ? styleOf(n) : undefined;
+      const styleIsland = !!style && !(style.value && directStyle(style.value));
+      if (
+        ((!isTag && !isText) || styleIsland) &&
+        parent !== undefined &&
+        options.lean
+      ) {
+        if (styleIsland) hasStyleIslands = true;
         // Anything else is rendered by the generic renderer at its place.
         holePositions.push(capturePosition(n));
         holeReaders.push(`(${code(n)})`);
@@ -691,6 +741,15 @@ export function compileModule(
           if (propertyKeys.has(key)) fail('duplicate DOM properties');
           propertyKeys.add(key);
           if (
+            options.lean &&
+            key === 'style' &&
+            directStyle(prop.initializer)
+          ) {
+            hasStyles = true;
+            binding(prop.initializer, slot, path, key);
+            continue;
+          }
+          if (
             !(
               ['id', 'title', 'role', 'class', 'type'].includes(key) ||
               key.startsWith('data-') ||
@@ -790,6 +849,27 @@ export function compileModule(
       return 1;
     }
     const rootCount = tree(root, undefined, []);
+    if (hasStyles) {
+      const order = bindings
+        .map((binding, index) => ({ binding, index }))
+        .sort(
+          (a, b) =>
+            a.binding.slot - b.binding.slot ||
+            priority(a.binding.key) - priority(b.binding.key),
+        );
+      function priority(key: string | undefined) {
+        return key === 'style' ? 2 : key === 'class' ? 1 : 0;
+      }
+      const nextReaders = order.map((entry) => readers[entry.index]),
+        nextPositions = order.map((entry) => readerPositions[entry.index]);
+      bindings.splice(
+        0,
+        bindings.length,
+        ...order.map((entry) => entry.binding),
+      );
+      readers.splice(0, readers.length, ...nextReaders);
+      readerPositions.splice(0, readerPositions.length, ...nextPositions);
+    }
     for (const [, list] of childOrder)
       for (let index = 0; index < list.length; index++) {
         const entry = list[index];
@@ -812,7 +892,7 @@ export function compileModule(
       options.dom === 'clone'
         ? `locate: (${locateRoot}: Node) => {const ${nodes}: Node[] = []; ${locations.join('\n')} return ${nodes};},`
         : '';
-    let watchBind = false;
+    let watchBind = hasStyleIslands;
     function observeBind(node: ts.Node): void {
       if (watchBind || ts.isTypeNode(node)) return;
       if (
@@ -920,7 +1000,7 @@ export function compileModule(
     const bind = bindSetup.length
       ? `(${parameters}) => { ${bindSetup.join('\n')} return [${all}]; }`
       : `(${parameters}) => [${all}]`;
-    return `{ version: ${watchBind ? 2 : 1}, ${watchBind ? 'watchBind: true, ' : ''}${options.lean ? 'lean: true, ' : ''}${locator} create: (${renderer}: any) => { ${creation.join('\n')} return ${nodes}; }, bind: ${bind}, elements: ${q(elements)}, bindings: ${q(bindings)}${eventPlans.length ? `, events: ${q(eventPlans)}` : ''}${holePlans.length ? `, holes: ${q(holePlans)}` : ''} }`;
+    return `{ version: ${hasStyleIslands ? 4 : hasStyles ? 3 : watchBind ? 2 : 1}, ${watchBind ? 'watchBind: true, ' : ''}${hasStyleIslands ? 'trackHoles: true, ' : ''}${options.lean ? 'lean: true, ' : ''}${locator} create: (${renderer}: any) => { ${creation.join('\n')} return ${nodes}; }, bind: ${bind}, elements: ${q(elements)}, bindings: ${q(bindings)}${eventPlans.length ? `, events: ${q(eventPlans)}` : ''}${holePlans.length ? `, holes: ${q(holePlans)}` : ''} }`;
   }
   const pendingPlans: { call: ts.CallExpression; plan: string }[] = [];
   function walk(n: ts.Node): void {
