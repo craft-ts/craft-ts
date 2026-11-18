@@ -56,6 +56,7 @@ type TextClaim = Readonly<{
 export function createHydrationCursor(
   host: Element,
   onMismatch?: (error: HydrationMismatchError) => void,
+  rootKey: string | null = host.getAttribute('data-craft-hk'),
 ): HydrationCursor {
   const elements = new Map<string, Element>();
   const boundaries = new Map<string, Comment>();
@@ -64,12 +65,58 @@ export function createHydrationCursor(
   const mismatches: HydrationMismatchError[] = [];
   let finished = false;
 
-  for (const element of host.querySelectorAll<Element>('[data-craft-hk]')) {
+  // Portal ranges belong to this app's hydration identity even though their
+  // DOM is outside its host. Index only those ranges, never other app roots.
+  const remoteNodes: Node[] = [];
+  const body = host.ownerDocument.body;
+  if (rootKey && body)
+    walkComments(body, (comment) => {
+      const marker = parseMarker(comment.data);
+      if (
+        marker?.label !== 'craft-portal-content:start' ||
+        !(marker.key === rootKey || marker.key.startsWith(`${rootKey}/`))
+      )
+        return;
+      const range: Node[] = [];
+      let current: Node | null = comment;
+      while (current) {
+        range.push(current);
+        const end =
+          current.nodeType === Node.COMMENT_NODE
+            ? parseMarker((current as Comment).data)
+            : null;
+        if (
+          end?.label === 'craft-portal-content:end' &&
+          end.key === marker.key
+        ) {
+          remoteNodes.push(...range);
+          return;
+        }
+        current = current.nextSibling;
+      }
+      throw new HydrationMismatchError({
+        key: marker.key,
+        expected: 'craft-portal-content:end',
+        actual: null,
+        reason: 'boundary-absent',
+      });
+    });
+  const indexedElements = new Set(
+    host.querySelectorAll<Element>('[data-craft-hk]'),
+  );
+  for (const node of remoteNodes) {
+    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+    const root = node as Element;
+    if (root.hasAttribute('data-craft-hk')) indexedElements.add(root);
+    for (const child of root.querySelectorAll<Element>('[data-craft-hk]'))
+      indexedElements.add(child);
+  }
+  for (const element of indexedElements) {
     const key = element.getAttribute('data-craft-hk');
     if (key) elements.set(key, element);
   }
 
-  walkComments(host, (comment) => {
+  const indexComment = (comment: Comment): void => {
     const marker = parseMarker(comment.data);
     if (!marker) return;
     if (marker.label === 'craft-text:start') {
@@ -96,7 +143,12 @@ export function createHydrationCursor(
     if (marker.label !== 'craft-text:end') {
       boundaries.set(boundaryAddress(marker.key, marker.label), comment);
     }
-  });
+  };
+  walkComments(host, indexComment);
+  for (const node of remoteNodes) {
+    if (node.nodeType === Node.COMMENT_NODE) indexComment(node as Comment);
+    walkComments(node, indexComment);
+  }
 
   const cursor: HydrationCursor = {
     claimElement(key, tag) {

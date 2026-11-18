@@ -17,6 +17,7 @@ Coding agents: [llms.txt](https://craft-ts.github.io/craft/llms.txt) and
 | `queryParams`       | State that lives in the URL query string                 | [queryParams](/guide/state/url-state)                     |
 | `pathParams`        | A typed, route-scoped dynamic path segment               | [Path parameters](/guide/state/url-state#path-parameters) |
 | `asyncProcess`      | One-off async operation with lifecycle state             | [asyncProcess](/guide/state/async-process)                |
+| `craftAwait` | Await a third-party Promise in a generator loader | [Promises](/guide/state/awaiting-promises) |
 | `craftUse`          | Drives a primitive outside a generator (component field) | [Learn 1](/learn/01-first-state)                          |
 
 Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primitive)

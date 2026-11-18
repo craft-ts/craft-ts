@@ -244,3 +244,9 @@ numeric render-callback overload: replace `index + 1` with
 `(yield* index()) + 1` inside a generator binding. Interpolation of the reader
 (`String(index)` or `` `${index}` ``) is rejected by
 [`craft-ts/no-raw-for-index`](/guide/routing/eslint-rules#reactive-fornode-indexes).
+
+## Overlays outside the component DOM
+
+Use [`portalNode`](/guide/components/portals) to mount an overlay in the document
+body or an application overlay root while keeping its template's injector,
+reactivity and cleanup.

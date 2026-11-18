@@ -431,3 +431,9 @@ insertion callback. See
 - [Mutations](/guide/state/mutations) — the write side
 - [Reacting to mutations](/guide/state/react-on-mutation)
 - [Anatomy of a primitive](/guide/concepts/primitive-anatomy)
+
+## Promise-based SDKs
+
+Use [`craftAwait`](/guide/state/awaiting-promises) inside a generator loader to
+await a third-party SDK or browser API. Pass the loader's `abortSignal` to the
+SDK; rejected promises become typed `CRAFT_PROMISE_REJECTED` exceptions.

@@ -135,6 +135,7 @@ import {
   type CatchNode,
   type MatchNode,
   type ProjectionNode,
+  type PortalNode,
   type TemplateNode,
   type FieldErrorNode,
   type PendingNode,
@@ -3056,6 +3057,18 @@ class FragmentRenderedNode implements RenderedNode {
     this.context = context;
   }
 
+  moveToParent(parent: NativeParent): void {
+    const nodes: NativeNode[] = [];
+    let current: NativeNode | null = this.firstNode();
+    const last = this.lastNode();
+    while (current) {
+      nodes.push(current);
+      if (current === last) break;
+      current = current.nextSibling;
+    }
+    for (const node of nodes) insertBefore(this.context.renderer, parent, node, null);
+  }
+
   moveBefore(before: NativeNode): void {
     let current: NativeNode | null = this.firstNode();
     const last = this.lastNode();
@@ -3194,6 +3207,116 @@ class ProjectionRenderedNode implements RenderedNode {
       () => {
         this.view.destroy();
       },
+    ]);
+  }
+}
+
+class PortalRenderedNode implements RenderedNode {
+  readonly kind = 'portal';
+  private readonly anchor: Comment;
+  private readonly descriptor;
+  private readonly effectRef: EffectRef;
+  private readonly context: RenderContext;
+  private view: FragmentRenderedNode | undefined;
+  private target: Element | undefined;
+
+  constructor(
+    node: PortalNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    context: RenderContext,
+  ) {
+    this.anchor = mountComment(parent, 'craft-portal', before, context);
+    const declaration =
+      (node.declarationContext as RenderContext | undefined) ??
+      lexicalContext(context);
+    this.context = childContext(declaration, { identity: context.identity });
+    this.descriptor = signal(node);
+    try {
+      this.effectRef = createRenderEffect(this.context, 'portal', () => {
+        const current = this.descriptor();
+        const target =
+          current.target === 'body'
+            ? parent.ownerDocument?.body
+            : typeof current.target === 'function'
+              ? executeTemplateCallback(current.target, [], this.context)
+              : current.target;
+        if (
+          !isElementNode(target) ||
+          target.ownerDocument !== parent.ownerDocument
+        ) {
+          throw new TypeError(
+            'portalNode requires a target element in the declaring document.',
+          );
+        }
+        if (!this.view) {
+          this.view = createFragment(
+            target,
+            null,
+            this.context,
+            [],
+            'craft-portal-content',
+          );
+          if (this.view.firstNode().parentNode !== target)
+            this.view.moveToParent(target);
+        } else if (target !== this.target) {
+          this.view.moveToParent(target);
+        }
+        this.target = target;
+        this.view.patchChildren(
+          renderChildrenCallback(this.context, current.render, []),
+        );
+      });
+    } catch (error) {
+      ɵrunCraftCleanups([
+        () => {
+          throw error;
+        },
+        () => this.clearContent(),
+        () => removeNode(context.renderer, this.anchor),
+      ]);
+      throw error;
+    }
+  }
+
+  firstNode(): NativeNode {
+    return this.anchor;
+  }
+  lastNode(): NativeNode {
+    return this.anchor;
+  }
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'portal') return false;
+    this.descriptor.set(node);
+    return true;
+  }
+
+  private clearContent(): void {
+    const view = this.view;
+    this.view = undefined;
+    if (!view) return;
+    // The remote range must be removed even when an ancestor is detached or
+    // a child cleanup throws. Also covers DOM created by an interrupted mount.
+    const nodes: NativeNode[] = [];
+    let current: NativeNode | null = view.firstNode();
+    const end = view.lastNode();
+    while (current) {
+      nodes.push(current);
+      if (current === end) break;
+      current = current.nextSibling;
+    }
+    try {
+      view.destroy();
+    } finally {
+      for (const node of nodes) removeNode(this.context.renderer, node);
+    }
+  }
+
+  destroy(): void {
+    ɵdestroyCraftOwner(this, [
+      () => this.effectRef.destroy(),
+      () => this.clearContent(),
+      () => removeNode(this.context.renderer, this.anchor),
     ]);
   }
 }
@@ -6952,6 +7075,8 @@ function mountNode(
       return new DeferRenderedNode(node, parent, before, context);
     case 'projection':
       return new ProjectionRenderedNode(node, parent, before, context);
+    case 'portal':
+      return new PortalRenderedNode(node, parent, before, context);
     case 'template':
       return new TemplateRenderedNode(node, parent, before, context);
   }

@@ -1148,6 +1148,7 @@ export type CraftNode =
   | FieldErrorNode<any, any, any>
   | MatchNode<any, any>
   | ProjectionNode<any, any>
+  | PortalNode<any, any>
   | TemplateNode<any, any, any>;
 
 export type CraftNodeChild =
@@ -1254,6 +1255,26 @@ export interface ProjectionNode<
   readonly kind: 'projection';
   readonly render: () => Output;
   readonly slotName?: string;
+  readonly declarationContext?: unknown;
+}
+
+export type PortalTarget = Element | 'body' | (() => Element);
+
+export interface PortalNode<
+  Dependencies extends object = {},
+  Output extends CraftNodeChildren = CraftNodeChildren,
+> extends CraftNodeDepsCarrier<Dependencies>,
+    CraftChannelsCarrier<CraftNodeChildrenChannels<Output>>,
+    CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Output>>,
+    CraftNodeSettledExceptionsCarrier<
+      CraftNodeChildrenSettledExceptions<Output>
+    >,
+    CraftNodeFieldExceptionsCarrier<
+      CraftNodeChildrenRawFieldExceptions<Output>
+    > {
+  readonly kind: 'portal';
+  readonly target: PortalTarget;
+  readonly render: () => Output;
   readonly declarationContext?: unknown;
 }
 
@@ -1461,6 +1482,7 @@ export function isCraftNode(value: unknown): value is CraftNode {
     value.kind === 'field-error' ||
     value.kind === 'match' ||
     value.kind === 'projection' ||
+    value.kind === 'portal' ||
     value.kind === 'template'
   );
 }

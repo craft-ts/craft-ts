@@ -52,6 +52,8 @@ export type RenderCraftOptions = Readonly<{
 export type RenderCraftResult = Readonly<{
   html: string;
   rootHtml: string;
+  /** Content for document-level portal targets, placed after the app root. */
+  portalHtml: string;
   snapshot: CraftTransferSnapshot;
 }>;
 
@@ -132,7 +134,10 @@ export async function renderCraft(
       policy: securityPolicy.transfer,
     });
     const rootHtml = dom.serialize(host);
-    const htmlSize = byteLength(rootHtml);
+    const portalHtml = [...dom.document.body.childNodes]
+      .map((node) => dom.serialize(node))
+      .join('');
+    const htmlSize = byteLength(rootHtml + portalHtml);
     if (htmlSize > securityPolicy.ssr.maxHtmlBytes) {
       throw new Error(
         `CRAFT_SSR_HTML_TOO_LARGE: generated HTML exceeds ${securityPolicy.ssr.maxHtmlBytes} bytes.`,
@@ -143,8 +148,9 @@ export async function renderCraft(
         ? ''
         : `<script id="${CRAFT_TRANSFER_SCRIPT_ID}" type="application/json">${serializeCraftTransferSnapshot(snapshot, securityPolicy.transfer)}</script>`;
     return {
-      html: `${rootHtml}${snapshotHtml}`,
+      html: `${rootHtml}${portalHtml}${snapshotHtml}`,
       rootHtml,
+      portalHtml,
       snapshot,
     };
   } finally {

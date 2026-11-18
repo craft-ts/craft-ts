@@ -707,7 +707,9 @@ export function bindCraftField<T>(
 export type BoundCraftFieldDirective<Field> = CraftNodeDirective<
   Readonly<Record<never, never>>
 > &
-  CraftFieldValidationCasesCarrier<FieldValidationCasesOf<Field>> &
+  CraftFieldValidationCasesCarrier<
+    FieldValidationCasesOf<Field extends (...args: any[]) => Generator<any, infer Resolved, any> ? Resolved : Field>
+  > &
   CraftFieldExceptionSourceCarrier;
 
 const functionalFieldDirectives = new WeakMap<
