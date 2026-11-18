@@ -5317,19 +5317,17 @@ const TEMPLATE_EVENT_HANDLER_NAMES = new Set([
 function isComponentOutputBinding(
   builder: GraphBuilder,
   owner: CallExpression,
-  options: ObjectLiteralExpression,
   propertyName: string,
   location: Node,
 ): boolean {
   const component = findComponentForCall(builder, owner);
-  const template = component?.call.getArguments().at(-1);
+  if (!component) return false;
+  const template = component.call.getArguments().at(-1);
   const inputParameter =
     template && isFunctionNode(template)
       ? template.getParameters()[0]
       : undefined;
-  const property =
-    inputParameter?.getType().getProperty(propertyName) ??
-    options.getContextualType()?.getProperty(propertyName);
+  const property = inputParameter?.getType().getProperty(propertyName);
   return (
     property
       ?.getTypeAtLocation(location)
@@ -5362,7 +5360,6 @@ function templateEventHandlerIdOf(
           isComponentOutputBinding(
             builder,
             owner,
-            options,
             propertyName,
             current,
           ))
@@ -5714,7 +5711,10 @@ function resolvePrimitiveSymbolTarget(
     if (matches.length !== 1) continue;
     return {
       id: matches[0].id,
-      kind: Node.isCallExpression(expression) ? 'calls' : 'depends-on',
+      kind: Node.isCallExpression(expression) && !(
+        Node.isIdentifier(expression.getExpression()) &&
+        ['state', 'craftComputed'].includes(String(matches[0].details?.['primitive']))
+      ) ? 'calls' : 'depends-on',
       details: { path: name, symbolResolved: true },
     };
   }

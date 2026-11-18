@@ -2121,6 +2121,20 @@ describe('declarative architecture rules', () => {
     expect(craftComputedPureViolations(graph.graph)).toEqual([]);
   });
 
+  it('treats an insertion state reader alias as a read rather than an action', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          yield* state('showcase', { tone: 'info' }, function* ({ state: showcase }: { state: () => Generator<never, { tone: string }, unknown> }) {
+            return { tone: yield* craftComputed('tone', function* () { return (yield* showcase()).tone; }) };
+          });
+        });
+      `,
+    });
+    expect(craftComputedPureViolations(graph.graph)).toEqual([]);
+  });
+
   it('allows a craftComputed that only reads reactive values', async () => {
     const graph = await graphOf({
       'app.ts': `

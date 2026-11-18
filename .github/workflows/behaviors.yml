@@ -43,6 +43,9 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # The Node-side log tools import this workspace package through its exports.
+      - run: npm run build --prefix packages/session-trace
+
       # No app or lib with code and no test.
       - run: node --test tools/check-project-tests.test.mjs apps/framework-benchmark/common.test.mjs && npm run tests:check
 
