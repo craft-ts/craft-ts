@@ -98,6 +98,17 @@ method only satisfies the rule when the template actually binds it to a click
 handler. There is no automatic fix: choosing which user action should own a
 source emission is application behavior.
 
+A component's branded `Output<Handler>` also declares an event binding. The
+graph follows actions passed to those outputs, aliases made with `craftExpose`,
+and calls between `craftMethod` actions. An ordinary callback such as
+`render: View.refresh` does not establish event ownership; declare an `Output`
+for a user action, or bind the action directly to a DOM event.
+
+A native event bridge outside the template tree, such as pointer picking inside
+a frozen iframe, can use a reasoned waiver targeted to
+`primitive:ServiceName.methodName`. Other writers remain checked, and the
+waiver fails as stale when that writer no longer needs it.
+
 ## What a rule looks like
 
 A rule is an ordinary Vitest assertion. Look up a node, inspect its graph

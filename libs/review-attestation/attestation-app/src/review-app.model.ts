@@ -688,13 +688,6 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
      */
     let livePick: number | undefined;
 
-    const publishMentionEdit = (
-      nextMentions: readonly Mention[],
-      nextNote: string,
-    ): void => {
-      mentionEdited$.emit({ mentions: nextMentions, note: nextNote });
-    };
-
     /**
      * Fits the frozen page to the window, by drawing it smaller.
      *
@@ -1895,20 +1888,20 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
           const id = livePick;
           live.remove();
           livePick = undefined;
-          publishMentionEdit(
-            known.filter((one) => one.id !== id),
-            textOf(field),
-          );
+          mentionEdited$.emit({
+            mentions: known.filter((one) => one.id !== id),
+            note: textOf(field),
+          });
           return;
         }
 
         if (live && livePick !== undefined) {
           const id = livePick;
           relabelChip(live, paths);
-          publishMentionEdit(
-            known.map((one) => (one.id === id ? { id, paths } : one)),
-            textOf(field),
-          );
+          mentionEdited$.emit({
+            mentions: known.map((one) => (one.id === id ? { id, paths } : one)),
+            note: textOf(field),
+          });
           return;
         }
 
@@ -1956,7 +1949,10 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         caret = after.cloneRange();
         livePick = id;
 
-        publishMentionEdit([...known, { id, paths }], textOf(field));
+        mentionEdited$.emit({
+          mentions: [...known, { id, paths }],
+          note: textOf(field),
+        });
         // Focus follows the reference, once, when it appears: the next thing
         // to do is say what is wrong with it. Not on every refinement — the
         // caret would jump while the reviewer is still pointing.
