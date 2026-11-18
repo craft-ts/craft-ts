@@ -208,17 +208,16 @@ npx nx serve quickstart-effect
 The quickstart runs at `http://localhost:4202` and is also the smallest CI
 fixture for the Effect ESLint, EffectTS diagnostics and architecture rules.
 
-La commande lance toutes les routes définies dans
-`apps/demo/src/app/app.routes.ts`. Le type-check de la démo est exécuté en
-parallèle du serveur Vite. Pendant son exécution, un indicateur discret
-`Type checking in progress…` apparaît en haut à droite de la page.
-Si le contrôle échoue, un grand overlay signale l’erreur mais le serveur reste
-accessible pour continuer l’investigation.
+The command serves all routes defined in `apps/demo/src/app/app.routes.ts`.
+The demo's type checker runs alongside the Vite server. While it runs, a small
+`Type checking in progress…` indicator appears at the top right of the page.
+If the check fails, an overlay shows the error while the server remains
+available for further investigation.
 
 ### Production mode
 
-Les points d’entrée `bootstrapCraft` et `startCraft` sélectionnent explicitement
-le mode d’exécution :
+The `bootstrapCraft` and `startCraft` entry points explicitly select the
+execution mode:
 
 ```ts
 bootstrapCraft({
@@ -227,13 +226,12 @@ bootstrapCraft({
 });
 ```
 
-En mode `production`, les traces Craft et la collecte de snapshots de debug sont
-ignorées. Les fonctionnalités nécessaires au rendu, au SSR et à l’hydratation
-restent actives. Les bridges MCP, le forwarding de logs et les outils de debug
-doivent être ajoutés uniquement dans des providers conditionnés par
+In `production` mode, Craft tracing and debug snapshot collection are disabled.
+Rendering, SSR and hydration remain active. MCP bridges, log forwarding and
+debugging tools should only be added through providers guarded by
 `import.meta.env.DEV`.
 
-Pour vérifier les bundles déployables :
+To verify deployable bundles:
 
 ```bash
 npm run production:check
