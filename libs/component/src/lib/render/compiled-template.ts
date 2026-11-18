@@ -12,7 +12,9 @@ import { CRAFT_COMPONENT } from '../types';
 
 /** Versioned contract between the optional build tool and the renderer. */
 export interface CompiledTemplatePlan {
-  readonly version: 1;
+  readonly version: 1 | 2;
+  /** Version 2: template-level reads are tracked separately from binding effects. */
+  readonly watchBind?: boolean;
   /**
    * Light instances: no injector, input proxy, render context, replay record
    * or registry entry of their own. Opt-in trade-off made by the build.
@@ -67,7 +69,7 @@ export function ɵwithCompiledTemplate<Component extends object>(
   plan: CompiledTemplatePlan,
 ): Component {
   const definition = (component as any)[CRAFT_COMPONENT];
-  if (definition && plan.version === 1) {
+  if (definition && (plan.version === 1 || plan.version === 2)) {
     templates.set(component, { template: definition.template, plan });
   }
   return component;

@@ -167,7 +167,7 @@ export function compileModule(
         forHelper = item.name.text;
         forImport = item.name;
       }
-      if (tags.has(name)) {
+      if (tags.has(name) || name === 'h') {
         helpers.set(item.name.text, name);
         helperDeclarations.set(item.name.text, item.name);
       }
@@ -411,6 +411,16 @@ export function compileModule(
       indirect?: boolean;
       input?: string;
     }[] = [];
+    const readerPositions: number[] = [],
+      eventPositions: number[] = [],
+      holePositions: number[] = [];
+    function capturePosition(n: ts.Node): number {
+      return ts.isArrowFunction(n) ||
+        ts.isFunctionExpression(n) ||
+        ts.isMethodDeclaration(n)
+        ? -1
+        : n.getStart(ast);
+    }
     const readers: string[] = [];
     const eventReaders: string[] = [];
     const eventPlans: {
@@ -466,6 +476,7 @@ export function compileModule(
       ) {
         // Evaluated once, where the generic template evaluates it once:
         // a reader, or the value itself.
+        readerPositions.push(capturePosition(n));
         readers.push(`(${code(n)})`);
         bindings.push({ slot, path, key });
         return;
@@ -483,6 +494,7 @@ export function compileModule(
         options.lean && options.lower !== false && ts.isFunctionExpression(n)
           ? lower(n, input)
           : undefined;
+      readerPositions.push(indirect ? -1 : capturePosition(n));
       readers.push(
         indirect ? `() => (${code(n)})` : plain !== undefined ? plain : code(n),
       );
@@ -533,6 +545,7 @@ export function compileModule(
           n.expression.text === input);
       if (!isTag && !isText && parent !== undefined && options.lean) {
         // Anything else is rendered by the generic renderer at its place.
+        holePositions.push(capturePosition(n));
         holeReaders.push(`(${code(n)})`);
         holePlans.push({ parent, before: -1, path });
         ordered(parent).push({ hole: holePlans.length - 1 });
@@ -551,11 +564,21 @@ export function compileModule(
         helpers.has(n.expression.text) &&
         sameBinding(n.expression, helperDeclarations.get(n.expression.text))
       ) {
-        const tag =
+        const helper =
           helpers.get(n.expression.text) ?? fail('unknown DOM helper');
         const args = [...n.arguments];
+        const hCall = helper === 'h';
+        let tag = helper;
+        if (hCall) {
+          const name = args.shift();
+          if (!name || !ts.isStringLiteral(name) || !tags.has(name.text))
+            fail('h requires a supported literal tag');
+          tag = (name as ts.StringLiteral).text;
+        }
+        const argumentCount = args.length;
         let name: string | undefined;
         if (
+          !hCall &&
           args.length >= 2 &&
           ts.isStringLiteral(args[0]) &&
           (ts.isObjectLiteralExpression(unwrap(args[1])) ||
@@ -570,14 +593,58 @@ export function compileModule(
           args.length === 2 &&
           args[0].kind === ts.SyntaxKind.NullKeyword
         )
-          args.shift();
+          fail('null properties overload requires generic helper semantics');
         if (args.length > 1) fail('unsupported tag helper overload');
         creation.push(
           `${nodes}[${slot}] = ${renderer}.createElement(${q(tag)});`,
         );
         elements.push({ slot, path, ...(name !== undefined ? { name } : {}) });
         const propertyKeys = new Set<string>();
-        for (const prop of props?.properties ?? []) {
+        const properties: ts.ObjectLiteralElementLike[] = [];
+        let sawAttrs = false;
+        for (const property of props?.properties ?? []) {
+          const key =
+            property.name &&
+            (ts.isIdentifier(property.name) ||
+              ts.isStringLiteral(property.name))
+              ? property.name.text
+              : undefined;
+          if (key !== 'attrs') {
+            properties.push(property);
+            continue;
+          }
+          if (sawAttrs) fail('duplicate attrs property');
+          sawAttrs = true;
+          if (!ts.isPropertyAssignment(property))
+            fail('attrs requires an explicit object literal');
+          const record = unwrap(
+            (property as ts.PropertyAssignment).initializer,
+          );
+          if (!ts.isObjectLiteralExpression(record))
+            fail('attrs requires an explicit object literal');
+          for (const attribute of (record as ts.ObjectLiteralExpression)
+            .properties) {
+            const name =
+              attribute.name &&
+              (ts.isIdentifier(attribute.name) ||
+                ts.isStringLiteral(attribute.name))
+                ? attribute.name.text
+                : undefined;
+            if (
+              !ts.isPropertyAssignment(attribute) ||
+              name === undefined ||
+              !(
+                ['id', 'title', 'role', 'type'].includes(name) ||
+                name.startsWith('data-') ||
+                name.startsWith('aria-')
+              ) ||
+              name.startsWith('data-craft-')
+            )
+              fail('unsupported nested attribute');
+            properties.push(attribute);
+          }
+        }
+        for (const prop of properties) {
           const propName =
             prop.name &&
             (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name))
@@ -599,6 +666,11 @@ export function compileModule(
             else if (ts.isShorthandPropertyAssignment(prop))
               eventReaders.push(`(${prop.name.text})`);
             else fail('unsupported event property');
+            eventPositions.push(
+              capturePosition(
+                ts.isPropertyAssignment(prop) ? prop.initializer : prop,
+              ),
+            );
             eventPlans.push({
               slot,
               event,
@@ -684,7 +756,7 @@ export function compileModule(
         if (
           args[0] &&
           !props &&
-          n.arguments.length === 1 &&
+          argumentCount === 1 &&
           !ts.isCallExpression(unwrap(args[0])) &&
           !ts.isArrayLiteralExpression(unwrap(args[0])) &&
           !ts.isArrowFunction(unwrap(args[0])) &&
@@ -740,11 +812,115 @@ export function compileModule(
       options.dom === 'clone'
         ? `locate: (${locateRoot}: Node) => {const ${nodes}: Node[] = []; ${locations.join('\n')} return ${nodes};},`
         : '';
-    const all = [...readers, ...eventReaders, ...holeReaders].join(',\n');
-    const bind = setup.length
-      ? `(${parameters}) => { ${setup.join('\n')} return [${all}]; }`
+    let watchBind = false;
+    function observeBind(node: ts.Node): void {
+      if (watchBind || ts.isTypeNode(node)) return;
+      if (
+        ts.isArrowFunction(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isFunctionDeclaration(node)
+      )
+        return;
+      if (ts.isIdentifier(node)) {
+        const parent = node.parent;
+        const key =
+          (ts.isPropertyAssignment(parent) ||
+            ts.isPropertyAccessExpression(parent) ||
+            ts.isVariableDeclaration(parent)) &&
+          parent.name === node;
+        if (
+          !key &&
+          node.text !== 'undefined' &&
+          node.text !== 'NaN' &&
+          node.text !== 'Infinity'
+        ) {
+          const symbol = checker.getSymbolAtLocation(node);
+          if (
+            !symbol?.declarations?.length ||
+            symbol.declarations.some(
+              (declaration) => declaration.getSourceFile().isDeclarationFile,
+            )
+          ) {
+            watchBind = true;
+            return;
+          }
+        }
+      }
+      if (
+        ts.isMethodDeclaration(node) ||
+        ts.isGetAccessor(node) ||
+        ts.isSetAccessor(node)
+      ) {
+        if (node.name && ts.isComputedPropertyName(node.name))
+          observeBind(node.name.expression);
+        return;
+      }
+      if (ts.isCallExpression(node)) {
+        const callee = node.expression;
+        const native =
+          ts.isIdentifier(callee) &&
+          helpers.has(callee.text) &&
+          sameBinding(callee, helperDeclarations.get(callee.text));
+        const component =
+          ts.isIdentifier(callee) &&
+          compiledDefinitions.has(checker.getSymbolAtLocation(callee)!);
+        if (!native && !component) {
+          watchBind = true;
+          return;
+        }
+      }
+      if (
+        ts.isPropertyAccessExpression(node) &&
+        !(ts.isIdentifier(node.expression) && node.expression.text === input)
+      ) {
+        watchBind = true;
+        return;
+      }
+      if (
+        ts.isElementAccessExpression(node) ||
+        ts.isNewExpression(node) ||
+        ts.isClassExpression(node) ||
+        ts.isBinaryExpression(node) ||
+        ts.isConditionalExpression(node) ||
+        ts.isTemplateExpression(node) ||
+        ts.isSpreadAssignment(node) ||
+        ts.isSpreadElement(node) ||
+        ts.isObjectBindingPattern(node) ||
+        ts.isArrayBindingPattern(node) ||
+        ts.isPostfixUnaryExpression(node) ||
+        (ts.isPrefixUnaryExpression(node) && literal(node) === undefined)
+      ) {
+        watchBind = true;
+        return;
+      }
+      ts.forEachChild(node, observeBind);
+    }
+    if (options.lean) observeBind(fn.body);
+    const captureExpressions = [...readers, ...eventReaders, ...holeReaders];
+    const captures = [...readerPositions, ...eventPositions, ...holePositions]
+      .map((position, index) => ({ position, index }))
+      .filter((capture) => capture.position >= 0);
+    const reordered = captures.some(
+      (capture, index) =>
+        index > 0 && capture.position < captures[index - 1].position,
+    );
+    const orderedSetup: string[] = [];
+    if (reordered)
+      for (const capture of [...captures].sort(
+        (a, b) => a.position - b.position,
+      )) {
+        const name = fresh('capture');
+        orderedSetup.push(
+          `const ${name} = ${captureExpressions[capture.index]};`,
+        );
+        captureExpressions[capture.index] = name;
+      }
+    const all = captureExpressions.join(',\n');
+    const bindSetup = [...setup, ...orderedSetup];
+    const bind = bindSetup.length
+      ? `(${parameters}) => { ${bindSetup.join('\n')} return [${all}]; }`
       : `(${parameters}) => [${all}]`;
-    return `{ version: 1, ${options.lean ? 'lean: true, ' : ''}${locator} create: (${renderer}: any) => { ${creation.join('\n')} return ${nodes}; }, bind: ${bind}, elements: ${q(elements)}, bindings: ${q(bindings)}${eventPlans.length ? `, events: ${q(eventPlans)}` : ''}${holePlans.length ? `, holes: ${q(holePlans)}` : ''} }`;
+    return `{ version: ${watchBind ? 2 : 1}, ${watchBind ? 'watchBind: true, ' : ''}${options.lean ? 'lean: true, ' : ''}${locator} create: (${renderer}: any) => { ${creation.join('\n')} return ${nodes}; }, bind: ${bind}, elements: ${q(elements)}, bindings: ${q(bindings)}${eventPlans.length ? `, events: ${q(eventPlans)}` : ''}${holePlans.length ? `, holes: ${q(holePlans)}` : ''} }`;
   }
   const pendingPlans: { call: ts.CallExpression; plan: string }[] = [];
   function walk(n: ts.Node): void {

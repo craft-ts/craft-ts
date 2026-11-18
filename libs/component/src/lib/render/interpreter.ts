@@ -5925,14 +5925,14 @@ function leanInputs(props: object): Record<string, unknown> | undefined {
 function canMountLeanComponent(
   node: Extract<CraftNode, { kind: 'component' }>,
   context: RenderContext,
-): boolean {
+): CompiledTemplatePlan | undefined {
   const plan = compiledTemplateFor(node.component);
-  return (
+  const eligible =
     !!plan?.lean &&
     !node.injector &&
     context.settledReadObserver === undefined &&
-    canUseCompiledDefinition(node.component, context)
-  );
+    canUseCompiledDefinition(node.component, context);
+  return eligible ? plan : undefined;
 }
 
 /**
@@ -5944,16 +5944,16 @@ function canMountLeanComponent(
  */
 class LeanComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
-  private readonly component: CraftComponent<object>;
+  protected readonly component: CraftComponent<object>;
   private props: object;
-  private readonly context: RenderContext;
-  private readonly plan: CompiledTemplatePlan;
-  private nodes: Node[] | undefined;
-  private stops: (() => void)[] | undefined;
-  private holes: RenderedNode[][] | undefined;
-  private holeContexts: RenderContext[] | undefined;
-  private holeEnvironment: RenderContext | undefined;
-  private readonly declarationContext: RenderContext;
+  protected readonly context: RenderContext;
+  protected readonly plan: CompiledTemplatePlan;
+  protected nodes: Node[] | undefined;
+  protected stops: (() => void)[] | undefined;
+  protected holes: RenderedNode[][] | undefined;
+  protected holeContexts: RenderContext[] | undefined;
+  protected holeEnvironment: RenderContext | undefined;
+  protected readonly declarationContext: RenderContext;
   private destroyed = false;
 
   constructor(
@@ -5992,7 +5992,7 @@ class LeanComponentRenderedNode implements RenderedNode {
   }
 
   /** One kernel effect per binding, writing to the nodes created once. */
-  private bind(inputs: Record<string, unknown>): void {
+  protected bind(inputs: Record<string, unknown>): void {
     const context = this.context;
     const plan = this.plan;
     const nodes = this.nodes!;
@@ -6075,7 +6075,7 @@ class LeanComponentRenderedNode implements RenderedNode {
   }
 
   /** The same dispatch as an interpreted element's listener. */
-  private listen(
+  protected listen(
     plan: NonNullable<CompiledTemplatePlan['events']>[number],
     listener: EventListener,
   ): () => void {
@@ -6112,7 +6112,7 @@ class LeanComponentRenderedNode implements RenderedNode {
   }
 
   /** A child the build left to the generic renderer, at its place. */
-  private renderHole(
+  protected renderHole(
     index: number,
     value: unknown,
     previous: RenderedNode[] | undefined,
@@ -6198,7 +6198,7 @@ class LeanComponentRenderedNode implements RenderedNode {
     this.bind(inputs);
     return true;
   }
-  private stopBindings(): void {
+  protected stopBindings(): void {
     const stops = this.stops;
     this.stops = undefined;
     if (!stops) return;
@@ -6242,6 +6242,179 @@ class LeanComponentRenderedNode implements RenderedNode {
     }
     this.nodes = undefined;
     throwCleanupErrors(errors);
+  }
+}
+
+/** Keeps the generic template's eager dependencies without rebuilding its DOM. */
+class WatchedLeanComponentRenderedNode extends LeanComponentRenderedNode {
+  declare private sourceStop?: () => void;
+  protected override bind(inputs: Record<string, unknown>): void {
+    let initial = true,
+      failed = false,
+      failure: unknown;
+    const run = () => {
+      const readers = this.context.injector.run(() => this.plan.bind(inputs));
+      untracked(() => {
+        super.stopBindings();
+        this.bindCaptured(readers);
+      });
+    };
+    const stop = ɵcraftBindingEffect(() => {
+      if (!initial) {
+        run();
+        return;
+      }
+      try {
+        run();
+      } catch (error) {
+        failed = true;
+        failure = error;
+      }
+    });
+    initial = false;
+    if (failed) {
+      try {
+        stop?.();
+      } catch {
+        /* Preserve the binding failure. */
+      }
+      throw failure;
+    }
+    if (stop) this.sourceStop = stop;
+  }
+  protected override stopBindings(): void {
+    const stop = this.sourceStop;
+    delete this.sourceStop;
+    let errors: unknown[] | undefined;
+    try {
+      stop?.();
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    try {
+      super.stopBindings();
+    } catch (error) {
+      errors = keepCleanupError(errors, error);
+    }
+    throwCleanupErrors(errors);
+  }
+  private bindCaptured(readers: readonly unknown[]): void {
+    const context = this.context;
+    const plan = this.plan;
+    const nodes = this.nodes!;
+    const renderer = context.renderer;
+    untracked(() =>
+      runInInjectionContext(context.injector, () => {
+        const bindings = plan.bindings;
+        const stops: (() => void)[] = (this.stops = []);
+        for (let index = 0; index < bindings.length; index++) {
+          const binding = bindings[index];
+          const reader = readers[index];
+          const target = nodes[binding.slot];
+          const key = binding.key;
+          let seen = false,
+            previous: unknown;
+          const stop = ɵcraftBindingEffect(() => {
+            let value: unknown;
+            if (binding.lowered) {
+              const previousInjector = leanReadScope.injector;
+              leanReadScope.injector = context.injector;
+              try {
+                value = readResolvedBinding(
+                  context.injector.run(reader as () => unknown),
+                  context,
+                );
+              } finally {
+                leanReadScope.injector = previousInjector;
+              }
+            } else
+              value = resolveTemplateValue(
+                binding.indirect ? (reader as () => unknown)() : reader,
+                context,
+              );
+            if (key === 'class') value = className(value, context);
+            else if (!key)
+              value =
+                value === null || value === undefined || value === false
+                  ? ''
+                  : String(value);
+            if (seen && Object.is(previous, value)) return;
+            const first = !seen;
+            previous = value;
+            seen = true;
+            if (key === 'class') {
+              if (value)
+                renderer.setAttribute(
+                  target as Element,
+                  'class',
+                  value as string,
+                );
+              else if (!first)
+                renderer.removeAttribute(target as Element, 'class');
+            } else if (key)
+              applyAttribute(renderer, target as Element, key, value, context);
+            else renderer.setValue(target as Text, value as string);
+          });
+          if (stop) stops.push(stop);
+        }
+        const events = plan.events;
+        if (events)
+          for (let index = 0; index < events.length; index++) {
+            const listener = readers[bindings.length + index];
+            if (typeof listener === 'function')
+              stops.push(this.listen(events[index], listener as EventListener));
+          }
+        const holes = plan.holes;
+        if (holes) {
+          const offset = bindings.length + (events?.length ?? 0);
+          const mounted = (this.holes ??= []);
+          for (let index = 0; index < holes.length; index++)
+            mounted[index] = this.renderHole(
+              index,
+              readers[offset + index],
+              mounted[index],
+            );
+        }
+      }),
+    );
+  }
+
+  protected override renderHole(
+    index: number,
+    value: unknown,
+    previous: RenderedNode[] | undefined,
+  ): RenderedNode[] {
+    const plan = this.plan.holes![index];
+    const parent = this.nodes![plan.parent] as Element;
+    const before = plan.before === -1 ? null : this.nodes![plan.before];
+    const contexts = (this.holeContexts ??= []);
+    let holeContext = contexts[index];
+    if (!holeContext) {
+      // One environment for the instance; each hole only has its identity.
+      const definition = this.component[CRAFT_COMPONENT];
+      const shared = (this.holeEnvironment ??= childContext(this.context, {
+        rootScope: undefined,
+        componentName: definition.name,
+        ownerScope: scopeIdFor(definition.scopeDefinition, definition.name),
+        declarationContext: this.declarationContext,
+        directiveNames: [],
+        traceState: { renderCount: 1 },
+      }));
+      holeContext = contexts[index] = childContext(shared, {
+        identity: ɵchildCraftRenderIdentity(
+          this.context.identity,
+          0,
+          ...plan.path,
+        ),
+      });
+    }
+    return patchRenderedChildren(
+      parent,
+      previous ?? [],
+      value as CraftNodeChildren,
+      before as NativeNode | null,
+      holeContext,
+    );
   }
 }
 
@@ -7815,17 +7988,16 @@ function mountNode(
         node,
       );
     }
-    case 'component':
-      if (canMountLeanComponent(node, context)) {
+    case 'component': {
+      const leanPlan = canMountLeanComponent(node, context);
+      if (leanPlan) {
         const inputs = leanInputs(node.props);
         if (inputs)
-          return new LeanComponentRenderedNode(
-            node,
-            inputs,
-            parent,
-            before,
-            context,
-          );
+          return new (
+            leanPlan.watchBind
+              ? WatchedLeanComponentRenderedNode
+              : LeanComponentRenderedNode
+          )(node, inputs, parent, before, context);
       }
       if (canMountCompiledComponent(node, context)) {
         return new CompiledComponentRenderedNode(node, parent, before, context);
@@ -7843,6 +8015,7 @@ function mountNode(
         [],
         node.declarationContext as RenderContext | undefined,
       );
+    }
     case 'directive':
       return new CraftDirectiveRenderedNode(node, parent, before, context);
     case 'for': {

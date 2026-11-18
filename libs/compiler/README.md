@@ -35,6 +35,26 @@ intermediate reactive effect and range comments. This list pass can be disabled
 with `craftCompiler({ lists: false })`. It preserves the original template for fallback and leaves all
 public types and generator callbacks intact.
 
+Closed `attrs: { ... }` records can also compile. Their keys must be explicit
+and use the existing `id`, `title`, `role`, `type`, `data-*` or `aria-*`
+support. Unknown records, getters, spreads, computed keys, collisions and
+reserved `data-craft-*` names retain the generic renderer. `h('div', props,
+children)` and import aliases compile when the quoted tag belongs to the same
+supported HTML set; dynamic tags and ambiguous overloads remain generic.
+Helper calls with `null` properties also retain their actual generic behavior
+instead of assuming that `null` means an empty props object.
+
+In lean plans, reactive values read while constructing the template are
+tracked separately from deferred binding callbacks. A change to such a value
+rebinds the existing tree and patches its generic children; an ordinary
+binding update keeps its own effect. Opaque reader factories are evaluated in
+that source phase, and an effect with no reactive reads is released after
+its first run. Eager expressions keep their source order across attributes,
+event listeners and generic children. These plans use internal ABI version 2;
+an older component runtime ignores them and renders the original template.
+The [attrs/h campaign](../../docs/benchmarks/2026-11-18-attrs-properties.md)
+records the contracts, measurements and rejected intermediate prototypes.
+
 Unknown structure, providers, composition, setup statements, events, styles,
 controls with special mounting behavior, arbitrary helper calls, namespaces,
 spread/computed properties, and receiver-dependent code use the generic renderer.

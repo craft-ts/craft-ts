@@ -71,7 +71,7 @@ et 1 465 gzip. Aucun changement du défaut `create` n'en est déduit.
 
 ## Cas ordinaires : surcoût sans nouvelle couverture
 
-Les sources ordinaires du microbanc et les treize modules de la page
+Les sources ordinaires du microbanc et les douze modules de la page
 n'ajoutent **aucune définition compilée** avec ce prototype. La fixture
 ciblée ci-dessus, transformée de la même façon pour les variantes, constitue
 la couverture supplémentaire mesurée.

@@ -185,9 +185,9 @@ impératif restent absents des mutations de production.
 
 ## Suite encore ouverte
 
-Le manifeste distingue les essais terminés des tâches restantes : fusion de
-bindings, rebinds partiels, imports intermodules, couverture des templates et
-structures, fabriques DOM communes, fragments, injecteurs, bundle, hydratation,
-OXC, CSS, virtualisation et montage progressif. L'ablation lean historique
-nécessite aussi de réarchiver ses données brutes. Le marquage versionné reste
-partiel. **Cette livraison n'achève pas l'objectif de mesurer toutes les pistes.**
+Le manifeste fait foi pour l'état courant. Ce rapport fige les premières
+cohortes ; les imports, rebinds, ablations réarchivées et essais suivants
+ont désormais leurs propres rapports. L'extension
+[`attrs` et `h`](2026-11-18-attrs-properties.md) est retenue ; les styles
+restent à mesurer dans cette même piste. Le marquage versionné reste partiel.
+**Cette livraison n'achève pas l'objectif de mesurer toutes les pistes.**

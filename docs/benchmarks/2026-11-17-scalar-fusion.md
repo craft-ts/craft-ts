@@ -61,7 +61,7 @@ Bundle favorable : +1 744 octets JS et +395 gzip.
 ## Contrôles ordinaires et page réaliste
 
 La couverture potentielle de fusion est **nulle** dans les sources ordinaires
-du microbanc et les treize modules de la page. Leurs projections, calculs et
+du microbanc et les douze modules de la page. Leurs projections, calculs et
 frontières ne correspondent pas au motif ciblé. Les écarts suivants mesurent
 donc le coût résiduel du prototype, pas un bénéfice de fusion.
 

@@ -68,7 +68,7 @@ runner = replaceOnce(
   runner,
   '      plugins: enabled',
   `      plugins: [
-        ...(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true' || process.env.CAMPAIGN_SCALAR_FIXTURE === 'true' || process.env.CAMPAIGN_IMPORTED_FIXTURE === 'true' || process.env.CAMPAIGN_WIDE_INDEX === 'true' || process.env.CAMPAIGN_SERVICE_FIXTURE === 'true' || process.env.CAMPAIGN_FUSION_FIXTURE === 'true' || process.env.CAMPAIGN_MULTIPLE_ROOTS === 'true' ? [{
+        ...(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true' || process.env.CAMPAIGN_SCALAR_FIXTURE === 'true' || process.env.CAMPAIGN_IMPORTED_FIXTURE === 'true' || process.env.CAMPAIGN_WIDE_INDEX === 'true' || process.env.CAMPAIGN_SERVICE_FIXTURE === 'true' || process.env.CAMPAIGN_FUSION_FIXTURE === 'true' || process.env.CAMPAIGN_MULTIPLE_ROOTS === 'true' || process.env.CAMPAIGN_ATTRS_FIXTURE === 'true' || process.env.CAMPAIGN_H_FIXTURE === 'true' || process.env.CAMPAIGN_EAGER_ATTRS === 'true' ? [{
           name:'campaign-local-fixture', enforce:'pre',
           resolveId(specifier){if(specifier==='campaign-imported-rows')return ${JSON.stringify(importedFixture)};},
           transform(source,id) {
@@ -105,6 +105,24 @@ runner = replaceOnce(
               const start=source.indexOf('const Row = craftComponent('),end=source.indexOf('const IndexedRow = craftComponent(');
               if(start<0||end<0)throw Error('Multiple roots fixture anchors missing');
               source=source.slice(0,start)+"const Row=craftComponent('CompilerBenchRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>[div({'data-row':function*(){return (yield* inputs.row()).id;}},function*(){return (yield* inputs.row()).label;}),' / ',span({'data-position':inputs.position},inputs.position)]);\\n"+source.slice(end);
+            }
+            if(process.env.CAMPAIGN_ATTRS_FIXTURE === 'true') {
+              const start=source.indexOf('const Row = craftComponent('),end=source.indexOf('const IndexedRow = craftComponent(');
+              if(start<0||end<0)throw Error('Attrs fixture anchors missing');
+              const attributes=Array.from({length:8},(_,index)=>JSON.stringify('data-column-'+index)+':'+JSON.stringify('column-'+index)).join(',');
+              source=source.slice(0,start)+"const Row=craftComponent('CompilerBenchRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>div({attrs:{role:'row',"+attributes+"},'data-row':function*(){return (yield* inputs.row()).id;}},function*(){return (yield* inputs.row()).label;}));\\n"+source.slice(end);
+            }
+            if(process.env.CAMPAIGN_H_FIXTURE === 'true') {
+              const start=source.indexOf('const Row = craftComponent('),end=source.indexOf('const IndexedRow = craftComponent(');
+              if(start<0||end<0)throw Error('h fixture anchors missing');
+              const row=source.slice(start,end);if(!row.includes('    div('))throw Error('h row anchor missing');
+              source="import {h as __benchH} from '@craft-ts/component';\\n"+source.slice(0,start)+row.replace('    div(',"    __benchH('div',")+source.slice(end);
+            }
+            if(process.env.CAMPAIGN_EAGER_ATTRS === 'true') {
+              const start=source.indexOf('const Row = craftComponent('),end=source.indexOf('const IndexedRow = craftComponent(');
+              if(start<0||end<0)throw Error('Eager attrs fixture anchors missing');
+              source="import {ɵsignal as __benchSignal} from '@craft-ts/core';\\nconst __benchEager=__benchSignal(0);\\n"+source.slice(0,start)+"const Row=craftComponent('CompilerBenchRow',{},(inputs:{row:Input<{id:number;label:string}>;position:Input<number>})=>div({attrs:{role:'row'},'data-row':function*(){return (yield* inputs.row()).id;},'data-eager':__benchEager()},function*(){return (yield* inputs.row()).label;}));\\n"+source.slice(end);
+              source=source.replace("  else if (action === 'update-one' || action === 'update-tenth')","  else if(action === 'update-tenth') __benchEager.update(value=>value+1);\\n  else if (action === 'update-one')");
             }
             if(process.env.CAMPAIGN_LOCAL_FIXTURE === 'true') source=source.replace('const Row = craftComponent(', 'function fixture() {\\nconst Row = craftComponent(').replace('const start = performance.now();','return App; }\\nconst App = fixture();\\nconst start = performance.now();');
             return source;
