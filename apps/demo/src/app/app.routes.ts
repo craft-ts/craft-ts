@@ -291,6 +291,16 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
     ),
   },
 
+  /* demo-route-end */ /* demo-route: control-room */
+  {
+    path: 'control-room',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/control-room/control-room'),
+      ).then(({ default: component }) => component),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: exceptions */
   {
     path: 'exceptions',
@@ -529,6 +539,7 @@ type DemoRoutePath =
   | 'full-demo'
   | 'pixel-art'
   | 'pixel-art-matrix'
+  | 'control-room'
   | 'exceptions'
   | 'exception-query-params'
   | 'craft/lazy-layout/:teamId/users/:userId'
@@ -830,6 +841,15 @@ type _CanRunPixelArtMatrix = CanRun<
     (typeof import('./examples/primitives/pixel-art-matrix/pixel-art-matrix'))['default'],
     never,
     'path: "pixel-art-matrix"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: control-room */
+type _CanRunControlRoom = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/control-room/control-room'))['default'],
+    never,
+    'path: "control-room"'
   >
 >;
 /* demo-check-end */

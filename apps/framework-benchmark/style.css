@@ -1,0 +1,14 @@
+body {
+  font: 16px system-ui;
+  max-width: 960px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+button {
+  margin: 8px;
+  padding: 8px;
+}
+[data-row] {
+  padding: 2px 8px;
+  border-bottom: 1px solid #ddd;
+}

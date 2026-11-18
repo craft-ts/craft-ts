@@ -1,0 +1,39 @@
+--- a/libs/core/src/lib/craft-render-identity.ts
++++ b/libs/core/src/lib/craft-render-identity.ts
+@@ -1,4 +1,5 @@
+ import { ɵcraftValueService } from './craft-service';
++const DIAG_TRUSTED_IDENTITIES = new WeakSet<CraftRenderIdentity>();
+ 
+ /** A deterministic address for one node in a Craft render tree. */
+ export type CraftRenderIdentity = Readonly<{
+@@ -35,17 +36,28 @@
+   path: readonly (string | number)[],
+ ): CraftRenderIdentity {
+   const normalized = path.map(String);
+-  return {
++  const identity: CraftRenderIdentity = {
+     path: normalized,
+     hydrationKey: normalized.map(encodeHydrationSegment).join('/'),
+   };
++  DIAG_TRUSTED_IDENTITIES.add(identity);
++  return identity;
+ }
+ 
+ export function childCraftRenderIdentity(
+   parent: CraftRenderIdentity,
+   ...segments: readonly (string | number)[]
+ ): CraftRenderIdentity {
+-  return createCraftRenderIdentity([...parent.path, ...segments]);
++  const tail = segments.map(String);
++  const path = [...parent.path, ...tail];
++  if (!DIAG_TRUSTED_IDENTITIES.has(parent)) return createCraftRenderIdentity(path);
++  const suffix = tail.map(encodeHydrationSegment).join('/');
++  const identity: CraftRenderIdentity = {
++    path,
++    hydrationKey: tail.length ? parent.hydrationKey + (parent.path.length ? '/' : '') + suffix : parent.hydrationKey,
++  };
++  DIAG_TRUSTED_IDENTITIES.add(identity);
++  return identity;
+ }
+ 
+ function encodeHydrationSegment(segment: string): string {

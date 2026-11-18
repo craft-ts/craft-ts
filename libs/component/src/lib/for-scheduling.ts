@@ -1,4 +1,4 @@
-import { runInInjectionContext, type Injector } from './host-runtime';
+import type { Injector } from './host-runtime';
 import {
   ɵdestroyCraftOwner,
   type CraftServiceProvider,
@@ -6,6 +6,8 @@ import {
   type TemporalTaskHandle,
   ɵcraftValueService,
   ɵonCraftTemporalRuntimeOverride,
+  ɵresolveOptionalService,
+  ɵSERVICE_NOT_FOUND,
 } from '@craft-ts/core';
 import { craftDirective } from './directive';
 import type { CraftDirective } from './types';
@@ -101,9 +103,15 @@ export const ɵinjectForSchedulerIn = (
   injector: Injector,
 ): ForScheduler | null => {
   try {
-    return runInInjectionContext(injector, () =>
-      forSchedulerService.FOR_SCHEDULER_META_DATA.inject(),
+    // Asked with a fallback: most lists have no scheduler provided, and an
+    // absence answered with an error costs a stack trace for each list.
+    const scheduler = ɵresolveOptionalService(
+      forSchedulerService.FOR_SCHEDULER_META_DATA,
+      injector,
     );
+    return scheduler === ɵSERVICE_NOT_FOUND
+      ? null
+      : (scheduler as ForScheduler);
   } catch {
     return null;
   }

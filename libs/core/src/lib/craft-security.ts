@@ -1,4 +1,9 @@
-import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
+import {
+  type CraftServiceProvider,
+  ɵcraftValueService,
+  ɵresolveOptionalService,
+  ɵSERVICE_NOT_FOUND,
+} from './craft-service';
 import { getCurrentCraftInjector } from './host/craft-injector';
 
 export type CraftTransferPolicy = Readonly<{
@@ -152,9 +157,8 @@ export const provideCraftSecurityPolicyService =
     craftSecurityPolicyService.provideCraftSecurityPolicy(value);
 /**
  * The policy each injector resolved. The renderer asks for it on every attribute and every
- * resource it sets, and an app that provides none gets the default only after a lookup that
- * ends in a thrown `Error` (a stack trace each): about a thousand per page, for one answer.
- * An injector's providers do not change, so its answer does not.
+ * resource it sets: about a thousand times per page, for one answer. An injector's providers
+ * do not change, so its answer does not.
  */
 const policyOfInjector = new WeakMap<object, CraftSecurityPolicy>();
 
@@ -169,7 +173,15 @@ export const ɵinjectCraftSecurityPolicy = (): CraftSecurityPolicy => {
   if (known) return known;
   let policy: CraftSecurityPolicy;
   try {
-    policy = craftSecurityPolicyService.CRAFT_SECURITY_POLICY_META_DATA.inject() as CraftSecurityPolicy;
+    // Asked with a fallback: an application rarely provides a policy, and an
+    // absence answered with an error costs a stack trace for each injector.
+    const provided = ɵresolveOptionalService(
+      craftSecurityPolicyService.CRAFT_SECURITY_POLICY_META_DATA,
+    );
+    policy =
+      provided === ɵSERVICE_NOT_FOUND
+        ? DEFAULT_CRAFT_SECURITY_POLICY
+        : (provided as CraftSecurityPolicy);
   } catch {
     policy = DEFAULT_CRAFT_SECURITY_POLICY;
   }

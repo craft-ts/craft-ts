@@ -558,10 +558,12 @@ type LocatorContentMarkedElement = Element & {
   readonly [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
 };
 
+const NO_CONTENT_NAMES: readonly string[] = [];
+
 export function directCraftContentNames(
   children: CraftNodeChildren,
 ): readonly string[] {
-  const names = new Set<string>();
+  let names: Set<string> | undefined;
   const visit = (child: CraftNodeChild): void => {
     if (Array.isArray(child)) {
       child.forEach(visit);
@@ -575,11 +577,11 @@ export function directCraftContentNames(
       const name = (child as { readonly [YIELDABLE_VALUE]?: unknown })[
         YIELDABLE_VALUE
       ];
-      if (typeof name === 'string') names.add(name);
+      if (typeof name === 'string') (names ??= new Set()).add(name);
     }
   };
   visit(children);
-  return [...names];
+  return names ? [...names] : NO_CONTENT_NAMES;
 }
 
 type RuntimeLocatorMatch = {
@@ -721,7 +723,9 @@ function runtimeTemplateMatches(
       case 'for':
         matches.push(
           ...runtimeTemplateMatches(
-            node.itemTemplate(undefined as never, function* () { return 0; }),
+            node.itemTemplate(undefined as never, function* () {
+              return 0;
+            }),
             tag,
             criteria,
             true,

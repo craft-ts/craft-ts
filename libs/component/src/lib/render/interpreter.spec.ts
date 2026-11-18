@@ -13,6 +13,7 @@ import {
   HOST_TAG_LIST,
   injectCorrelationIdService,
   insertDeepYieldable,
+  isGeneratorFunction,
   markYieldableValue,
   mutation,
   overrideService,
@@ -46,6 +47,7 @@ import {
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
 } from '../host-runtime';
+
 
 import { catchNode } from '../catch-node';
 import { deferNode } from '../defer-node';
@@ -897,6 +899,42 @@ describe('functional component interpreter', () => {
     expect(element.textContent).toMatch(
       /^component:AutomaticHostTag#\d+\|service:automaticHostTagView#\d+$/,
     );
+    destroy();
+  });
+
+  it('gives each instance of a component its own host tag ordinal and owner chain', async () => {
+    const { RowHostTags, provideRowHostTags } = craftService(
+      { name: 'rowHostTags', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('hostTags', inject(HOST_TAG_LIST));
+      },
+    );
+    const row = craftComponent(
+      'TaggedRow',
+      { providers: [provideRowHostTags()] },
+      function* () {
+        const { hostTags } = yield* RowHostTags();
+        return li(hostTags.join('|'));
+      },
+    );
+    const list = craftComponent('TaggedList', {}, () =>
+      ul([row(), row(), row()]),
+    );
+    const { nativeElement: element, destroy } =
+      await renderCraftComponent(list);
+
+    const tags = [...element.querySelectorAll('li')].map((item) =>
+      item.textContent!.split('|'),
+    );
+    expect(tags).toHaveLength(3);
+    const listTag = tags[0][0];
+    expect(listTag).toMatch(/^component:TaggedList#\d+$/);
+    for (const [owner, own, service] of tags) {
+      expect(owner).toBe(listTag);
+      expect(own).toMatch(/^component:TaggedRow#\d+$/);
+      expect(service).toMatch(/^service:rowHostTags#\d+$/);
+    }
+    expect(new Set(tags.map(([, own]) => own)).size).toBe(3);
     destroy();
   });
 
@@ -3832,4 +3870,328 @@ it('publishes all indexes and commits DOM order before index consumers observe a
     { order: ['2', '1'], positions: [1, 0] },
   ]);
   destroy();
+});
+
+describe('component range on a client render', () => {
+  const comments = (root: Node): string[] => {
+    const found: string[] = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
+    while (walker.nextNode()) found.push(walker.currentNode.textContent ?? '');
+    return found;
+  };
+  const componentBoundaries = (root: Node): string[] =>
+    comments(root).filter((text) => text.startsWith('craft-component'));
+
+  it('creates no boundary comment for a component that renders one element', async () => {
+    const row = craftComponent('singleRootRow', {}, () => p('row'));
+    const page = craftComponent('singleRootPage', {}, () =>
+      section([span('before'), row(), span('after')]),
+    );
+    const { nativeElement, destroy } = await renderCraftComponent(page);
+
+    expect(nativeElement.textContent).toBe('beforerowafter');
+    expect(
+      componentBoundaries(nativeElement.querySelector('section')!),
+    ).toEqual([]);
+    destroy();
+    expect(nativeElement.querySelector('p')).toBeNull();
+  });
+
+  it('keeps its place when the output stops being one element, and afterwards', async () => {
+    type Shape = 'one' | 'other' | 'none' | 'two' | 'text';
+    const shape = signal<Shape>('one');
+    const child = craftComponent('shapeShifter', {}, () => {
+      const current = shape();
+      return current === 'one'
+        ? p('one')
+        : current === 'other'
+          ? span('other')
+          : current === 'none'
+            ? null
+            : current === 'two'
+              ? [p('first'), p('second')]
+              : 'text';
+    });
+    const page = craftComponent('shapeShifterPage', {}, () =>
+      section([span('['), child(), span(']')]),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(page);
+    const range = nativeElement.querySelector('section')!;
+    const first = range.querySelector('p');
+
+    expect(range.textContent).toBe('[one]');
+    expect(componentBoundaries(range)).toEqual([]);
+
+    // Still one element of another tag: it is replaced where it stands.
+    shape.set('other');
+    await flush();
+    expect(range.textContent).toBe('[other]');
+
+    for (const [next, text] of [
+      ['none', '[]'],
+      ['two', '[firstsecond]'],
+      ['text', '[text]'],
+      ['one', '[one]'],
+      ['none', '[]'],
+      ['one', '[one]'],
+    ] as const) {
+      shape.set(next);
+      await flush();
+      expect(range.textContent).toBe(text);
+      expect(componentBoundaries(range)).toEqual([
+        'craft-component:start',
+        'craft-component:end',
+      ]);
+      expect(range.firstElementChild?.textContent).toBe('[');
+      expect(range.lastElementChild?.textContent).toBe(']');
+    }
+    expect(range.querySelector('p')).not.toBe(first);
+    destroy();
+    expect(nativeElement.querySelector('section')).toBeNull();
+  });
+
+  it('gives a component that first renders nothing its boundaries, then its content between them', async () => {
+    const visible = signal(false);
+    const child = craftComponent('lateContent', {}, () =>
+      visible() ? p('content') : null,
+    );
+    const page = craftComponent('lateContentPage', {}, () =>
+      section([span('['), child(), span(']')]),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(page);
+    const range = nativeElement.querySelector('section')!;
+
+    expect(range.textContent).toBe('[]');
+    expect(componentBoundaries(range)).toEqual([
+      'craft-component:start',
+      'craft-component:end',
+    ]);
+    visible.set(true);
+    await flush();
+    expect(range.textContent).toBe('[content]');
+    destroy();
+  });
+
+  it('moves, removes and restores keyed single-element components in order', async () => {
+    const items = signal([1, 2, 3, 4]);
+    const wide = signal<number | undefined>(undefined);
+    const row = craftComponent(
+      'keyedSingleRoot',
+      {},
+      (inputs: { item: Input<number> }) => {
+        const id = craftUse(inputs.item());
+        return wide() === id
+          ? [p({ 'data-row': id }, `${id}a`), p({ 'data-row': id }, `${id}b`)]
+          : p({ 'data-row': id }, String(id));
+      },
+    );
+    const list = craftComponent('keyedSingleRootList', {}, () =>
+      ul(forNode(items, { track: (item) => item }, (item) => row({ item }))),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    const range = nativeElement.querySelector('ul')!;
+    const node = (id: number) => range.querySelector(`[data-row="${id}"]`);
+    const kept = { two: node(2), four: node(4) };
+
+    expect(range.textContent).toBe('1234');
+    expect(componentBoundaries(range)).toEqual([]);
+
+    items.set([4, 3, 2, 1]);
+    await flush();
+    expect(range.textContent).toBe('4321');
+
+    // One row becomes two elements while the list keeps moving around it.
+    wide.set(3);
+    await flush();
+    expect(range.textContent).toBe('43a3b21');
+    items.set([1, 3, 4]);
+    await flush();
+    expect(range.textContent).toBe('13a3b4');
+    items.set([1, 2, 3, 4]);
+    await flush();
+    expect(range.textContent).toBe('123a3b4');
+    expect(node(4)).toBe(kept.four);
+    expect(node(2)).not.toBe(kept.two);
+    destroy();
+    expect(nativeElement.querySelector('[data-row]')).toBeNull();
+  });
+});
+
+describe('forNode entries created in place', () => {
+  it('inserts restored rows between the rows that stayed, without moving those', async () => {
+    const all = [1, 2, 3, 4, 5, 6];
+    const items = signal(all);
+    const list = craftComponent('restoredInPlace', {}, () =>
+      ul(
+        forNode(items, { track: (item) => item }, (item) =>
+          li({ 'data-row': item }, function* () {
+            return String(yield* item());
+          }),
+        ),
+      ),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    const range = nativeElement.querySelector('ul')!;
+
+    items.set(all.filter((item) => item % 2 === 0));
+    await flush();
+    expect(range.textContent).toBe('246');
+    const stayed = [...range.querySelectorAll('li')];
+
+    const records = await observeChildListMutations(range, async () => {
+      items.set(all);
+      await flush();
+    });
+    expect(range.textContent).toBe('123456');
+    // The rows that stayed are the same elements, and none of them was taken
+    // out of the list to be put back.
+    expect(
+      [...range.querySelectorAll('li')].filter((_, index) => index % 2 === 1),
+    ).toEqual(stayed);
+    const touched = childListMutationNodes(records);
+    for (const row of stayed) expect(touched).not.toContain(row);
+    destroy();
+  });
+});
+
+describe('component host properties across parent renders', () => {
+  it('runs a child template again only when its host properties differ', async () => {
+    const tick = signal(0);
+    const label = signal('a');
+    const kind = signal('row');
+    const renders = vi.fn();
+    const child = craftComponent(
+      'stableHostChild',
+      {},
+      (inputs: { label: Input<string> }) => {
+        renders();
+        return p(function* () {
+          return yield* inputs.label();
+        });
+      },
+    );
+    const labelInput = function* () {
+      return label();
+    };
+    const parent = craftComponent('stableHostParent', {}, () => {
+      tick();
+      return section([child({ label: labelInput, 'data-kind': kind() })]);
+    });
+    const { nativeElement, flush, destroy } =
+      await renderCraftComponent(parent);
+    const row = nativeElement.querySelector('p')!;
+    expect(renders).toHaveBeenCalledTimes(1);
+    expect(row.getAttribute('data-kind')).toBe('row');
+
+    // The parent renders again and hands over what it handed over before.
+    tick.set(1);
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(1);
+
+    // An input changes: its binding follows, the template is not run again.
+    label.set('b');
+    await flush();
+    expect(row.textContent).toBe('b');
+    expect(renders).toHaveBeenCalledTimes(1);
+    expect(nativeElement.querySelector('p')).toBe(row);
+
+    // A host property changes: the template runs again and the host follows.
+    kind.set('header');
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(2);
+    expect(nativeElement.querySelector('p')!.getAttribute('data-kind')).toBe(
+      'header',
+    );
+    destroy();
+  });
+
+  it('runs a child template again when a host property appears or goes away', async () => {
+    const marked = signal(false);
+    const renders = vi.fn();
+    const child = craftComponent('markedHostChild', {}, () => {
+      renders();
+      return p('row');
+    });
+    const parent = craftComponent('markedHostParent', {}, () =>
+      section([marked() ? child({ 'data-marked': 'yes' }) : child()]),
+    );
+    const { nativeElement, flush, destroy } =
+      await renderCraftComponent(parent);
+    const marker = () =>
+      nativeElement.querySelector('p')!.getAttribute('data-marked');
+    expect(renders).toHaveBeenCalledTimes(1);
+    expect(marker()).toBeNull();
+
+    marked.set(true);
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(2);
+    expect(marker()).toBe('yes');
+
+    marked.set(false);
+    await flush();
+    expect(renders).toHaveBeenCalledTimes(3);
+    expect(marker()).toBeNull();
+    destroy();
+  });
+});
+
+describe('forNode item and index readers', () => {
+  it('reads the item and its position without a generator object, wherever a reader goes', async () => {
+    const items = signal([
+      { id: 1, name: 'Ada' },
+      { id: 2, name: 'Lin' },
+    ]);
+    const kinds: boolean[] = [];
+    const invocations: unknown[] = [];
+    const row = craftComponent(
+      'settledReaderRow',
+      {},
+      (inputs: {
+        item: Input<{ id: number; name: string }>;
+        position: Input<number>;
+      }) =>
+        p({ 'data-position': inputs.position }, function* () {
+          return `${(yield* inputs.position()) + 1}:${(yield* inputs.item()).name}`;
+        }),
+    );
+    const list = craftComponent('settledReaderList', {}, () =>
+      ul(
+        forNode(items, { track: (item) => item.id }, (item, index) => {
+          kinds.push(isGeneratorFunction(item), isGeneratorFunction(index));
+          invocations.push(item());
+          return [
+            // Read directly, as a binding, and handed to a component.
+            li(function* () {
+              return `${yield* index()}=${(yield* item()).name}`;
+            }),
+            li(String(craftUse(item()).id)),
+            row({ item, position: index }),
+          ];
+        }),
+      ),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+
+    expect(nativeElement.textContent).toBe('0=Ada11:Ada1=Lin22:Lin');
+    expect(kinds).toEqual([true, true, true, true]);
+    // Done at once, like the generator it replaces, and not one.
+    expect(
+      invocations.map((invocation) =>
+        Object.prototype.toString.call(invocation),
+      ),
+    ).toEqual(['[object Object]', '[object Object]']);
+
+    items.set([
+      { id: 2, name: 'Lin' },
+      { id: 1, name: 'Ada B.' },
+    ]);
+    await flush();
+    expect(nativeElement.textContent).toBe('0=Lin21:Lin1=Ada B.12:Ada B.');
+    expect(
+      [...nativeElement.querySelectorAll('p')].map((node) =>
+        node.getAttribute('data-position'),
+      ),
+    ).toEqual(['0', '1']);
+    destroy();
+  });
 });

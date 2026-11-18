@@ -6,7 +6,11 @@ import {
   type Signal,
 } from './host/craft-compat';
 import type { ConcreteServiceScope } from './craft-service.shared';
-import { ɵrunCraftTargetWrappers } from './craft-target-runtime';
+import {
+  ɵEMPTY_TARGET_RELEASE,
+  ɵrunCraftTargetWrappers,
+  type CraftTargetWrapper,
+} from './craft-target-runtime';
 
 export const CRAFT_REGISTRATION_TARGET = Symbol.for(
   '@craft-ts/core/craft-registration-target',
@@ -57,7 +61,9 @@ export type RegisterForRegistry = Readonly<{
 const EMPTY_CLEANUP = () => undefined;
 
 export const REGISTER_FOR_REGISTRIES = Object.freeze({});
-export function provideRegisterForRegistry(value: RegisterForRegistry): Provider {
+export function provideRegisterForRegistry(
+  value: RegisterForRegistry,
+): Provider {
   return { provide: REGISTER_FOR_REGISTRIES, useValue: value, multi: true };
 }
 export function ɵinjectRegisterForRegistries(
@@ -178,6 +184,8 @@ export function ɵregisterCraftTarget(
   ref: unknown,
   hostName: string,
   autoCleanup = true,
+  /** The target wrappers of `injector`, when the caller already has them. */
+  wrappers?: readonly CraftTargetWrapper[],
 ): () => void {
   const metadata = (
     target as {
@@ -186,6 +194,10 @@ export function ɵregisterCraftTarget(
   )[CRAFT_REGISTRATION_TARGET];
   if (metadata === undefined) {
     return EMPTY_CLEANUP;
+  }
+  if (wrappers !== undefined && wrappers.length === 0) {
+    // Nothing would read the registration: none is described.
+    return ɵEMPTY_TARGET_RELEASE;
   }
 
   return ɵrunCraftTargetWrappers(
@@ -199,6 +211,7 @@ export function ɵregisterCraftTarget(
       injector,
     },
     autoCleanup,
+    wrappers,
   );
 }
 

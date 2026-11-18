@@ -75,12 +75,7 @@ export function craftSignal<T>(
   const read = () => raw().value;
   const value = (() => read()) as CraftWritableSignal<T>;
   value.set = (next) => {
-    if (
-      !equal(
-        untracked(read),
-        next,
-      )
-    ) {
+    if (!equal(untracked(read), next)) {
       raw({ value: next });
     }
   };
@@ -88,6 +83,49 @@ export function craftSignal<T>(
   const branded = brand(value);
   branded.asReadonly = () => craftComputed(() => branded());
   return branded;
+}
+
+/**
+ * A renderer-private reactive cell: read, `set`, `update` — nothing else.
+ *
+ * Same kernel and same write semantics as {@link craftSignal} with its default
+ * equality: `Object.is` decides, the value travels in a fresh box on every
+ * accepted write, the comparison read inside `set`/`update` is untracked, and
+ * writes join the ambient `craftBatch`. What it leaves out is what only a
+ * value handed to application code needs: the Craft signal brand, the raw
+ * reactive marker, the extra read wrapper and `asReadonly`.
+ *
+ * Never hand one to application code or store one where a public signal is
+ * expected: it is not recognized as a signal (`isSignal` is false).
+ */
+export type ɵCraftPrivateCell<T> = (() => T) & {
+  set(value: T): void;
+  update(fn: (value: T) => T): void;
+};
+
+type PrivateCell<T> = ɵCraftPrivateCell<T> & {
+  ɵraw: (box: { value: T }) => void;
+};
+
+// Shared by every cell: a cell is called as `cell.set(...)`, never detached.
+function setPrivateCell<T>(this: PrivateCell<T>, next: T): void {
+  if (!Object.is(untracked(this), next)) this.ɵraw({ value: next });
+}
+
+function updatePrivateCell<T>(
+  this: PrivateCell<T>,
+  update: (value: T) => T,
+): void {
+  this.set(update(untracked(this)));
+}
+
+export function ɵcraftPrivateCell<T>(initial: T): ɵCraftPrivateCell<T> {
+  const raw = signal<{ value: T }>({ value: initial });
+  const cell = (() => raw().value) as PrivateCell<T>;
+  cell.ɵraw = raw;
+  cell.set = setPrivateCell;
+  cell.update = updatePrivateCell;
+  return cell;
 }
 
 /**
@@ -124,7 +162,10 @@ export function craftComputed<T>(
     // Identity is preserved only between two equal VALUES: a throw is never
     // equal to anything, so a recovering computation always notifies.
     const result =
-      hasPrevious && previous?.ok && next.ok && equal(previous.value, next.value)
+      hasPrevious &&
+      previous?.ok &&
+      next.ok &&
+      equal(previous.value, next.value)
         ? previous
         : next;
     hasPrevious = true;
@@ -201,6 +242,20 @@ export function craftWatch(
   // independently-owned watch is not disposed with a transient parent effect.
   const destroy = untracked(() => effect(fn));
   return { destroy };
+}
+
+/**
+ * A kernel effect for a host that owns it and needs no cleanup registration:
+ * `fn` runs now and after each change, detached from the active subscriber
+ * like {@link craftWatch}. Returns what stops it.
+ */
+export function ɵcraftDetachedEffect(fn: () => void): () => void {
+  const previous = setActiveSub();
+  try {
+    return effect(fn);
+  } finally {
+    setActiveSub(previous);
+  }
 }
 
 /**

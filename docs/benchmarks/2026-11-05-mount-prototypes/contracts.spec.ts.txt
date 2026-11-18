@@ -1,0 +1,113 @@
+import { describe, expect, it } from 'vitest';
+import { createCraftRenderIdentity, childCraftRenderIdentity } from './craft-render-identity';
+import { DestroyRef, ɵdestroyCraftDestroyRef, createEnvironmentInjector, EnvironmentInjector, inject } from './host/craft-compat';
+import { createCraftInjector } from './host/craft-injector';
+import { craftEffect } from './craft-effect';
+import { craftUse } from './craft-use';
+import { craftSignal } from './host/craft-signal';
+import { AppSnapshotRegistry } from './take-app-snapshot';
+import { ɵHOST_TAG_LIST } from './craft-service';
+
+describe('diagnostic prototype contracts', () => {
+  it('keeps ordered deterministic identities, including Unicode and empty segments', () => {
+    const atoms: (string | number)[] = ['', '/', '%2F', 'é', '東京', '😀', 'a/b', 0, -1, 42, 'x y', 'a%z'];
+    const encode = (path: readonly (string | number)[]) => path.map(String).map(s => encodeURIComponent(s).replaceAll('%2F', '%252F')).join('/');
+    for (let n = 0; n < 240; n++) {
+      const path = Array.from({length: n % 7}, (_, i) => atoms[(n * 7 + i * 3) % atoms.length]);
+      const tail = Array.from({length: n % 4}, (_, i) => atoms[(n + i * 5) % atoms.length]);
+      const parent = createCraftRenderIdentity(path);
+      const child = childCraftRenderIdentity(parent, ...tail);
+      expect(parent.hydrationKey).toBe(encode(path));
+      expect(child.path).toEqual([...path, ...tail].map(String));
+      expect(child.hydrationKey).toBe(encode([...path, ...tail]));
+      expect(JSON.parse(JSON.stringify(child))).toEqual({path: [...path, ...tail].map(String), hydrationKey: encode([...path, ...tail])});
+      expect(Object.keys(child)).toEqual(['path', 'hydrationKey']);
+    }
+    // Parent objects can be supplied structurally: the original child builder
+    // derives the address from their path, not a custom hydrationKey field.
+    expect(childCraftRenderIdentity({path: ['a/b'], hydrationKey: 'custom'}, '')).toEqual(createCraftRenderIdentity(['a/b', '']));
+  });
+
+  it('preserves eager rejection of malformed URI input', () => {
+    expect(() => createCraftRenderIdentity(['\uD800'])).toThrow(URIError);
+    expect(() => childCraftRenderIdentity(createCraftRenderIdentity(['good']), '\uDC00')).toThrow(URIError);
+  });
+
+  it('keeps cleanup ordering, duplicate registrations and legacy FIFO removal', () => {
+    const ref = new DestroyRef();
+    const calls: string[] = [];
+    const same = () => calls.push('same');
+    ref.onDestroy(same);
+    ref.onDestroy(() => calls.push('middle'));
+    const remove = ref.onDestroy(same);
+    // Existing behavior removes the first active registration of this callback,
+    // even when the returned handle was obtained from the last registration.
+    remove();
+    remove();
+    ref.onDestroy(() => calls.push('last'));
+    ɵdestroyCraftDestroyRef(ref);
+    ɵdestroyCraftDestroyRef(ref);
+    expect(calls).toEqual(['middle', 'last']);
+    ref.onDestroy(same);
+    expect(calls).toEqual(['middle', 'last', 'same']);
+  });
+
+  it('keeps duplicate callbacks when both registrations remain active', () => {
+    const ref = new DestroyRef();
+    const calls: string[] = [];
+    const same = () => calls.push('same');
+    ref.onDestroy(same);ref.onDestroy(() => calls.push('middle'));ref.onDestroy(same);
+    ɵdestroyCraftDestroyRef(ref);
+    expect(calls).toEqual(['same', 'middle', 'same']);
+  });
+
+  it('runs all pending cleanups once and retains the original error', () => {
+    const ref = new DestroyRef();
+    const calls: string[] = [];
+    const failure = new Error('cleanup failed');
+    let removeLater: () => void = () => undefined;
+    ref.onDestroy(() => { calls.push('first'); removeLater(); ref.onDestroy(() => calls.push('nested')); throw failure; });
+    removeLater = ref.onDestroy(() => { calls.push('later'); });
+    expect(() => ɵdestroyCraftDestroyRef(ref)).toThrow(failure);
+    expect(calls).toEqual(['first', 'nested', 'later']);
+    expect(() => ɵdestroyCraftDestroyRef(ref)).not.toThrow();
+  });
+
+  it('preserves owner DI, environment-only tags, reports and manual disposal for plain effects', () => {
+    const bare = createCraftInjector([]);
+    const associated = createEnvironmentInjector([{provide: ɵHOST_TAG_LIST, useValue: ['app', 'route:store']}], bare);
+    const owner = createEnvironmentInjector([
+      {provide: ɵHOST_TAG_LIST, useValue: ['app', 'component:spec']},
+      {provide: EnvironmentInjector, useValue: associated},
+    ], bare);
+    const registry = owner.run(() => craftUse(AppSnapshotRegistry()));
+    const signal = craftSignal(0), seen: number[] = [];
+    const ref = owner.run(() => craftUse(craftEffect('plain-contract', () => {
+      expect(inject(DestroyRef)).toBe(owner.get(DestroyRef));
+      seen.push(signal());
+    }, {manualCleanup: true})));
+    owner.run(() => signal.set(1));
+    expect(seen).toEqual([0, 1]);
+    expect(registry.activeEffects()).toEqual([{source: 'effect:plain-contract', from: ['app', 'route:store', 'component:spec', 'effect:plain-contract']}]);
+    ref.destroy();signal.set(2);
+    expect(seen).toEqual([0, 1]);expect(registry.activeEffects()).toEqual([]);expect(owner.destroyed).toBe(false);
+    owner.destroy();associated.destroy();bare.destroy();
+  });
+
+  it('preserves the real tagged scope for generator effect factories', () => {
+    const bare = createCraftInjector([]);
+    const owner = createEnvironmentInjector([{provide: ɵHOST_TAG_LIST, useValue: ['app']}], bare);
+    const calls: string[] = [];
+    const registry = owner.run(() => craftUse(AppSnapshotRegistry()));
+    const ref = owner.run(() => craftUse(craftEffect('generator-contract', function* () {
+      const scope = inject(DestroyRef);
+      expect(scope).not.toBe(owner.get(DestroyRef));
+      scope.onDestroy(() => calls.push('scope'));
+      return (cleanup) => { calls.push('run'); cleanup(() => calls.push('cleanup')); };
+    }, {manualCleanup: true})));
+    expect(registry.activeEffects().at(-1)?.from.at(-1)).toBe('effect:generator-contract');
+    ref.destroy();ref.destroy();
+    expect(calls).toEqual(['run', 'cleanup', 'scope']);expect(registry.activeEffects()).toEqual([]);
+    owner.destroy();bare.destroy();
+  });
+});

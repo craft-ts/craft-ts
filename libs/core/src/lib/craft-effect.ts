@@ -14,12 +14,23 @@ import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
-import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
+import {
+  ɵcreateHostTaggedInjector,
+  ɵHOST_TAG_LIST,
+  ɵhostOwnerTags,
+  ɵmergeHostTags,
+} from './craft-service';
 import {
   isGeneratorFunction,
   runCraftGenerator,
 } from './craft-generator-runtime';
-import { ɵinjectAppSnapshotRegistryIn } from './take-app-snapshot';
+import {
+  ɵinjectAppSnapshotRegistryIn,
+  type ActiveEffectReport,
+  type AppSnapshotRegistry,
+  type ɵActiveEffectSource,
+} from './take-app-snapshot';
+import { ɵcraftDetachedEffect } from './host/craft-signal';
 import {
   createNamedPrimitiveGen,
   type NamedCraftPrimitiveGen,
@@ -76,6 +87,123 @@ export function craftEffect(
   fnOrOptions?: unknown,
   maybeOptions?: CreateEffectOptions,
 ): NamedCraftPrimitiveGen<string, EffectRef> {
+  const ref = createCraftEffect(name, hostOrFn, fnOrOptions, maybeOptions);
+  return createNamedPrimitiveGen(name, ref, { markMembers: false });
+}
+
+/**
+ * Internal entry of {@link craftEffect} for the renderer: the same effect
+ * (owner, tags, report, cleanups, scope of a generator factory), returned as
+ * its `EffectRef` instead of a named primitive generator that the caller
+ * would only drive to get that ref back.
+ */
+export function ɵcraftEffectRef(
+  name: string,
+  effectFn: CraftEffectFn,
+  options?: CreateEffectOptions,
+): EffectRef {
+  return createCraftEffect(name, effectFn, options);
+}
+
+/**
+ * The tags every plain effect owned by `injector` reports before its own:
+ * what {@link ɵmergeHostTags} answers, without the effect's tag. They only
+ * depend on the injector, so a host that creates many effects in the same
+ * injector asks once.
+ */
+export function ɵeffectOwnerTags(injector: Injector): readonly string[] {
+  return ɵhostOwnerTags(injector);
+}
+
+/** What a host resolved once for the injector its effects are created in. */
+export interface ɵCraftEffectOwner {
+  /** {@link ɵeffectOwnerTags} of the injector. */
+  readonly ownerTags: readonly string[];
+  /** {@link ɵeffectRegistry} of the injector. */
+  readonly registry: AppSnapshotRegistry | null;
+}
+
+/** The effect registry of `injector`, for {@link ɵCraftRenderEffect}. */
+export function ɵeffectRegistry(
+  injector: Injector,
+): AppSnapshotRegistry | null {
+  return ɵinjectAppSnapshotRegistryIn(injector) ?? null;
+}
+
+/**
+ * The effect of one renderer binding: what `ɵcraftEffectRef(name, body,
+ * { manualCleanup: true })` creates, as a single object.
+ *
+ * The renderer owns it and destroys it, its body takes no cleanup, and its
+ * report — the same `source` and the same tags — is built when a snapshot
+ * reads it. The registry and the owner's tags come from `owner`, which keeps
+ * them for every effect of the injector: the tags are read before the first
+ * run and the registry after it, when `craftEffect` resolves them.
+ */
+// What the constructor below hands to `startPendingEffect`, read as soon as
+// it starts: the injection context opens without a closure per effect.
+let pendingEffectBody: (() => void) | undefined;
+
+function startPendingEffect(): () => void {
+  const body = pendingEffectBody as () => void;
+  pendingEffectBody = undefined;
+  return ɵcraftDetachedEffect(body);
+}
+
+export class ɵCraftRenderEffect implements EffectRef, ɵActiveEffectSource {
+  // Links of the registry's list of live effects.
+  ɵtracked = false;
+  ɵpreviousSource: ɵActiveEffectSource | undefined = undefined;
+  ɵnextSource: ɵActiveEffectSource | undefined = undefined;
+  private stop: (() => void) | undefined = undefined;
+  private destroyed = false;
+  private readonly name: string;
+  private readonly ownerTags: readonly string[];
+  private registry: AppSnapshotRegistry | null = null;
+
+  constructor(
+    name: string,
+    body: () => void,
+    injector: Injector,
+    owner: ɵCraftEffectOwner,
+  ) {
+    this.name = name;
+    this.ownerTags = owner.ownerTags;
+    // Detached from the active subscriber: an independently owned effect is
+    // not disposed with a transient parent effect.
+    pendingEffectBody = body;
+    this.stop = injector.run(startPendingEffect);
+    if (this.destroyed) {
+      // Destroyed by its own first run.
+      this.stop();
+      this.stop = undefined;
+      return;
+    }
+    this.registry = owner.registry;
+    this.registry?.ɵtrackActiveEffect(this);
+  }
+
+  report(): ActiveEffectReport {
+    const source = `effect:${this.name}`;
+    return { source, from: [...this.ownerTags, source] };
+  }
+
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.registry?.ɵuntrackActiveEffect(this);
+    const stop = this.stop;
+    this.stop = undefined;
+    stop?.();
+  }
+}
+
+function createCraftEffect(
+  name: string,
+  hostOrFn: unknown,
+  fnOrOptions?: unknown,
+  maybeOptions?: CreateEffectOptions,
+): EffectRef {
   // The host form is recognized by its 3rd argument being the factory —
   // `options` is never a function.
   const hasHost = typeof fnOrOptions === 'function';
@@ -91,14 +219,24 @@ export function craftEffect(
   const parentInjector = inject(Injector);
   const ownerInjector = options?.injector ?? parentInjector;
   const ownerDestroyRef = ownerInjector.get(DestroyRef);
-  const effectInjector = ɵcreateHostTaggedInjector(
-    ownerInjector,
-    `effect:${name}`,
-  );
+  const source = `effect:${name}`;
+  // Only a generator factory needs a scope of its own: it resolves its
+  // dependencies there and the scope is destroyed with the effect. A plain
+  // body already runs in its owner's injection context, so a tagged injector
+  // would only carry the report's tags. Those are merged directly, at the
+  // same point, so the owner's tags (and any ordinal they draw) resolve in
+  // the same order as with a scope.
+  const generatorFactory = isGeneratorFunction(fnOrFactory);
+  const effectInjector = generatorFactory
+    ? ɵcreateHostTaggedInjector(ownerInjector, source)
+    : ownerInjector;
+  const plainTags = generatorFactory
+    ? undefined
+    : ɵmergeHostTags(ownerInjector, () => source);
 
   let effectBody: CraftEffectFn;
 
-  if (isGeneratorFunction(fnOrFactory)) {
+  if (generatorFactory) {
     effectBody = runInInjectionContext(effectInjector, () => {
       const iterator = (
         fnOrFactory as CraftEffectGenerator<unknown, unknown>
@@ -157,12 +295,12 @@ export function craftEffect(
 
   const registry = ɵinjectAppSnapshotRegistryIn(ownerInjector);
   if (registry) {
-    const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
+    const from = plainTags ?? effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     unregisterReport = registry.registerActiveEffectReader(() => ({
-      source: `effect:${name}`,
+      source,
       from,
     }));
   }
 
-  return createNamedPrimitiveGen(name, ref, { markMembers: false });
+  return ref;
 }

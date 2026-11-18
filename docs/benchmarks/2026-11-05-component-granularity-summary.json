@@ -1,0 +1,1076 @@
+{
+  "commit": "e135eeec9f29c8daf6031d32bec780f9c8d99d6e",
+  "environment": {
+    "node": "v22.23.0",
+    "cpu": "Apple M3",
+    "chromium": "153.0.8010.12"
+  },
+  "settings": {
+    "runs": 5,
+    "iterations": 4,
+    "warmup": 2,
+    "order": "seeded shuffled variants per scenario/run",
+    "snapshots": true,
+    "cases": [
+      {
+        "rows": 1000,
+        "indexes": false
+      },
+      {
+        "rows": 1000,
+        "indexes": true
+      },
+      {
+        "rows": 5000,
+        "indexes": false
+      },
+      {
+        "rows": 5000,
+        "indexes": true
+      }
+    ]
+  },
+  "variants": [
+    {
+      "name": "baseline",
+      "sourceSha256": "af6e0c3475fae1f76cc598005b1d3933ea7c57e8f6fec62a9ea84a67ea4bd3dc",
+      "modified": ["apps/framework-benchmark/src/craft/main.ts"]
+    },
+    {
+      "name": "plain-effect-scope",
+      "sourceSha256": "80e83b905a6dc116f26cf90536c10310cdb383de1632f8de15c48f3eb959c2ff",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "libs/core/src/lib/craft-effect.ts"
+      ]
+    },
+    {
+      "name": "component-rows",
+      "sourceSha256": "dd72161c0dde449627ec8414137c8072cb525d0f663df5e328da54d083c7f9b8",
+      "modified": ["apps/framework-benchmark/src/craft/main.ts"]
+    },
+    {
+      "name": "component-rows-plain-scopes",
+      "sourceSha256": "390dfff84c8b02e8a64a937bb938ed76a75eb29dd632b61cfd17b78ada366b33",
+      "modified": [
+        "apps/framework-benchmark/src/craft/main.ts",
+        "libs/core/src/lib/craft-effect.ts"
+      ]
+    }
+  ],
+  "listNavigations": 80,
+  "listInteractions": 1280,
+  "countsNavigations": 12,
+  "fanoutNavigations": 16,
+  "list": [
+    {
+      "rows": 1000,
+      "indexes": false,
+      "variant": "baseline",
+      "mountMs": {
+        "n": 5,
+        "median": 54.799999952316284,
+        "min": 52.699999928474426,
+        "max": 56.10000002384186
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 23.11717987060547,
+        "min": 23.11481475830078,
+        "max": 23.119972229003906
+      },
+      "activeEffects": 4003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.2999999523162842,
+          "max": 1.2999999523162842
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 6.75,
+          "min": 6.100000023841858,
+          "max": 7.199999928474426
+        },
+        "reverse": {
+          "n": 20,
+          "median": 4.699999988079071,
+          "min": 4.100000023841858,
+          "max": 5.699999928474426
+        },
+        "filter": {
+          "n": 10,
+          "median": 7.749999940395355,
+          "min": 7.199999928474426,
+          "max": 8.400000095367432
+        },
+        "restore": {
+          "n": 10,
+          "median": 24.149999976158142,
+          "min": 22.200000047683716,
+          "max": 26.800000071525574
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": false,
+      "variant": "plain-effect-scope",
+      "mountMs": {
+        "n": 5,
+        "median": 48,
+        "min": 45.89999997615814,
+        "max": 50.800000071525574
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 14.446640014648438,
+        "min": 14.417224884033203,
+        "max": 14.486736297607422
+      },
+      "activeEffects": 4003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.2999999523162842,
+          "max": 1.3000000715255737
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 4.649999976158142,
+          "min": 3.399999976158142,
+          "max": 6.800000071525574
+        },
+        "reverse": {
+          "n": 20,
+          "median": 4.600000023841858,
+          "min": 4.199999928474426,
+          "max": 5.200000047683716
+        },
+        "filter": {
+          "n": 10,
+          "median": 5.5,
+          "min": 4.5,
+          "max": 8
+        },
+        "restore": {
+          "n": 10,
+          "median": 17.30000001192093,
+          "min": 15.899999976158142,
+          "max": 24.300000071525574
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": false,
+      "variant": "component-rows",
+      "mountMs": {
+        "n": 5,
+        "median": 43.799999952316284,
+        "min": 42.699999928474426,
+        "max": 44.799999952316284
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 16.029586791992188,
+        "min": 16.028949737548828,
+        "max": 16.02968978881836
+      },
+      "activeEffects": 2003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.2999999523162842,
+          "max": 1
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 3.800000011920929,
+          "min": 2.5,
+          "max": 5
+        },
+        "reverse": {
+          "n": 20,
+          "median": 4.700000047683716,
+          "min": 4.299999952316284,
+          "max": 5.600000023841858
+        },
+        "filter": {
+          "n": 10,
+          "median": 5.500000059604645,
+          "min": 4.800000071525574,
+          "max": 6.099999904632568
+        },
+        "restore": {
+          "n": 10,
+          "median": 16.80000001192093,
+          "min": 15.100000023841858,
+          "max": 19
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": false,
+      "variant": "component-rows-plain-scopes",
+      "mountMs": {
+        "n": 5,
+        "median": 37.89999997615814,
+        "min": 37.199999928474426,
+        "max": 41.39999997615814
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 11.813545227050781,
+        "min": 11.812721252441406,
+        "max": 11.815811157226562
+      },
+      "activeEffects": 2003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.2999999523162842,
+          "max": 0.9000000953674316
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 4.450000047683716,
+          "min": 3.399999976158142,
+          "max": 6.299999952316284
+        },
+        "reverse": {
+          "n": 20,
+          "median": 4.549999952316284,
+          "min": 3.5,
+          "max": 5.399999976158142
+        },
+        "filter": {
+          "n": 10,
+          "median": 4.149999976158142,
+          "min": 3.899999976158142,
+          "max": 4.5
+        },
+        "restore": {
+          "n": 10,
+          "median": 17.649999976158142,
+          "min": 16.399999976158142,
+          "max": 19.5
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": true,
+      "variant": "baseline",
+      "mountMs": {
+        "n": 5,
+        "median": 70.79999995231628,
+        "min": 69.89999997615814,
+        "max": 71.40000009536743
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 31.18079376220703,
+        "min": 31.176944732666016,
+        "max": 31.19534683227539
+      },
+      "activeEffects": 6003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.3999999761581421,
+          "max": 0.6000000238418579
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 6.649999976158142,
+          "min": 6,
+          "max": 7.700000047683716
+        },
+        "reverse": {
+          "n": 20,
+          "median": 9.800000011920929,
+          "min": 7.799999952316284,
+          "max": 10.800000071525574
+        },
+        "filter": {
+          "n": 10,
+          "median": 13.100000023841858,
+          "min": 12,
+          "max": 13.599999904632568
+        },
+        "restore": {
+          "n": 10,
+          "median": 31.699999928474426,
+          "min": 31.09999990463257,
+          "max": 32.89999997615814
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": true,
+      "variant": "plain-effect-scope",
+      "mountMs": {
+        "n": 5,
+        "median": 56.40000009536743,
+        "min": 56.299999952316284,
+        "max": 57.39999997615814
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 18.310958862304688,
+        "min": 18.307769775390625,
+        "max": 18.311904907226562
+      },
+      "activeEffects": 6003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.2999999523162842,
+          "max": 1.0999999046325684
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 5.400000035762787,
+          "min": 5,
+          "max": 6.200000047683716
+        },
+        "reverse": {
+          "n": 20,
+          "median": 8.850000023841858,
+          "min": 7.299999952316284,
+          "max": 9.600000023841858
+        },
+        "filter": {
+          "n": 10,
+          "median": 9.25,
+          "min": 9,
+          "max": 9.799999952316284
+        },
+        "restore": {
+          "n": 10,
+          "median": 28.100000023841858,
+          "min": 25.100000023841858,
+          "max": 31.399999976158142
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": true,
+      "variant": "component-rows",
+      "mountMs": {
+        "n": 5,
+        "median": 46.89999997615814,
+        "min": 46.60000002384186,
+        "max": 47.09999990463257
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 17.356689453125,
+        "min": 17.35253143310547,
+        "max": 17.372852325439453
+      },
+      "activeEffects": 2003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.4500000476837158,
+          "min": 0.30000007152557373,
+          "max": 1.1999999284744263
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 3.100000023841858,
+          "min": 2.299999952316284,
+          "max": 3.6999999284744263
+        },
+        "reverse": {
+          "n": 20,
+          "median": 11.050000011920929,
+          "min": 10.300000071525574,
+          "max": 13.600000023841858
+        },
+        "filter": {
+          "n": 10,
+          "median": 11.699999988079071,
+          "min": 9.700000047683716,
+          "max": 15.800000071525574
+        },
+        "restore": {
+          "n": 10,
+          "median": 21.200000047683716,
+          "min": 20.5,
+          "max": 24.899999976158142
+        }
+      }
+    },
+    {
+      "rows": 1000,
+      "indexes": true,
+      "variant": "component-rows-plain-scopes",
+      "mountMs": {
+        "n": 5,
+        "median": 43.10000002384186,
+        "min": 42.299999952316284,
+        "max": 43.60000002384186
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 13.074260711669922,
+        "min": 13.07052230834961,
+        "max": 13.07852554321289
+      },
+      "activeEffects": 2003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 0.5,
+          "min": 0.30000007152557373,
+          "max": 0.8000000715255737
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 3.550000011920929,
+          "min": 2.5999999046325684,
+          "max": 4.600000023841858
+        },
+        "reverse": {
+          "n": 20,
+          "median": 9.950000047683716,
+          "min": 9.399999976158142,
+          "max": 11
+        },
+        "filter": {
+          "n": 10,
+          "median": 8.900000035762787,
+          "min": 8.299999952316284,
+          "max": 9.899999976158142
+        },
+        "restore": {
+          "n": 10,
+          "median": 19.600000023841858,
+          "min": 17.899999976158142,
+          "max": 20.799999952316284
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "baseline",
+      "mountMs": {
+        "n": 5,
+        "median": 227.69999992847443,
+        "min": 226.39999997615814,
+        "max": 229.80000007152557
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 104.9968490600586,
+        "min": 104.99357604980469,
+        "max": 105.0137825012207
+      },
+      "activeEffects": 20003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.100000023841858,
+          "min": 0.8999999761581421,
+          "max": 1.3000000715255737
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 15.549999952316284,
+          "min": 13.899999976158142,
+          "max": 18.899999976158142
+        },
+        "reverse": {
+          "n": 20,
+          "median": 14.5,
+          "min": 13.600000023841858,
+          "max": 16.299999952316284
+        },
+        "filter": {
+          "n": 10,
+          "median": 36.25,
+          "min": 32.90000009536743,
+          "max": 39
+        },
+        "restore": {
+          "n": 10,
+          "median": 90.04999995231628,
+          "min": 87.10000002384186,
+          "max": 95.29999995231628
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "plain-effect-scope",
+      "mountMs": {
+        "n": 5,
+        "median": 167.89999997615814,
+        "min": 163.70000004768372,
+        "max": 169.30000007152557
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 62.163330078125,
+        "min": 62.16196823120117,
+        "max": 62.16365051269531
+      },
+      "activeEffects": 20003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.100000023841858,
+          "min": 0.8999999761581421,
+          "max": 1.3000000715255737
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 11.5,
+          "min": 10.400000095367432,
+          "max": 14.899999976158142
+        },
+        "reverse": {
+          "n": 20,
+          "median": 14.5,
+          "min": 13.100000023841858,
+          "max": 16.200000047683716
+        },
+        "filter": {
+          "n": 10,
+          "median": 18.849999964237213,
+          "min": 16.299999952316284,
+          "max": 23.799999952316284
+        },
+        "restore": {
+          "n": 10,
+          "median": 74.94999998807907,
+          "min": 70.69999992847443,
+          "max": 76.80000007152557
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "component-rows",
+      "mountMs": {
+        "n": 5,
+        "median": 157,
+        "min": 151.89999997615814,
+        "max": 162.20000004768372
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 70.40259552001953,
+        "min": 70.39545059204102,
+        "max": 70.4056625366211
+      },
+      "activeEffects": 10003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1,
+          "min": 0.7999999523162842,
+          "max": 1.3000000715255737
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 10.300000011920929,
+          "min": 8.600000023841858,
+          "max": 14.299999952316284
+        },
+        "reverse": {
+          "n": 20,
+          "median": 15.449999988079071,
+          "min": 13.800000071525574,
+          "max": 18.300000071525574
+        },
+        "filter": {
+          "n": 10,
+          "median": 41.44999998807907,
+          "min": 28.200000047683716,
+          "max": 58.299999952316284
+        },
+        "restore": {
+          "n": 10,
+          "median": 71.39999997615814,
+          "min": 67.39999997615814,
+          "max": 80.70000004768372
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": false,
+      "variant": "component-rows-plain-scopes",
+      "mountMs": {
+        "n": 5,
+        "median": 135.70000004768372,
+        "min": 134.5,
+        "max": 138.80000007152557
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 49.081321716308594,
+        "min": 49.03715515136719,
+        "max": 49.10447692871094
+      },
+      "activeEffects": 10003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.0999999046325684,
+          "min": 0.7999999523162842,
+          "max": 1.3000000715255737
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 8.399999976158142,
+          "min": 6.5,
+          "max": 9.5
+        },
+        "reverse": {
+          "n": 20,
+          "median": 16.19999998807907,
+          "min": 14.399999976158142,
+          "max": 31.100000023841858
+        },
+        "filter": {
+          "n": 10,
+          "median": 17.649999976158142,
+          "min": 14.600000023841858,
+          "max": 21.200000047683716
+        },
+        "restore": {
+          "n": 10,
+          "median": 60.89999997615814,
+          "min": 59.09999990463257,
+          "max": 64.59999990463257
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "baseline",
+      "mountMs": {
+        "n": 5,
+        "median": 303.39999997615814,
+        "min": 301,
+        "max": 304.60000002384186
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 146.35298538208008,
+        "min": 146.35188674926758,
+        "max": 146.35527420043945
+      },
+      "activeEffects": 30003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.100000023841858,
+          "min": 0.8999999761581421,
+          "max": 1.2999999523162842
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 19,
+          "min": 16,
+          "max": 21.199999928474426
+        },
+        "reverse": {
+          "n": 20,
+          "median": 39.60000002384186,
+          "min": 36.699999928474426,
+          "max": 69.10000002384186
+        },
+        "filter": {
+          "n": 10,
+          "median": 59.19999998807907,
+          "min": 55.699999928474426,
+          "max": 60.199999928474426
+        },
+        "restore": {
+          "n": 10,
+          "median": 144.80000001192093,
+          "min": 141.39999997615814,
+          "max": 155.20000004768372
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "plain-effect-scope",
+      "mountMs": {
+        "n": 5,
+        "median": 246.5,
+        "min": 243.39999997615814,
+        "max": 252
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 81.41293716430664,
+        "min": 81.41154861450195,
+        "max": 81.41464614868164
+      },
+      "activeEffects": 30003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.0999999046325684,
+          "min": 0.8999999761581421,
+          "max": 1.2999999523162842
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 12.450000047683716,
+          "min": 11.100000023841858,
+          "max": 14.899999976158142
+        },
+        "reverse": {
+          "n": 20,
+          "median": 36.299999952316284,
+          "min": 34.60000002384186,
+          "max": 59.39999997615814
+        },
+        "filter": {
+          "n": 10,
+          "median": 41.30000001192093,
+          "min": 39.300000071525574,
+          "max": 43.200000047683716
+        },
+        "restore": {
+          "n": 10,
+          "median": 112.69999998807907,
+          "min": 109.40000009536743,
+          "max": 116.70000004768372
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "component-rows",
+      "mountMs": {
+        "n": 5,
+        "median": 199.10000002384186,
+        "min": 196.79999995231628,
+        "max": 200.80000007152557
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 77.26160430908203,
+        "min": 77.26103210449219,
+        "max": 77.26201629638672
+      },
+      "activeEffects": 10003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.100000023841858,
+          "min": 0.8999999761581421,
+          "max": 1.3000000715255737
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 10.249999940395355,
+          "min": 8.899999976158142,
+          "max": 13.5
+        },
+        "reverse": {
+          "n": 20,
+          "median": 43.14999997615814,
+          "min": 42.300000071525574,
+          "max": 47.699999928474426
+        },
+        "filter": {
+          "n": 10,
+          "median": 45.75,
+          "min": 43.699999928474426,
+          "max": 47.300000071525574
+        },
+        "restore": {
+          "n": 10,
+          "median": 97.94999998807907,
+          "min": 95,
+          "max": 99.5
+        }
+      }
+    },
+    {
+      "rows": 5000,
+      "indexes": true,
+      "variant": "component-rows-plain-scopes",
+      "mountMs": {
+        "n": 5,
+        "median": 164.10000002384186,
+        "min": 161.89999997615814,
+        "max": 165
+      },
+      "heapMiB": {
+        "n": 5,
+        "median": 55.83198928833008,
+        "min": 55.7434196472168,
+        "max": 55.83412170410156
+      },
+      "activeEffects": 10003,
+      "actions": {
+        "update-one": {
+          "n": 20,
+          "median": 1.0499999523162842,
+          "min": 0.8999999761581421,
+          "max": 1.3000000715255737
+        },
+        "update-tenth": {
+          "n": 20,
+          "median": 9.5,
+          "min": 8.200000047683716,
+          "max": 10.200000047683716
+        },
+        "reverse": {
+          "n": 20,
+          "median": 42.10000002384186,
+          "min": 40.799999952316284,
+          "max": 67.60000002384186
+        },
+        "filter": {
+          "n": 10,
+          "median": 37.90000003576279,
+          "min": 35,
+          "max": 63.10000002384186
+        },
+        "restore": {
+          "n": 10,
+          "median": 90.05000001192093,
+          "min": 88.39999997615814,
+          "max": 99.30000007152557
+        }
+      }
+    }
+  ],
+  "counts": [
+    {
+      "variant": "counts-plain",
+      "rows": 1000,
+      "indexes": false,
+      "effects": 4003,
+      "injector": 1014,
+      "providerRecords": 8121,
+      "watches": 4004,
+      "generatorRuns": 7009
+    },
+    {
+      "variant": "counts-component-plain",
+      "rows": 1000,
+      "indexes": false,
+      "effects": 2003,
+      "injector": 1014,
+      "providerRecords": 8121,
+      "watches": 2004,
+      "generatorRuns": 4009
+    },
+    {
+      "variant": "counts",
+      "rows": 1000,
+      "indexes": false,
+      "effects": 4003,
+      "injector": 5017,
+      "providerRecords": 36142,
+      "watches": 4004,
+      "generatorRuns": 7009
+    },
+    {
+      "variant": "counts-component",
+      "rows": 1000,
+      "indexes": false,
+      "effects": 2003,
+      "injector": 3017,
+      "providerRecords": 22142,
+      "watches": 2004,
+      "generatorRuns": 4009
+    },
+    {
+      "variant": "counts-component",
+      "rows": 1000,
+      "indexes": true,
+      "effects": 2003,
+      "injector": 3017,
+      "providerRecords": 22142,
+      "watches": 2004,
+      "generatorRuns": 5009
+    },
+    {
+      "variant": "counts-plain",
+      "rows": 1000,
+      "indexes": true,
+      "effects": 6003,
+      "injector": 1014,
+      "providerRecords": 8121,
+      "watches": 6004,
+      "generatorRuns": 11009
+    },
+    {
+      "variant": "counts",
+      "rows": 1000,
+      "indexes": true,
+      "effects": 6003,
+      "injector": 7017,
+      "providerRecords": 50142,
+      "watches": 6004,
+      "generatorRuns": 11009
+    },
+    {
+      "variant": "counts-component-plain",
+      "rows": 1000,
+      "indexes": true,
+      "effects": 2003,
+      "injector": 1014,
+      "providerRecords": 8121,
+      "watches": 2004,
+      "generatorRuns": 5009
+    },
+    {
+      "variant": "counts-plain",
+      "rows": 5000,
+      "indexes": false,
+      "effects": 20003,
+      "injector": 5014,
+      "providerRecords": 40121,
+      "watches": 20004,
+      "generatorRuns": 35009
+    },
+    {
+      "variant": "counts-component-plain",
+      "rows": 5000,
+      "indexes": false,
+      "effects": 10003,
+      "injector": 5014,
+      "providerRecords": 40121,
+      "watches": 10004,
+      "generatorRuns": 20009
+    },
+    {
+      "variant": "counts-component",
+      "rows": 5000,
+      "indexes": false,
+      "effects": 10003,
+      "injector": 15017,
+      "providerRecords": 110142,
+      "watches": 10004,
+      "generatorRuns": 20009
+    },
+    {
+      "variant": "counts",
+      "rows": 5000,
+      "indexes": false,
+      "effects": 20003,
+      "injector": 25017,
+      "providerRecords": 180142,
+      "watches": 20004,
+      "generatorRuns": 35009
+    }
+  ],
+  "fanout": [
+    {
+      "fields": 32,
+      "strategy": "binding",
+      "mountMs": {
+        "n": 3,
+        "median": 3.6999999284744263,
+        "min": 3.4000000953674316,
+        "max": 3.799999952316284
+      },
+      "updateMs": {
+        "n": 48,
+        "median": 0.20000004768371582,
+        "min": 0,
+        "max": 0.3999999761581421
+      },
+      "activeEffects": 33,
+      "readsPerSingleUpdate": [1, 1],
+      "templateRendersPerUpdate": [0, 0]
+    },
+    {
+      "fields": 32,
+      "strategy": "component",
+      "mountMs": {
+        "n": 3,
+        "median": 3,
+        "min": 2.8000000715255737,
+        "max": 3.100000023841858
+      },
+      "updateMs": {
+        "n": 48,
+        "median": 0.5499999523162842,
+        "min": 0.20000004768371582,
+        "max": 1.2000000476837158
+      },
+      "activeEffects": 1,
+      "readsPerSingleUpdate": [32, 32],
+      "templateRendersPerUpdate": [1, 1]
+    },
+    {
+      "fields": 128,
+      "strategy": "binding",
+      "mountMs": {
+        "n": 3,
+        "median": 6,
+        "min": 5.799999952316284,
+        "max": 6.099999904632568
+      },
+      "updateMs": {
+        "n": 48,
+        "median": 0.19999992847442627,
+        "min": 0,
+        "max": 0.3999999761581421
+      },
+      "activeEffects": 129,
+      "readsPerSingleUpdate": [1, 1],
+      "templateRendersPerUpdate": [0, 0]
+    },
+    {
+      "fields": 128,
+      "strategy": "component",
+      "mountMs": {
+        "n": 3,
+        "median": 4.200000047683716,
+        "min": 4.199999928474426,
+        "max": 4.200000047683716
+      },
+      "updateMs": {
+        "n": 48,
+        "median": 0.7999999523162842,
+        "min": 0.3999999761581421,
+        "max": 1.5
+      },
+      "activeEffects": 1,
+      "readsPerSingleUpdate": [128, 128],
+      "templateRendersPerUpdate": [1, 1]
+    }
+  ],
+  "crossStrategyTargets": {
+    "comparisons": 14,
+    "resolved": 1120
+  },
+  "limits": [
+    "Prototype for synchronous templates returning static descriptors; not a new public renderStrategy API.",
+    "Grouped strategy changes effect reports and template trace counts. Full recorded-session compatibility is not certified.",
+    "No asynchronous/pending/error/SSR compatibility claim; runtime libraries remain unchanged except isolated plain-scope snapshots."
+  ]
+}

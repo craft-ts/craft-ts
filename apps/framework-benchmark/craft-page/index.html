@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>craft page benchmark</title>
+    <link rel="stylesheet" href="/page.css" />
+  </head>
+  <body>
+    <nav class="bench">
+      <button data-action="toggle-one">toggle-one</button>
+      <button data-action="counter">counter</button>
+      <button data-action="filter">filter</button>
+      <button data-action="sort">sort</button>
+      <button data-action="tab">tab</button>
+      <button data-action="theme">theme</button>
+      <button data-action="remount">remount</button>
+      <button data-action="toggle-menu">menu</button>
+      <button data-action="read-all">read-all</button>
+      <button data-action="density">density</button>
+      <button data-action="noop">noop</button>
+    </nav>
+    <div id="mount"></div>
+    <script type="module" src="/src/craft-page/main.ts"></script>
+  </body>
+</html>

@@ -192,30 +192,30 @@ type CraftNodeChildrenDependenciesOf<Value> =
       ? {}
       : Value extends readonly (infer Child)[]
         ? CraftNodeChildrenDependenciesOf<Child>
-      : Value extends object
+        : Value extends object
           ? Value extends Generator<infer Yielded, any, any>
             ? ServiceDependencyMapFromYielded<Yielded>
             : typeof CRAFT_NODE_DEPS extends keyof Value
-            ? Value extends CraftNodeDepsCarrier<
-                infer Dependencies extends object
-              >
-              ? IsAny<Dependencies> extends true
-                ? {}
-                : Dependencies
-              : {}
-            : typeof CRAFT_COMPONENT_DEPS extends keyof Value
-              ? Value extends ComponentDepsCarrier<
+              ? Value extends CraftNodeDepsCarrier<
                   infer Dependencies extends object
                 >
                 ? IsAny<Dependencies> extends true
                   ? {}
                   : Dependencies
                 : {}
-              : // A `Service.member` shortcut bound here is a dependency of the
-                // component, exactly like the `yield*` it replaces: without
-                // this, the binding would resolve at runtime against a provider
-                // nobody checked.
-                ServiceHelperDependencyMapOf<Value>
+              : typeof CRAFT_COMPONENT_DEPS extends keyof Value
+                ? Value extends ComponentDepsCarrier<
+                    infer Dependencies extends object
+                  >
+                  ? IsAny<Dependencies> extends true
+                    ? {}
+                    : Dependencies
+                  : {}
+                : // A `Service.member` shortcut bound here is a dependency of the
+                  // component, exactly like the `yield*` it replaces: without
+                  // this, the binding would resolve at runtime against a provider
+                  // nobody checked.
+                  ServiceHelperDependencyMapOf<Value>
           : {};
 
 type MergedCraftNodeChildrenDependencies<Value> = {
@@ -351,10 +351,7 @@ export type CraftTextBinding =
  */
 export type CraftTextServiceShortcut = Generator<
   any,
-  | CraftTextBinding
-  | CraftTextValue
-  | null
-  | undefined,
+  CraftTextBinding | CraftTextValue | null | undefined,
   any
 >;
 
@@ -434,17 +431,17 @@ export interface ElementNode<
   PendingSources extends string = never,
   SettledExceptions extends string = never,
 > extends ElementNodeBase<
-      Dependencies,
-      Tag,
-      Props,
-      Children,
-      LocalName,
-      Exceptions,
-      HandledExceptions,
-      FieldExceptions,
-      PendingSources,
-      SettledExceptions
-    > {
+    Dependencies,
+    Tag,
+    Props,
+    Children,
+    LocalName,
+    Exceptions,
+    HandledExceptions,
+    FieldExceptions,
+    PendingSources,
+    SettledExceptions
+  > {
   readonly [CRAFT_NODE_EXCEPTIONS]: ElementNodeExceptions<Children, Exceptions>;
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]:
     | FieldExceptions
@@ -1481,6 +1478,57 @@ function withPipe(node: any): any {
   };
 }
 
+/**
+ * What a node built by a factory inherits: `pipe`, as one shared method
+ * instead of a closure and a property definition for every node. As before,
+ * `pipe` is not enumerable and is not carried over by a spread.
+ */
+export class ɵPipeableNode {
+  pipe(
+    directive:
+      | CraftDirective
+      | CraftNodeDirective<any>
+      | ScheduleForDirective
+      | CraftHostType<unknown>,
+  ): CraftNode {
+    return pipeCraftNode(this as unknown as CraftNode, directive);
+  }
+}
+
+/** The element node `h()` builds. */
+export class ɵElementVNode extends ɵPipeableNode {
+  readonly kind = 'element';
+  readonly tag: string;
+  readonly props: Readonly<Record<string, unknown>>;
+  readonly children: CraftNodeChildren;
+
+  constructor(
+    tag: string,
+    props: Readonly<Record<string, unknown>>,
+    children: CraftNodeChildren,
+  ) {
+    super();
+    this.tag = tag;
+    this.props = props;
+    this.children = children;
+  }
+}
+
+/** The node a component call builds. */
+export class ɵComponentVNode extends ɵPipeableNode {
+  readonly kind = 'component';
+  readonly component: unknown;
+  readonly props: object;
+  readonly declarationContext: unknown;
+
+  constructor(component: unknown, props: object, declarationContext: unknown) {
+    super();
+    this.component = component;
+    this.props = props;
+    this.declarationContext = declarationContext;
+  }
+}
+
 export function pipeCraftNode(
   node: CraftNode,
   directive:
@@ -1667,13 +1715,13 @@ function resolveHostValue(value: unknown): unknown {
   return typeof value === 'function' ? value() : value;
 }
 
-function hasHostBinding(value: unknown, seen = new Set<object>()): boolean {
+function hasHostBinding(value: unknown, seen?: Set<object>): boolean {
   if (typeof value === 'function') return true;
-  if (typeof value !== 'object' || value === null || seen.has(value)) {
-    return false;
-  }
-  seen.add(value);
-  return Object.values(value).some((child) => hasHostBinding(child, seen));
+  if (typeof value !== 'object' || value === null) return false;
+  if (seen?.has(value)) return false;
+  const visited = seen ?? new Set<object>();
+  visited.add(value);
+  return Object.values(value).some((child) => hasHostBinding(child, visited));
 }
 
 function classTokens(value: unknown): string[] {
@@ -1731,10 +1779,21 @@ function mergeStyles(left: unknown, right: unknown): unknown {
     : mergeResolvedStyles(left, right);
 }
 
+const NO_HOST_PROPS: Readonly<Record<string, unknown>> = Object.freeze({});
+
+function hasNoOwnKey(value: Readonly<Record<string, unknown>>): boolean {
+  for (const key in value) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) return false;
+  }
+  return true;
+}
+
 export function mergeHostProps(
   base: Readonly<Record<string, unknown>>,
   added: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
+  // Most components declare no host property and receive none.
+  if (hasNoOwnKey(base) && hasNoOwnKey(added)) return NO_HOST_PROPS;
   const merged = { ...base, ...added };
   const classes = mergeClasses(base['class'], added['class']);
   if (classes === undefined) {
@@ -1788,7 +1847,7 @@ export function applyHostPropsToChildren(
   children: CraftNodeChildren,
   props: Readonly<Record<string, unknown>> | undefined,
 ): CraftNodeChildren {
-  if (!props || Object.keys(props).length === 0) {
+  if (!props || hasNoOwnKey(props)) {
     return children;
   }
 
@@ -1806,49 +1865,43 @@ export function applyHostPropsToChildren(
 
 export function normalizeChildren(children: CraftNodeChildren): CraftNode[] {
   const result: CraftNode[] = [];
-
-  const visit = (child: CraftNodeChild): void => {
-    if (Array.isArray(child)) {
-      child.forEach(visit);
-      return;
-    }
-
-    if (child === null || child === undefined || child === false) {
-      return;
-    }
-
-    if (isCraftNode(child)) {
-      result.push(child);
-      return;
-    }
-
-    if (typeof child === 'function') {
-      result.push({
-        kind: 'reactive-text',
-        binding: child,
-      });
-      return;
-    }
-
-    if (isGenerator(child)) {
-      result.push({
-        kind: 'service-shortcut-text',
-        shortcut: child as CraftTextServiceShortcut,
-      } as unknown as CraftNode);
-      return;
-    }
-
-    const resolved = child;
-    if (resolved === null || resolved === undefined) {
-      return;
-    }
-
-    result.push({
-      kind: 'text',
-      value: String(resolved),
-    });
-  };
-
-  visit(children);
+  collectChildNodes(children, result);
   return result;
+}
+
+function collectChildNodes(child: CraftNodeChild, result: CraftNode[]): void {
+  if (Array.isArray(child)) {
+    for (const item of child) collectChildNodes(item, result);
+    return;
+  }
+
+  if (child === null || child === undefined || child === false) {
+    return;
+  }
+
+  if (isCraftNode(child)) {
+    result.push(child);
+    return;
+  }
+
+  if (typeof child === 'function') {
+    result.push({
+      kind: 'reactive-text',
+      binding: child,
+    });
+    return;
+  }
+
+  if (isGenerator(child)) {
+    result.push({
+      kind: 'service-shortcut-text',
+      shortcut: child as CraftTextServiceShortcut,
+    } as unknown as CraftNode);
+    return;
+  }
+
+  result.push({
+    kind: 'text',
+    value: String(child),
+  });
 }

@@ -1,0 +1,21 @@
+// PROTOTYPE: exact FNV lanes over JSON arrays, retaining unclosed prefixes weakly.
+type PrototypeHash = readonly [number, number];
+const prototypePathPrefixes = new WeakMap<readonly string[], {parent?: readonly string[]; tail: readonly string[]; hash?: PrototypeHash}>();
+function prototypeHashText(hash: PrototypeHash, text: string): PrototypeHash {
+  let [a,b] = hash;
+  for (let i=0;i<text.length;i++) { const code=text.charCodeAt(i); a=Math.imul(a^code,0x01000193); b=Math.imul(b^code,0x85ebca6b); }
+  return [a,b];
+}
+function prototypePathHash(path: readonly string[]): PrototypeHash {
+  const meta = prototypePathPrefixes.get(path);
+  if (!meta) return prototypeHashText([0x811c9dc5,0x9e3779b9], JSON.stringify(path).slice(0,-1));
+  if (meta.hash) return meta.hash;
+  let hash: PrototypeHash = meta.parent ? prototypePathHash(meta.parent) : prototypeHashText([0x811c9dc5,0x9e3779b9], '[');
+  let length = meta.parent?.length ?? 0;
+  for (const segment of meta.tail) { hash=prototypeHashText(hash, (length++ ? ',' : '')+JSON.stringify(segment)); }
+  return meta.hash = hash;
+}
+export function prototypeFingerprintPath(path: readonly string[]): string {
+  const [a,b] = prototypeHashText(prototypePathHash(path), ']');
+  return `${(a>>>0).toString(16).padStart(8,'0')}${(b>>>0).toString(16).padStart(8,'0')}`;
+}

@@ -22,9 +22,141 @@ export type CraftReplayTargetResolution =
 // runtime namespace stable lets an exported target resolve in a freshly mounted
 // application runtime, while the rendered-node index itself remains ephemeral.
 const runtimeId = 'craft-render-runtime-v1';
-const elementsById = new Map<string, Set<WeakRef<Element>>>();
-const idsByElement = new WeakMap<Element, string>();
-const unstableIds = new Set<string>();
+
+/**
+ * One live association between a rendered element and its Craft address.
+ *
+ * Mounting an element only links its record. The fingerprint of the address is
+ * derived when a capture or a resolution asks for it: an application that is
+ * neither recorded nor replayed never reads a render path, never hashes one.
+ */
+export interface ɵCraftReplayTargetRecord {
+  readonly element: Element;
+  readonly stable: boolean;
+}
+
+type ReplayPathSource =
+  | readonly string[]
+  | { readonly path: readonly string[] };
+
+class ReplayTargetRecord implements ɵCraftReplayTargetRecord {
+  readonly element: Element;
+  readonly stable: boolean;
+  // The list this record is linked in; none once it is released.
+  tree: ReplayTargetTree | undefined;
+  previous: ReplayTargetRecord | undefined = undefined;
+  next: ReplayTargetRecord | undefined = undefined;
+  private readonly source: ReplayPathSource;
+  private resolvedId: string | undefined = undefined;
+
+  constructor(
+    element: Element,
+    source: ReplayPathSource,
+    stable: boolean,
+    tree: ReplayTargetTree | undefined,
+  ) {
+    this.element = element;
+    this.source = source;
+    this.stable = stable;
+    this.tree = tree;
+  }
+
+  get id(): string {
+    if (this.resolvedId !== undefined) return this.resolvedId;
+    const source = this.source;
+    const path = Array.isArray(source)
+      ? source
+      : (source as { readonly path: readonly string[] }).path;
+    return (this.resolvedId = stableFingerprint(JSON.stringify(path)));
+  }
+}
+
+/**
+ * The live records of one mounted render tree, as a list: linking and
+ * unlinking write a few pointers. A tree that is dropped without being
+ * destroyed takes its list with it — the runtime only holds trees weakly.
+ */
+class ReplayTargetTree {
+  first: ReplayTargetRecord | undefined;
+}
+export type ɵCraftReplayTargetTree = ReplayTargetTree;
+
+// Targets registered outside a render tree (the public registration entry).
+const detachedTargets = new ReplayTargetTree();
+const targetTrees = new Set<WeakRef<ReplayTargetTree>>();
+// The index by fingerprint is rebuilt, when a capture or a resolution needs
+// it, only after the set of live records changed.
+let recordsVersion = 0;
+let indexVersion = -1;
+const recordsById = new Map<string, ReplayTargetRecord[]>();
+// The last address an element was given outlives its release, so an event
+// captured while its element is leaving the page still gets an address.
+const recordByElement = new WeakMap<Element, ReplayTargetRecord>();
+
+function indexTree(tree: ReplayTargetTree): void {
+  for (let record = tree.first; record; record = record.next) {
+    const id = record.id;
+    const entries = recordsById.get(id);
+    if (entries) entries.push(record);
+    else recordsById.set(id, [record]);
+  }
+}
+
+function recordsIndex(): Map<string, ReplayTargetRecord[]> {
+  if (indexVersion === recordsVersion) return recordsById;
+  recordsById.clear();
+  indexTree(detachedTargets);
+  for (const reference of targetTrees) {
+    const tree = reference.deref();
+    if (tree) indexTree(tree);
+    else targetTrees.delete(reference);
+  }
+  indexVersion = recordsVersion;
+  return recordsById;
+}
+
+/** @internal The target list of a render tree about to be mounted. */
+export function ɵcreateCraftReplayTargetTree(): ɵCraftReplayTargetTree {
+  const tree = new ReplayTargetTree();
+  targetTrees.add(new WeakRef(tree));
+  return tree;
+}
+
+/**
+ * @internal Associate an interpreted element with its Craft render address.
+ * `address` is the render path, or what answers it when asked (a render
+ * identity): the path is not read until a capture or a resolution needs it.
+ */
+export function ɵlinkCraftReplayTarget(
+  element: Element,
+  address: ReplayPathSource,
+  stable = true,
+  tree: ɵCraftReplayTargetTree = detachedTargets,
+): ɵCraftReplayTargetRecord {
+  const record = new ReplayTargetRecord(element, address, stable, tree);
+  const first = tree.first;
+  record.next = first;
+  if (first) first.previous = record;
+  tree.first = record;
+  recordsVersion++;
+  recordByElement.set(element, record);
+  return record;
+}
+
+/** @internal Release an association made by {@link ɵlinkCraftReplayTarget}. */
+export function ɵunlinkCraftReplayTarget(
+  target: ɵCraftReplayTargetRecord,
+): void {
+  const record = target as ReplayTargetRecord;
+  const tree = record.tree;
+  if (!tree) return;
+  record.tree = undefined;
+  if (record.previous) record.previous.next = record.next;
+  else tree.first = record.next;
+  if (record.next) record.next.previous = record.previous;
+  record.previous = record.next = undefined;
+  recordsVersion++;
+}
 
 /** @internal Associate an interpreted element with its Craft render address. */
 export function ɵregisterCraftReplayTarget(
@@ -32,21 +164,8 @@ export function ɵregisterCraftReplayTarget(
   craftPath: readonly string[],
   stable = true,
 ): () => void {
-  const pathKey = JSON.stringify(craftPath);
-  const targetId = stableFingerprint(pathKey);
-  const entries = elementsById.get(targetId) ?? new Set<WeakRef<Element>>();
-  const reference = new WeakRef(element);
-  entries.add(reference);
-  elementsById.set(targetId, entries);
-  idsByElement.set(element, targetId);
-  if (!stable) unstableIds.add(targetId);
-  return () => {
-    entries.delete(reference);
-    if (entries.size === 0) {
-      elementsById.delete(targetId);
-      unstableIds.delete(targetId);
-    }
-  };
+  const record = ɵlinkCraftReplayTarget(element, craftPath, stable);
+  return () => ɵunlinkCraftReplayTarget(record);
 }
 
 /** @internal Build a serializable target descriptor for a currently mounted node. */
@@ -56,21 +175,30 @@ export function ɵcaptureCraftReplayTarget(
 ): CraftReplayTarget | undefined {
   let target = element;
   const localTargetPath: number[] = [];
-  let targetId = idsByElement.get(target);
-  while (!targetId && target.parentElement) {
+  let record = recordByElement.get(target);
+  while (!record && target.parentElement) {
     const parent = target.parentElement;
-    const childIndex = Array.prototype.indexOf.call(parent.children, target) as number;
+    const childIndex = Array.prototype.indexOf.call(
+      parent.children,
+      target,
+    ) as number;
     if (childIndex < 0) return undefined;
     localTargetPath.unshift(childIndex);
     target = parent;
-    targetId = idsByElement.get(target);
+    record = recordByElement.get(target);
   }
-  if (!targetId) return undefined;
+  if (!record) return undefined;
+  const targetId = record.id;
+  // An address is unstable as long as one live element holds it by position.
+  const unstable =
+    recordsIndex()
+      .get(targetId)
+      ?.some((entry) => !entry.stable) ?? false;
   return {
     runtimeId,
     componentPath: [targetId],
     localTargetPath,
-    ...(unstableIds.has(targetId) ? { stability: 'unstable' as const } : {}),
+    ...(unstable ? { stability: 'unstable' as const } : {}),
     ...(fallback ? { fallback } : {}),
   };
 }
@@ -79,28 +207,18 @@ export function ɵcaptureCraftReplayTarget(
 export function ɵresolveCraftReplayTarget(
   target: CraftReplayTarget,
 ): CraftReplayTargetResolution {
-  if (target.runtimeId !== runtimeId)
-    return { status: 'foreign-runtime' };
-  if (target.stability === 'unstable')
-    return { status: 'unstable-identity' };
+  if (target.runtimeId !== runtimeId) return { status: 'foreign-runtime' };
+  if (target.stability === 'unstable') return { status: 'unstable-identity' };
   const targetId = target.componentPath[0];
   if (!targetId || target.componentPath.length !== 1)
     return { status: 'missing' };
-  const entries = elementsById.get(targetId);
+  const entries = recordsIndex().get(targetId);
   if (!entries) return { status: 'missing' };
   let result: Element | undefined;
-  for (const reference of [...entries]) {
-    const element = reference.deref();
-    if (!element || !element.isConnected) {
-      entries.delete(reference);
-      continue;
-    }
+  for (const entry of entries) {
+    if (!entry.element.isConnected) continue;
     if (result) return { status: 'ambiguous' };
-    result = element;
-  }
-  if (entries.size === 0) {
-    elementsById.delete(targetId);
-    unstableIds.delete(targetId);
+    result = entry.element;
   }
   if (!result) return { status: 'missing' };
   let resolved = result;

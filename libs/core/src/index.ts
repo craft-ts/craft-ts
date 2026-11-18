@@ -168,6 +168,9 @@ export {
   ɵsetCraftDevMode,
   inject as ɵinject,
   createEnvironmentInjector as ɵcreateEnvironmentInjector,
+  ɵcreatePreparedEnvironmentInjector,
+  ɵprepareEnvironmentProviders,
+  ɵinjectorInstance,
   ElementRef as ɵElementRef,
   EnvironmentInjector as ɵEnvironmentInjector,
   runInInjectionContext as ɵrunInInjectionContext,
@@ -188,8 +191,12 @@ export {
   craftBatch as ɵcraftBatch,
   craftComputed as ɵcraftComputed,
   craftWatch as ɵcraftWatch,
+  ɵcraftPrivateCell,
 } from './lib/host/craft-signal';
-export type { CraftSignal as ɵCraftSignal } from './lib/host/craft-signal';
+export type {
+  CraftSignal as ɵCraftSignal,
+  ɵCraftPrivateCell,
+} from './lib/host/craft-signal';
 export {
   createBrowserDomAdapter,
   type CraftDomAdapter,
@@ -288,11 +295,16 @@ export * from './lib/craft-render-identity';
 export type {
   CraftReplayTarget,
   CraftReplayTargetResolution,
+  ɵCraftReplayTargetRecord,
+  ɵCraftReplayTargetTree,
 } from './lib/craft-replay-target';
 export {
   ɵcaptureCraftReplayTarget,
+  ɵcreateCraftReplayTargetTree,
+  ɵlinkCraftReplayTarget,
   ɵregisterCraftReplayTarget,
   ɵresolveCraftReplayTarget,
+  ɵunlinkCraftReplayTarget,
 } from './lib/craft-replay-target';
 export type { CraftDeferReplayResolution } from './lib/craft-defer-replay';
 export {
@@ -317,6 +329,7 @@ export {
   isGenerator,
   type RuntimeGuardAwaitRequest,
   executeGeneratorCompatibleFactory,
+  ɵexecuteFactoryIn,
   type GeneratorOnlyFactory,
   type ResolveGeneratorResult,
 } from './lib/craft-generator-runtime';

@@ -3936,9 +3936,28 @@ function isServiceMetaData(value: unknown): value is InternalServiceMetaData {
   );
 }
 
+/**
+ * @internal The provider `provide<Name>(value)` builds, for a value that
+ * differs from one injector to the next: `read` answers it from the injector
+ * that resolves the service, so the same provider serves every one of them.
+ */
+export function ɵprovideServiceReading(
+  metaData: unknown,
+  read: (injector: Injector) => unknown,
+): CraftServiceProvider {
+  return createProviders(
+    (metaData as { [SERVICE_RUNTIME_DEFINITION]: ConcreteRuntimeDefinition })[
+      SERVICE_RUNTIME_DEFINITION
+    ],
+    [],
+    read,
+  ) as CraftServiceProvider;
+}
+
 function createProviders(
   definition: ConcreteRuntimeDefinition,
   providedArgs: unknown[] = [],
+  readProvided?: (injector: Injector) => unknown,
 ): NamedBrandedServiceProvider<string, RequirementScope, unknown> {
   const concreteToken = definition.token;
 
@@ -3949,7 +3968,7 @@ function createProviders(
   }
 
   const providers: CraftServiceProvider[] = [];
-  const providedConfig = normalizeProvidedConfig(providedArgs);
+  const staticConfig = normalizeProvidedConfig(providedArgs);
 
   const concreteProviders: Provider[] = [
     {
@@ -3957,6 +3976,9 @@ function createProviders(
       ɵcraftCollection: definition.collection,
       useFactory: () => {
         const injector = inject(Injector);
+        const providedConfig = readProvided
+          ? readProvided(injector)
+          : staticConfig;
         const override = getServiceRuntimeOverride(injector, definition.name);
         if (override?.kind === 'notReached') {
           throw new Error(
@@ -4886,6 +4908,9 @@ export const ɵHOST_NAME_META_DATA = hostNameApi.HOST_NAME_META_DATA;
 
 const ɵprovideHostNameProvider = hostNameApi.provideHostName;
 
+const OPTIONAL_FROM_PARENT = { optional: true, skipSelf: true } as const;
+const NO_HOST_TAGS: readonly string[] = [];
+
 export function ɵprovideHostName(name: string): Provider[] {
   return [
     ɵprovideHostNameProvider(name) as Provider,
@@ -4893,10 +4918,7 @@ export function ɵprovideHostName(name: string): Provider[] {
       provide: ɵHOST_TAG_LIST,
       useFactory: () => {
         const parentTags =
-          inject(ɵHOST_TAG_LIST, {
-            optional: true,
-            skipSelf: true,
-          }) ?? [];
+          inject(ɵHOST_TAG_LIST, OPTIONAL_FROM_PARENT) ?? NO_HOST_TAGS;
         const id = (ɵinjectComponentRegister() ?? ɵfallbackComponentRegister).next();
 
         return [...parentTags, `${name}#${id}`] as readonly string[];
@@ -4968,6 +4990,54 @@ export function* ɵTrackTags(): Generator<
   }) as readonly TrackTag[];
 }
 
+/**
+ * The tag list a host named under `injector` carries: the node chain's tags,
+ * the tags only its environment chain knows (route-level providers shadowed by
+ * a parent component providing the same token) inserted before the current
+ * component's tag, then the host's own tag. Semantic order is kept: parent
+ * components → route → current component → host.
+ *
+ * `resolveHostTag` runs after the parent tags are read, so an ordinal it draws
+ * keeps the order a tagged injector would have produced. Shared by
+ * `ɵcreateHostTaggedInjector` and the hosts that report tags without needing
+ * a scope of their own (plain `craftEffect` bodies).
+ */
+export function ɵmergeHostTags(
+  injector: Injector,
+  resolveHostTag: () => string,
+): readonly string[] {
+  const ownerTags = ɵhostOwnerTags(injector);
+  return [...ownerTags, resolveHostTag()];
+}
+
+/**
+ * {@link ɵmergeHostTags} without the host's own tag: what every host named
+ * under `injector` carries before its own. The array may be the injector's
+ * tag list itself: read it, do not change it.
+ */
+export function ɵhostOwnerTags(injector: Injector): readonly string[] {
+  const nodeTags = injector.get(ɵHOST_TAG_LIST, []);
+
+  let envOnlyTags: readonly string[] = [];
+  const associatedEnvInjector = injector.get(EnvironmentInjector, null);
+  // An environment injector is its own environment: it has no other tags.
+  if (associatedEnvInjector && associatedEnvInjector !== injector) {
+    const envTags = associatedEnvInjector.get(ɵHOST_TAG_LIST, null) ?? [];
+    if (envTags !== nodeTags) {
+      envOnlyTags = envTags.filter((t) => !nodeTags.includes(t));
+    }
+  }
+
+  if (envOnlyTags.length === 0) return nodeTags;
+  return nodeTags.length > 0
+    ? [
+        ...nodeTags.slice(0, -1),
+        ...envOnlyTags,
+        nodeTags[nodeTags.length - 1],
+      ]
+    : envOnlyTags;
+}
+
 export function ɵcreateHostTaggedInjector(
   injector: Injector,
   hostName: string,
@@ -4985,39 +5055,17 @@ export function ɵcreateHostTaggedInjector(
     // not in an injection context
   }
 
-  // Collect tags from the node injector chain
-  const nodeTags = injector.get(ɵHOST_TAG_LIST, []);
-
-  // Collect tags exclusive to the env injector chain (e.g. route-level providers
-  // that are shadowed by a parent component's node injector providing the same token)
-  let envOnlyTags: readonly string[] = [];
-  const associatedEnvInjector = injector.get(EnvironmentInjector, null);
-  if (associatedEnvInjector) {
-    const envTags = associatedEnvInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    envOnlyTags = envTags.filter((t) => !nodeTags.includes(t));
-  }
-
-  // Insert env-only tags before the last element of nodeTags (the current component's tag)
-  // to preserve semantic order: parent components → route → current component → method
   // EXPERIMENT (option A): stamp the instance ordinal that provideHostName's
   // factory would have produced, which this useValue would otherwise discard.
   // A host that can exist several times at once carries which one it is, the
   // way a component tag already does. A singleton does not: a number on a host
   // there is exactly one of reads as noise, and would change every log line and
   // snapshot for nothing.
-  const taggedHostName = options.instanced
-    ? `${hostName}#${(ɵinjectComponentRegister() ?? ɵfallbackComponentRegister).next()}`
-    : hostName;
-
-  const mergedTags: readonly string[] =
-    nodeTags.length > 0
-      ? [
-          ...nodeTags.slice(0, -1),
-          ...envOnlyTags,
-          nodeTags[nodeTags.length - 1],
-          taggedHostName,
-        ]
-      : [...envOnlyTags, taggedHostName];
+  const mergedTags = ɵmergeHostTags(injector, () =>
+    options.instanced
+      ? `${hostName}#${(ɵinjectComponentRegister() ?? ɵfallbackComponentRegister).next()}`
+      : hostName,
+  );
 
   const envInjector = createEnvironmentInjector(
     [

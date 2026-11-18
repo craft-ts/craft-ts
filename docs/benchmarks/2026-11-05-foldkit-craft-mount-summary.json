@@ -1,0 +1,1674 @@
+{
+  "commit": "e135eeec9f29c8daf6031d32bec780f9c8d99d6e",
+  "measuredAt": "2026-11-05T12:21:36.344Z",
+  "environment": {
+    "node": "v22.23.0",
+    "cpu": "Apple M3",
+    "chromium": "153.0.8010.12"
+  },
+  "sourceHashes": {
+    "craft": "295c34faf34010dd21fbd168313cac6859f4df75ecd21a2720a7873a51ad2b67",
+    "foldkit": "58348588b0ee19c11be47f7b1704d730a99c0b9e864faf33d35a28fc829211a1"
+  },
+  "navigationCount": 58,
+  "protocol": {
+    "mountTiming": "production minified, 3 fresh contexts per framework/size, interleaved; DOM notification before paint",
+    "counts": "separate navigations with native DOM wrappers; their timings are not ranked",
+    "phases": "separate Foldkit build using public slow hooks; not mixed into baseline results",
+    "noMemo": "only keyed memo call replaced by direct rowView, separate production build",
+    "cpuProfiles": "separate unminified production builds, mount gated after imports, 5000 rows CPU x4, 3 profiles per framework; no ranking from profile timings"
+  },
+  "mounts": [
+    {
+      "name": "craft",
+      "rows": 1000,
+      "mountMs": {
+        "n": 3,
+        "median": 57.199999928474426,
+        "min": 57.10000002384186,
+        "max": 77.29999995231628,
+        "values": [77.29999995231628, 57.10000002384186, 57.199999928474426]
+      },
+      "heapMiB": {
+        "n": 3,
+        "median": 22.411693572998047,
+        "min": 22.40652847290039,
+        "max": 22.411888122558594,
+        "values": [22.411888122558594, 22.40652847290039, 22.411693572998047]
+      },
+      "dom": {
+        "element": 1001,
+        "text": 1000,
+        "comment": 4004
+      }
+    },
+    {
+      "name": "foldkit",
+      "rows": 1000,
+      "mountMs": {
+        "n": 3,
+        "median": 8.600000023841858,
+        "min": 7.799999952316284,
+        "max": 8.700000047683716,
+        "values": [8.600000023841858, 8.700000047683716, 7.799999952316284]
+      },
+      "heapMiB": {
+        "n": 3,
+        "median": 3.0854949951171875,
+        "min": 3.084095001220703,
+        "max": 3.0860214233398438,
+        "values": [3.0860214233398438, 3.0854949951171875, 3.084095001220703]
+      },
+      "dom": {
+        "element": 1001,
+        "text": 1000,
+        "comment": 0
+      }
+    },
+    {
+      "name": "craft",
+      "rows": 5000,
+      "mountMs": {
+        "n": 3,
+        "median": 245.5,
+        "min": 244,
+        "max": 247,
+        "values": [245.5, 244, 247]
+      },
+      "heapMiB": {
+        "n": 3,
+        "median": 102.88665390014648,
+        "min": 102.88315200805664,
+        "max": 102.90497207641602,
+        "values": [102.88665390014648, 102.88315200805664, 102.90497207641602]
+      },
+      "dom": {
+        "element": 5001,
+        "text": 5000,
+        "comment": 20004
+      }
+    },
+    {
+      "name": "foldkit",
+      "rows": 5000,
+      "mountMs": {
+        "n": 3,
+        "median": 15.899999976158142,
+        "min": 15.199999928474426,
+        "max": 16.100000023841858,
+        "values": [16.100000023841858, 15.199999928474426, 15.899999976158142]
+      },
+      "heapMiB": {
+        "n": 3,
+        "median": 5.3514404296875,
+        "min": 5.3514251708984375,
+        "max": 5.351470947265625,
+        "values": [5.3514404296875, 5.3514251708984375, 5.351470947265625]
+      },
+      "dom": {
+        "element": 5001,
+        "text": 5000,
+        "comment": 0
+      }
+    }
+  ],
+  "nativeCounts": [
+    {
+      "name": "craft",
+      "framework": "craft",
+      "rows": 1000,
+      "bootstrapMs": 60.799999952316284,
+      "dom": {
+        "element": 1001,
+        "text": 1000,
+        "comment": 4004
+      },
+      "nativeCounts": {
+        "createComment": 4004,
+        "createComment:connected": 4004,
+        "insertBefore": 6005,
+        "insertBefore:connected": 6005,
+        "createElement": 1001,
+        "createElement:connected": 1001,
+        "setAttribute": 2003,
+        "setAttribute:connected": 2003,
+        "createTextNode": 1000,
+        "createTextNode:connected": 1000
+      },
+      "checks": {
+        "data": true,
+        "order": true,
+        "pageErrors": 0
+      },
+      "heapMiB": 22.41778564453125
+    },
+    {
+      "name": "foldkit",
+      "framework": "foldkit",
+      "rows": 1000,
+      "bootstrapMs": 8.599999904632568,
+      "dom": {
+        "element": 1001,
+        "text": 1000,
+        "comment": 0
+      },
+      "nativeCounts": {
+        "createComment": 1,
+        "createComment:connected": 1,
+        "replaceChild": 1,
+        "replaceChild:connected": 1,
+        "createElement": 1001,
+        "createElement:connected": 1001,
+        "setAttribute": 1001,
+        "createTextNode": 1000,
+        "createTextNode:connected": 1000,
+        "appendChild": 2000,
+        "insertBefore": 1,
+        "insertBefore:connected": 1,
+        "removeChild": 1,
+        "removeChild:connected": 1
+      },
+      "checks": {
+        "data": true,
+        "order": true,
+        "pageErrors": 0
+      },
+      "heapMiB": 3.0909881591796875
+    },
+    {
+      "name": "craft",
+      "framework": "craft",
+      "rows": 5000,
+      "bootstrapMs": 256.60000002384186,
+      "dom": {
+        "element": 5001,
+        "text": 5000,
+        "comment": 20004
+      },
+      "nativeCounts": {
+        "createComment": 20004,
+        "createComment:connected": 20004,
+        "insertBefore": 30005,
+        "insertBefore:connected": 30005,
+        "createElement": 5001,
+        "createElement:connected": 5001,
+        "setAttribute": 10003,
+        "setAttribute:connected": 10003,
+        "createTextNode": 5000,
+        "createTextNode:connected": 5000
+      },
+      "checks": {
+        "data": true,
+        "order": true,
+        "pageErrors": 0
+      },
+      "heapMiB": 102.90470504760742
+    },
+    {
+      "name": "foldkit",
+      "framework": "foldkit",
+      "rows": 5000,
+      "bootstrapMs": 17.899999976158142,
+      "dom": {
+        "element": 5001,
+        "text": 5000,
+        "comment": 0
+      },
+      "nativeCounts": {
+        "createComment": 1,
+        "createComment:connected": 1,
+        "replaceChild": 1,
+        "replaceChild:connected": 1,
+        "createElement": 5001,
+        "createElement:connected": 5001,
+        "setAttribute": 5001,
+        "createTextNode": 5000,
+        "createTextNode:connected": 5000,
+        "appendChild": 10000,
+        "insertBefore": 1,
+        "insertBefore:connected": 1,
+        "removeChild": 1,
+        "removeChild:connected": 1
+      },
+      "checks": {
+        "data": true,
+        "order": true,
+        "pageErrors": 0
+      },
+      "heapMiB": 5.352653503417969
+    }
+  ],
+  "foldkitPhases": [
+    {
+      "rows": 1000,
+      "View": {
+        "n": 3,
+        "median": 2.899999976158142,
+        "min": 2.6999999284744263,
+        "max": 3.100000023841858,
+        "values": [2.899999976158142, 3.100000023841858, 2.6999999284744263]
+      },
+      "Patch": {
+        "n": 3,
+        "median": 2.3000000715255737,
+        "min": 2.1999999284744263,
+        "max": 2.799999952316284,
+        "values": [2.1999999284744263, 2.799999952316284, 2.3000000715255737]
+      },
+      "totalMs": {
+        "n": 3,
+        "median": 8.200000047683716,
+        "min": 7.899999976158142,
+        "max": 9.199999928474426,
+        "values": [8.200000047683716, 9.199999928474426, 7.899999976158142]
+      }
+    },
+    {
+      "rows": 5000,
+      "View": {
+        "n": 3,
+        "median": 5.5,
+        "min": 5.400000095367432,
+        "max": 5.899999976158142,
+        "values": [5.400000095367432, 5.899999976158142, 5.5]
+      },
+      "Patch": {
+        "n": 3,
+        "median": 6.899999976158142,
+        "min": 6.800000071525574,
+        "max": 7.299999952316284,
+        "values": [7.299999952316284, 6.800000071525574, 6.899999976158142]
+      },
+      "totalMs": {
+        "n": 3,
+        "median": 15.800000071525574,
+        "min": 15.5,
+        "max": 16.100000023841858,
+        "values": [16.100000023841858, 15.800000071525574, 15.5]
+      }
+    }
+  ],
+  "noMemo": [
+    {
+      "rows": 1000,
+      "mountMs": {
+        "n": 3,
+        "median": 7.799999952316284,
+        "min": 7.699999928474426,
+        "max": 8,
+        "values": [8, 7.699999928474426, 7.799999952316284]
+      }
+    },
+    {
+      "rows": 5000,
+      "mountMs": {
+        "n": 3,
+        "median": 14.399999976158142,
+        "min": 14.300000071525574,
+        "max": 15.300000071525574,
+        "values": [15.300000071525574, 14.300000071525574, 14.399999976158142]
+      }
+    }
+  ],
+  "staging": [
+    {
+      "name": "craft",
+      "rows": 1000,
+      "mountMs": {
+        "n": 5,
+        "median": 57.60000002384186,
+        "min": 55.89999997615814,
+        "max": 69.70000004768372,
+        "values": [
+          69.70000004768372, 57.5, 55.89999997615814, 57.60000002384186,
+          58.10000002384186
+        ]
+      }
+    },
+    {
+      "name": "craft-staged",
+      "rows": 1000,
+      "mountMs": {
+        "n": 5,
+        "median": 55.299999952316284,
+        "min": 54.90000009536743,
+        "max": 58.299999952316284,
+        "values": [
+          58.299999952316284, 54.90000009536743, 55.299999952316284,
+          56.09999990463257, 55.200000047683716
+        ]
+      }
+    },
+    {
+      "name": "craft",
+      "rows": 5000,
+      "mountMs": {
+        "n": 5,
+        "median": 236,
+        "min": 233.89999997615814,
+        "max": 242.5,
+        "values": [
+          242.5, 238.89999997615814, 236, 233.89999997615814, 235.29999995231628
+        ]
+      }
+    },
+    {
+      "name": "craft-staged",
+      "rows": 5000,
+      "mountMs": {
+        "n": 5,
+        "median": 236,
+        "min": 235.30000007152557,
+        "max": 324.10000002384186,
+        "values": [
+          236.10000002384186, 236, 236, 235.30000007152557, 324.10000002384186
+        ]
+      }
+    }
+  ],
+  "profileHotspots": {
+    "craft": [
+      {
+        "name": "(program)",
+        "selfMs": 425.0779999999999
+      },
+      {
+        "name": "(garbage collector)",
+        "selfMs": 324.449
+      },
+      {
+        "name": "",
+        "selfMs": 286.23
+      },
+      {
+        "name": "encodeHydrationSegment",
+        "selfMs": 155.91600000000005
+      },
+      {
+        "name": "brand",
+        "selfMs": 102.023
+      },
+      {
+        "name": "createNativeCraftInjector",
+        "selfMs": 102.01299999999999
+      },
+      {
+        "name": "insertBefore",
+        "selfMs": 87.35199999999999
+      },
+      {
+        "name": "isGenerator",
+        "selfMs": 86.112
+      },
+      {
+        "name": "ɵregisterCraftReplayTarget",
+        "selfMs": 73.922
+      },
+      {
+        "name": "ɵcreateHostTaggedInjector",
+        "selfMs": 69.86199999999998
+      },
+      {
+        "name": "createNamedPrimitiveGen",
+        "selfMs": 68.20899999999999
+      },
+      {
+        "name": "get",
+        "selfMs": 58.167
+      },
+      {
+        "name": "createCraftRenderIdentity",
+        "selfMs": 57.536
+      },
+      {
+        "name": "getDestroyRefState",
+        "selfMs": 54.53800000000001
+      },
+      {
+        "name": "setAttribute",
+        "selfMs": 52.74900000000001
+      },
+      {
+        "name": "createEnvironmentInjector$1",
+        "selfMs": 44.43900000000001
+      },
+      {
+        "name": "run",
+        "selfMs": 43.364999999999995
+      },
+      {
+        "name": "ComponentRenderedNode",
+        "selfMs": 38.879999999999995
+      },
+      {
+        "name": "createChild",
+        "selfMs": 38.27799999999999
+      },
+      {
+        "name": "craftEffect",
+        "selfMs": 38.215
+      },
+      {
+        "name": "createProviders",
+        "selfMs": 37.978
+      },
+      {
+        "name": "stableFingerprint",
+        "selfMs": 37.559000000000005
+      },
+      {
+        "name": "createComment",
+        "selfMs": 33.868
+      },
+      {
+        "name": "lookupRecord",
+        "selfMs": 33.410999999999994
+      },
+      {
+        "name": "addProviderRecord",
+        "selfMs": 33.235
+      },
+      {
+        "name": "markNamedReactiveProperties",
+        "selfMs": 32.952
+      },
+      {
+        "name": "flattenProviders",
+        "selfMs": 32.615
+      },
+      {
+        "name": "data-row",
+        "selfMs": 30.39
+      },
+      {
+        "name": "craftSignal",
+        "selfMs": 30.311
+      },
+      {
+        "name": "isGeneratorFunction$1",
+        "selfMs": 29.663999999999998
+      },
+      {
+        "name": "runCraftGenerator",
+        "selfMs": 28.269000000000002
+      },
+      {
+        "name": "registerActiveEffectReader",
+        "selfMs": 28.191000000000003
+      },
+      {
+        "name": "childContext",
+        "selfMs": 28.156999999999996
+      },
+      {
+        "name": "patchProperties",
+        "selfMs": 26.767000000000003
+      },
+      {
+        "name": "childCraftRenderIdentity",
+        "selfMs": 21.230999999999998
+      },
+      {
+        "name": "resolveDefault",
+        "selfMs": 20.029000000000003
+      },
+      {
+        "name": "createProviderRecord",
+        "selfMs": 19.186
+      },
+      {
+        "name": "patchRenderedChildren",
+        "selfMs": 19.175
+      },
+      {
+        "name": "setValue",
+        "selfMs": 17.426999999999996
+      },
+      {
+        "name": "getOptional",
+        "selfMs": 16.574
+      },
+      {
+        "name": "registerRuntimeTargets",
+        "selfMs": 15.523
+      },
+      {
+        "name": "inject",
+        "selfMs": 14.651
+      },
+      {
+        "name": "markYieldableMethod",
+        "selfMs": 14.260000000000002
+      },
+      {
+        "name": "itemReader",
+        "selfMs": 13.639000000000001
+      },
+      {
+        "name": "mountNode",
+        "selfMs": 12.977999999999998
+      },
+      {
+        "name": "resolveConcreteService",
+        "selfMs": 12.110000000000001
+      },
+      {
+        "name": "flattenAttributes",
+        "selfMs": 11.933
+      },
+      {
+        "name": "visit",
+        "selfMs": 11.162999999999998
+      },
+      {
+        "name": "toCraftProviders",
+        "selfMs": 11.136
+      },
+      {
+        "name": "next",
+        "selfMs": 10.588999999999999
+      },
+      {
+        "name": "link",
+        "selfMs": 10.263
+      },
+      {
+        "name": "ElementRenderedNode",
+        "selfMs": 10.047
+      },
+      {
+        "name": "traceContext",
+        "selfMs": 9.825
+      },
+      {
+        "name": "isDeepYieldable",
+        "selfMs": 9.824
+      },
+      {
+        "name": "resolve",
+        "selfMs": 9.09
+      },
+      {
+        "name": "effect$1",
+        "selfMs": 8.919
+      },
+      {
+        "name": "executeYieldable",
+        "selfMs": 8.838999999999999
+      },
+      {
+        "name": "createTextNode",
+        "selfMs": 8.710999999999999
+      },
+      {
+        "name": "createElement",
+        "selfMs": 8.427
+      },
+      {
+        "name": "reconcile",
+        "selfMs": 8.218
+      },
+      {
+        "name": "craftComponent",
+        "selfMs": 7.7730000000000015
+      },
+      {
+        "name": "trackResolvedService",
+        "selfMs": 7.521999999999999
+      },
+      {
+        "name": "updateBinding",
+        "selfMs": 7.380000000000001
+      },
+      {
+        "name": "childNodeContext",
+        "selfMs": 7.246
+      },
+      {
+        "name": "patchChildren",
+        "selfMs": 7.223000000000001
+      },
+      {
+        "name": "createRenderEffect",
+        "selfMs": 6.686
+      },
+      {
+        "name": "executeGeneratorCompatibleFactory",
+        "selfMs": 6.5760000000000005
+      },
+      {
+        "name": "isHostProperty",
+        "selfMs": 6.061999999999999
+      },
+      {
+        "name": "ɵrunCraftTargetWrappers",
+        "selfMs": 5.770999999999999
+      },
+      {
+        "name": "drive",
+        "selfMs": 5.728
+      },
+      {
+        "name": "useFactory",
+        "selfMs": 5.645999999999999
+      },
+      {
+        "name": "h",
+        "selfMs": 5.543
+      },
+      {
+        "name": "api.<computed>",
+        "selfMs": 5.503
+      },
+      {
+        "name": "ɵinjectAppSnapshotRegistry",
+        "selfMs": 5.5009999999999994
+      },
+      {
+        "name": "untracked$2",
+        "selfMs": 5.417
+      },
+      {
+        "name": "ɵprovideHostName",
+        "selfMs": 5.342
+      },
+      {
+        "name": "getServiceRuntimeOverride",
+        "selfMs": 5.257999999999999
+      },
+      {
+        "name": "containsRenderBinding",
+        "selfMs": 5.241
+      },
+      {
+        "name": "normalizeChildren",
+        "selfMs": 5.231999999999999
+      },
+      {
+        "name": "applyAttribute",
+        "selfMs": 5.164000000000001
+      },
+      {
+        "name": "effect",
+        "selfMs": 4.739000000000001
+      },
+      {
+        "name": "executeTemplateTrace",
+        "selfMs": 4.642
+      },
+      {
+        "name": "mergeHostProps",
+        "selfMs": 4.58
+      },
+      {
+        "name": "onDestroy",
+        "selfMs": 4.435
+      },
+      {
+        "name": "scopeTokens",
+        "selfMs": 4.406
+      },
+      {
+        "name": "mergeClasses",
+        "selfMs": 4.218
+      },
+      {
+        "name": "(idle)",
+        "selfMs": 4.112
+      },
+      {
+        "name": "isCraftNode",
+        "selfMs": 4.087
+      },
+      {
+        "name": "renderItem",
+        "selfMs": 4.057
+      },
+      {
+        "name": "injectFnWrapper",
+        "selfMs": 4.0280000000000005
+      },
+      {
+        "name": "untracked$1",
+        "selfMs": 3.888
+      },
+      {
+        "name": "createStateRef",
+        "selfMs": 3.6260000000000003
+      },
+      {
+        "name": "getCurrentCraftInjector",
+        "selfMs": 3.596
+      },
+      {
+        "name": "craftWatch",
+        "selfMs": 3.582
+      },
+      {
+        "name": "componentHostName",
+        "selfMs": 3.4539999999999997
+      },
+      {
+        "name": "injectHelper",
+        "selfMs": 3.436
+      },
+      {
+        "name": "signal$2",
+        "selfMs": 3.167
+      },
+      {
+        "name": "signal$1",
+        "selfMs": 3.0229999999999997
+      },
+      {
+        "name": "ɵinjectCraftRuntimeMode",
+        "selfMs": 3.009
+      },
+      {
+        "name": "hostPropsFromComponentProps",
+        "selfMs": 2.862
+      },
+      {
+        "name": "hasHostBinding",
+        "selfMs": 2.755
+      },
+      {
+        "name": "querySelectorAll",
+        "selfMs": 2.71
+      },
+      {
+        "name": "FragmentRenderedNode",
+        "selfMs": 2.6799999999999997
+      },
+      {
+        "name": "state",
+        "selfMs": 2.677
+      },
+      {
+        "name": "scheduleEntryRender",
+        "selfMs": 2.6539999999999995
+      },
+      {
+        "name": "runInInjectionContext$1",
+        "selfMs": 2.553
+      },
+      {
+        "name": "isInjectorToken",
+        "selfMs": 2.46
+      },
+      {
+        "name": "registerResolvedService",
+        "selfMs": 2.3640000000000003
+      },
+      {
+        "name": "createCraftCleanup",
+        "selfMs": 2.247
+      },
+      {
+        "name": "ɵinjectRegisterForRegistries",
+        "selfMs": 2.2350000000000003
+      },
+      {
+        "name": "createFragment",
+        "selfMs": 2.218
+      },
+      {
+        "name": "read",
+        "selfMs": 2.1950000000000003
+      },
+      {
+        "name": "createEffectInInjector",
+        "selfMs": 2.184
+      },
+      {
+        "name": "value",
+        "selfMs": 1.9929999999999999
+      },
+      {
+        "name": "eventNameFor",
+        "selfMs": 1.987
+      },
+      {
+        "name": "isElementNode",
+        "selfMs": 1.942
+      },
+      {
+        "name": "signalOper",
+        "selfMs": 1.8359999999999999
+      },
+      {
+        "name": "directCraftContentNames",
+        "selfMs": 1.726
+      },
+      {
+        "name": "createBrowserPlatform",
+        "selfMs": 1.642
+      },
+      {
+        "name": "mergeResolvedClasses",
+        "selfMs": 1.63
+      },
+      {
+        "name": "ɵwithSettledReadObserver",
+        "selfMs": 1.596
+      },
+      {
+        "name": "classTokens",
+        "selfMs": 1.5900000000000003
+      },
+      {
+        "name": "applyHostPropsToChildren",
+        "selfMs": 1.487
+      },
+      {
+        "name": "createText",
+        "selfMs": 1.4060000000000001
+      },
+      {
+        "name": "propertyHelperFn",
+        "selfMs": 1.33
+      },
+      {
+        "name": "ɵinjectAppSnapshotRegistryIn",
+        "selfMs": 1.328
+      },
+      {
+        "name": "destroyBinding",
+        "selfMs": 1.18
+      },
+      {
+        "name": "setActiveSub",
+        "selfMs": 1.1440000000000001
+      },
+      {
+        "name": "get liveParent",
+        "selfMs": 1.002
+      },
+      {
+        "name": "resolveTemplateValue",
+        "selfMs": 0.999
+      },
+      {
+        "name": "createYieldableReactiveFacade",
+        "selfMs": 0.988
+      },
+      {
+        "name": "isCraftUrlAttribute",
+        "selfMs": 0.98
+      },
+      {
+        "name": "schedule",
+        "selfMs": 0.9680000000000001
+      },
+      {
+        "name": "createConcreteServiceInstance",
+        "selfMs": 0.954
+      },
+      {
+        "name": "craftUse",
+        "selfMs": 0.931
+      },
+      {
+        "name": "collectProvidedServiceNamesFromValue",
+        "selfMs": 0.875
+      },
+      {
+        "name": "firstNode",
+        "selfMs": 0.791
+      },
+      {
+        "name": "safeJson",
+        "selfMs": 0.735
+      },
+      {
+        "name": "ɵregisterCraftPrimitive",
+        "selfMs": 0.715
+      },
+      {
+        "name": "ForRenderedNode",
+        "selfMs": 0.711
+      },
+      {
+        "name": "forNode",
+        "selfMs": 0.678
+      },
+      {
+        "name": "isDestroyRefToken",
+        "selfMs": 0.653
+      },
+      {
+        "name": "scopeIdFor",
+        "selfMs": 0.641
+      },
+      {
+        "name": "isServiceYieldRequest",
+        "selfMs": 0.631
+      },
+      {
+        "name": "renderBlockChildren",
+        "selfMs": 0.616
+      },
+      {
+        "name": "craftRuntimeMode",
+        "selfMs": 0.6040000000000001
+      },
+      {
+        "name": "installActionHandler",
+        "selfMs": 0.603
+      },
+      {
+        "name": "endBatch",
+        "selfMs": 0.602
+      },
+      {
+        "name": "ɵregisterCraftTarget",
+        "selfMs": 0.586
+      },
+      {
+        "name": "querySelector",
+        "selfMs": 0.586
+      },
+      {
+        "name": "craftBatch",
+        "selfMs": 0.583
+      },
+      {
+        "name": "sameCraftNodeDirectives",
+        "selfMs": 0.572
+      },
+      {
+        "name": "craftAppConfig",
+        "selfMs": 0.567
+      },
+      {
+        "name": "createTextForRender",
+        "selfMs": 0.539
+      },
+      {
+        "name": "shouldUseInputShell",
+        "selfMs": 0.539
+      },
+      {
+        "name": "cancelPendingTasks",
+        "selfMs": 0.532
+      },
+      {
+        "name": "reapplySelectValue",
+        "selfMs": 0.523
+      },
+      {
+        "name": "traceComponentLifecycle",
+        "selfMs": 0.52
+      },
+      {
+        "name": "mountInterpretedComponentWithOptions",
+        "selfMs": 0.505
+      },
+      {
+        "name": "mountInterpretedComponent",
+        "selfMs": 0.492
+      },
+      {
+        "name": "patch",
+        "selfMs": 0.485
+      },
+      {
+        "name": "bindWatchToDestroyRef",
+        "selfMs": 0.47200000000000003
+      },
+      {
+        "name": "executeTemplateCallback",
+        "selfMs": 0.456
+      },
+      {
+        "name": "withCraftRenderContext",
+        "selfMs": 0.452
+      },
+      {
+        "name": "predicate",
+        "selfMs": 0.446
+      },
+      {
+        "name": "mountComment",
+        "selfMs": 0.43600000000000005
+      },
+      {
+        "name": "isShortcutMethod",
+        "selfMs": 0.42
+      },
+      {
+        "name": "insertions.reduce.rawInsertionsOutput",
+        "selfMs": 0.417
+      },
+      {
+        "name": "isReservedShortcutProperty",
+        "selfMs": 0.413
+      },
+      {
+        "name": "isHydrating",
+        "selfMs": 0.401
+      },
+      {
+        "name": "runCraftCleanups",
+        "selfMs": 0.39
+      },
+      {
+        "name": "track",
+        "selfMs": 0.362
+      },
+      {
+        "name": "assertInInjectionContext",
+        "selfMs": 0.355
+      },
+      {
+        "name": "normalizePrimitiveAddress",
+        "selfMs": 0.348
+      },
+      {
+        "name": "ownKeys",
+        "selfMs": 0.296
+      },
+      {
+        "name": "get ɵparent",
+        "selfMs": 0.28600000000000003
+      },
+      {
+        "name": "readDefaultFactory",
+        "selfMs": 0.28300000000000003
+      },
+      {
+        "name": "executeStateFactory",
+        "selfMs": 0.263
+      },
+      {
+        "name": "looksLikeChildren",
+        "selfMs": 0.23099999999999998
+      },
+      {
+        "name": "ReactiveTextRenderedNode",
+        "selfMs": 0.224
+      },
+      {
+        "name": "provideCraftPlatform",
+        "selfMs": 0.204
+      },
+      {
+        "name": "computedOper",
+        "selfMs": 0.176
+      },
+      {
+        "name": "createFacade",
+        "selfMs": 0.164
+      },
+      {
+        "name": "createEffect",
+        "selfMs": 0.148
+      },
+      {
+        "name": "ɵrunCraftAppInitializers",
+        "selfMs": 0.126
+      },
+      {
+        "name": "resolveHostValue",
+        "selfMs": 0.124
+      },
+      {
+        "name": "getInjector",
+        "selfMs": 0.122
+      },
+      {
+        "name": "readResolvedBinding",
+        "selfMs": 0.11699999999999999
+      },
+      {
+        "name": "renderCraftComponentTemplate",
+        "selfMs": 0.112
+      },
+      {
+        "name": "readWindowLocation",
+        "selfMs": 0.107
+      },
+      {
+        "name": "createYieldableReactiveValue",
+        "selfMs": 0.097
+      },
+      {
+        "name": "DestroyRef",
+        "selfMs": 0.095
+      },
+      {
+        "name": "parseEvaluationResultValue",
+        "selfMs": 0.088
+      },
+      {
+        "name": "begin",
+        "selfMs": 0.052
+      },
+      {
+        "name": "isYieldableReactiveValue",
+        "selfMs": 0.047
+      },
+      {
+        "name": "bootstrapCraft",
+        "selfMs": 0.046
+      },
+      {
+        "name": "attachServiceRuntimeMeta",
+        "selfMs": 0.042
+      },
+      {
+        "name": "isCraftSignal",
+        "selfMs": 0.04
+      },
+      {
+        "name": "installDialog",
+        "selfMs": 0.024
+      },
+      {
+        "name": "craftComputed",
+        "selfMs": 0.023
+      },
+      {
+        "name": "createYieldableInsertionMethod",
+        "selfMs": 0.022
+      },
+      {
+        "name": "lastNode",
+        "selfMs": 0.021
+      },
+      {
+        "name": "isReactiveReadRequest",
+        "selfMs": 0.021
+      },
+      {
+        "name": "isCraftDevelopment",
+        "selfMs": 0.02
+      },
+      {
+        "name": "tracePhase",
+        "selfMs": 0.008
+      }
+    ],
+    "foldkit": [
+      {
+        "name": "(program)",
+        "selfMs": 364.078
+      },
+      {
+        "name": "",
+        "selfMs": 57.51899999999999
+      },
+      {
+        "name": "(garbage collector)",
+        "selfMs": 22.915999999999997
+      },
+      {
+        "name": "setAttribute",
+        "selfMs": 17.569
+      },
+      {
+        "name": "resolveOrCache",
+        "selfMs": 9.898
+      },
+      {
+        "name": "createTextNode",
+        "selfMs": 8.868
+      },
+      {
+        "name": "buildElement",
+        "selfMs": 8.803
+      },
+      {
+        "name": "(idle)",
+        "selfMs": 8.589
+      },
+      {
+        "name": "updateAttrs",
+        "selfMs": 8.303
+      },
+      {
+        "name": "createElement$1",
+        "selfMs": 8.019000000000002
+      },
+      {
+        "name": "appendChild",
+        "selfMs": 7.966000000000001
+      },
+      {
+        "name": "buildVNodeData",
+        "selfMs": 7.029999999999999
+      },
+      {
+        "name": "visit",
+        "selfMs": 6.2860000000000005
+      },
+      {
+        "name": "patch",
+        "selfMs": 5.616
+      },
+      {
+        "name": "createElement",
+        "selfMs": 5.5649999999999995
+      },
+      {
+        "name": "createElm",
+        "selfMs": 5.464
+      },
+      {
+        "name": "normalizedAttributes",
+        "selfMs": 4.800000000000001
+      },
+      {
+        "name": "makePrimitiveProto",
+        "selfMs": 3.978
+      },
+      {
+        "name": "requireDispatch",
+        "selfMs": 3.762
+      },
+      {
+        "name": "toHtmlAttributeName",
+        "selfMs": 3.6650000000000005
+      },
+      {
+        "name": "startWith",
+        "selfMs": 3.6550000000000002
+      },
+      {
+        "name": "h",
+        "selfMs": 3.352
+      },
+      {
+        "name": "rowView",
+        "selfMs": 3.342
+      },
+      {
+        "name": "view",
+        "selfMs": 2.607
+      },
+      {
+        "name": "insertBefore",
+        "selfMs": 2.561
+      },
+      {
+        "name": "makePrimitive",
+        "selfMs": 2.332
+      },
+      {
+        "name": "querySelectorAll",
+        "selfMs": 2.1180000000000003
+      },
+      {
+        "name": "isNotNull",
+        "selfMs": 2.0100000000000002
+      },
+      {
+        "name": "makeElement",
+        "selfMs": 1.982
+      },
+      {
+        "name": "dedupeMemoizedResult",
+        "selfMs": 1.897
+      },
+      {
+        "name": "patchFreshInto",
+        "selfMs": 1.831
+      },
+      {
+        "name": "isVNode",
+        "selfMs": 1.56
+      },
+      {
+        "name": "primitive",
+        "selfMs": 1.504
+      },
+      {
+        "name": "writeProperty",
+        "selfMs": 1.45
+      },
+      {
+        "name": "makeExit",
+        "selfMs": 1.41
+      },
+      {
+        "name": "isDocumentFragment$1",
+        "selfMs": 1.221
+      },
+      {
+        "name": "DataAttribute",
+        "selfMs": 1.152
+      },
+      {
+        "name": "invokeDestroyHook",
+        "selfMs": 1.084
+      },
+      {
+        "name": "FiberImpl",
+        "selfMs": 0.999
+      },
+      {
+        "name": "markUnreflectedHtmlPropertiesClientOnly",
+        "selfMs": 0.9890000000000001
+      },
+      {
+        "name": "parseEvaluationResultValue",
+        "selfMs": 0.989
+      },
+      {
+        "name": "evaluate",
+        "selfMs": 0.942
+      },
+      {
+        "name": "andThenCont",
+        "selfMs": 0.854
+      },
+      {
+        "name": "measureSlowPhase",
+        "selfMs": 0.815
+      },
+      {
+        "name": "get currentDispatcher",
+        "selfMs": 0.772
+      },
+      {
+        "name": "provideBrowserScheduler",
+        "selfMs": 0.77
+      },
+      {
+        "name": "mapOrSame",
+        "selfMs": 0.765
+      },
+      {
+        "name": "dedupeChildList",
+        "selfMs": 0.764
+      },
+      {
+        "name": "setDataAttr",
+        "selfMs": 0.7630000000000001
+      },
+      {
+        "name": "toCodecJson",
+        "selfMs": 0.739
+      },
+      {
+        "name": "runLoop",
+        "selfMs": 0.722
+      },
+      {
+        "name": "assertSingleContentOwner",
+        "selfMs": 0.706
+      },
+      {
+        "name": "next",
+        "selfMs": 0.6739999999999999
+      },
+      {
+        "name": "endLazyTracking",
+        "selfMs": 0.672
+      },
+      {
+        "name": "__patchVNode",
+        "selfMs": 0.668
+      },
+      {
+        "name": "vnode",
+        "selfMs": 0.645
+      },
+      {
+        "name": "uninterruptibleMask",
+        "selfMs": 0.596
+      },
+      {
+        "name": "isNotUndefined",
+        "selfMs": 0.592
+      },
+      {
+        "name": "toVNode",
+        "selfMs": 0.533
+      },
+      {
+        "name": "namespaceFor",
+        "selfMs": 0.52
+      },
+      {
+        "name": "evaluateCont",
+        "selfMs": 0.514
+      },
+      {
+        "name": "foldBoundaryChain",
+        "selfMs": 0.513
+      },
+      {
+        "name": "boundaryMappers",
+        "selfMs": 0.513
+      },
+      {
+        "name": "setInterval",
+        "selfMs": 0.505
+      },
+      {
+        "name": "beginLazyTracking",
+        "selfMs": 0.503
+      },
+      {
+        "name": "toCrashConfig",
+        "selfMs": 0.478
+      },
+      {
+        "name": "removeVnodes",
+        "selfMs": 0.448
+      },
+      {
+        "name": "Id",
+        "selfMs": 0.434
+      },
+      {
+        "name": "brandViewResult",
+        "selfMs": 0.417
+      },
+      {
+        "name": "go",
+        "selfMs": 0.406
+      },
+      {
+        "name": "writeDataProp",
+        "selfMs": 0.401
+      },
+      {
+        "name": "addVNodeDataMask",
+        "selfMs": 0.4
+      },
+      {
+        "name": "atomicPubSub",
+        "selfMs": 0.394
+      },
+      {
+        "name": "loop",
+        "selfMs": 0.381
+      },
+      {
+        "name": "pipeArguments",
+        "selfMs": 0.364
+      },
+      {
+        "name": "forkUnsafe$1",
+        "selfMs": 0.356
+      },
+      {
+        "name": "EffectProto",
+        "selfMs": 0.312
+      },
+      {
+        "name": "runTasks",
+        "selfMs": 0.299
+      },
+      {
+        "name": "copyChildrenDroppingEmpty",
+        "selfMs": 0.29100000000000004
+      },
+      {
+        "name": "makeDispatcher",
+        "selfMs": 0.284
+      },
+      {
+        "name": "scopeForkUnsafe",
+        "selfMs": 0.261
+      },
+      {
+        "name": "makeScope",
+        "selfMs": 0.248
+      },
+      {
+        "name": "takeBetweenUnsafe",
+        "selfMs": 0.227
+      },
+      {
+        "name": "add",
+        "selfMs": 0.219
+      },
+      {
+        "name": "scopeMakeUnsafe",
+        "selfMs": 0.2
+      },
+      {
+        "name": "requireBoundary",
+        "selfMs": 0.198
+      },
+      {
+        "name": "forkManagedResourceFibers",
+        "selfMs": 0.176
+      },
+      {
+        "name": "makeSubscriptionUnsafe",
+        "selfMs": 0.153
+      },
+      {
+        "name": "requireFrame",
+        "selfMs": 0.149
+      },
+      {
+        "name": "predicate",
+        "selfMs": 0.146
+      },
+      {
+        "name": "afterScheduled",
+        "selfMs": 0.136
+      },
+      {
+        "name": "addEventListener",
+        "selfMs": 0.127
+      },
+      {
+        "name": "stampIdentity",
+        "selfMs": 0.126
+      },
+      {
+        "name": "makeRuntimeStatus",
+        "selfMs": 0.121
+      },
+      {
+        "name": "createBoundaryRegistry",
+        "selfMs": 0.116
+      },
+      {
+        "name": "makeImpl$1",
+        "selfMs": 0.107
+      },
+      {
+        "name": "onItem",
+        "selfMs": 0.098
+      },
+      {
+        "name": "makeRuntime",
+        "selfMs": 0.09
+      },
+      {
+        "name": "setRuntime",
+        "selfMs": 0.089
+      },
+      {
+        "name": "dedupeSharedVNodes",
+        "selfMs": 0.082
+      },
+      {
+        "name": "getCont",
+        "selfMs": 0.079
+      },
+      {
+        "name": "fnUntraced$1",
+        "selfMs": 0.076
+      },
+      {
+        "name": "resolveExcludeFromHistoryTags",
+        "selfMs": 0.075
+      },
+      {
+        "name": "succeedWith",
+        "selfMs": 0.074
+      },
+      {
+        "name": "patchRuntimeVNode",
+        "selfMs": 0.071
+      },
+      {
+        "name": "normalize$1",
+        "selfMs": 0.067
+      },
+      {
+        "name": "startProgram",
+        "selfMs": 0.063
+      },
+      {
+        "name": "completePollersUnsafe",
+        "selfMs": 0.063
+      },
+      {
+        "name": "registerBoundaryWrapTransactionRollback",
+        "selfMs": 0.055
+      },
+      {
+        "name": "installActionHandler",
+        "selfMs": 0.045
+      },
+      {
+        "name": "replaceChild",
+        "selfMs": 0.043
+      },
+      {
+        "name": "setContext",
+        "selfMs": 0.041
+      },
+      {
+        "name": "all",
+        "selfMs": 0.039
+      },
+      {
+        "name": "mapCont",
+        "selfMs": 0.027
+      },
+      {
+        "name": "out",
+        "selfMs": 0.026
+      },
+      {
+        "name": "getOrCreateBoundaryDispatch",
+        "selfMs": 0.013
+      },
+      {
+        "name": "assertElementStateIsRepresentable",
+        "selfMs": 0.007
+      },
+      {
+        "name": "nextSibling",
+        "selfMs": 0
+      }
+    ]
+  },
+  "validation": {
+    "mountDOMAndOrder": true,
+    "pageErrors": 0,
+    "productionRuntimeModified": false,
+    "otherFrameworksMeasured": false,
+    "productionFixIntegrated": false
+  }
+}

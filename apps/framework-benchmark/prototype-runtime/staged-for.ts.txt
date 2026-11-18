@@ -1,0 +1,33 @@
+// PROTOTYPE: atomic initial insertion, opted in only for the fixed prepared row.
+const prototypeStagedParents = new WeakMap<Node, NativeParent>();
+function prototypeLogicalParent(parent: NativeParent): Element | null {
+  const logical = prototypeStagedParents.get(parent) ?? parent;
+  return isElementNode(logical) ? logical : logical.parentElement;
+}
+function prototypeCanStageFor(node: ForNode<unknown,unknown>,context: RenderContext,parent: NativeParent): boolean {
+  return !!(node.itemTemplate as any).__prototypeStageFor && !(node.schedule?.enabled)
+    && context.mode === 'create' && !context.ssr && !context.emitHydrationKeys && !!parent.ownerDocument?.defaultView;
+}
+function prototypeStageFor(node: ForNode<unknown,unknown>,parent: NativeParent,before: NativeNode|null,context: RenderContext): RenderedNode {
+  const fragment = parent.ownerDocument!.createDocumentFragment();
+  prototypeStagedParents.set(fragment,parent);
+  let staging = true;
+  const original = context.renderer;
+  const renderer = Object.create(original) as CraftDomAdapter;
+  renderer.insertBefore = (target,child,anchor) => {
+    const mapped = staging && target === parent ? fragment : target;
+    original.insertBefore(mapped,child,staging && target === parent && anchor?.parentNode !== fragment ? null : anchor);
+  };
+  const stagedContext = childContext(context,{renderer});
+  try {
+    const start=mountComment(parent,'craft-for:start',before,stagedContext);
+    const end=mountComment(parent,'craft-for:end',before,stagedContext);
+    const rendered=new ForRenderedNode(node,parent,start,end,stagedContext);
+    staging=false;
+    original.insertBefore(parent,fragment,before);
+    return rendered;
+  } finally {
+    staging=false;
+    prototypeStagedParents.delete(fragment);
+  }
+}

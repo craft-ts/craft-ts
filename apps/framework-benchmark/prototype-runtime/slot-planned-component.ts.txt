@@ -1,0 +1,110 @@
+// PROTOTYPE — generated fixed slots, native DI/lifecycle/replay remain intact.
+import {FN_WRAPPER as PrototypePlanFnWrapper,FN_WRAP_OBSERVER as PrototypePlanFnObserver,
+  CRAFT_TARGET_WRAPPER as PrototypePlanTargetWrapper,ɵinjectTemplateTraces as prototypePlanTraces,isCraftDevelopment as prototypePlanDevelopment,
+  ɵprototypePlanReadObservers as PrototypePlanReadObservers} from '@craft-ts/core';
+export function prototypeAttachCreationPlan(component:any,plan:any):void {
+  plan.template=component[CRAFT_COMPONENT].template;
+  Object.defineProperty(component,'__prototypeFinePlan',{value:plan});
+}
+const prototypePlanEmpty:any[]=[];
+function prototypeGeneratedPlanAllowed(plan:any,definition:any,context:RenderContext):boolean {
+  return !plan.template||(plan.template===definition.template
+    && !context.injector.get(PrototypePlanFnWrapper,prototypePlanEmpty).length
+    && !context.injector.get(PrototypePlanFnObserver,prototypePlanEmpty).length
+    && !context.injector.get(PrototypePlanTargetWrapper,prototypePlanEmpty).length
+    && !context.injector.get(PrototypePlanReadObservers,prototypePlanEmpty).length
+    && (!prototypePlanDevelopment(context.injector)||!prototypePlanTraces(context.injector).length));
+}
+export function prototypePlanRead(reader:any):any {
+  return typeof reader==='function'?prototypeReadForInput(reader):reader;
+}
+export function prototypePlanText(value:any,context:any):string {
+  const resolved=readResolvedBinding(value,context);
+  return resolved===null||resolved===undefined||resolved===false?'':String(resolved);
+}
+export function prototypePlanAttribute(value:any,key:string,context:any):string|null {
+  value=context?resolveTemplateValue(value,context):value;
+  if(value===null||value===undefined)return null;
+  if(key.startsWith('aria-')&&typeof value==='boolean')return value?'true':'false';
+  if(value===false)return null;
+  return value===true?'':String(value);
+}
+type PrototypeSlotPlan={
+  version:2;inputs:readonly string[];rootSlot:number;size:number;
+  prepare(props:any,signal:typeof prototypeRendererSignal):any[];
+  update(state:any[],props:any):void;create(state:any[],renderer:CraftDomAdapter):void;
+  elements:readonly {slot:number;path:readonly number[]}[];
+  bindings:readonly {name:string;run(state:any[],renderer:CraftDomAdapter,context:RenderContext):void}[];
+};
+const prototypeSlotLayouts=new WeakMap<Function,any>();
+function prototypeGetSlotLayout(component:any):any {
+  const definition=component[CRAFT_COMPONENT],plan=component.__prototypeFinePlan;
+  let layout=prototypeSlotLayouts.get(component);
+  if(!layout||layout.plan!==plan||layout.name!==definition.name||layout.scopeDefinition!==definition.scopeDefinition){
+    layout={plan,name:definition.name,scopeDefinition:definition.scopeDefinition,
+      ownScope:scopeIdFor(definition.scopeDefinition,definition.name),providers:prototypeHostProviders(component,definition.name),hasParent:false};
+    prototypeSlotLayouts.set(component,layout);
+  }
+  return layout;
+}
+class PrototypeSlotPlannedComponent implements RenderedNode {
+  readonly kind='component';
+  private readonly component:CraftComponent<object>;
+  private readonly plan:PrototypeSlotPlan;
+  private readonly injector:EnvironmentInjector;
+  private readonly renderContext:RenderContext;
+  private readonly traceState={renderCount:0};
+  private state:any[]=[];
+  private readonly effects:EffectRef[]=[];
+  private readonly releases:Array<()=>void>=[];
+  private unregisterOwner:(()=>void)|undefined;
+  private traceCreated=false;
+  constructor(node:any,parent:NativeParent,before:NativeNode|null,private context:RenderContext){
+    this.component=node.component;
+    const layout=prototypeGetSlotLayout(node.component);this.plan=layout.plan;
+    if(!layout.hasParent||layout.parentScope!==context.rootScope){layout.rootScope=scopeTokens(context.rootScope,layout.ownScope);layout.parentScope=context.rootScope;layout.hasParent=true;}
+    const componentContext=childContext(context,{ownerScope:layout.ownScope,rootScope:layout.rootScope,componentName:layout.name,
+      declarationContext:node.declarationContext??context,directiveNames:[],traceState:this.traceState});
+    this.injector=createEnvironmentInjector([...layout.providers,provideCraftRenderIdentity(componentContext.identity),
+      {provide:ElementRef,useValue:new ElementRef(isElementNode(parent)?parent:parent.parentElement)}],context.injector as EnvironmentInjector,'CraftFinePlan');
+    this.renderContext=childContext(componentContext,{injector:this.injector,componentContext:[]});
+    try{
+      traceComponentLifecycle(this.injector,'create',layout.name,0);this.traceCreated=true;
+      this.state=this.plan.prepare(node.props,prototypeRendererSignal);
+      this.releases.push(ɵregisterCraftTarget(this.injector,node.component,undefined,componentHostName(this.injector,layout.name)));
+      this.traceState.renderCount=1;
+      untracked(()=>runInInjectionContext(this.injector,()=>executeTemplateTrace(this.injector,
+        traceContext(this.renderContext,'component','initialRender',layout.name),()=>{this.mount(parent,before);return [];})));
+      this.unregisterOwner=this.injector.get(PrototypeFineDestroyRef).onDestroy(()=>this.destroy());
+    }catch(error){try{this.destroy();}catch{}throw error;}
+  }
+  private mount(parent:NativeParent,before:NativeNode|null):void {
+    this.plan.create(this.state,this.context.renderer);
+    const root=this.state[this.plan.rootSlot] as Element;
+    if(this.renderContext.rootScope)this.context.renderer.setAttribute(root,'data-craft-root',this.renderContext.rootScope);
+    const rootIdentity=childCraftRenderIdentity(this.context.identity,0);
+    for(const target of this.plan.elements){
+      const identity=target.path.length?childCraftRenderIdentity(rootIdentity,...target.path):rootIdentity;
+      this.releases.push(ɵregisterCraftReplayTarget(this.state[target.slot],identity.path,this.context.replayTargetStable!==false));
+    }
+    prototypeFineEffectFactories.set(this.injector,prototypeCreateBindingFactory(this.injector));
+    try{
+      for(const binding of this.plan.bindings)this.effects.push(createRenderEffect(this.renderContext,binding.name,()=>
+        runInInjectionContext(this.injector,()=>withCraftRenderContext(this.renderContext,()=>binding.run(this.state,this.context.renderer,this.renderContext)))));
+    }finally{prototypeFineEffectFactories.delete(this.injector);}
+    insertBefore(this.context.renderer,parent,root,before);
+  }
+  firstNode():NativeNode{return this.state[this.plan.rootSlot];}
+  lastNode():NativeNode{return this.state[this.plan.rootSlot];}
+  patch(node:CraftNode):boolean {
+    if(node.kind!=='component'||node.component!==this.component||!prototypeCanFinePlan(node,this.context,this.firstNode().parentNode!))return false;
+    ɵcraftBatch(()=>this.plan.update(this.state,(node as any).props));return true;
+  }
+  destroy():void {
+    ɵdestroyCraftOwner(this,[()=>this.unregisterOwner?.(),
+      ()=>{if(this.traceCreated){this.traceCreated=false;traceComponentLifecycle(this.injector,'destroy',this.component[CRAFT_COMPONENT].name,this.traceState.renderCount);}},
+      ()=>ɵrunCraftCleanups(this.effects.splice(0).map(ref=>()=>ref.destroy())),()=>ɵrunCraftCleanups(this.releases.splice(0)),
+      ()=>{const root=this.firstNode();if(root)removeNode(this.context.renderer,root);},()=>this.injector.destroy(),()=>{this.state.length=0;},
+    ]);
+  }
+}

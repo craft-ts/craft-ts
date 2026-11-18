@@ -5,11 +5,12 @@ import {
   type Signal,
 } from './host/craft-compat';
 import {
-  executeGeneratorCompatibleFactory,
   isGenerator,
   runCraftGenerator,
+  ɵexecuteFactoryIn,
   type ResolveGeneratorResult,
 } from './craft-generator-runtime';
+import type { FnFactoryAdapter } from './fn-wrapper';
 import {
   YIELDABLE_METHOD,
   YIELDABLE_VALUE,
@@ -160,9 +161,76 @@ export type YieldableInsertionMethods<Shape> = Shape extends (
 export function yieldableInvocation<Yielded = never, Result = unknown>(
   result: Result,
 ): YieldableInvocation<Yielded, Result> {
-  return (function* () {
-    return result;
-  })();
+  return new SettledInvocation(result) as unknown as YieldableInvocation<
+    Yielded,
+    Result
+  >;
+}
+
+/**
+ * What a generator that only returns `result` would be to `yield*` and to the
+ * generator hosts: an iterator that is done at its first `next()`. It is its
+ * own result, so reading a settled value allocates one object instead of a
+ * generator and its closure.
+ */
+class SettledInvocation<Result> {
+  readonly done = true;
+  readonly value: Result;
+
+  constructor(value: Result) {
+    this.value = value;
+  }
+
+  next(): this {
+    return this;
+  }
+
+  return(value: Result): { done: true; value: Result } {
+    return { done: true, value };
+  }
+
+  throw(error: unknown): never {
+    throw error;
+  }
+
+  [Symbol.iterator](): this {
+    return this;
+  }
+}
+
+/**
+ * A reader of a value that is known when it is read, where a
+ * `function* () { return value; }` used to be: `yield* reader()` and
+ * `craftUse(reader())` get the value, and a read creates one small object
+ * instead of a generator.
+ *
+ * It carries the tag of a generator function, which is what every host asks
+ * to recognise one, so it goes wherever such a function went: an input of a
+ * component, the parameters of a primitive, a function wrapper. What it hands
+ * back is not a generator object: it is done at its first `next()`, and says
+ * so again with the same value if it is asked twice.
+ */
+export function ɵsettledReader<Value>(
+  read: () => Value,
+): () => Generator<never, Value, unknown> {
+  const reader = () => new SettledInvocation(read());
+  return tagAsGeneratorFunction(reader);
+}
+
+/** {@link ɵsettledReader} of a value that does not change. */
+export function ɵsettledValueReader<Value>(
+  value: Value,
+): () => Generator<never, Value, unknown> {
+  const reader = () => new SettledInvocation(value);
+  return tagAsGeneratorFunction(reader);
+}
+
+function tagAsGeneratorFunction<Value>(
+  reader: () => SettledInvocation<Value>,
+): () => Generator<never, Value, unknown> {
+  (reader as unknown as Record<symbol, unknown>)[Symbol.toStringTag] =
+    'GeneratorFunction';
+  return reader as unknown as () => Generator<never, Value, unknown>;
 }
 
 export type YieldableInsertionRuntimeOptions = Readonly<{
@@ -302,17 +370,24 @@ export function executeYieldable<Args extends unknown[], Result>(
   callback: (...args: Args) => Result,
   args: Args,
   injector: Injector,
+  /** `injectFnWrapper()` in `injector`, when the caller already has it. */
+  fnAdapter?: FnFactoryAdapter,
 ): ResolveGeneratorResult<Result> {
-  return executeGeneratorCompatibleFactory({
-    factory: callback,
-    thisArg: undefined,
-    getInjector: () => injector,
+  return ɵexecuteFactoryIn(
+    callback,
+    undefined,
     args,
-    invalidYieldErrorMessage:
-      'Craft template callbacks can only yield Craft dependencies or yieldable methods.',
-    multipleAppStartErrorMessage:
-      'Craft template callbacks cannot declare onAppStart(...) more than once.',
-    onAppStartNotSupportedErrorMessage:
-      'Craft template callbacks do not support onAppStart(...).',
-  });
+    injector,
+    YIELDABLE_MESSAGES,
+    fnAdapter,
+  );
 }
+
+const YIELDABLE_MESSAGES = {
+  invalidYieldErrorMessage:
+    'Craft template callbacks can only yield Craft dependencies or yieldable methods.',
+  multipleAppStartErrorMessage:
+    'Craft template callbacks cannot declare onAppStart(...) more than once.',
+  onAppStartNotSupportedErrorMessage:
+    'Craft template callbacks do not support onAppStart(...).',
+};

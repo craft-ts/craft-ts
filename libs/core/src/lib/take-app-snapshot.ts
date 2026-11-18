@@ -21,6 +21,21 @@ export interface ActiveEffectReport {
   from: readonly string[];
 }
 
+/**
+ * What a live effect is to the registry: something that can say what it is
+ * when a snapshot asks. The report is built then, not when the effect starts.
+ */
+export interface ɵActiveEffectSource {
+  report(): ActiveEffectReport;
+  /**
+   * Written by the registry, which keeps its sources as a list in tracking
+   * order: tracking and untracking an effect write a few pointers.
+   */
+  ɵtracked?: boolean;
+  ɵpreviousSource?: ɵActiveEffectSource;
+  ɵnextSource?: ɵActiveEffectSource;
+}
+
 class AppSnapshotRegistryState {
   private nextReaderId = 0;
   private readonly snapshotReaders = new Map<
@@ -31,10 +46,9 @@ class AppSnapshotRegistryState {
       read: () => unknown;
     }
   >();
-  private readonly activeEffectReaders = new Map<
-    number,
-    () => ActiveEffectReport
-  >();
+  // Tracking order is the report order.
+  private firstEffectSource: ɵActiveEffectSource | undefined = undefined;
+  private lastEffectSource: ɵActiveEffectSource | undefined = undefined;
 
   registerSnapshotReader(
     source: string,
@@ -70,15 +84,48 @@ class AppSnapshotRegistryState {
     read: () => ActiveEffectReport,
     destroyRef?: DestroyRef | null,
   ): () => void {
-    const id = this.nextReaderId++;
-    this.activeEffectReaders.set(id, read);
-    const unregister = () => this.activeEffectReaders.delete(id);
+    const source: ɵActiveEffectSource = { report: read };
+    this.ɵtrackActiveEffect(source);
+    const unregister = () => this.ɵuntrackActiveEffect(source);
     destroyRef?.onDestroy(unregister);
     return unregister;
   }
 
+  /** @internal Track an effect that reports itself, until it is untracked. */
+  ɵtrackActiveEffect(source: ɵActiveEffectSource): void {
+    if (source.ɵtracked) return;
+    source.ɵtracked = true;
+    const last = this.lastEffectSource;
+    source.ɵpreviousSource = last;
+    source.ɵnextSource = undefined;
+    if (last) last.ɵnextSource = source;
+    else this.firstEffectSource = source;
+    this.lastEffectSource = source;
+  }
+
+  /** @internal */
+  ɵuntrackActiveEffect(source: ɵActiveEffectSource): void {
+    if (!source.ɵtracked) return;
+    source.ɵtracked = false;
+    const previous = source.ɵpreviousSource;
+    const next = source.ɵnextSource;
+    if (previous) previous.ɵnextSource = next;
+    else this.firstEffectSource = next;
+    if (next) next.ɵpreviousSource = previous;
+    else this.lastEffectSource = previous;
+    source.ɵpreviousSource = source.ɵnextSource = undefined;
+  }
+
   activeEffects(): ActiveEffectReport[] {
-    return Array.from(this.activeEffectReaders.values(), (read) => read());
+    const reports: ActiveEffectReport[] = [];
+    for (
+      let source = this.firstEffectSource;
+      source;
+      source = source.ɵnextSource
+    ) {
+      reports.push(source.report());
+    }
+    return reports;
   }
 }
 

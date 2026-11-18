@@ -1,0 +1,43 @@
+--- a/libs/core/src/lib/craft-effect.ts
++++ b/libs/core/src/lib/craft-effect.ts
+@@ -1,6 +1,7 @@
+ import {
+   assertInInjectionContext,
+   DestroyRef,
++  EnvironmentInjector,
+   effect,
+   inject,
+   Injector,
+@@ -91,14 +92,12 @@
+   const parentInjector = inject(Injector);
+   const ownerInjector = options?.injector ?? parentInjector;
+   const ownerDestroyRef = ownerInjector.get(DestroyRef);
+-  const effectInjector = ɵcreateHostTaggedInjector(
+-    ownerInjector,
+-    `effect:${name}`,
+-  );
++  const generatorFactory = isGeneratorFunction(fnOrFactory);
++  const effectInjector = generatorFactory ? ɵcreateHostTaggedInjector(ownerInjector, `effect:${name}`) : ownerInjector;
+ 
+   let effectBody: CraftEffectFn;
+ 
+-  if (isGeneratorFunction(fnOrFactory)) {
++  if (generatorFactory) {
+     effectBody = runInInjectionContext(effectInjector, () => {
+       const iterator = (
+         fnOrFactory as CraftEffectGenerator<unknown, unknown>
+@@ -157,7 +156,13 @@
+ 
+   const registry = ɵinjectAppSnapshotRegistryIn(ownerInjector);
+   if (registry) {
+-    const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
++    const nodeTags = ownerInjector.get(ɵHOST_TAG_LIST, []);
++    const env = ownerInjector.get(EnvironmentInjector, null);
++    const envTags = env?.get(ɵHOST_TAG_LIST, null) ?? [];
++    const envOnly = envTags.filter(tag => !nodeTags.includes(tag));
++    const from = generatorFactory ? (effectInjector.get(ɵHOST_TAG_LIST, null) ?? [])
++      : nodeTags.length ? [...nodeTags.slice(0, -1), ...envOnly, nodeTags[nodeTags.length - 1], `effect:${name}`]
++      : [...envOnly, `effect:${name}`];
+     unregisterReport = registry.registerActiveEffectReader(() => ({
+       source: `effect:${name}`,
+       from,

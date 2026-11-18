@@ -1,0 +1,79 @@
+import {afterEach,describe,it,expect} from 'vitest';
+import {craftSignal,craftUse,AppSnapshotRegistry,CraftRenderIdentity,HOST_TAG_LIST,ɵinject,ɵInjector,ɵDestroyRef,ɵElementRef,ɵcaptureCraftReplayTarget,ɵresolveCraftReplayTarget} from '@craft-ts/core';
+import {craftComponent,div,span,pendingNode} from '../../index';
+import {renderCraftComponent} from '../testing';
+import {independentFieldsFinePlan,type FinePlanPrototype} from '../../../../../apps/framework-benchmark/src/craft/fine-plan.prototype';
+let serial=0;
+afterEach(()=>document.body.replaceChildren());
+function marked(name:string,template:any,plan:FinePlanPrototype,meta:any={}) {
+  const Component=craftComponent(name,meta,template);Object.defineProperty(Component,'__prototypeFinePlan',{value:plan});return Component;
+}
+function singlePlan(read:(input:(name:string)=>any)=>unknown,createHook?:()=>void,inputs:readonly string[]=[]):FinePlanPrototype {
+  return {inputs,sharedEffects:true,create:r=>{createHook?.();const root=r.createElement('span'),text=r.createText('');r.appendChild(root,text);return {root,nodes:{root,text}};},elements:[{slot:'root',path:[]}],bindings:[{name:'fine:value',read,write:(value,n,r)=>r.setValue(n.text,String(value))}]};
+}
+describe('explicit fine creation plan',()=>{
+  it('creates once and updates only the changed field, preserving DOM and text identities',async()=>{
+    const id=serial++,cells=Array.from({length:128},()=>craftSignal(0)),reads=cells.map(()=>0);let creates=0,templates=0;
+    const plan=independentFieldsFinePlan(cells,i=>{reads[i]++;return String(cells[i]());});
+    const factory=plan.create;plan.create=r=>{creates++;return factory(r);};
+    const Fields=marked('FineFields'+id,()=>{templates++;return div('fallback');},plan);
+    const Root=craftComponent('FineFieldsRoot'+id,{},()=>Fields());
+    const fixture=await renderCraftComponent(Root as never),nodes=[...fixture.element.querySelectorAll('[data-field]')],texts=nodes.map(n=>n.firstChild);
+    expect(creates).toBe(1);expect(templates).toBe(0);reads.fill(0);
+    fixture.injector.run(()=>cells[79].set(1));await fixture.flush();
+    expect(reads).toEqual(cells.map((_,i)=>i===79?1:0));
+    expect([...fixture.element.querySelectorAll('[data-field]')]).toEqual(nodes);expect(nodes.map(n=>n.firstChild)).toEqual(texts);
+    expect(nodes[79].textContent).toBe('1');expect(creates).toBe(1);fixture.destroy();
+  });
+  it('keeps the binding owner, parent DI, ElementRef, render identity and effect reports',async()=>{
+    const id=serial++,token={},value=craftSignal(0),owners:any[]=[];let disposed=0,reads=0;
+    const plan=singlePlan(input=>{
+      reads++;const owner=ɵinject(ɵInjector);
+      expect(owner.get(token)).toBe('parent');expect(ɵinject(token,{skipSelf:true})).toBe('parent');
+      expect(ɵinject(ɵElementRef).nativeElement.id).toBe('fine-container');
+      expect(craftUse(CraftRenderIdentity()).path).toContain('FineOwned'+id);
+      expect(ɵinject(HOST_TAG_LIST).at(-1)).toContain('component:FineOwned'+id);
+      if(!owners.includes(owner)){owners.push(owner);ɵinject(ɵDestroyRef).onDestroy(()=>disposed++);}
+      return input('value');
+    },undefined,['value']);
+    const Child=marked('FineOwned'+id,()=>span('fallback'),plan);
+    const Root=craftComponent('FineOwnedRoot'+id,{providers:[{provide:token,useValue:'parent'}]},()=>div({id:'fine-container'},Child({value:function*(){return value();}} as never)));
+    const fixture=await renderCraftComponent(Root as never),element=fixture.element.querySelector('#fine-container > span')!;
+    const target=ɵcaptureCraftReplayTarget(element)!;
+    const registry=fixture.injector.run(()=>craftUse(AppSnapshotRegistry()));
+    expect(registry.activeEffects().filter(x=>x.source==='effect:fine:value')).toHaveLength(1);
+    fixture.injector.run(()=>value.set(1));await fixture.flush();expect(element.textContent).toBe('1');expect(owners).toHaveLength(1);
+    const before=reads;owners[0].destroy();value.set(2);expect(reads).toBe(before);expect(disposed).toBe(1);
+    expect(ɵresolveCraftReplayTarget(target).status).toBe('missing');expect(registry.activeEffects().filter(x=>x.source==='effect:fine:value')).toHaveLength(0);
+    fixture.destroy();expect(disposed).toBe(1);expect(registry.activeEffects()).toHaveLength(0);
+  });
+  it('batches replacement of independent inputs without rerunning an unrelated binding',async()=>{
+    const id=serial++,a=craftSignal(1),b=craftSignal(2),input=craftSignal(0),reads=[0,0];
+    const plan:FinePlanPrototype={inputs:['a','b'],sharedEffects:true,create:r=>{const root=r.createElement('div'),x=r.createText(''),y=r.createText('');r.appendChild(root,x);r.appendChild(root,y);return {root,nodes:{root,x,y}};},elements:[{slot:'root',path:[]}],bindings:[
+      {name:'fine:a',read:read=>{reads[0]++;return read('a');},write:(value,n,r)=>r.setValue(n.x,String(value))},
+      {name:'fine:b',read:read=>{reads[1]++;return read('b');},write:(value,n,r)=>r.setValue(n.y,String(value))},
+    ]};
+    const Child=marked('FineInputs'+id,()=>span('fallback'),plan);
+    const stableB=function*(){return b();};
+    const Root=craftComponent('FineInputsRoot'+id,{},()=>{const x=input();return Child({a:function*(){return a()+x;},b:stableB} as never);});
+    const fixture=await renderCraftComponent(Root as never);reads.fill(0);
+    fixture.injector.run(()=>input.set(1));await fixture.flush();expect(reads).toEqual([1,0]);expect(fixture.element.textContent).toBe('22');fixture.destroy();
+  });
+  it('falls back for local providers and active pending boundaries',async()=>{
+    const id=serial++,token={};let creates=0;
+    const plan=singlePlan(()=>0,()=>creates++);
+    const Local=marked('FineLocal'+id,()=>span(String(ɵinject(token))),plan,{providers:[{provide:token,useValue:'local'}]});
+    const Pending=marked('FinePending'+id,()=>span('ordinary'),plan);
+    const Root=craftComponent('FineFallbackRoot'+id,{},()=>div([Local(),Pending().pipe(pendingNode({fallback:()=>span('waiting')}))]));
+    const fixture=await renderCraftComponent(Root as never);expect(fixture.element.textContent).toBe('localordinary');expect(creates).toBe(0);fixture.destroy();
+  });
+  it('cleans other bindings and sibling owners when a destroy callback throws',async()=>{
+    const id=serial++,value=craftSignal(0),failure=new Error('fine destroy'),calls:string[]=[];
+    const Bad=marked('FineBad'+id,()=>span('fallback'),singlePlan(()=>value(),()=>ɵinject(ɵDestroyRef).onDestroy(()=>{calls.push('bad');throw failure;})));
+    const Good=marked('FineGood'+id,()=>span('fallback'),singlePlan(()=>value(),()=>ɵinject(ɵDestroyRef).onDestroy(()=>calls.push('good'))));
+    const Root=craftComponent('FineCleanupRoot'+id,{},()=>div([Bad(),Good()]));
+    const fixture=await renderCraftComponent(Root as never),registry=fixture.injector.run(()=>craftUse(AppSnapshotRegistry()));
+    expect(()=>fixture.destroy()).toThrow(failure);expect(calls).toEqual(['bad','good']);expect(registry.activeEffects()).toHaveLength(0);
+    expect(fixture.element.isConnected).toBe(false);expect(()=>fixture.destroy()).not.toThrow();value.set(1);
+  });
+});
