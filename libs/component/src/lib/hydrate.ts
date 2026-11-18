@@ -85,10 +85,14 @@ export function hydrateCraft(
       );
     }
     const identity = createCraftRenderIdentity([root[CRAFT_COMPONENT].name, 0]);
-    const cursor = createHydrationCursor(host, (error) => {
-      mismatches.push(error);
-      options.onMismatch?.(error);
-    });
+    const cursor = createHydrationCursor(
+      host,
+      (error) => {
+        mismatches.push(error);
+        options.onMismatch?.(error);
+      },
+      identity.hydrationKey,
+    );
     mounted = mountInterpretedComponentWithOptions(
       root,
       host,

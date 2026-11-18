@@ -50,6 +50,7 @@ export * from './lib/for-node';
 export * from './lib/for-scheduling';
 export * from './lib/if-node';
 export * from './lib/project';
+export * from './lib/portal-node';
 export * from './lib/template';
 export * from './lib/hyperscript';
 export * from './lib/a11y';
