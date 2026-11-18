@@ -1698,35 +1698,8 @@ const typographyTs = `export const typography = {
 export type TypographyRole = keyof typeof typography.roles;
 `;
 
-const STARTER_PLURAL_CATEGORIES: Record<string, readonly string[]> = {
-  ar: ['zero', 'one', 'two', 'few', 'many', 'other'],
-  cy: ['zero', 'one', 'two', 'few', 'many', 'other'],
-  ga: ['one', 'two', 'few', 'many', 'other'],
-  pl: ['one', 'few', 'many', 'other'],
-  ru: ['one', 'few', 'many', 'other'],
-  uk: ['one', 'few', 'many', 'other'],
-  cs: ['one', 'few', 'many', 'other'],
-  sk: ['one', 'few', 'many', 'other'],
-  sl: ['one', 'two', 'few', 'other'],
-  ja: ['other'],
-  zh: ['other'],
-  fr: ['one', 'other'],
-  en: ['one', 'other'],
-};
-
-function starterPluralCategories(
-  locales: readonly string[],
-): readonly string[] {
-  return [
-    ...new Set(
-      locales.flatMap(
-        (locale) =>
-          STARTER_PLURAL_CATEGORIES[
-            locale.toLowerCase().split('-')[0] ?? ''
-          ] ?? ['one', 'other'],
-      ),
-    ),
-  ];
+function starterPluralCategories(locale: string): readonly string[] {
+  return new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
 }
 
 /**
@@ -1826,7 +1799,7 @@ function i18nUiSectionTs(context: TemplateContext, french: boolean): string {
 
 function i18nCatalogTs(context: TemplateContext): string {
   const locales = context.locales;
-  const categories = starterPluralCategories(locales);
+  const categories = starterPluralCategories(locales[0]);
   const branches = categories
     .map(
       (category) =>
@@ -1856,7 +1829,7 @@ function i18nLocaleTs(
 ): string {
   const locales = context.locales;
   const isFrench = locale.toLowerCase().startsWith('fr');
-  const categories = starterPluralCategories(locales);
+  const categories = starterPluralCategories(locale);
   const branches = categories
     .map((category) => {
       const word = isFrench

@@ -1055,6 +1055,9 @@ describe('createCraftProject', () => {
         'utf8',
       ),
     ).toContain('defineLocaleLike');
+    const frenchSource = await readFile(join(result.directory, 'src/i18n/locales/fr-FR.ts'), 'utf8');
+    expect(frenchSource).toContain('many: msg`');
+    expect(await readFile(join(result.directory, 'src/i18n/catalog.ts'), 'utf8')).not.toContain('many: msg`');
     expect(
       await readFile(join(result.directory, 'src/i18n/runtime.ts'), 'utf8'),
     ).toContain(

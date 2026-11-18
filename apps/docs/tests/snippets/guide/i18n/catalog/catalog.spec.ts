@@ -21,7 +21,9 @@ describe('guide/i18n/catalog.md', () => {
           { branches: object }
         >
       )['items'];
-      expect(Object.keys(items.branches).sort()).toEqual(['one', 'other']);
+      expect(Object.keys(items.branches).sort()).toEqual(
+        locale.id === 'fr-FR' ? ['many', 'one', 'other'] : ['one', 'other'],
+      );
     }
   });
 });

@@ -37,6 +37,7 @@ export const fr = defineLocaleLike(en, 'fr-FR', {
     total: msg`Total de la commande : ${amount}.`,
     items: plural(count, {
       one: msg`${count} article est dans la commande.`,
+      many: msg`${count} articles sont dans la commande.`,
       other: msg`${count} articles sont dans la commande.`,
     }),
   },

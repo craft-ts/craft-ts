@@ -10,6 +10,8 @@ import type {
   StandardSchemaV1,
 } from '@craft-ts/core';
 
+import type { pluralCategoriesByLocale } from './plural-categories';
+
 export type PluralCategory = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
 export type FormatterContext = {
   readonly locale: string;
@@ -601,32 +603,18 @@ export const dateLong = defineTokenFactory({ kind: 'date-long', format: () => fo
 export const dateTime = defineTokenFactory({ kind: 'date-time', format: (options?: DateFormatterOptions) => formatters.dateTime(options) });
 export const relativeTime = defineTokenFactory({ kind: 'relative-time', format: (options?: RelativeTimeFormatterOptions) => formatters.relativeTime(options) });
 
-const pluralCategoriesByLanguage = {
-  ar: ['zero', 'one', 'two', 'few', 'many', 'other'],
-  cy: ['zero', 'one', 'two', 'few', 'many', 'other'],
-  ga: ['one', 'two', 'few', 'many', 'other'],
-  pl: ['one', 'few', 'many', 'other'],
-  ru: ['one', 'few', 'many', 'other'],
-  uk: ['one', 'few', 'many', 'other'],
-  cs: ['one', 'few', 'many', 'other'],
-  sk: ['one', 'few', 'many', 'other'],
-  sl: ['one', 'two', 'few', 'other'],
-  fr: ['one', 'other'],
-  en: ['one', 'other'],
-} as const;
+type CategoriesForLocale<Locale extends string> =
+  Locale extends keyof typeof pluralCategoriesByLocale
+    ? (typeof pluralCategoriesByLocale)[Locale][number]
+    : Locale extends `${infer Language}-${string}`
+      ? CategoriesForLocale<Language>
+      : 'other';
 
 export type RequiredPluralCategories<Locale extends string> =
-  Lowercase<Locale> extends `${infer Language}-${string}`
-    ? Language extends keyof typeof pluralCategoriesByLanguage
-      ? (typeof pluralCategoriesByLanguage)[Language][number]
-      : 'one' | 'other'
-    : Lowercase<Locale> extends keyof typeof pluralCategoriesByLanguage
-      ? (typeof pluralCategoriesByLanguage)[Lowercase<Locale>][number]
-      : 'one' | 'other';
+  CategoriesForLocale<Lowercase<Locale>>;
 
 function requiredPluralCategories(locale: string): readonly PluralCategory[] {
-  const language = locale.toLowerCase().split('-')[0] ?? locale.toLowerCase();
-  return (pluralCategoriesByLanguage as Record<string, readonly PluralCategory[]>)[language] ?? new Intl.PluralRules(locale).resolvedOptions().pluralCategories as PluralCategory[];
+  return new Intl.PluralRules(locale).resolvedOptions().pluralCategories as PluralCategory[];
 }
 
 type KeysEqual<Left, Right> =
@@ -822,11 +810,13 @@ export function validateLocaleParity(reference: Catalog, candidate: Catalog): re
         diagnostics.push({ code: 'LOCALE_MISMATCH', path, message: 'Locale plural selector does not match the reference.' });
         return;
       }
-      for (const category of Object.keys(left.branches)) {
-        const branch = left.branches[category as PluralCategory];
+      // Categories belong to the candidate locale. Its catalogue has already
+      // been validated against Intl; a category absent in the reference uses
+      // the reference's mandatory `other` branch for token-shape comparison.
+      for (const category of Object.keys(right.branches)) {
+        const branch = left.branches[category as PluralCategory] ?? left.branches.other;
         const candidateBranch = right.branches[category as PluralCategory];
-        if (!candidateBranch) diagnostics.push({ code: 'LOCALE_MISMATCH', path: `${path}.${category}`, message: 'Locale is missing a reference plural branch.' });
-        else if (branch) compare(branch, candidateBranch, `${path}.${category}`);
+        if (branch && candidateBranch) compare(branch, candidateBranch, `${path}.${category}`);
       }
       return;
     }

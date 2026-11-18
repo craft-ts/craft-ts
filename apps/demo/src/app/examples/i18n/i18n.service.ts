@@ -212,6 +212,7 @@ const frenchCatalog = defineLocaleLike(englishLocale, 'fr-FR', {
     order: msg`Commande de ${orderWeight} passée le ${orderDate} pour un total de ${orderAmount}.`,
     items: plural(orderCount, {
       one: msg`${orderCount} article est dans la commande.`,
+      many: msg`${orderCount} articles sont dans la commande.`,
       other: msg`${orderCount} articles sont dans la commande.`,
     }),
     status: msg`Statut de la commande : ${orderStatus}.`,

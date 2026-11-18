@@ -50,6 +50,7 @@ const frenchLocale = defineLocaleLike(englishLocale, 'fr-FR', {
     total: msg`Total : ${total}.`,
     lines: plural(count, {
       one: msg`${count} ligne sur cette commande.`,
+      many: msg`${count} lignes sur cette commande.`,
       other: msg`${count} lignes sur cette commande.`,
     }),
   },
