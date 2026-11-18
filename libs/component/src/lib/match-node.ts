@@ -1,5 +1,5 @@
 import type { AnyCraftException, YieldableReactiveValue } from '@craft-ts/core';
-import { craftUse } from '@craft-ts/core';
+import { isGenerator } from '@craft-ts/core';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
@@ -129,9 +129,12 @@ function exhaustive(
     const handlers = keyOrHandlers as Record<string, () => CraftNodeChildren>;
     const scalarSource =
       typeof source === 'function'
-        ? () => ({
-            value: craftUse((source as () => unknown)()) as ScalarValue,
-          })
+        ? function* () {
+            const value = (source as () => unknown)();
+            return {
+              value: (isGenerator(value) ? yield* value : value) as ScalarValue,
+            };
+          }
         : { value: source };
 
     return {
