@@ -423,7 +423,7 @@ export const ReplayResumes = craftComponent('ReplayResumes', {}, function* () {
                 span({ class: ui.listLinkTitle }, function* () {
                   const { createdAtLabel } = yield* item();
                   return createdAtLabel;
-^^                }),
+                }),
                 span({ class: ui.eventMeta }, function* () {
                   const { session: saved, resumeDescription } = yield* item();
                   return [

@@ -64,7 +64,7 @@ function createReadBridge<T>(_name: string, initialValue: T): ReadBridge<T> {
   let read = () => initialValue;
   return {
     initialValue,
-    value: () => read(),
+    value: () => craftUse(read()) as T,
     bind(nextRead) {
       read = nextRead;
     },
