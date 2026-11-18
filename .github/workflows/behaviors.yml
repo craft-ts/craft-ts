@@ -41,7 +41,7 @@ jobs:
       - run: npm ci
 
       # No app or lib with code and no test.
-      - run: node --test tools/check-project-tests.test.mjs && npm run tests:check
+      - run: node --test tools/check-project-tests.test.mjs apps/framework-benchmark/common.test.mjs && npm run tests:check
 
       # The unit proofs stay out of git: main's come from its last green run.
       - name: Unit proofs of main
