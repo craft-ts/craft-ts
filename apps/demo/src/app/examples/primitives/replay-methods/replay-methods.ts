@@ -30,23 +30,21 @@ export const { ReplayMethodsView, provideReplayMethodsView } = craftService(
         { name: 'Premier élément', actions: 0 },
         { name: 'Second élément', actions: 0 },
       ],
-      insertSelect('cell', function* ({ state, update }) {
+      insertSelect('cell', function* ({ update }) {
         return {
           recordAction: function* () {
             yield* update((cell) => ({ ...cell, actions: cell.actions + 1 }));
           },
-          cellSummaries: yield* craftComputed(
-            'cellSummaries',
-            function* () {
-              return (yield* state()).map((cell, index) => ({
-                index,
-                label: `${cell.name}: ${cell.actions} action(s)`,
-              }));
-            },
-          ),
         };
       }),
     );
+
+    yield* craftComputed('cellSummaries', function* () {
+      return (yield* cells()).map((cell, index) => ({
+        index,
+        label: `${cell.name}: ${cell.actions} action(s)`,
+      }));
+    });
 
     yield* state('pipedCount', 0, (context) =>
       craftPipe(
@@ -99,7 +97,7 @@ const ReplayMethods = craftComponent(
         div(
           { class: example.stack },
           forNode(
-            ReplayMethodsView.cells.cellSummaries,
+            ReplayMethodsView.cellSummaries,
             { track: (item) => item.index },
             (item) =>
               div(

@@ -64,7 +64,9 @@ describe('PixelArt', () => {
     cell?.click();
     CraftTestBed.tick();
 
-    expect(cell?.style.getPropertyValue('--pixel-fill')).toBe('#0f172a');
+    await vi.waitFor(() =>
+      expect(cell?.style.getPropertyValue('--pixel-fill')).toBe('#0f172a'),
+    );
 
     mounted.destroy();
   });
