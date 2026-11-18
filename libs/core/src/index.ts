@@ -396,6 +396,7 @@ export * from './lib/craft-a11y';
 export * from './lib/craft-load-retry';
 export * from './lib/craft-route-load-error';
 export * from './lib/craft-lazy';
+export * from './lib/craft-await';
 export * from './lib/craft-view-transition';
 export * from './lib/craft-router-outlet';
 export {

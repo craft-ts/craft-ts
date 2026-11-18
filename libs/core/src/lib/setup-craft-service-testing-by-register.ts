@@ -1,3 +1,4 @@
+import { SERVICE_APP_START_REQUEST_MARKER } from './craft-generator-runtime';
 import {
   createEnvironmentInjector,
   type EnvironmentInjector,
@@ -123,8 +124,67 @@ type RootServiceScope<Target extends ServiceReference> = Extract<
   ConcreteServiceScope
 >;
 
+type AppStartRegisterRequests<Yielded> = Yielded extends {
+  readonly [SERVICE_APP_START_REQUEST_MARKER]: true;
+  run: () => infer Result;
+}
+  ? Extract<Result, Generator<any, any, any>> extends Generator<
+      infer AppStartYielded,
+      any,
+      any
+    >
+    ? Extract<AppStartYielded, ServiceYieldRequest<any, any, any, any, any>>
+    : never
+  : never;
+
+type RegisterDependencyRequests<Yielded> =
+  | Extract<Yielded, ServiceYieldRequest<any, any, any, any, any>>
+  | AppStartRegisterRequests<Yielded>;
+
+type DirectRegisterDependencyNames<Tracking> =
+  RegisterDependencyRequests<TrackingYielded<Tracking>> extends infer Request
+    ? Request extends ServiceYieldRequest<
+        any,
+        any,
+        infer DependencyTracking,
+        any,
+        any
+      >
+      ? DependencyTracking extends ServiceTrackingMetadata<
+          infer Name,
+          any,
+          any,
+          any,
+          any,
+          any,
+          any,
+          any
+        >
+        ? string extends Name
+          ? never
+          : Name
+        : never
+      : never
+    : never;
+
+type RootRegisterNode<Target extends ServiceReference> = Omit<
+  GetServiceDependenciesTree<Target>,
+  'dependencies'
+> & {
+  // The register contains injected services, not local source/primitive names.
+  // Build the root's branches from request metadata, before a source's widened
+  // name can turn the full dependency tree into a string index signature.
+  dependencies: Pick<
+    GetMergedServiceDependencyNodeMap<Target>,
+    Extract<
+      DirectRegisterDependencyNames<GetServiceTrackingMetadata<Target>>,
+      keyof GetMergedServiceDependencyNodeMap<Target>
+    >
+  >;
+};
+
 type RootNodeRecord<Target extends ServiceReference> = {
-  [Name in RootServiceName<Target>]: GetServiceDependenciesTree<Target>;
+  [Name in RootServiceName<Target>]: RootRegisterNode<Target>;
 };
 
 type RegisterNodeMap<Target extends ServiceReference> = Simplify<
@@ -308,7 +368,7 @@ type ReachableRegisterNames<
   Register extends object,
 > = ReachableNamesForNode<
   RootServiceName<Target>,
-  GetServiceDependenciesTree<Target>,
+  RootRegisterNode<Target>,
   Register
 >;
 

@@ -10,9 +10,31 @@ import {
 } from './craft-service';
 import { setupCraftServiceTestingByRegister } from './setup-craft-service-testing-by-register';
 import { state } from './state';
+import { source$ } from './source$';
 import { craftExpose, craftPrivate } from './craft-primitive-gen';
 
 describe('setupCraftServiceTestingByRegister', () => {
+  it('does not require local sources as dependency register entries (#31)', async () => {
+    const { Bump, provideBump } = craftService(
+      { name: 'Bump', providedIn: 'toProvide' },
+      function* () {
+        yield* source$<void, 'bumped$'>('bumped$');
+        yield* state('count', 0);
+      },
+    );
+    const result = await setupCraftServiceTestingByRegister(Bump, { Bump: provideBump() });
+    expect(result.injector.run(() => craftUse(result.sut.count()))).toBe(0);
+    const { Wide, provideWide } = craftService(
+      { name: 'Wide', providedIn: 'toProvide' },
+      function* () {
+        yield* source$<void>('wide$');
+        yield* state('count', 1);
+      },
+    );
+    const wide = await setupCraftServiceTestingByRegister(Wide, { Wide: provideWide() });
+    expect(wide.injector.run(() => craftUse(wide.sut.count()))).toBe(1);
+  });
+
   it('should return the real sut, keep only explicit mocks and allow notReached descendants', async () => {
     const { ChildCounter } = craftService(
       { name: 'ChildCounter', providedIn: 'toProvide' },
@@ -35,6 +57,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RootCounter, provideRootCounter } = craftService(
       { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
+        yield* source$<void>('rootLocal$');
         const { incrementParent } = yield* ParentCounter(
           undefined,
           ({ incrementParent }) => ({ incrementParent }),

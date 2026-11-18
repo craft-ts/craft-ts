@@ -30,6 +30,29 @@ import type { CraftNodeChildrenFieldExceptions } from './render/vnode';
 import type { ComponentFieldExceptionsOf } from './types';
 
 describe('fieldErrorNode', () => {
+  it('preserves field validation cases through a service shortcut (#30)', async () => {
+    const { Login, provideLogin } = craftService(
+      { name: 'Login', providedIn: 'toProvide' },
+      function* () {
+        const login = yield* state('login', { email: '' }, insertForm(
+          insertSelectFormTree('email', insertNoopTypingAnchor,
+            insertFormAttributes(() => ({ validators: [cRequired()] }))),
+        ));
+        yield* craftExpose('emailField', login.form.selectEmail());
+      },
+    );
+    const LoginForm = craftComponent('ShortcutLogin', { providers: [provideLogin()] }, () => {
+      const field = input('ShortcutEmail', {}).pipe(CraftFieldDirective(Login.emailField));
+      expectTypeOf<CraftNodeChildrenFieldExceptions<typeof field>>().not.toEqualTypeOf<never>();
+      const handled = field.pipe(fieldErrorNode.exhaustive({ required: () => p('Required.') }, { visibility: 'always' }));
+      expectTypeOf<CraftNodeChildrenFieldExceptions<typeof handled>>().toEqualTypeOf<never>();
+      return handled;
+    });
+    const view = await renderCraftComponent(LoginForm);
+    await view.flush();
+    expect(view.element.textContent).toContain('Required.');
+  });
+
   beforeEach(() => {
     document.body.replaceChildren();
   });

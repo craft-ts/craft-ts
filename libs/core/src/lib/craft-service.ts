@@ -3531,11 +3531,7 @@ function* driveShortcut(
         Object(owner),
         [...step.args],
       );
-      value = isGeneratorFunction(result)
-        ? yield* result()
-        : isGenerator(result)
-          ? yield* result
-          : result;
+      value = isGenerator(result) ? yield* result : result;
       owner = value;
     } else {
       value = yield* readShortcutMember(value);
@@ -3773,11 +3769,7 @@ function createHelper(
             Object(serviceValue),
             isDirectCall ? callArgs : [],
           );
-          return isGeneratorFunction(result)
-            ? yield* result()
-            : isGenerator(result)
-              ? yield* result
-              : result;
+          return isGenerator(result) ? yield* result : result;
         };
 
         const propertyHelper = new Proxy(propertyHelperFn, {
