@@ -9,6 +9,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftComputed,
   craftService,
   LONG_PRESS_DURATION_MS,
   longPress,
@@ -27,6 +28,10 @@ type Cell = {
 const SIZE = 16;
 const EMPTY = '#f8fafc';
 const COLORS = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
+const COLOR_SWATCHES = COLORS.map((color) => ({
+  color,
+  fill: pixelColor(color),
+}));
 let nextCellId = SIZE ** 2;
 
 const trackGridRow = (row: Cell[]) => row[0]?.id ?? row.length;
@@ -46,7 +51,8 @@ export const { PixelArtMatrixView, providePixelArtMatrixView } = craftService(
     const activeColor = yield* state('activeColor', COLORS[0], ({ set }) => ({
       setColor: (color: string) => set(color),
     }));
-    yield* state('grid', makeGrid(), ({ set, update }) => ({
+    yield* state('grid', makeGrid(), function* ({ state, set, update }) {
+      return {
       paint: function* (rowIndex: number, columnIndex: number) {
         const activeColorValue = yield* activeColor();
         return yield* update((rows) =>
@@ -112,7 +118,16 @@ export const { PixelArtMatrixView, providePixelArtMatrixView } = craftService(
           ),
         ),
       reset: () => set(makeGrid()),
-    }));
+        displayGrid: yield* craftComputed('displayGrid', function* () {
+          return (yield* state()).map((row) =>
+            row.map((cell) => ({
+              ...cell,
+              fill: pixelColor(cell.color),
+            })),
+          );
+        }),
+      };
+    });
   },
 );
 
@@ -131,17 +146,17 @@ const PixelArtMatrix = craftComponent(
         ]),
         div(
           { class: pixel.palette },
-          forNode(COLORS, { track: (color) => color }, (color) =>
+          forNode(COLOR_SWATCHES, { track: (swatch) => swatch.color }, (swatch) =>
             button('color', { type: 'button',
               class: pixel.swatch,
               style: function* () {
-                return assign(pixelVars.fill, pixelColor(yield* color()));
+                return assign(pixelVars.fill, (yield* swatch()).fill);
               },
               'aria-label': function* () {
-                return `Color ${yield* color()}`;
+                return `Color ${(yield* swatch()).color}`;
               },
               *click() {
-                yield* PixelArtMatrixView.activeColor.setColor(yield* color());
+                yield* PixelArtMatrixView.activeColor.setColor((yield* swatch()).color);
               },
             }),
           ),
@@ -149,14 +164,14 @@ const PixelArtMatrix = craftComponent(
         button('reset', { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: PixelArtMatrixView.grid.reset }, 'Reset'),
         div(
           { class: pixel.matrix },
-          forNode(PixelArtMatrixView.grid, { track: trackGridRow }, (row, rowIndex) =>
+          forNode(PixelArtMatrixView.grid.displayGrid, { track: trackGridRow }, (row, rowIndex) =>
             div({ class: pixel.row, 'data-testid': 'matrix-row' }, [
               forNode(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
                 button('pixelArtMatrixCell', { type: 'button',
                   class: pixel.matrixCell,
                   'data-testid': 'matrix-cell',
                   style: function* () {
-                    return assign(pixelVars.fill, pixelColor((yield* cell()).color));
+                    return assign(pixelVars.fill, (yield* cell()).fill);
                   },
                   'aria-label': function* () {
                     return `Cell ${(yield* rowIndex()) + 1}, ${(yield* columnIndex()) + 1}`;

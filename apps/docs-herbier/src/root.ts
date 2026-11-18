@@ -13,6 +13,10 @@ import {
 import type { Input } from '@craft-ts/component';
 import { AgentPrompt } from './components/agent-prompt.ts';
 import { AuthorNote } from './components/author-note.ts';
+import { CloudBanner } from './components/cloud-banner.ts';
+import { CloudTeaser } from './components/cloud-teaser.ts';
+import { CloudWaitlist } from './components/cloud-waitlist.ts';
+import { CLOUD_PAGE } from './cloud.ts';
 import { TemplateMigrator } from './components/template-migrator.ts';
 import { LOCKED_DARK_PATH } from './locked.ts';
 import { DocsNavigation, provideDocsNavigation } from './navigation.ts';
@@ -76,6 +80,13 @@ const components = (base: string): DocComponents => ({
       },
     }),
   CraftTemplateMigrator: () => TemplateMigrator({}),
+  CloudTeaser: () =>
+    CloudTeaser({
+      base: function* () {
+        return base;
+      },
+    }),
+  CloudWaitlist: () => CloudWaitlist({}),
 });
 
 const body = (site: SiteConfig, page: PageData): CraftNodeChild => {
@@ -142,7 +153,18 @@ export const DocsRoot = craftComponent(
     const loaded = yield* input.page();
     // The page the server drew, until the reader moves to another without a load.
     const page = (yield* navigation.page()) ?? loaded;
-    return DocLayout({
+    // The cloud page is where the banner leads: it does not announce itself.
+    const children: CraftNodeChild[] =
+      page.route === CLOUD_PAGE
+        ? []
+        : [
+            CloudBanner({
+              href: function* () {
+                return withBase(site.base, CLOUD_PAGE);
+              },
+            }),
+          ];
+    const layout = DocLayout({
       site: function* () {
         return site;
       },
@@ -179,5 +201,7 @@ export const DocsRoot = craftComponent(
       },
       body: content(() => body(site, page)),
     });
+    children.push(layout);
+    return div(children);
   },
 );

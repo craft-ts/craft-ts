@@ -2159,6 +2159,113 @@ export function assertCraftComputedPure(graph: DependencyGraph): void {
   );
 }
 
+export type SourceTriggerOwnershipViolation = {
+  sourceId: string;
+  sourceLabel: string;
+  writerId: string;
+  writerLabel: string;
+  filePath?: string;
+  line?: number;
+};
+
+/** A source event must enter the app through a template event action. */
+export function sourceTriggerOwnershipViolations(
+  graph: DependencyGraph,
+): SourceTriggerOwnershipViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const sources = new Set(
+    graph.nodes.filter((node) => node.kind === 'source').map((node) => node.id),
+  );
+
+  return graph.edges.flatMap((edge) => {
+    if (edge.kind !== 'writes' || !sources.has(edge.to)) return [];
+    const writer = nodesById.get(edge.from);
+    const source = nodesById.get(edge.to);
+    if (!writer || !source) return [];
+
+    const directTemplateAction =
+      edge.details?.['usage'] === 'template' &&
+      typeof edge.details?.['templateEventHandlerId'] === 'string';
+    const methodUsedByTemplate =
+      writer.kind === 'primitive' &&
+      graph.edges.some((candidate) => {
+        if (
+          (candidate.kind !== 'calls' && candidate.kind !== 'uses-property') ||
+          nodesById.get(candidate.from)?.kind !== 'component' ||
+          candidate.details?.['usage'] !== 'template' ||
+          typeof candidate.details?.['templateEventHandlerId'] !== 'string'
+        ) {
+          return false;
+        }
+        if (candidate.to === writer.id) return true;
+
+        // Services can expose a yielded craftMethod directly by its name. In
+        // that shape the template edge targets the service property instead
+        // of the method primitive itself; prove that the property belongs to
+        // the writer's service and names that method.
+        const target = nodesById.get(candidate.to);
+        const methodName = writer.details?.['name'];
+        const ownerId = writer.details?.['ownerId'];
+        if (
+          target?.kind !== 'property' ||
+          typeof methodName !== 'string' ||
+          typeof ownerId !== 'string'
+        ) {
+          return false;
+        }
+        const member =
+          candidate.details?.['property'] ?? target.details?.['member'];
+        const propertyOwner = graph.edges.find(
+          (edge) => edge.kind === 'contains' && edge.to === target.id,
+        );
+        return (
+          typeof member === 'string' &&
+          member.split('.').at(-1) === methodName &&
+          propertyOwner?.from === ownerId
+        );
+      });
+    if (directTemplateAction || methodUsedByTemplate) return [];
+
+    const callSite = edge.details?.['callSite'];
+    const location =
+      callSite && typeof callSite === 'object'
+        ? (callSite as Record<string, unknown>)
+        : undefined;
+    const filePath =
+      typeof location?.['filePath'] === 'string'
+        ? relativeGraphPath(graph, location['filePath'])
+        : relativeGraphPath(graph, writer.filePath);
+    const line =
+      typeof location?.['line'] === 'number' ? location['line'] : writer.line;
+
+    return [
+      {
+        sourceId: source.id,
+        sourceLabel: source.label,
+        writerId: writer.id,
+        writerLabel: writer.label,
+        ...(filePath ? { filePath } : {}),
+        ...(line !== undefined ? { line } : {}),
+      },
+    ];
+  });
+}
+
+export function assertSourceTriggerOwnership(graph: DependencyGraph): void {
+  const violations = sourceTriggerOwnershipViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        return `Source ${violation.sourceLabel} is emitted from ${violation.writerLabel}${at ? ` (${at})` : ''} without a template event owner. Emit it from a template event handler or from a method bound to that event.`;
+      })
+      .join('\n'),
+  );
+}
+
 export type PrimitiveMethodUsageSite = {
   ownerId: string;
   filePath: string;
@@ -5003,6 +5110,7 @@ export function architectureReport(
     ['no-unused-primitive-methods', assertNoUnusedPrimitiveMethods],
     ['no-dependency-cycles', assertNoDependencyCycles],
     ['no-event-only-craft-method', assertNoEventOnlyCraftMethods],
+    ['source-trigger-ownership', assertSourceTriggerOwnership],
     ['server-function-architecture', assertServerFunctionArchitecture],
     ['input-action-forms', assertInputActionForms],
     [

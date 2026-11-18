@@ -93,6 +93,18 @@
         "4204"
       ],
       "port": 4204
+    },
+    {
+      "name": "docs-herbier",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--config",
+        "apps/docs-herbier/vite.config.ts",
+        "--port",
+        "4420"
+      ],
+      "port": 4420
     }
   ]
 }

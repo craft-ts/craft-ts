@@ -66,6 +66,38 @@ application's graph project, so moving the wrapper to another file does not
 avoid the rule. Use [`eventAction(...)`](/guide/components/directives#event-actions-and-dom-modifiers)
 on the element to apply DOM event modifiers and invoke the action directly.
 
+It also enforces `source-trigger-ownership`: a `source$` write must have a
+visible template event owner. Emit from the template's `click` handler, or
+through a `craftMethod` that the template binds to that event. A source write
+from a service body or from an action no template uses is reported. This keeps
+event sources tied to user intent instead of letting setup or background code
+start work imperatively.
+
+Before — setup triggers a source without a template action:
+
+```ts
+const refresh$ = yield* source$<void>('refresh$');
+refresh$.emit();
+```
+
+After — bind the source trigger to an action, and let the source's subscribers
+react declaratively:
+
+```ts
+const refresh$ = yield* source$<void>('refresh$');
+yield* craftMethod('refresh', function* () {
+  refresh$.emit();
+});
+
+// In the component template:
+button({ click: View.refresh }, 'Refresh');
+```
+
+The graph checks the relationship across service and component files, so a
+method only satisfies the rule when the template actually binds it to a click
+handler. There is no automatic fix: choosing which user action should own a
+source emission is application behavior.
+
 ## What a rule looks like
 
 A rule is an ordinary Vitest assertion. Look up a node, inspect its graph

@@ -43,7 +43,6 @@ import {
   isYieldableReactiveValue,
   provideHostName,
   rawReactiveFacade,
-  rawReactiveValue,
   toYieldable,
   yieldableInvocation,
   ɵfallbackComponentRegister,
@@ -818,7 +817,7 @@ function findResourceException(
   if (typeof candidate.exceptions === 'function') {
     const exceptions = (
       isYieldableReactiveValue(candidate.exceptions)
-        ? rawReactiveValue(candidate.exceptions)()
+        ? craftUse(candidate.exceptions())
         : candidate.exceptions()
     ) as { readonly list?: readonly unknown[] };
     const exception = exceptions.list?.find(isCraftException);

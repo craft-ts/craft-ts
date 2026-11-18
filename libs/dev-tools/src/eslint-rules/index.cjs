@@ -10,6 +10,7 @@ const noReexposedCraftServiceUtility = require('./no-reexposed-craft-service-uti
 const requireCraftServiceInputScope = require('./require-craft-service-input-scope.cjs');
 const preferDirectCraftServiceExposure = require('./prefer-direct-craft-service-exposure.cjs');
 const preferCraftComputedForReactiveGenerator = require('./prefer-craft-computed-for-reactive-generator.cjs');
+const preferCraftComputedForReactiveArrayLength = require('./prefer-craft-computed-for-reactive-array-length.cjs');
 const preferComputedLocalDependency = require('./prefer-computed-local-dependency.cjs');
 const craftSourceNameMatch = require('./craft-source-name-match.cjs');
 const craftSignalSourceNameMatch = require('./craft-signal-source-name-match.cjs');
@@ -47,6 +48,8 @@ const noManualCraftRouting = require('./no-manual-craft-routing.cjs');
 const preferCraftRouteOverPageState = require('./prefer-craft-route-over-page-state.cjs');
 const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noRawForIndex = require('./no-raw-for-index.cjs');
+const noCraftComputedInComponent = require('./no-craft-computed-in-component.cjs');
+const noComponentServiceBinding = require('./no-component-service-binding.cjs');
 const noExplicitCraftTemplateReturnType = require('./no-explicit-craft-template-return-type.cjs');
 const noExtractedCraftComponentParts = require('./no-extracted-craft-component-parts.cjs');
 const requireDirectCraftComponentTemplate = require('./require-direct-craft-component-template.cjs');
@@ -81,6 +84,7 @@ const noImperativeStorageInCraftMethod = require('./no-imperative-storage-in-cra
 const noTransitionActions = require('./no-transition-actions.cjs');
 const requireCraftResourceTriggerYield = require('./require-craft-resource-trigger-yield.cjs');
 const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
+const noRecursiveCraftSchedule = require('./no-recursive-craft-schedule.cjs');
 const noDirectRandomGlobals = require('./no-direct-random-globals.cjs');
 const requirePrimitiveDerivedProperty = require('./require-primitive-derived-property.cjs');
 const noAsyncAwait = require('./no-async-await.cjs');
@@ -168,6 +172,8 @@ const plugin = {
     'prefer-direct-craft-service-exposure': preferDirectCraftServiceExposure,
     'prefer-craft-computed-for-reactive-generator':
       preferCraftComputedForReactiveGenerator,
+    'prefer-craft-computed-for-reactive-array-length':
+      preferCraftComputedForReactiveArrayLength,
     'prefer-computed-local-dependency': preferComputedLocalDependency,
     'craft-source-name-match': craftSourceNameMatch,
     'craft-signal-source-name-match': craftSignalSourceNameMatch,
@@ -207,6 +213,8 @@ const plugin = {
     'prefer-craft-route-over-page-state': preferCraftRouteOverPageState,
     'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-raw-for-index': noRawForIndex,
+    'no-craft-computed-in-component': noCraftComputedInComponent,
+    'no-component-service-binding': noComponentServiceBinding,
     'no-explicit-craft-template-return-type': noExplicitCraftTemplateReturnType,
     'no-extracted-craft-component-parts': noExtractedCraftComponentParts,
     'require-direct-craft-component-template':
@@ -246,6 +254,7 @@ const plugin = {
     'no-transition-actions': noTransitionActions,
     'require-craft-resource-trigger-yield': requireCraftResourceTriggerYield,
     'no-direct-temporal-globals': noDirectTemporalGlobals,
+    'no-recursive-craft-schedule': noRecursiveCraftSchedule,
     'no-direct-random-globals': noDirectRandomGlobals,
     'require-primitive-derived-property': requirePrimitiveDerivedProperty,
     'no-async-await': noAsyncAwait,

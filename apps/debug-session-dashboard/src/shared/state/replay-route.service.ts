@@ -2,41 +2,41 @@ import {
   BrowserCryptoService,
   BrowserLocationService,
   CraftActivatedRoute,
-  CraftRouter,
-  CraftTemporalRuntime,
   craftEffect,
   craftExpose,
+  CraftRouter,
   craftService,
-  rawReactiveValue,
+  CraftTemporalRuntime,
+  craftUse,
   ɵuntracked as untracked,
 } from '@craft-ts/core';
+import { BehaviorCoverageArchive } from '../data-access/behavior-coverage.service';
+import { E2eComparison } from '../data-access/e2e-comparison.service';
+import { GoldenSuiteArchive } from '../data-access/golden-suite.service';
+import { ResumeThread } from '../data-access/resume-thread.service';
+import {
+  httpFailureReason,
+  SessionArchive,
+} from '../data-access/session-archive.service';
+import {
+  ThumbnailArchive,
+  type ThumbnailManifest,
+} from '../data-access/thumbnail-archive.service';
+import { coverageE2eIntent } from '../util/behavior-coverage';
 import {
   installReplayPlatform,
   isReplayWorkerMode,
   showReplayTileAlone,
 } from '../util/replay-browser';
-import { ReplaySession } from './replay-session';
+import { installReplayWorkerSurface } from '../util/replay-worker';
 import { ReplayPlayback } from './replay-playback';
+import { ReplaySession } from './replay-session';
 import {
   ReplayState,
   replayState as replayStatus,
   routeSessionId,
   syncActiveRouteSessionId,
 } from './replay-state';
-import { installReplayWorkerSurface } from '../util/replay-worker';
-import { coverageE2eIntent } from '../util/behavior-coverage';
-import {
-  httpFailureReason,
-  SessionArchive,
-} from '../data-access/session-archive.service';
-import { E2eComparison } from '../data-access/e2e-comparison.service';
-import { BehaviorCoverageArchive } from '../data-access/behavior-coverage.service';
-import { GoldenSuiteArchive } from '../data-access/golden-suite.service';
-import { ResumeThread } from '../data-access/resume-thread.service';
-import {
-  ThumbnailArchive,
-  type ThumbnailManifest,
-} from '../data-access/thumbnail-archive.service';
 
 /**
  * The address and the archive, together: the hash names the session to open,
@@ -93,11 +93,11 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     replaySession.installImportNavigation(
       () => void router.navigate({ to: 'import' }),
     );
-    const archivedValue = rawReactiveValue(archive.archived.value);
-    const archivedException = rawReactiveValue(archive.archived.exception);
-    const deletedValue = rawReactiveValue(archive.deleteSession.value);
-    const manifestValue = rawReactiveValue(thumbnails.thumbnailManifest.value);
-    const preparedValue = rawReactiveValue(thumbnails.prepareThumbnails.value);
+    const archivedValue = archive.archived.value;
+    const archivedException = archive.archived.exception;
+    const deletedValue = archive.deleteSession.value;
+    const manifestValue = thumbnails.thumbnailManifest.value;
+    const preparedValue = thumbnails.prepareThumbnails.value;
 
     // The session the last load asked for, and the one a deletion is for: the
     // archive's answers do not say, and only the latest request is answered.
@@ -130,7 +130,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     };
 
     yield* craftEffect('openArchivedSession', () => {
-      const archived = archivedValue();
+      const archived = craftUse(archivedValue());
       const id = requestedId;
       if (archived === undefined || id === undefined) return;
       if (archived === openedArchive) return;
@@ -149,16 +149,16 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
         setStates({ thumbnailManifest: manifest });
     };
     yield* craftEffect('showPreparedThumbnails', () => {
-      const manifest = preparedValue();
+      const manifest = craftUse(preparedValue());
       if (manifest !== undefined) untracked(() => showManifest(manifest));
     });
     yield* craftEffect('showThumbnailManifest', () => {
-      const manifest = manifestValue();
+      const manifest = craftUse(manifestValue());
       if (manifest !== undefined) untracked(() => showManifest(manifest));
     });
 
     yield* craftEffect('failArchivedSession', () => {
-      const exception = archivedException();
+      const exception = craftUse(archivedException());
       if (exception !== undefined)
         untracked(() =>
           replaySession.failSessionLoad(httpFailureReason(exception)),
@@ -166,7 +166,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
     });
 
     yield* craftEffect('closeRemovedSession', () => {
-      const deleted = deletedValue();
+      const deleted = craftUse(deletedValue());
       const id = removingId;
       if (deleted === undefined || id === undefined) return;
       const shouldNavigate = routeSessionId() === id;
@@ -190,7 +190,7 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
       const coverage = routePaths.includes('coverage');
       const suite = routePaths.includes('suite');
       const e2eReplay = routePaths.includes('e2e-replay');
-      const wasDetailPage = rawReactiveValue(page)() === 'detail';
+      const wasDetailPage = craftUse(page()) === 'detail';
       setStates({
         page: comparison
           ? 'compare'
@@ -201,8 +201,8 @@ export const { ReplayRoute, provideReplayRoute } = craftService(
               : suite
                 ? 'suite'
                 : id || importedSession || e2eReplay
-                ? 'detail'
-                : 'sessions',
+                  ? 'detail'
+                  : 'sessions',
       });
       if (comparison) {
         e2eComparison.comparison.call({

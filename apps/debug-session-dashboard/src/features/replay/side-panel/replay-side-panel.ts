@@ -1,4 +1,3 @@
-import { i18n } from '../../../shared/util/catalog';
 import {
   button,
   craftComponent,
@@ -9,35 +8,36 @@ import {
   span,
   type CraftNodeChild,
 } from '@craft-ts/component';
-import { craftComputed, rawReactiveValue } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { DocIcon, type IconName } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
-import { ui } from '../../../shared/ui/dashboard.style';
-import { ReplayDetails } from './replay-details';
-import { ReplayJournal } from './replay-journal';
-import { ReplayResumes } from './replay-resumes';
-import { ReplayReview } from './replay-review';
-import {
-  errorCount,
-  isReplayErrorNote,
-  pendingWarnings,
-  replayDifferences,
-  replayWarnings,
-  ReplayState,
-  routeSessionId,
-  sidePanelOpen,
-  sideTab,
-  toggleSideTab,
-  type SideTab,
-} from '../../../shared/state/replay-state';
 import {
   SessionArchive,
   type ResumeCheckpointSummary,
   type ResumeRecipeSummary,
   type SessionSummary,
 } from '../../../shared/data-access/session-archive.service';
+import {
+  errorCount,
+  isReplayErrorNote,
+  pendingWarnings,
+  replayDifferences,
+  ReplayState,
+  replayWarnings,
+  routeSessionId,
+  sidePanelOpen,
+  sideTab,
+  toggleSideTab,
+  type SideTab,
+} from '../../../shared/state/replay-state';
+import { ui } from '../../../shared/ui/dashboard.style';
+import { i18n } from '../../../shared/util/catalog';
 import { derivedSessionsOf } from '../../../shared/util/session-lineage';
 import { lit } from '../../../shared/util/view-helpers';
+import { ReplayDetails } from './replay-details';
+import { ReplayJournal } from './replay-journal';
+import { ReplayResumes } from './replay-resumes';
+import { ReplayReview } from './replay-review';
 
 const TAB_TITLES: Readonly<Record<SideTab, string>> = {
   journal: i18n.t('tabJournalTitle'),
@@ -82,8 +82,8 @@ export const ReplaySidePanel = craftComponent(
   'ReplaySidePanel',
   {},
   function* () {
-    const { setStates, sidePanelOpen: panelOpen } =
-      (yield* ReplayState()).imperative;
+    const { setStates, sidePanelOpen: panelOpen } = (yield* ReplayState())
+      .imperative;
     const closed = yield* craftComputed('closed', function* () {
       return !(yield* panelOpen());
     });
@@ -97,10 +97,10 @@ export const ReplaySidePanel = craftComponent(
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'link',
-          'aria-label': i18n.t("copy.copy127"),
+          'aria-label': i18n.t('copy.copy127'),
           click: () => setStates({ sidePanelOpen: false }),
         },
-        i18n.t("copy.copy128"),
+        i18n.t('copy.copy128'),
       ),
     ]);
 
@@ -130,9 +130,9 @@ export const ReplaySidePanel = craftComponent(
  */
 export const ReplayRail = craftComponent('ReplayRail', {}, function* () {
   const archive = yield* SessionArchive();
-  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
-  const savedRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
-  const checkpoints = rawReactiveValue(archive.resumeCheckpoints.resumeCheckpointList);
+  const savedSessions = archive.sessions.savedSessions;
+  const savedRecipes = archive.recipeCatalog.resumeRecipeList;
+  const checkpoints = archive.resumeCheckpoints.resumeCheckpointList;
 
   const reviewCount = yield* craftComputed(
     'reviewCount',
@@ -145,14 +145,17 @@ export const ReplayRail = craftComponent('ReplayRail', {}, function* () {
       pendingWarnings().length > 0 ||
       replayWarnings().some(isReplayErrorNote),
   );
-  const resumeCount = yield* craftComputed('resumeCount', () =>
-    resumeItemCount(
+  const resumeCount = yield* craftComputed('resumeCount', function* () {
+    const _savedSessions = yield* savedSessions();
+    const _savedRecipes = yield* savedRecipes();
+    const _checkpoints = yield* checkpoints();
+    return resumeItemCount(
       routeSessionId(),
-      checkpoints(),
-      savedRecipes(),
-      savedSessions(),
-    ),
-  );
+      _checkpoints,
+      _savedRecipes,
+      _savedSessions,
+    );
+  });
 
   const railButton = (
     tab: SideTab,

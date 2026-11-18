@@ -15,6 +15,7 @@ export default defineConfig({
     // As vite.config.ts resolves them.
     alias: {
       '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
+      '@craft-ts/stream': path.join(workspaceRoot, 'libs/stream/src/index.ts'),
       '@craft-ts/ui/style': path.join(workspaceRoot, 'libs/ui/src/style.ts'),
       '@craft-ts/ui': path.join(workspaceRoot, 'libs/ui/src/index.ts'),
       // The subpath first: the bare entry would match it as a prefix.

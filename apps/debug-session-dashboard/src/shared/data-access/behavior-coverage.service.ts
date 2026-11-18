@@ -1,11 +1,11 @@
 import {
-  CraftHttpClient,
-  craftService,
-  query,
-  rawReactiveValue,
   // Query insertion helpers return a host computed signal.
   // eslint-disable-next-line craft-ts/no-direct-craft-reactivity
   ɵcomputed as computed,
+  CraftHttpClient,
+  craftService,
+  craftUse,
+  query,
 } from '@craft-ts/core';
 import { behaviorCoverageDecoder } from '../util/behavior-coverage';
 
@@ -32,11 +32,9 @@ export const { BehaviorCoverageArchive } = craftService(
         },
       },
       ({ state, resource, hasException }) => ({
-        coverageApps: computed(() => rawReactiveValue(state)() ?? []),
-        coverageLoading: computed(
-          () => rawReactiveValue(resource.isLoading)(),
-        ),
-        coverageUnreachable: computed(() => rawReactiveValue(hasException)()),
+        coverageApps: computed(() => craftUse(state()) ?? []),
+        coverageLoading: computed(() => craftUse(resource.isLoading())),
+        coverageUnreachable: computed(() => craftUse(hasException())),
       }),
     );
   },

@@ -1,5 +1,7 @@
 module.exports = {
   'craft-ts/no-raw-for-index': 'error',
+  'craft-ts/no-craft-computed-in-component': 'error',
+  'craft-ts/no-component-service-binding': 'error',
   'craft-ts/require-fixed-component-provider-list': 'error',
   'craft-ts/craft-method-name-match': 'warn',
   'craft-ts/craft-computed-name-match': 'warn',
@@ -16,6 +18,7 @@ module.exports = {
   'craft-ts/require-craft-service-input-scope': 'error',
   'craft-ts/prefer-direct-craft-service-exposure': 'error',
   'craft-ts/prefer-craft-computed-for-reactive-generator': 'error',
+  'craft-ts/prefer-craft-computed-for-reactive-array-length': 'error',
   'craft-ts/prefer-computed-local-dependency': 'error',
   'craft-ts/no-direct-craft-reactivity': 'error',
   'craft-ts/craft-source-name-match': 'warn',
@@ -23,6 +26,7 @@ module.exports = {
   'craft-ts/craft-component-name-match': 'warn',
   'craft-ts/craft-directive-name-match': 'warn',
   'craft-ts/no-direct-temporal-globals': 'error',
+  'craft-ts/no-recursive-craft-schedule': 'error',
   'craft-ts/no-direct-random-globals': 'error',
   'craft-ts/prefer-craft-template-blocks': 'error',
   'craft-ts/require-craft-computed-for-dynamic-template-lookup': 'error',

@@ -8,6 +8,7 @@ import {
 } from './dependency-graph';
 import {
   assertCraftComputedPure,
+  assertSourceTriggerOwnership,
   assertCraftEffectNoImperativeSync,
   assertCraftEffectNoNetwork,
   assertPrimitiveLoaderRequirements,
@@ -32,6 +33,7 @@ import {
   lazyRouteImportViolations,
   assertServerFunctionArchitecture,
   craftComputedPureViolations,
+  sourceTriggerOwnershipViolations,
   craftEffectImperativeSyncViolations,
   craftEffectNetworkViolations,
   createArchitectureGraph,
@@ -213,6 +215,102 @@ declare const CraftHttpClient: {
   post(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
 };
 `;
+
+describe('source trigger ownership', () => {
+  it('rejects a source emission from an unbound service body', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        declare function CraftTemporalRuntime(): any;
+        const { View } = craftService({ name: 'View' }, function* () {
+          const temporal = yield* CraftTemporalRuntime();
+          const refreshRequested$ = yield* source$<number>('refreshRequested$');
+          let refreshCount = 0;
+          const refreshAgain = () => {
+            refreshRequested$.emit(++refreshCount);
+            temporal.schedule(refreshAgain, 2_000, { owner: 'session-archive' });
+          };
+          refreshAgain();
+          return {};
+        });
+      `,
+    });
+
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toHaveLength(1);
+    expect(() => assertSourceTriggerOwnership(graph.graph)).toThrow(
+      /refreshRequested\$.*template event owner/,
+    );
+    expect(() => assertDeclarativeArchitecture(graph.graph)).toThrow(
+      /refreshRequested\$.*template event owner/,
+    );
+  });
+
+  it('accepts a craftMethod bound to a template click', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          const refresh$ = yield* source$<void>('refresh$');
+          const refresh = yield* craftMethod('refresh', function* () {
+            refresh$.emit();
+          });
+          void refresh;
+        });
+        const Page = craftComponent('Page', {}, function* () {
+          yield* View();
+          return button({ click: View.refresh }, 'Refresh');
+        });
+      `,
+    });
+
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toEqual([]);
+  });
+
+  it('rejects a craftMethod that is not bound to a template event', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const { View } = craftService({ name: 'View' }, function* () {
+          const refresh$ = yield* source$<void>('refresh$');
+          const refresh = yield* craftMethod('refresh', function* () {
+            refresh$.emit();
+          });
+          return { refresh };
+        });
+      `,
+    });
+
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toHaveLength(1);
+  });
+
+  it('accepts an emission directly in a template click binding', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const Page = craftComponent('Page', {}, function* () {
+          const refresh$ = yield* source$<void>('refresh$');
+          return button({ click: () => refresh$.emit() }, 'Refresh');
+        });
+      `,
+    });
+
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toEqual([]);
+  });
+
+  it('accepts an emission directly in a template input binding', async () => {
+    const graph = await graphOf({
+      'app.ts': `
+        ${STUBS}
+        const Page = craftComponent('Page', {}, function* () {
+          const refresh$ = yield* source$<void>('refresh$');
+          return input({ input: () => refresh$.emit() });
+        });
+      `,
+    });
+
+    expect(sourceTriggerOwnershipViolations(graph.graph)).toEqual([]);
+  });
+});
 
 describe('unused primitive methods', () => {
   it('counts a call from another file through a path that names the primitive', async () => {

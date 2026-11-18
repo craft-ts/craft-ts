@@ -1,4 +1,3 @@
-import { i18n } from '../../shared/util/catalog';
 import {
   button,
   craftComponent,
@@ -10,16 +9,17 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { CraftRouter, rawReactiveValue } from '@craft-ts/core';
+import { CraftRouter } from '@craft-ts/core';
 import { badgeUi } from '@craft-ts/ui/style';
-import { ui } from '../../shared/ui/dashboard.style';
-import { sessionDate } from '../../shared/util/replay-labels';
-import { plural } from '../../shared/util/replay-model';
 import {
   SessionArchive,
   type ResumeRecipeSummary,
   type SessionSummary,
 } from '../../shared/data-access/session-archive.service';
+import { ui } from '../../shared/ui/dashboard.style';
+import { i18n } from '../../shared/util/catalog';
+import { sessionDate } from '../../shared/util/replay-labels';
+import { plural } from '../../shared/util/replay-model';
 import {
   RECIPE_RUN_STATUS,
   RECIPE_VALIDATION_LABEL,
@@ -61,8 +61,8 @@ function recipeFacts(
 /** Every recipe the local archive knows, newest first. */
 export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
   const archive = yield* SessionArchive();
-  const savedRecipes = rawReactiveValue(archive.recipeCatalog.resumeRecipeList);
-  const savedSessions = rawReactiveValue(archive.sessions.savedSessions);
+  const savedRecipes = archive.recipeCatalog.resumeRecipeList;
+  const savedSessions = archive.sessions.savedSessions;
 
   const rows = ul(
     { class: ui.sessions, 'data-lab': 'recipe-catalog' },
@@ -118,7 +118,8 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
               },
             ),
             span({ class: ui.rowLineage }, function* () {
-              return recipeFacts(yield* recipe(), savedSessions());
+              const _savedSessions = yield* savedSessions();
+              return recipeFacts(yield* recipe(), _savedSessions);
             }),
           ],
         ),
@@ -131,21 +132,19 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
       class: ui.empty,
       'data-lab': 'empty-recipes',
       hidden: function* () {
-        return savedRecipes().length > 0;
+        const _savedRecipes = yield* savedRecipes();
+        return _savedRecipes.length > 0;
       },
     },
-    i18n.t("copy.copy042"),
+    i18n.t('copy.copy042'),
   );
 
   return div({ class: ui.scroll }, [
     div({ class: ui.listPage }, [
       div({ class: ui.listHead }, [
         div([
-          heading({ class: ui.title }, i18n.t("copy.copy043")),
-          p(
-            { class: ui.lede },
-            i18n.t("copy.copy044"),
-          ),
+          heading({ class: ui.title }, i18n.t('copy.copy043')),
+          p({ class: ui.lede }, i18n.t('copy.copy044')),
         ]),
       ]),
       rows,

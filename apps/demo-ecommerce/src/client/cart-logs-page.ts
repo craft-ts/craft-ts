@@ -12,29 +12,13 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { CartLogsPageState } from './cart-logs-state';
-
-function euros(amount: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(amount);
-}
 
 export const CartLogsPage = craftComponent(
   'CartLogsPage',
   {},
   function* () {
     const cart = yield* CartLogsPageState();
-    const lines = yield* craftComputed('displayLines', function* () {
-      const current = yield* cart.lines();
-      const products = yield* cart.products();
-      return current.map((line) => ({
-        ...line,
-        product: products.find((product) => product.id === line.productId),
-      }));
-    });
 
     return main({ class: 'page cart-logs-page' }, [
       div({ class: 'page-head' }, [
@@ -65,7 +49,7 @@ export const CartLogsPage = craftComponent(
                   strong(function* () { return (yield* product()).name; }),
                   span({ class: 'muted' }, function* () {
                     const item = yield* product();
-                    return `${euros(item.price)} · ${item.stock} en stock`;
+                    return `${item.priceLabel} · ${item.stock} en stock`;
                   }),
                 ]),
                 button(
@@ -96,7 +80,7 @@ export const CartLogsPage = craftComponent(
           div(
             { class: 'cart-logs-lines' },
             forNode(
-              lines,
+              cart.displayLines,
               {
                 track: (line) => line.productId,
                 empty: () => p({ class: 'muted cart-logs-empty' }, 'Le panier est vide. Ajoutez un produit pour commencer.'),
@@ -109,7 +93,7 @@ export const CartLogsPage = craftComponent(
                     }),
                     span({ class: 'muted' }, function* () {
                       const value = yield* line();
-                      return `${value.quantity} × ${euros(value.product?.price ?? 0)}`;
+                      return `${value.quantity} × ${value.unitPriceLabel}`;
                     }),
                   ]),
                   div({ class: 'cart-logs-controls' }, [
@@ -156,7 +140,7 @@ export const CartLogsPage = craftComponent(
           ),
           div({ class: 'cart-logs-total' }, [
             span('Total estimé'),
-            strong(function* () { return euros(yield* cart.total()); }),
+            strong(cart.totalLabel),
           ]),
           button('empty-observed-cart', {
             type: 'button',

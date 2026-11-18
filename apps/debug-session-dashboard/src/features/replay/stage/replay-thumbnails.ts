@@ -12,102 +12,31 @@ import {
   ul,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { buttonUi } from '@craft-ts/ui/style';
 import { markVars, ui } from '../../../shared/ui/dashboard.style';
-import {
-  replayDurationMs,
-  thumbnailActionLabel,
-  thumbnailCaption,
-  thumbnailReasonLabel,
-  thumbnailsSummary,
-} from '../../../shared/util/replay-labels';
+import { thumbnailsSummary } from '../../../shared/util/replay-labels';
 import { ReplaySession } from '../../../shared/state/replay-session';
-import {
-  replayActionOffsetsMs,
-  replayIndex,
-  replayableEvents,
-  thumbnailManifest,
-} from '../../../shared/state/replay-state';
+import { thumbnailManifest } from '../../../shared/state/replay-state';
 import { ThumbnailPreview } from './thumbnail-preview.service';
 import {
   THUMBNAIL_ORIGIN,
-  thumbnailImageUrl,
-  type ThumbnailEntry,
 } from '../../../shared/data-access/thumbnail-archive.service';
-
-/** A thumbnail, placed on the timeline of the replay it belongs to. */
-type Mark = Readonly<{
-  entry: ThumbnailEntry;
-  /** Actions that had run when the picture was taken, in this replay. */
-  position: number;
-  /** How far along the recording that moment is, as a percentage. */
-  share: number;
-  phase: 'current' | 'passed' | undefined;
-  cardPhase: 'open' | undefined;
-}>;
+import {
+  Mark,
+  ReplayThumbnailMarksViewModel,
+} from './replay-thumbnail-marks-view-model.service';
 
 /**
  * The pictures the archive prepared, as far as they are ready, each at its
  * moment: where the replay is once the action it names has run.
  */
 /** The point's look: the one the replay is at, or one it has already passed. */
-function goToMark(
-  item: Mark,
-  seekReplayToEvent: (eventId: string, participantId?: string) => void,
-): void {
-  if (item.entry.eventId)
-    seekReplayToEvent(item.entry.eventId, item.entry.participantId);
-}
-
-/** Where a picture is served from, once the archive has told which ones it holds. */
-function markImageUrl(item: Mark): string {
-  const manifest = thumbnailManifest();
-  return manifest ? thumbnailImageUrl(manifest, item.entry) : '';
-}
-
 /** The points on the timeline: where the replay can be taken with one click. */
 export const ReplayThumbnailMarks = craftComponent(
   'ReplayThumbnailMarks',
   {},
   function* () {
-    const replaySession = yield* ReplaySession();
-    const preview = yield* ThumbnailPreview();
-    const renderedMarks = yield* craftComputed('renderedMarks', function* () {
-      const steps = replayableEvents();
-      const offsets = replayActionOffsetsMs();
-      const duration = replayDurationMs();
-      const marks = (thumbnailManifest()?.entries ?? []).map((entry) => {
-        const position =
-          entry.eventId === undefined
-            ? 0
-            : steps.findIndex((step) => step.id === entry.eventId) + 1 ||
-              entry.replayIndex;
-        const time =
-          position === 0 ? 0 : (offsets[position - 1] ?? entry.offsetMs);
-        const share = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
-        return { entry, position, share };
-      });
-      const done = replayIndex();
-      const current = marks.reduce<number | undefined>(
-        (selected, mark) =>
-          mark.position <= done ? mark.entry.index : selected,
-        undefined,
-      );
-      const open = yield* preview.openEntryIndex();
-      return marks.map<Mark>((mark) => ({
-        ...mark,
-        phase:
-          mark.entry.index === current
-            ? 'current'
-            : mark.position <= done
-              ? 'passed'
-              : undefined,
-        cardPhase: mark.entry.index === open ? 'open' : undefined,
-      }));
-    });
-
     return ul(
       {
         class: ui.marks,
@@ -115,7 +44,9 @@ export const ReplayThumbnailMarks = craftComponent(
         'aria-label': 'Aperçus de la session',
       },
       forNode(
-        renderedMarks,
+        function* () {
+          return yield* (yield* ReplayThumbnailMarksViewModel()).renderedMarks();
+        },
         { track: (mark: Mark) => mark.entry.index },
         (mark) =>
           li(
@@ -139,25 +70,29 @@ export const ReplayThumbnailMarks = craftComponent(
                   return item.phase;
                 },
                 'aria-label': function* () {
-                  const { entry } = yield* mark();
-                  return `${thumbnailActionLabel(entry)} · ${thumbnailCaption(entry)}`;
+                  return (yield* mark()).ariaLabel;
                 },
                 pointerenter: function* () {
                   const item = yield* mark();
-                  yield* preview.show(item.entry.index);
+                  yield* (yield* ThumbnailPreview()).show(item.entry.index);
                 },
                 pointerleave: function* () {
-                  yield* preview.show(undefined);
+                  yield* (yield* ThumbnailPreview()).show(undefined);
                 },
                 focus: function* () {
                   const item = yield* mark();
-                  yield* preview.show(item.entry.index);
+                  yield* (yield* ThumbnailPreview()).show(item.entry.index);
                 },
                 blur: function* () {
-                  yield* preview.show(undefined);
+                  yield* (yield* ThumbnailPreview()).show(undefined);
                 },
                 click: function* () {
-                  goToMark(yield* mark(), replaySession.seekReplayToEvent);
+                  const item = yield* mark();
+                  if (item.entry.eventId)
+                    (yield* ReplaySession()).seekReplayToEvent(
+                      item.entry.eventId,
+                      item.entry.participantId,
+                    );
                 },
               }),
               div(
@@ -166,31 +101,33 @@ export const ReplayThumbnailMarks = craftComponent(
                   'aria-hidden': 'true',
                   'data-mark-card': function* () {
                     const item = yield* mark();
-                    return item.cardPhase;
+                    const openEntryIndex = yield* (
+                      yield* ThumbnailPreview()
+                    ).openEntryIndex();
+                    return openEntryIndex === item.entry.index
+                      ? 'open'
+                      : undefined;
                   },
                 },
                 [
                   img({
                     class: ui.markImage,
                     alt: function* () {
-                      const item = yield* mark();
-                      return thumbnailReasonLabel(item.entry);
+                      return (yield* mark()).reasonLabel;
                     },
                     src: function* () {
                       const item = yield* mark();
-                      return safeResourceUrl(markImageUrl(item), {
+                      return safeResourceUrl(item.imageUrl, {
                         allowedOrigins: [THUMBNAIL_ORIGIN],
                       });
                     },
                   }),
                   span({ class: ui.markCaption }, function* () {
-                    const item = yield* mark();
-                    return thumbnailCaption(item.entry);
+                    return (yield* mark()).caption;
                   }),
                   span({ class: ui.markAction }, function* () {
-                    const item = yield* mark();
                     return i18n.t('thumbnailActionLabel', {
-                      actionLabel: thumbnailActionLabel(item.entry),
+                      actionLabel: (yield* mark()).actionLabel,
                     });
                   }),
                 ],

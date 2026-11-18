@@ -20,6 +20,12 @@ import {
 } from './view-transitions.style';
 import { example } from '../../shared/example.style';
 
+const GALLERY_PHOTOS = PHOTOS.map((photo) => ({
+  ...photo,
+  art: photoArt(photo.id),
+  transitionName: photoTransitionName(photo.id),
+}));
+
 const ViewTransitionsGalleryComponent = craftComponent(
   'ViewTransitionsGalleryComponent',
   {},
@@ -30,18 +36,19 @@ const ViewTransitionsGalleryComponent = craftComponent(
     ]),
     ul(
       { class: vt.grid },
-      forNode(PHOTOS, { track: (photo) => photo.id }, (photo) =>
+      forNode(GALLERY_PHOTOS, { track: (photo) => photo.id }, (photo) =>
         li(
           a('photo', { class: vt.tile }, [
             span(
               {
                 class: vt.art,
                 style: function* () {
+                  const item = yield* photo();
                   return {
-                    ...assign(vtPhoto.art, photoArt((yield* photo()).id)),
+                    ...assign(vtPhoto.art, item.art),
                     ...assign(
                       vtPhoto.name,
-                      photoTransitionName((yield* photo()).id),
+                      item.transitionName,
                     ),
                   };
                 },

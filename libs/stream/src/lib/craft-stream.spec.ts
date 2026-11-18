@@ -2,13 +2,17 @@ import { Observable, from } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import {
   CraftTestBed as TestBed,
+  asyncProcess,
   behaviorSubject,
   craftException,
+  craftUse,
   ɵcreateEnvironmentInjector as createEnvironmentInjector,
   ɵInjector as Injector,
   ɵrunInInjectionContext as runInInjectionContext,
   craftExpose,
   craftService,
+  mutation,
+  query,
   craftSleep,
   replaySubject,
   subject,
@@ -39,6 +43,7 @@ import {
   toSubscribable,
   type CraftStream,
 } from '../index';
+import type { Equal, Expect } from 'test-type';
 
 type Boom = CraftException<{ _tag: 'Boom'; scope: undefined }, { why: string }>;
 type Bang = CraftException<
@@ -291,6 +296,88 @@ describe('per-value operators', () => {
       expect(values).toEqual([]);
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe('resource method streams', () => {
+  it('uses each emitted value as query params and unsubscribes on injector destroy', async () => {
+    const source = subject<number>();
+    const stream = fromSubscribable(source);
+    const loaded: number[] = [];
+    try {
+      TestBed.runInInjectionContext(() => {
+        craftUse(
+          query('streamTriggeredQuery', {
+            method: stream,
+            loader: async ({ params }) => {
+              type ParamsAreNumber = Expect<Equal<typeof params, number>>;
+              loaded.push(params);
+              return { value: params };
+            },
+          }),
+        );
+      });
+
+      source.next(1);
+      await vi.waitFor(() => expect(loaded).toEqual([1]));
+      TestBed.resetTestingModule();
+      source.next(2);
+      await Promise.resolve();
+
+      expect(loaded).toEqual([1]);
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('uses emitted values as mutation params', async () => {
+    const source = subject<number>();
+    const loaded: number[] = [];
+
+    try {
+      TestBed.runInInjectionContext(() => {
+        craftUse(
+          mutation('streamTriggeredMutation', {
+            method: fromSubscribable(source),
+            loader: async ({ params }) => {
+              type ParamsAreNumber = Expect<Equal<typeof params, number>>;
+              loaded.push(params);
+              return { value: params };
+            },
+          }),
+        );
+      });
+
+      source.next(3);
+      await vi.waitFor(() => expect(loaded).toEqual([3]));
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('uses emitted values as async process params', async () => {
+    const source = subject<number>();
+    const loaded: number[] = [];
+
+    try {
+      TestBed.runInInjectionContext(() => {
+        craftUse(
+          asyncProcess('streamTriggeredAsyncProcess', {
+            method: fromSubscribable(source),
+            loader: async ({ params }) => {
+              type ParamsAreNumber = Expect<Equal<typeof params, number>>;
+              loaded.push(params);
+              return { value: params };
+            },
+          }),
+        );
+      });
+
+      source.next(4);
+      await vi.waitFor(() => expect(loaded).toEqual([4]));
+    } finally {
+      TestBed.resetTestingModule();
     }
   });
 });

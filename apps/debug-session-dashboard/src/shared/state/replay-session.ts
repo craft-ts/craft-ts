@@ -1,7 +1,13 @@
-import { cutUnfinishedTail, splitPageReloads, validateDebugSessionExport, type ReplayTailCut } from '@craft-ts/component';
-import { craftExpose, craftService, rawReactiveValue } from '@craft-ts/core';
+import {
+  cutUnfinishedTail,
+  splitPageReloads,
+  validateDebugSessionExport,
+  type ReplayTailCut,
+} from '@craft-ts/component';
+import { craftExpose, craftService, craftUse } from '@craft-ts/core';
 import {
   after,
+  cancelAfter,
   firstSelectedFile,
   hasFrame,
   hasFrameGrid,
@@ -12,26 +18,25 @@ import {
   renderFrames,
   setFramePlaceholder,
   setTileHidden,
-  cancelAfter,
 } from '../util/replay-browser';
-import { ReplayBridge } from './replay-bridge';
 import {
   isRecord,
-  participantStartAtMs,
   parseLocalTarget,
+  participantStartAtMs,
   REPLAY_QUERY_MARKER,
   replaySessionStartAtMs,
   type ReplayFrameConnection,
 } from '../util/replay-model';
+import { ReplayBridge } from './replay-bridge';
 import { ReplayPlayback } from './replay-playback';
 import {
   canReplaySelectedSession,
   continuations,
   participantTitle,
   recordingClock,
+  rememberAutoSkipDifferences,
   replayParticipantIds,
   ReplayState,
-  rememberAutoSkipDifferences,
   routeSessionId,
   sessionsForReplay,
 } from './replay-state';
@@ -89,11 +94,11 @@ export const { ReplaySession } = craftService(
     function renderReplayFrames(): void {
       if (!hasFrameGrid()) return;
       const participantIds = replayParticipantIds();
-      if (!participantIds.includes(rawReactiveValue(activeReplayParticipantId)() ?? ''))
+      if (!participantIds.includes(craftUse(activeReplayParticipantId()) ?? ''))
         setStates({ activeReplayParticipantId: participantIds[0] });
       renderFrames(
         participantIds.map((participantId) => {
-          const participant = rawReactiveValue(sessionParticipants)().find(
+          const participant = craftUse(sessionParticipants()).find(
             (item) => item.id === participantId,
           );
           return {
@@ -104,7 +109,7 @@ export const { ReplaySession } = craftService(
               participant?.environment?.colorScheme === 'dark'
                 ? 'dark'
                 : 'light',
-            hidden: participantId !== rawReactiveValue(activeReplayParticipantId)(),
+            hidden: participantId !== craftUse(activeReplayParticipantId()),
           };
         }),
         handshake,
@@ -157,11 +162,14 @@ export const { ReplaySession } = craftService(
 
     /** Starts the replay on the next turn, once the tabs it needs are drawn. */
     function scheduleReplayPreparation(): void {
-      const expectedSession = rawReactiveValue(session)();
+      const expectedSession = craftUse(session());
       const expectedRoute = routeSessionId();
       let attempts = 0;
       const prepare = (): void => {
-        if (rawReactiveValue(session)() !== expectedSession || routeSessionId() !== expectedRoute)
+        if (
+          craftUse(session()) !== expectedSession ||
+          routeSessionId() !== expectedRoute
+        )
           return;
         if (!hasFrameGrid()) {
           attempts += 1;
@@ -201,15 +209,16 @@ export const { ReplaySession } = craftService(
           ? Date.parse(archived['createdAt'])
           : undefined;
       registers.loadedArchiveSessionId = id;
-      const participants = rawReactiveValue(sessionParticipants)();
+      const participants = craftUse(sessionParticipants());
       if (
-        (participants.length > 1 || rawReactiveValue(session)()?.truncated) &&
+        (participants.length > 1 || craftUse(session())?.truncated) &&
         replayParticipantIds().length === 0
       ) {
         setStates({
-          status: isRecord(archived) && archived['truncated']
-            ? 'Session tronquée · aucun onglet avec un historique complet ne peut être rejoué.'
-            : 'Session chargée · aucun onglet ne contient d’action rejouable.',
+          status:
+            isRecord(archived) && archived['truncated']
+              ? 'Session tronquée · aucun onglet avec un historique complet ne peut être rejoué.'
+              : 'Session chargée · aucun onglet ne contient d’action rejouable.',
         });
         endReplayLoadingIndicator();
         return;
@@ -218,7 +227,9 @@ export const { ReplaySession } = craftService(
         if (routeSessionId() !== id || registers.loadedArchiveSessionId !== id)
           return;
         if (!canReplaySelectedSession()) {
-          setStates({ status: 'Session chargée · aucun replay fiable à préparer.' });
+          setStates({
+            status: 'Session chargée · aucun replay fiable à préparer.',
+          });
           endReplayLoadingIndicator();
           return;
         }
@@ -263,14 +274,14 @@ export const { ReplaySession } = craftService(
 
     /** A recording that parsed leaves the dialog for the replay page. */
     function openImportedRecording(): void {
-      if (!rawReactiveValue(session)()) return;
+      if (!craftUse(session())) return;
       setStates({ importOpen: false });
       if (!routeSessionId()) showImportedRecording();
     }
 
     function importPastedSession(): void {
       registers.loadedArchiveSessionId = undefined;
-      importJson(rawReactiveValue(sessionText)());
+      importJson(craftUse(sessionText()));
       openImportedRecording();
       scheduleReplayPreparation();
     }
@@ -304,7 +315,7 @@ export const { ReplaySession } = craftService(
       }
       setNextActionCountdown(undefined);
       if (
-        rawReactiveValue(startMode)() === 'snapshot' &&
+        craftUse(startMode()) === 'snapshot' &&
         slices.some((item) => !item.session.snapshots?.length)
       ) {
         endReplayLoadingIndicator();
@@ -346,14 +357,14 @@ export const { ReplaySession } = craftService(
           : {}),
       });
       beginReplayLoadingIndicator();
-      const mode = rawReactiveValue(startMode)();
+      const mode = craftUse(startMode());
       renderReplayFrames();
       prepareReplayVisibilityTimeline();
       listenToReplayBridge(importJson);
       const timelineOriginMs = replaySessionStartAtMs(slices, recordingClock());
       const replayRunId = newUuid();
       const sharedTimeline =
-        rawReactiveValue(selectedParticipantId)() === 'all' && slices.length > 1;
+        craftUse(selectedParticipantId()) === 'all' && slices.length > 1;
       setStates({
         status: sharedTimeline
           ? `Préparation de ${slices.length} onglets…`
@@ -362,7 +373,9 @@ export const { ReplaySession } = craftService(
       for (const { participantId, session: replaySession } of slices) {
         const useRecordedUrl = mode === 'url' || sharedTimeline;
         const target = parseLocalTarget(
-          useRecordedUrl ? replaySession.startUrl : rawReactiveValue(targetUrl)().trim(),
+          useRecordedUrl
+            ? replaySession.startUrl
+            : craftUse(targetUrl()).trim(),
         );
         if (!target.ok || !hasFrame(participantId)) {
           endReplayLoadingIndicator();
@@ -417,7 +430,7 @@ export const { ReplaySession } = craftService(
     }
 
     function stepNextReplayAction(): void {
-      const next = replayableEvents()[rawReactiveValue(replayIndex)()];
+      const next = replayableEvents()[craftUse(replayIndex())];
       if (!next) return;
       const participantId = next.participantId ?? replayParticipantIds()[0];
       if (!participantId) return;
@@ -441,7 +454,7 @@ export const { ReplaySession } = craftService(
 
     /** Stop waiting for the next action: it starts now. Only meaningful while playing. */
     function skipReplayWait(): void {
-      if (rawReactiveValue(replayState)() === 'playing') send('skip-wait');
+      if (craftUse(replayState()) === 'playing') send('skip-wait');
     }
 
     /**
@@ -472,15 +485,15 @@ export const { ReplaySession } = craftService(
       const index = Math.max(0, Math.min(target, replayableEvents().length));
       const continuing =
         !fromStart &&
-        ['ready', 'paused'].includes(rawReactiveValue(replayState)()) &&
-        rawReactiveValue(replayIndex)() <= index &&
-        rawReactiveValue(difference)() === undefined;
+        ['ready', 'paused'].includes(craftUse(replayState())) &&
+        craftUse(replayIndex()) <= index &&
+        craftUse(difference()) === undefined;
       if (!continuing) {
         registers.keepNotesOnStart = true;
         startReplay();
         // `startReplay` refuses to start without slices: then nothing consumed it.
         registers.keepNotesOnStart = false;
-        if (rawReactiveValue(replayState)() !== 'preparing') return;
+        if (craftUse(replayState()) !== 'preparing') return;
       }
       setStates({
         seekTarget: index,
@@ -509,7 +522,9 @@ export const { ReplaySession } = craftService(
         (item) => item.id === eventId,
       );
       if (position < 0) {
-        setStates({ status: 'Cet aperçu ne correspond à aucune action de ce replay.' });
+        setStates({
+          status: 'Cet aperçu ne correspond à aucune action de ce replay.',
+        });
         return false;
       }
       seekReplayToIndex(position + 1, { participantId });
@@ -539,7 +554,7 @@ export const { ReplaySession } = craftService(
      * to it, itself included, has run. An unknown event leaves it in place.
      */
     function seekReplayToRecordedEvent(eventId: string): void {
-      const target = rawReactiveValue(events)().find((event) => event.id === eventId);
+      const target = craftUse(events()).find((event) => event.id === eventId);
       if (!target) return;
       seekReplayToIndex(
         replayableEvents().filter((event) => event.sequence <= target.sequence)
@@ -566,25 +581,25 @@ export const { ReplaySession } = craftService(
 
     /** Stops going to a thumbnail's moment: the replay stays where it got to. */
     function cancelReplaySeek(): void {
-      if (rawReactiveValue(seekTarget)() === undefined) return;
+      if (craftUse(seekTarget()) === undefined) return;
       setStates({
         seekTarget: undefined,
-        status: `Accélération annulée · le replay est à l’étape ${rawReactiveValue(replayIndex)()}.`,
+        status: `Accélération annulée · le replay est à l’étape ${craftUse(replayIndex())}.`,
       });
     }
 
     function settleSeek(): boolean {
-      const target = rawReactiveValue(seekTarget)();
+      const target = craftUse(seekTarget());
       if (target === undefined) return true;
       if (
-        rawReactiveValue(difference)() !== undefined ||
-        ['error', 'completed'].includes(rawReactiveValue(replayState)()) ||
-        rawReactiveValue(replayIndex)() >= target
+        craftUse(difference()) !== undefined ||
+        ['error', 'completed'].includes(craftUse(replayState())) ||
+        craftUse(replayIndex()) >= target
       ) {
         setStates({ seekTarget: undefined });
         if (
-          rawReactiveValue(replayIndex)() >= target &&
-          !['error', 'completed'].includes(rawReactiveValue(replayState)())
+          craftUse(replayIndex()) >= target &&
+          !['error', 'completed'].includes(craftUse(replayState()))
         )
           setStates({
             status: `Replay · arrêté avant l’action ${target + 1}. « Action suivante » l’exécute.`,
@@ -596,14 +611,14 @@ export const { ReplaySession } = craftService(
 
     function driveSeek(): void {
       if (settleSeek()) return;
-      if (!['ready', 'paused'].includes(rawReactiveValue(replayState)())) return;
+      if (!['ready', 'paused'].includes(craftUse(replayState()))) return;
       if (registers.seekStepping) return;
       registers.seekStepping = true;
       stepNextReplayAction();
     }
     seekHooks.drive = driveSeek;
     seekHooks.settle = () => {
-      if (rawReactiveValue(difference)() !== undefined) return;
+      if (craftUse(difference()) !== undefined) return;
       settleSeek();
     };
 
@@ -623,7 +638,7 @@ export const { ReplaySession } = craftService(
     }
 
     function selectParticipant(value: string): void {
-      const participant = rawReactiveValue(sessionParticipants)().find(
+      const participant = craftUse(sessionParticipants()).find(
         (item) => item.id === value,
       );
       const parsed = participant?.startUrl
@@ -643,8 +658,7 @@ export const { ReplaySession } = craftService(
         selectedParticipantId: continuations().get(value) ?? value,
         eventTimelinePage: 0,
         replayIndex: 0,
-        replayViewport:
-          participant?.viewport ?? rawReactiveValue(session)()?.viewport,
+        replayViewport: participant?.viewport ?? craftUse(session())?.viewport,
         ...(parsed?.ok ? { targetUrl: parsed.url.href } : {}),
       });
       renderReplayFrames();
@@ -661,7 +675,7 @@ export const { ReplaySession } = craftService(
 
     /** Asks the replayed page to jump to the next checkpoint it can resume from. */
     function skipToCheckpoint(): void {
-      if (!rawReactiveValue(difference)()?.skip) return;
+      if (!craftUse(difference())?.skip) return;
       rememberAutoSkipDifferences(true);
       setStates({ status: 'Restauration du prochain checkpoint…' });
       if (registers.differenceParticipantId)
@@ -671,9 +685,9 @@ export const { ReplaySession } = craftService(
     /** Asks the replayed page for the session it captured, to open and download it. */
     function exportTarget(): void {
       const participantId =
-        rawReactiveValue(selectedParticipantId)() === 'all'
+        craftUse(selectedParticipantId()) === 'all'
           ? replayParticipantIds()[0]
-          : rawReactiveValue(selectedParticipantId)();
+          : craftUse(selectedParticipantId());
       if (participantId) send('export', {}, participantId);
       setStates({ status: 'Export demandé à l’application cible…' });
     }
@@ -710,7 +724,8 @@ export const { ReplaySession } = craftService(
 );
 
 const TAIL_CUT_REASONS: Record<ReplayTailCut['reason'], string> = {
-  'missing-result': 'une opération n’a jamais reçu de résultat (onglet fermé en pleine requête ?)',
+  'missing-result':
+    'une opération n’a jamais reçu de résultat (onglet fermé en pleine requête ?)',
   'page-reload': 'la page a été rechargée',
   'reload-requested': 'l’app a demandé un rechargement',
 };
@@ -719,4 +734,3 @@ const TAIL_CUT_REASONS: Record<ReplayTailCut['reason'], string> = {
 export function describeTailCut(cut: ReplayTailCut): string {
   return `fin non rejouée : ${cut.droppedSteps} action${cut.droppedSteps > 1 ? 's' : ''} sur ${cut.keptSteps + cut.droppedSteps}, ${TAIL_CUT_REASONS[cut.reason]}`;
 }
-

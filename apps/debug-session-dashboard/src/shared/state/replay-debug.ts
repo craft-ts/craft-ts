@@ -1,12 +1,20 @@
 import {
   buildDebugAppSnapshot,
-  CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM,
   CRAFT_DEBUG_SNAPSHOT_QUERY_PARAM,
+  CRAFT_GUIDED_RESUME_REQUEST_QUERY_PARAM,
   type DebugAppSnapshot,
 } from '@craft-ts/component';
-import { craftExpose, craftService, rawReactiveValue } from '@craft-ts/core';
-import { newUuid, onWindowMessage, openLinkedTab } from '../util/replay-browser';
-import { isRecord, parseLocalTarget, REPLAY_CHANNEL } from '../util/replay-model';
+import { craftExpose, craftService, craftUse } from '@craft-ts/core';
+import {
+  newUuid,
+  onWindowMessage,
+  openLinkedTab,
+} from '../util/replay-browser';
+import {
+  isRecord,
+  parseLocalTarget,
+  REPLAY_CHANNEL,
+} from '../util/replay-model';
 import {
   replayParticipantIds,
   ReplayState,
@@ -127,7 +135,7 @@ export const { ReplayDebug } = craftService(
         setStatus('Aucune session à ouvrir en mode debug.');
         return;
       }
-      const target = parseLocalTarget(rawReactiveValue(targetUrl)().trim());
+      const target = parseLocalTarget(craftUse(targetUrl()).trim());
       if (!target.ok) {
         setStatus(target.error);
         return;
@@ -161,7 +169,7 @@ export const { ReplayDebug } = craftService(
         setStatus('Aucune session à ouvrir pour la reprise guidée.');
         return { url: '', opened: false, tab: null };
       }
-      const target = parseLocalTarget(rawReactiveValue(targetUrl)().trim());
+      const target = parseLocalTarget(craftUse(targetUrl()).trim());
       if (!target.ok) {
         setStatus(target.error);
         return { url: '', opened: false, tab: null };
@@ -217,8 +225,9 @@ export const { ReplayDebug } = craftService(
       beforeSequence?: number;
       participantId?: string;
     }> {
-      const next = replayableEvents()[rawReactiveValue(replayIndex)()];
-      const participantId = next?.participantId ?? rawReactiveValue(activeReplayParticipantId)();
+      const next = replayableEvents()[craftUse(replayIndex())];
+      const participantId =
+        next?.participantId ?? craftUse(activeReplayParticipantId());
       return {
         ...(next?.sequence === undefined
           ? {}
