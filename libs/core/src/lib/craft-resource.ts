@@ -63,6 +63,15 @@ export function craftResource<Value, Params>(
   };
 
   const startLoad = (params: Params, reload: boolean): void => {
+    // A sibling resource can publish its reset before this resource's own
+    // cleanup runs. No new work belongs to an injector tree being destroyed.
+    for (
+      let owner: Injector | null | undefined = injector;
+      owner;
+      owner = owner.ɵparent
+    ) {
+      if (owner.destroyed) return;
+    }
     abortController?.abort();
     stopStream?.();
     stopStream = undefined;
