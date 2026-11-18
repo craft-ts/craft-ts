@@ -3,6 +3,9 @@ import { craftException } from './craft-exception';
 import { craftMethod } from './craft-method';
 import { craftService } from './craft-service';
 import { query } from './query';
+import { mutation } from './mutation';
+import { craftUse } from './craft-use';
+import { CraftHttpClient } from './craft-http-client';
 import {
   ɵbehaviorTarget,
   ɵprovideBehaviorProofRecording,
@@ -68,6 +71,38 @@ describe('behaviour proof recording', () => {
   afterEach(() => {
     ɵstopBehaviorProofRecording();
     unregister();
+  });
+
+  it('observes a prepared HTTP loader without executing its thenable twice', async () => {
+    const fetchRequest = vi.fn(
+      async () => new Response(JSON.stringify({ applied: true })),
+    );
+    vi.stubGlobal('fetch', fetchRequest);
+    try {
+      ɵstartBehaviorProofRecording();
+      const operation = CraftTestBed.runInInjectionContext(() =>
+        craftUse(
+          mutation('apply', {
+            method: (value: number) => value,
+            loader: function* () {
+              return yield* CraftHttpClient.post(({ response }) => ({
+                url: '/apply',
+                payload: {},
+                success: response<{ applied: boolean }>(),
+              }));
+            },
+          }),
+        ),
+      );
+      craftUse(operation.mutate(1));
+      await vi.waitFor(() =>
+        expect(craftUse(operation.status())).toBe('resolved'),
+      );
+      expect(fetchRequest).toHaveBeenCalledTimes(1);
+      expect(craftUse(operation.value())).toEqual({ applied: true });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('records each settled invocation once, by its address, never the host being built', () => {

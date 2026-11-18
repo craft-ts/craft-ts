@@ -212,15 +212,20 @@ const behaviorProofFnWrapper: FnWrapper = function* (factory, thisArg, args) {
         if (!alreadySucceeded) session.steps.delete(succeeded);
         record();
       };
-      result.then(
+      // Normalize a lazy thenable once and return the observed promise.
+      // Observing it and returning the original request executes it twice.
+      return Promise.resolve(result).then(
         (value) => {
           if (isCraftException(value))
             fail(() => settle(value, entry?.assertionsBefore));
+          return value;
         },
-        (error: unknown) =>
+        (error: unknown) => {
           fail(() =>
             recordFailure(key, behavior, error, entry?.assertionsBefore),
-          ),
+          );
+          throw error;
+        },
       );
     }
     return result;
