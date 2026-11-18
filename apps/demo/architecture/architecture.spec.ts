@@ -164,6 +164,11 @@ describe('demo architecture', () => {
           name: 'searchInput',
           file: 'apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts',
         },
+        {
+          // Teaches binding local state into a function-scoped service.
+          name: 'userId',
+          file: 'apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts',
+        },
       ],
     });
   });

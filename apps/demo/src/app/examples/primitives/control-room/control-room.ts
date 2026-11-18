@@ -61,14 +61,30 @@ const UNIT_LABELS: Readonly<
 export const { ControlRoomView, provideControlRoomView } = craftService(
   { name: 'controlRoomView', providedIn: 'toProvide' },
   function* () {
-    const activity = yield* state('activity', 0, ({ update }) => ({
-      record: () => update((count) => count + 1),
-    }));
+    const activity = yield* state('activity', 0, ({ update }) => {
+      const record = () => update((count) => count + 1);
+      return {
+        gaugeDecremented: record,
+        gaugeIncremented: record,
+        gaugeReset: record,
+        switchToggled: record,
+        sliderMoved: record,
+        textEdited: record,
+        ratingChanged: record,
+        disclosureToggled: record,
+        tabSelected: record,
+        stepperMovedBack: record,
+        stepperAdvanced: record,
+        colorChosen: record,
+        checklistToggled: record,
+      };
+    });
     const compact = yield* state('compact', false, ({ update }) => ({
       toggle: () => update((value) => !value),
     }));
     yield* state('units', 'metric' as Units, ({ set }) => ({
-      setUnits: (units: Units) => set(units),
+      chooseMetric: () => set('metric'),
+      chooseImperial: () => set('imperial'),
     }));
     yield* craftComputed('activityLabel', function* () {
       const count = yield* activity();
@@ -139,7 +155,7 @@ const Gauge = craftComponent(
               'data-variant': 'secondary',
               *click() {
                 yield* ControlRoomGaugeView.offset.decrement();
-                yield* ControlRoomView.activity.record();
+                yield* ControlRoomView.activity.gaugeDecremented();
               },
             },
             '−',
@@ -152,7 +168,7 @@ const Gauge = craftComponent(
               'data-variant': 'secondary',
               *click() {
                 yield* ControlRoomGaugeView.offset.increment();
-                yield* ControlRoomView.activity.record();
+                yield* ControlRoomView.activity.gaugeIncremented();
               },
             },
             '+',
@@ -165,7 +181,7 @@ const Gauge = craftComponent(
               'data-variant': 'link',
               *click() {
                 yield* ControlRoomGaugeView.offset.reset();
-                yield* ControlRoomView.activity.record();
+                yield* ControlRoomView.activity.gaugeReset();
               },
             },
             'Reset',
@@ -209,7 +225,7 @@ const Switch = craftComponent(
           'aria-checked': ControlRoomSwitchView.checked,
           *click() {
             yield* ControlRoomSwitchView.on.toggle();
-            yield* ControlRoomView.activity.record();
+            yield* ControlRoomView.activity.switchToggled();
           },
         },
         [inputs.name, ': ', ControlRoomSwitchView.stateLabel],
@@ -253,7 +269,7 @@ const Slider = craftComponent(
           yield* ControlRoomSliderView.position.moveTo(
             Number(eventValue(event)),
           );
-          yield* ControlRoomView.activity.record();
+          yield* ControlRoomView.activity.sliderMoved();
         },
       }),
       small({ class: example.text, 'data-exampleText': 'error' }, function* () {
@@ -296,7 +312,7 @@ const TextField = craftComponent(
         value: ControlRoomTextFieldView.text,
         *input(event) {
           yield* ControlRoomTextFieldView.text.setText(eventValue(event));
-          yield* ControlRoomView.activity.record();
+          yield* ControlRoomView.activity.textEdited();
         },
       }),
       small({ class: example.hint }, ControlRoomTextFieldView.remaining),
@@ -347,7 +363,7 @@ const Rating = craftComponent(
               },
               *click() {
                 yield* ControlRoomRatingView.stars.rate(yield* star());
-                yield* ControlRoomView.activity.record();
+                yield* ControlRoomView.activity.ratingChanged();
               },
             },
             function* () {
@@ -395,7 +411,7 @@ const Disclosure = craftComponent(
           'aria-expanded': ControlRoomDisclosureView.expanded,
           *click() {
             yield* ControlRoomDisclosureView.open.toggle();
-            yield* ControlRoomView.activity.record();
+            yield* ControlRoomView.activity.disclosureToggled();
           },
         },
         inputs.topic,
@@ -454,7 +470,7 @@ const Tabs = craftComponent(
               },
               *click() {
                 yield* ControlRoomTabsView.active.select(yield* tab());
-                yield* ControlRoomView.activity.record();
+                yield* ControlRoomView.activity.tabSelected();
               },
             },
             tab,
@@ -522,7 +538,7 @@ const Stepper = craftComponent(
             disabled: ControlRoomStepperView.atStart,
             *click() {
               yield* ControlRoomStepperView.step.goBack();
-              yield* ControlRoomView.activity.record();
+              yield* ControlRoomView.activity.stepperMovedBack();
             },
           },
           'Back',
@@ -536,7 +552,7 @@ const Stepper = craftComponent(
             disabled: ControlRoomStepperView.atEnd,
             *click() {
               yield* ControlRoomStepperView.step.advance();
-              yield* ControlRoomView.activity.record();
+              yield* ControlRoomView.activity.stepperAdvanced();
             },
           },
           'Next',
@@ -583,7 +599,7 @@ const ColorChooser = craftComponent(
             },
             *click() {
               yield* ControlRoomColorChooserView.chosen.choose(yield* color());
-              yield* ControlRoomView.activity.record();
+              yield* ControlRoomView.activity.colorChosen();
             },
           }),
         ),
@@ -646,7 +662,7 @@ const Checklist = craftComponent(
               },
               *click() {
                 yield* ControlRoomChecklistView.done.toggle(yield* task());
-                yield* ControlRoomView.activity.record();
+                yield* ControlRoomView.activity.checklistToggled();
               },
             },
             task,
@@ -817,7 +833,7 @@ const ControlRoom = craftComponent(
               class: buttonUi.root,
               'data-variant': 'secondary',
               *click() {
-                yield* ControlRoomView.units.setUnits('metric');
+                yield* ControlRoomView.units.chooseMetric();
               },
             },
             'Metric',
@@ -829,7 +845,7 @@ const ControlRoom = craftComponent(
               class: buttonUi.root,
               'data-variant': 'secondary',
               *click() {
-                yield* ControlRoomView.units.setUnits('imperial');
+                yield* ControlRoomView.units.chooseImperial();
               },
             },
             'Imperial',
