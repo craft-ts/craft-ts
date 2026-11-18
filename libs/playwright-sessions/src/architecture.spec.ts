@@ -47,6 +47,15 @@ function history(root: string, app: string, id: string, project = 'chromium', op
 }
 
 describe('assertE2eSessionContract', () => {
+  it('includes the child process diagnostic when Playwright cannot load a config', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'craft-listing-error-'));
+    roots.push(root);
+    const config = join(root, 'playwright.config.ts');
+    writeFileSync(config, "throw new Error('listing-config-regression');\n");
+    await expect(assertE2eSessionContract({ configs: [config], workspaceRoot: process.cwd() }))
+      .rejects.toThrow('listing-config-regression');
+  }, 30_000);
+
   it('accepts the demonstration fixture and Playwright project', async () => {
     await expect(assertE2eSessionContract({ configs: ['libs/playwright-sessions/playwright.config.ts'], workspaceRoot: process.cwd() }))
       .resolves.toEqual({ warnings: [] });
