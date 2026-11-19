@@ -1,5 +1,5 @@
 import { Observable, from } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import {
   CraftTestBed as TestBed,
   asyncProcess,
@@ -43,7 +43,6 @@ import {
   toSubscribable,
   type CraftStream,
 } from '../index';
-import type { Equal, Expect } from 'test-type';
 
 type Boom = CraftException<{ _tag: 'Boom'; scope: undefined }, { why: string }>;
 type Bang = CraftException<
@@ -311,7 +310,7 @@ describe('resource method streams', () => {
           query('streamTriggeredQuery', {
             method: stream,
             loader: async ({ params }) => {
-              type ParamsAreNumber = Expect<Equal<typeof params, number>>;
+              expectTypeOf(params).toEqualTypeOf<number>();
               loaded.push(params);
               return { value: params };
             },
@@ -341,7 +340,7 @@ describe('resource method streams', () => {
           mutation('streamTriggeredMutation', {
             method: fromSubscribable(source),
             loader: async ({ params }) => {
-              type ParamsAreNumber = Expect<Equal<typeof params, number>>;
+              expectTypeOf(params).toEqualTypeOf<number>();
               loaded.push(params);
               return { value: params };
             },
@@ -366,7 +365,7 @@ describe('resource method streams', () => {
           asyncProcess('streamTriggeredAsyncProcess', {
             method: fromSubscribable(source),
             loader: async ({ params }) => {
-              type ParamsAreNumber = Expect<Equal<typeof params, number>>;
+              expectTypeOf(params).toEqualTypeOf<number>();
               loaded.push(params);
               return { value: params };
             },

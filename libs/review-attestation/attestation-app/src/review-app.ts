@@ -1,4 +1,3 @@
-import { deepYieldable } from '@craft-ts/core';
 import {
   a,
   article,
@@ -34,15 +33,18 @@ import { ReviewDecisionPanel } from './review-decision-panel';
 import { ReviewTemplateEvidence } from './review-template-evidence';
 import { ReviewLiveEvidence } from './review-live-evidence';
 
-import { scenarioOf } from './card-presentation';
 import { notice, reviewBits, reviewCard } from './review-card.style';
 import { shell } from './review-shell.style';
 
 export const ReviewApp = craftComponent('ReviewApp', {}, function* () {
-  const { locale } = yield* ReviewPreferences(
-    undefined,
-    ({ locale }) => ({ locale }),
-  );
+  // This root fans the model's reactive sources out to several independently
+  // rendered panels. Keep the shared bindings here so those panels receive the
+  // same service values and actions.
+  // eslint-disable-next-line craft-ts/no-component-service-binding
+  const { locale } = yield* ReviewPreferences(undefined, ({ locale }) => ({
+    locale,
+  }));
+  // eslint-disable-next-line craft-ts/no-component-service-binding
   const {
     themeAttribute,
     noteState,
@@ -172,7 +174,6 @@ export const ReviewApp = craftComponent('ReviewApp', {}, function* () {
   } = yield* ReviewAppModel();
   // Exposed through the service, the collection loses its deep brand at the
   // type level; the runtime root is already deep, so this only restores it.
-  const activeCards = deepYieldable(activeCardForPanel);
   return div({ class: reviewTheme.root, 'data-reviewTheme': themeAttribute }, [
     ifNode(reviewFailed, () =>
       section('ReviewQueueError', { class: notice.root, role: 'alert' }, [
@@ -345,151 +346,152 @@ export const ReviewApp = craftComponent('ReviewApp', {}, function* () {
                 t,
               }),
             ),
-            forNode(activeCards, { track: (card) => card.shape }, (card) =>
-              article(
-                {
-                  class: reviewCard.card,
-                  'data-testid': 'review-card',
-                  'data-kind': card.kind,
-                },
-                [
-                  header(
-                    {
-                      class: [reviewCard.heading, reviewCard.fullRow],
-                      'data-testid': 'review-heading',
-                    },
-                    [
-                      div([
-                        small({ class: reviewBits.eyebrow }, function* () {
-                          return (yield* t()).scenario;
-                        }),
-                        heading(function* () {
-                          return scenarioOf(yield* card.subject());
-                        }),
-                        span(
-                          {
-                            class: reviewBits.subject,
-                            'data-testid': 'subject',
-                          },
-                          activeSubjectLabel,
-                        ),
-                        a(
-                          'cardSource',
-                          {
-                            class: reviewBits.sourceLink,
-                            'data-navigation': 'external',
-                            'data-testid': 'source-link',
-                            href: function* () {
-                              return safeUrl(yield* activeSourceUrl());
+            forNode(
+              activeCardForPanel,
+              { track: (card) => card.shape },
+              (card) =>
+                article(
+                  {
+                    class: reviewCard.card,
+                    'data-testid': 'review-card',
+                    'data-kind': card.kind,
+                  },
+                  [
+                    header(
+                      {
+                        class: [reviewCard.heading, reviewCard.fullRow],
+                        'data-testid': 'review-heading',
+                      },
+                      [
+                        div([
+                          small({ class: reviewBits.eyebrow }, function* () {
+                            return (yield* t()).scenario;
+                          }),
+                          heading(card.scenario),
+                          span(
+                            {
+                              class: reviewBits.subject,
+                              'data-testid': 'subject',
                             },
-                            hidden: sourceLinkHidden,
-                          },
-                          function* () {
-                            return (yield* t()).openInIde;
-                          },
-                        ),
-                      ]),
-                      span({ class: reviewCard.reason }, activeReasonLabel),
-                    ],
-                  ),
-                  p(
-                    {
-                      class: [notice.root, reviewCard.fullRow],
-                      'data-reviewNotice': 'cluster',
-                      hidden: function* () {
-                        return (yield* card.cluster()).length <= 1;
-                      },
-                    },
-                    function* () {
-                      return (yield* t()).clusterNotice(
-                        (yield* card.cluster()).length,
-                      );
-                    },
-                  ),
-                  section(
-                    {
-                      class: [reviewCard.members, reviewCard.fullRow],
-                      hidden: function* () {
-                        return (yield* card.members()).length <= 1;
-                      },
-                    },
-                    [
-                      heading(clusterMembersLabel),
-                      ul(
-                        { class: reviewBits.list },
-                        forNode(
-                          card.members,
-                          { track: (member) => member.subject },
-                          (member) =>
-                            li(function* () {
-                              return scenarioOf((yield* member()).subject);
-                            }),
-                        ),
-                      ),
-                    ],
-                  ),
-                  div({ class: reviewCard.evidence }, [
-                    headingSection(
-                      ReviewTemplateEvidence({
-                        card,
-                        sourceDetail: sourceDetail.value,
-                        fileUrl,
-                        t,
-                        locale,
-                      }),
+                            activeSubjectLabel,
+                          ),
+                          a(
+                            'cardSource',
+                            {
+                              class: reviewBits.sourceLink,
+                              'data-navigation': 'external',
+                              'data-testid': 'source-link',
+                              href: function* () {
+                                return safeUrl(yield* activeSourceUrl());
+                              },
+                              hidden: sourceLinkHidden,
+                            },
+                            function* () {
+                              return (yield* t()).openInIde;
+                            },
+                          ),
+                        ]),
+                        span({ class: reviewCard.reason }, activeReasonLabel),
+                      ],
                     ),
+                    p(
+                      {
+                        class: [notice.root, reviewCard.fullRow],
+                        'data-reviewNotice': 'cluster',
+                        hidden: function* () {
+                          return (yield* card.cluster()).length <= 1;
+                        },
+                      },
+                      function* () {
+                        return (yield* t()).clusterNotice(
+                          (yield* card.cluster()).length,
+                        );
+                      },
+                    ),
+                    section(
+                      {
+                        class: [reviewCard.members, reviewCard.fullRow],
+                        hidden: function* () {
+                          return (yield* card.members()).length <= 1;
+                        },
+                      },
+                      [
+                        heading(clusterMembersLabel),
+                        ul(
+                          { class: reviewBits.list },
+                          forNode(
+                            card.members,
+                            { track: (member) => member.subject },
+                            (member) =>
+                              li(function* () {
+                                return (yield* member()).scenario;
+                              }),
+                          ),
+                        ),
+                      ],
+                    ),
+                    div({ class: reviewCard.evidence }, [
+                      headingSection(
+                        ReviewTemplateEvidence({
+                          card,
+                          sourceDetail: sourceDetail.value,
+                          fileUrl,
+                          t,
+                          locale,
+                        }),
+                      ),
+                      headingSection(
+                        ReviewLiveEvidence({
+                          card,
+                          current,
+                          t,
+                          bypassEvidence,
+                          folderLayoutEvidence,
+                          visualEvidence,
+                          showingReplay,
+                          replay,
+                          canReplay,
+                          inspectFailed,
+                          fellBack,
+                          fidelitySentence,
+                          band,
+                          overlayHint,
+                          overlayLabel,
+                          chrome,
+                          hideChrome,
+                          toggleChrome,
+                          zoom,
+                          changeZoomFromEvent,
+                          member,
+                          coveredCount,
+                          inspectFrame,
+                          chooseReplay: evidenceView.chooseReplay,
+                          chooseImage: evidenceView.chooseImage,
+                        }),
+                      ),
+                    ]),
                     headingSection(
-                      ReviewLiveEvidence({
+                      ReviewDecisionPanel({
                         card,
                         current,
                         t,
-                        bypassEvidence,
-                        folderLayoutEvidence,
-                        visualEvidence,
-                        showingReplay,
-                        replay,
-                        canReplay,
-                        inspectFailed,
-                        fellBack,
-                        fidelitySentence,
-                        band,
-                        overlayHint,
-                        overlayLabel,
-                        chrome,
-                        hideChrome,
-                        toggleChrome,
-                        zoom,
-                        changeZoomFromEvent,
-                        member,
-                        coveredCount,
-                        inspectFrame,
-                        chooseReplay: evidenceView.chooseReplay,
-                        chooseImage: evidenceView.chooseImage,
+                        degraded,
+                        selection,
+                        noteState,
+                        rejectionReasonMissing,
+                        handleNoteInput,
+                        previewMentionFromEvent,
+                        previewMention,
+                        rememberCaret,
+                        pasteReasonText,
+                        isDeciding: decision.isLoading,
+                        retire,
+                        decide,
+                        hasNote,
                       }),
                     ),
-                  ]),
-                  headingSection(
-                    ReviewDecisionPanel({
-                      card,
-                      current,
-                      t,
-                      degraded,
-                      selection,
-                      noteState,
-                      rejectionReasonMissing,
-                      handleNoteInput,
-                      previewMentionFromEvent,
-                      previewMention,
-                      rememberCaret,
-                      pasteReasonText,
-                      isDeciding: decision.isLoading,
-                      retire,
-                      decide,
-                      hasNote,
-                    }),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ),
           ],
         ),

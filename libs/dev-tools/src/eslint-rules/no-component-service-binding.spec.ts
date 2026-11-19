@@ -56,6 +56,23 @@ describe('no-component-service-binding', () => {
     expect(messages).toEqual([]);
   });
 
+  it('allows query values to be bound in the component factory', async () => {
+    const messages = await lintText(`
+      import { craftComponent } from '@craft-ts/component';
+      import { query } from '@craft-ts/core';
+
+      craftComponent('Home', {}, function* () {
+        const welcomeQuery = yield* query('welcome', {
+          params: () => true,
+          loader: loadWelcome,
+        });
+        return p(function* () { return yield* welcomeQuery.value(); });
+      });
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('ignores ordinary aliases and nested component factories', async () => {
     const messages = await lintText(`
       import { craftComponent } from '@craft-ts/component';

@@ -93,7 +93,7 @@ describe('architecture migration', () => {
         join(root, 'architecture/rules/lazy-route-imports.spec.ts'),
         'utf8',
       ),
-    ).toContain("entryPoints: ['main.ts']");
+    ).toContain("entryPoints: ['src/main.ts']");
     expect(
       existsSync(join(root, 'architecture/rules/mutation-react-on.spec.ts')),
     ).toBe(true);
@@ -134,6 +134,11 @@ describe('architecture migration', () => {
     expect(existsSync(join(root, 'tsconfig.graph.json'))).toBe(true);
     expect(existsSync(join(root, 'tsconfig.architecture.json'))).toBe(true);
     expect(existsSync(join(root, 'vitest.architecture.config.ts'))).toBe(true);
+    expect(
+      JSON.parse(
+        await readFile(join(root, 'tsconfig.graph.json'), 'utf8'),
+      ).files,
+    ).toEqual([]);
 
     const packageJson = JSON.parse(
       await readFile(join(root, 'package.json'), 'utf8'),

@@ -9,78 +9,46 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, craftUse } from '@craft-ts/core';
 import { DocIcon, DocSwitch, DocTooltip } from '@craft-ts/ui';
 import { buttonUi, iconButtonUi } from '@craft-ts/ui/style';
 import { ReplayDebug } from '../../../shared/state/replay-debug';
 import { ReplaySession } from '../../../shared/state/replay-session';
 import {
   activeReplayEventId,
+  eventTimelinePage,
   eventTimelinePageCount,
   ReplayState,
+  showAllEvents,
   visibleEventPage,
 } from '../../../shared/state/replay-state';
 import { ui } from '../../../shared/ui/dashboard.style';
 import { i18n } from '../../../shared/util/catalog';
-import {
-  eventElapsedLabel,
-  journalSummary,
-} from '../../../shared/util/replay-labels';
+import { eventElapsedLabel } from '../../../shared/util/replay-labels';
 import {
   eventDiagnosticLabel,
   eventSeverity,
 } from '../../../shared/util/replay-model';
 import { lit } from '../../../shared/util/view-helpers';
 import { ReplayOrchestration } from './replay-orchestration';
-
-/**
- * `DocSwitch` hands its `toggle` the state it asks for. The prop shares its
- * name with the DOM `toggle` event, so the type of a handler admits the event
- * as well; only the boolean is ever sent.
- */
-function showAllEventsSwitch(
-  next: boolean | Event,
-  setShowAllEvents: (next: boolean) => void,
-): void {
-  if (typeof next === 'boolean') setShowAllEvents(next);
-}
+import { ReplaySidePanelViewModel } from './replay-side-panel-view-model.service';
 
 /** The journal: the errors of the recording, or every event, a page at a time. */
 export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
-  const replayDebug = yield* ReplayDebug();
-  const replaySession = yield* ReplaySession();
-  const { eventTimelinePage, setStates, showAllEvents } = (yield* ReplayState())
-    .imperative;
-  const journalSummaryText = yield* craftComputed(
-    'journalSummaryText',
-    journalSummary,
-  );
-  const pagerHidden = yield* craftComputed(
-    'pagerHidden',
-    () => eventTimelinePageCount() <= 1,
-  );
-  const previousDisabled = yield* craftComputed(
-    'previousDisabled',
-    function* () {
-      return (yield* eventTimelinePage()) === 0;
-    },
-  );
-  const pageLabel = yield* craftComputed('pageLabel', function* () {
-    return `${(yield* eventTimelinePage()) + 1} / ${eventTimelinePageCount()}`;
-  });
-  const nextDisabled = yield* craftComputed('nextDisabled', function* () {
-    return (yield* eventTimelinePage()) + 1 >= eventTimelinePageCount();
-  });
-
   const filter = div({ class: ui.pager }, [
-    p(journalSummaryText),
+    p(function* () {
+      return yield* (yield* ReplaySidePanelViewModel()).journalSummaryText();
+    }),
     DocSwitch({
       label: lit('Tout afficher'),
       controlId: lit('journal-all'),
-      on: showAllEvents,
+      on: function* () {
+        return showAllEvents();
+      },
       disabled: lit(false),
-      toggle: (next: boolean | Event) =>
-        showAllEventsSwitch(next, replaySession.setShowAllEvents),
+      toggle: function* (next: boolean | Event) {
+        if (typeof next === 'boolean')
+          (yield* ReplaySession()).setShowAllEvents(next);
+      },
     }),
   ]);
 
@@ -101,7 +69,10 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
             'aria-describedby': tipId,
             click: function* () {
               const item = yield* event();
-              replayDebug.launchDebugApp(item.sequence, item.participantId);
+              (yield* ReplayDebug()).launchDebugApp(
+                item.sequence,
+                item.participantId,
+              );
             },
           },
           DocIcon({ name: lit('external'), size: lit('sm') }),
@@ -152,7 +123,9 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
   const pager = div(
     {
       class: ui.pager,
-      hidden: pagerHidden,
+      hidden: function* () {
+        return yield* (yield* ReplaySidePanelViewModel()).pagerHidden();
+      },
     },
     [
       button(
@@ -161,29 +134,37 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'link',
-          disabled: previousDisabled,
-          click: () =>
-            setStates({
-              eventTimelinePage: Math.max(0, craftUse(eventTimelinePage()) - 1),
-            }),
+          disabled: function* () {
+            return yield* (yield* ReplaySidePanelViewModel()).previousDisabled();
+          },
+          click: function* () {
+            (yield* ReplayState()).imperative.setStates({
+              eventTimelinePage: Math.max(0, eventTimelinePage() - 1),
+            });
+          },
         },
         i18n.t('copy.copy066'),
       ),
-      span(pageLabel),
+      span(function* () {
+        return yield* (yield* ReplaySidePanelViewModel()).pageLabel();
+      }),
       button(
         'nextTimelinePage',
         {
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'link',
-          disabled: nextDisabled,
-          click: () =>
-            setStates({
+          disabled: function* () {
+            return yield* (yield* ReplaySidePanelViewModel()).nextDisabled();
+          },
+          click: function* () {
+            (yield* ReplayState()).imperative.setStates({
               eventTimelinePage: Math.min(
                 eventTimelinePageCount() - 1,
-                craftUse(eventTimelinePage()) + 1,
+                eventTimelinePage() + 1,
               ),
-            }),
+            });
+          },
         },
         i18n.t('copy.copy067'),
       ),

@@ -92,6 +92,19 @@ function isInsideI18nDefinition(node) {
   return false;
 }
 
+function isInsidePaletteDefinition(node) {
+  for (let current = node.parent; current; current = current.parent) {
+    if (
+      current.type === 'CallExpression' &&
+      current.callee.type === 'Identifier' &&
+      current.callee.name === 'definePalette'
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isInsideTranslationCall(node) {
   let current = node.parent;
   while (current) {
@@ -334,6 +347,7 @@ module.exports = {
         if (
           node.computed ||
           isInsideTranslationCall(node) ||
+          isInsidePaletteDefinition(node) ||
           !((node.key.type === 'Identifier' &&
             DISPLAY_TEXT_PROPERTIES.has(node.key.name)) ||
             (node.key.type === 'Literal' &&

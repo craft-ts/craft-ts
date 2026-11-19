@@ -115,4 +115,47 @@ describe('ControlRoom', () => {
     expect(next.disabled).toBe(true);
     mounted.destroy();
   });
+
+  it('proves every remaining instrument action through the page', () => {
+    const { element, mounted } = mount();
+
+    buttonByText(element, '−').click();
+    CraftTestBed.tick();
+    expect(element.textContent).toContain('63 °C');
+
+    element.querySelector<HTMLButtonElement>('[role="checkbox"]')!.click();
+    CraftTestBed.tick();
+    expect(
+      element.querySelector('[role="checkbox"]')?.getAttribute('aria-checked'),
+    ).toBe('true');
+
+    element.querySelector<HTMLButtonElement>('[aria-label="Choose #ef4444"]')!.click();
+    CraftTestBed.tick();
+    expect(element.textContent).toContain('Signal colour #ef4444');
+
+    element
+      .querySelector<HTMLButtonElement>('[data-testid="control-room-disclosure"]')!
+      .click();
+    CraftTestBed.tick();
+    expect(element.textContent).toContain(
+      'Open the feed, purge, then light the pilot.',
+    );
+
+    buttonByText(element, 'Next').click();
+    CraftTestBed.tick();
+    buttonByText(element, 'Back').click();
+    CraftTestBed.tick();
+    expect(element.textContent).toContain('Step 1 of 4');
+
+    const field = element.querySelector<HTMLInputElement>('input[type="text"]')!;
+    field.value = 'Shift A';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    CraftTestBed.tick();
+    expect(element.textContent).toContain('17 characters left');
+
+    element.querySelector<HTMLButtonElement>('[aria-label="Rate 5"]')!.click();
+    CraftTestBed.tick();
+    expect(element.textContent).toContain('5 / 5');
+    mounted.destroy();
+  });
 });

@@ -12,7 +12,12 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftService, craftComputed, craftUse, craftExpose } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  craftUse,
+  craftExpose,
+} from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   loadUserProfile,
@@ -30,13 +35,19 @@ export const { EffectYieldView, provideEffectYieldView } = craftService(
         loader: ({ params }) => loadUserProfile(params),
       },
       ({ resource }) => ({
-        hasProfile: craftUse(craftComputed('hasProfile', () => resource.hasValue())),
-        profileName: craftUse(craftComputed('profileName', function* () {
-          return (yield* resource.value())?.name ?? '…';
-        })),
-        headingText: craftUse(craftComputed('headingText', function* () {
-          return `View a profile (${yield* resource.status()})`;
-        })),
+        hasProfile: craftUse(
+          craftComputed('hasProfile', () => resource.hasValue()),
+        ),
+        profileName: craftUse(
+          craftComputed('profileName', function* () {
+            return (yield* resource.value())?.name ?? '…';
+          }),
+        ),
+        headingText: craftUse(
+          craftComputed('headingText', function* () {
+            return `View a profile (${yield* resource.status()})`;
+          }),
+        ),
       }),
     );
 
@@ -52,9 +63,10 @@ const EffectYieldComponent = craftComponent(
     providers: [provideEffectYieldView()],
   },
   function* () {
-    const { headingText, profileQuery } = yield* EffectYieldView();
     return div({ class: example.card }, [
-      heading({ class: example.title }, headingText),
+      heading({ class: example.title }, function* () {
+        return (yield* EffectYieldView()).headingText;
+      }),
       p(
         { class: example.intro },
         'A support team looks up a user profile. The four buttons represent the possible outcomes of a business operation: profile found, profile missing, session expired, or a technical outage.',
@@ -66,7 +78,7 @@ const EffectYieldComponent = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              yield* profileQuery.call('success');
+              yield* (yield* EffectYieldView()).profileQuery.call('success');
             },
           },
           'Profile available',
@@ -77,7 +89,7 @@ const EffectYieldComponent = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              yield* profileQuery.call('not-found');
+              yield* (yield* EffectYieldView()).profileQuery.call('not-found');
             },
           },
           'Profile not found',
@@ -88,7 +100,9 @@ const EffectYieldComponent = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              yield* profileQuery.call('session-expired');
+              yield* (yield* EffectYieldView()).profileQuery.call(
+                'session-expired',
+              );
             },
           },
           'Session expired',
@@ -99,7 +113,9 @@ const EffectYieldComponent = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              yield* profileQuery.call('database-down');
+              yield* (yield* EffectYieldView()).profileQuery.call(
+                'database-down',
+              );
             },
           },
           'Database outage',
@@ -107,31 +123,49 @@ const EffectYieldComponent = craftComponent(
       ]),
       div({ class: example.panel }, [
         p({ class: example.panelTitle }, 'Lookup result'),
-        ifNode(profileQuery.isLoading, () => p('Looking up…')),
         ifNode(
-          profileQuery.hasProfile,
+          'profile-loading',
+          function* () {
+            return yield* (yield* EffectYieldView()).profileQuery.isLoading();
+          },
+          () => p('Looking up…'),
+        ),
+        ifNode(
+          'profile-has-profile',
+          function* () {
+            return yield* (yield* EffectYieldView()).profileQuery.hasProfile();
+          },
           () =>
             p({ class: example.row }, [
               strong('Profile loaded: '),
-              profileQuery.profileName,
+              function* () {
+                return yield* (yield* EffectYieldView()).profileQuery.profileName();
+              },
             ]),
           () =>
-            matchNode.exhaustive(profileQuery.exceptions.loader, '_tag', {
-              UserNotFound: () =>
-                p({ class: example.row }, [
-                  strong('Profile not found: '),
-                  'no profile matches the request. ',
-                  span({ class: example.mono }, 'UserNotFound'),
-                  ' is the business error propagated by Effect.',
-                ]),
-              Unauthorized: () =>
-                p({ class: example.row }, [
-                  strong('Access denied: '),
-                  'the session has expired. ',
-                  span({ class: example.mono }, 'Unauthorized'),
-                  ' is the business error propagated by Effect.',
-                ]),
-            }),
+            matchNode.exhaustive(
+              function* () {
+                return (yield* (yield* EffectYieldView()).profileQuery.exceptions())
+                  .loader;
+              },
+              '_tag',
+              {
+                UserNotFound: () =>
+                  p({ class: example.row }, [
+                    strong('Profile not found: '),
+                    'no profile matches the request. ',
+                    span({ class: example.mono }, 'UserNotFound'),
+                    ' is the business error propagated by Effect.',
+                  ]),
+                Unauthorized: () =>
+                  p({ class: example.row }, [
+                    strong('Access denied: '),
+                    'the session has expired. ',
+                    span({ class: example.mono }, 'Unauthorized'),
+                    ' is the business error propagated by Effect.',
+                  ]),
+              },
+            ),
         ),
       ]),
       div({ class: example.note, 'data-exampleNote': 'callout' }, [

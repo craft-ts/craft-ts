@@ -34,7 +34,7 @@ type Todo = { readonly id: number; readonly title: string };
 export const { FullDemoView, provideFullDemoView } = craftService(
   { name: 'fullDemoView', providedIn: 'toProvide' },
   function* () {
-    const nextId = yield* craftPrivate(state('nextIdFullDemoFullDemo2', 3, ({ state, update }) => ({
+    const nextId = yield* craftPrivate(state('nextId', 3, ({ state, update }) => ({
       take: function* () {
         const _state = yield* state();
         const id = _state;
@@ -43,7 +43,7 @@ export const { FullDemoView, provideFullDemoView } = craftService(
       },
     })));
     const records = yield* craftPrivate(state(
-      'recordsFullDemoFullDemo2',
+      'records',
       [
         { id: 1, title: 'Learn Craft primitives' },
         { id: 2, title: 'Build functional components' },

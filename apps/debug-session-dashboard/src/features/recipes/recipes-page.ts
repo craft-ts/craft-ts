@@ -60,13 +60,14 @@ function recipeFacts(
 
 /** Every recipe the local archive knows, newest first. */
 export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
-  const archive = yield* SessionArchive();
-  const savedRecipes = archive.recipeCatalog.resumeRecipeList;
-  const savedSessions = archive.sessions.savedSessions;
-
   const rows = ul(
     { class: ui.sessions, 'data-lab': 'recipe-catalog' },
-    forNode(savedRecipes, { track: (recipe) => recipe.id }, (recipe) =>
+    forNode(
+      function* () {
+        return yield* (yield* SessionArchive()).recipeCatalog.resumeRecipeList();
+      },
+      { track: (recipe) => recipe.id },
+      (recipe) =>
       li(
         { class: ui.row },
         button(
@@ -118,8 +119,10 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
               },
             ),
             span({ class: ui.rowLineage }, function* () {
-              const _savedSessions = yield* savedSessions();
-              return recipeFacts(yield* recipe(), _savedSessions);
+              return recipeFacts(
+                yield* recipe(),
+                yield* (yield* SessionArchive()).sessions.savedSessions(),
+              );
             }),
           ],
         ),
@@ -132,8 +135,9 @@ export const RecipesPage = craftComponent('RecipesPage', {}, function* () {
       class: ui.empty,
       'data-lab': 'empty-recipes',
       hidden: function* () {
-        const _savedRecipes = yield* savedRecipes();
-        return _savedRecipes.length > 0;
+        return (
+          yield* (yield* SessionArchive()).recipeCatalog.resumeRecipeList()
+        ).length > 0;
       },
     },
     i18n.t('copy.copy042'),

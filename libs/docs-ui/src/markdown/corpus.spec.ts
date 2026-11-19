@@ -85,7 +85,7 @@ describe('apps/docs corpus', () => {
     expect(counts.callout.get('tip')).toBe(42);
     expect(counts.callout.get('warning')).toBe(37);
     expect(counts.details).toBe(26);
-    expect(counts.callout.get('info')).toBe(3);
+    expect(counts.callout.get('info')).toBe(4);
     expect(counts.callout.get('danger')).toBe(2);
     expect(counts.code).toBeGreaterThan(1000);
     // Every HTML block of the docs is a lesson row or a named component.

@@ -13,7 +13,12 @@ import {
   type Output,
 } from '@craft-ts/component';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
-import { craftComputed, craftService, craftExpose } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftMethod,
+  craftService,
+  craftExpose,
+} from '@craft-ts/core';
 import { RetirementReasonPicker } from './retirement-reason-picker';
 import type { Messages } from './messages';
 import { annotation } from './annotation.style';
@@ -66,7 +71,6 @@ export const { ReviewDecisionPanelView, provideReviewDecisionPanelView } =
         rejectionReasonMissing,
         handleNoteInput,
         previewMentionFromEvent,
-        previewMention,
         rememberCaret,
         pasteReasonText,
         isDeciding,
@@ -105,7 +109,9 @@ export const { ReviewDecisionPanelView, provideReviewDecisionPanelView } =
       yield* craftExpose('rejectionReasonMissing', rejectionReasonMissing);
       yield* craftExpose('handleNoteInput', handleNoteInput);
       yield* craftExpose('previewMentionFromEvent', previewMentionFromEvent);
-      yield* craftExpose('previewMention', previewMention);
+      yield* craftMethod('clearMention', function* () {
+        inputs.previewMention(undefined);
+      });
       yield* craftExpose('rememberCaret', rememberCaret);
       yield* craftExpose('pasteReasonText', pasteReasonText);
       yield* craftExpose('isDeciding', isDeciding);
@@ -118,34 +124,31 @@ export const { ReviewDecisionPanelView, provideReviewDecisionPanelView } =
 export const ReviewDecisionPanel = craftComponent(
   'ReviewDecisionPanel',
   {},
-  function* (_inputs: Inputs) {
+  function* (inputs: Inputs) {
     const {
-      previousRejectionVisible,
       t,
-      previousRejectionText,
-      degradedVisible,
+      degraded,
       selection,
       noteState,
       rejectionReasonMissing,
       handleNoteInput,
       previewMentionFromEvent,
-      previewMention,
       rememberCaret,
       pasteReasonText,
-      rejectionMissingVisible,
-      retirementVisible,
       isDeciding,
       retire,
       card,
       decide,
-      acceptWithNoteDisabled,
-    } = yield* ReviewDecisionPanelView();
+      current,
+    } = inputs;
     return div({ class: reviewCard.decision }, [
       section(
         {
           class: decisionColumn.previousRejection,
           hidden: function* () {
-            return Boolean(yield* previousRejectionVisible()) === false;
+            return Boolean(
+              yield* (yield* ReviewDecisionPanelView()).previousRejectionVisible(),
+            ) === false;
           },
         },
         [
@@ -157,7 +160,9 @@ export const ReviewDecisionPanel = craftComponent(
           ),
           p(
             { class: decisionColumn.previousRejectionBody },
-            previousRejectionText,
+            function* () {
+              return yield* (yield* ReviewDecisionPanelView()).previousRejectionText();
+            },
           ),
         ],
       ),
@@ -167,7 +172,7 @@ export const ReviewDecisionPanel = craftComponent(
             class: notice.root,
             'data-reviewNotice': 'degraded',
             hidden: function* () {
-              return Boolean(yield* degradedVisible()) === false;
+              return Boolean(yield* degraded()) === false;
             },
           },
           // Written into the attestation, not just shown: judging a
@@ -223,7 +228,7 @@ export const ReviewDecisionPanel = craftComponent(
           // to be attached and removed on every edit.
           mouseover: previewMentionFromEvent,
           *mouseleave() {
-            previewMention(undefined);
+            (yield* ReviewDecisionPanelView()).clearMention();
           },
           keyup: rememberCaret,
           mouseup: rememberCaret,
@@ -248,7 +253,7 @@ export const ReviewDecisionPanel = craftComponent(
             class: decisionColumn.error,
             role: 'alert',
             hidden: function* () {
-              return Boolean(yield* rejectionMissingVisible()) === false;
+              return Boolean(yield* rejectionReasonMissing()) === false;
             },
           },
           function* () {
@@ -259,7 +264,7 @@ export const ReviewDecisionPanel = craftComponent(
           {
             class: decisionColumn.retirement,
             hidden: function* () {
-              return Boolean(yield* retirementVisible()) === false;
+              return (yield* current())?.kind !== 'removal';
             },
           },
           [
@@ -374,7 +379,9 @@ export const ReviewDecisionPanel = craftComponent(
                   return (yield* t()).hintAcceptWithNote;
                 },
                 'data-hotkey': 'n',
-                disabled: acceptWithNoteDisabled,
+                disabled: function* () {
+                  return yield* (yield* ReviewDecisionPanelView()).acceptWithNoteDisabled();
+                },
                 *click() {
                   decide('ok-with-note');
                 },

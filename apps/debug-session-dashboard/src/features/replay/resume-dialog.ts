@@ -9,83 +9,16 @@ import {
   p,
   textarea,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { DocDialog } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import {
-  SessionArchive,
-  type ResumeCheckpointSummary,
-  type ResumeRecipeSummary,
-} from '../../shared/data-access/session-archive.service';
-import { ReplayDebug } from '../../shared/state/replay-debug';
-import { ReplayState, routeSessionId } from '../../shared/state/replay-state';
+  ReplayState,
+  resumeIntent,
+} from '../../shared/state/replay-state';
 import { ui } from '../../shared/ui/dashboard.style';
 import { i18n } from '../../shared/util/catalog';
-import { parseLocalTarget } from '../../shared/util/replay-model';
-import { recipeName } from '../../shared/util/session-lineage';
 import { eventValue, lit } from '../../shared/util/view-helpers';
 import { ResumeRequest } from './resume-request.service';
-
-/** A point frozen for this very moment, on the app the dashboard drives. */
-function readyCheckpointFor(
-  checkpoints: readonly ResumeCheckpointSummary[],
-  target: string,
-  beforeSequence: number | undefined,
-): ResumeCheckpointSummary | undefined {
-  const parsed = parseLocalTarget(target.trim());
-  const origin = parsed.ok ? parsed.url.origin : undefined;
-  return checkpoints.find(
-    (checkpoint) =>
-      !checkpoint.expired &&
-      checkpoint.origin === origin &&
-      checkpoint.beforeSequence === beforeSequence,
-  );
-}
-
-function readyRecipesFor(
-  recipes: readonly ResumeRecipeSummary[],
-  sessionId: string | undefined,
-  target: string,
-  beforeSequence: number | undefined,
-): readonly ResumeRecipeSummary[] {
-  const parsed = parseLocalTarget(target.trim());
-  if (!parsed.ok || !sessionId) return [];
-  return recipes.filter(
-    (recipe) =>
-      recipe.sessionId === sessionId &&
-      recipe.origin === parsed.url.origin &&
-      recipe.beforeSequence === beforeSequence,
-  );
-}
-
-/** What already exists at this moment, said once so the agent's work is not redone blindly. */
-function existingAtMoment(
-  checkpoint: ResumeCheckpointSummary | undefined,
-  recipes: readonly ResumeRecipeSummary[],
-): string {
-  const names = recipes.map((recipe) => `« ${recipeName(recipe)} »`).join(', ');
-  if (checkpoint) {
-    const until = new Date(checkpoint.expiresAt).toLocaleString('fr-FR');
-    const recipeInfo = recipes.length
-      ? i18n.t('checkpointRecipeInfo', {
-          recipeInfo: `${recipes.length > 1 ? 'les recettes' : 'la recette'} ${names}`,
-        })
-      : '';
-    return i18n.t('existingCheckpoint', {
-      deadline: until,
-      recipeInfo,
-    });
-  }
-  if (recipes.length) {
-    return i18n.t('existingRecipes', {
-      recipeAvailability:
-        recipes.length > 1 ? 'Des recettes existent' : 'Une recette existe',
-      recipeNames: names,
-      replayPronoun: recipes.length > 1 ? 'les' : 'la',
-    });
-  }
-  return '';
-}
 
 /**
  * « Reprendre ici », asked properly: what the agent will do, what is already
@@ -93,58 +26,20 @@ function existingAtMoment(
  * opens and a prompt lands in the clipboard.
  */
 export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
-  const replayDebug = yield* ReplayDebug();
-  const replayState = yield* ReplayState();
-  const { resumeDialogOpen, resumeIntent, setStates, targetUrl } =
-    replayState.imperative;
-  const { closeResumeDialog } = replayState;
-  const archive = yield* SessionArchive();
-  const request = yield* ResumeRequest();
-  const resumeRecipes = archive.recipeCatalog.resumeRecipeList;
-  const resumeCheckpoints = archive.resumeCheckpoints.resumeCheckpointList;
-  const sending = archive.resumeRequest.resumeRequestSending;
-  const failed = archive.resumeRequest.resumeRequestFailed;
-
-  const momentText = yield* craftComputed('momentText', () => {
-    const point = replayDebug.replayPoint();
-    return point.beforeSequence === undefined
-      ? i18n.t('copy.copy155')
-      : i18n.t('copy.copy156') + point.beforeSequence + i18n.t('copy.copy157');
-  });
-  const existingText = yield* craftComputed('existingText', function* () {
-    const before = replayDebug.replayPoint().beforeSequence;
-    const _resumeRecipes = yield* resumeRecipes();
-    const _resumeCheckpoints = yield* resumeCheckpoints();
-    return existingAtMoment(
-      readyCheckpointFor(_resumeCheckpoints, yield* targetUrl(), before),
-      readyRecipesFor(
-        _resumeRecipes,
-        routeSessionId(),
-        yield* targetUrl(),
-        before,
-      ),
-    );
-  });
-  const existingValue = existingText;
-  const failedHidden = yield* craftComputed('failedHidden', function* () {
-    const _failed = yield* failed();
-    return !_failed;
-  });
-  const submitDisabled = yield* craftComputed('submitDisabled', function* () {
-    const _sending = yield* sending();
-    return (
-      (yield* resumeIntent()).trim() === '' || _sending || !routeSessionId()
-    );
-  });
-
   return DocDialog({
     heading: lit('Reprendre avec un agent IA'),
     dialogId: lit('resume-here'),
-    open: resumeDialogOpen,
-    dismiss: closeResumeDialog,
+    open: function* () {
+      return yield* (yield* ReplayState()).imperative.resumeDialogOpen();
+    },
+    dismiss: function* () {
+      yield* (yield* ResumeRequest()).close();
+    },
     body: content(() => [
       div({ class: ui.importFields }, [
-        p({ class: ui.lede, 'data-lab': 'resume-moment' }, momentText),
+        p({ class: ui.lede, 'data-lab': 'resume-moment' }, function* () {
+          return yield* (yield* ResumeRequest()).momentText();
+        }),
         ol({ class: ui.howToSteps }, [
           li('Un onglet de l’application s’ouvre, réservé à l’agent.'),
           li(
@@ -159,11 +54,12 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
             class: ui.dialogNote,
             'data-lab': 'resume-existing',
             hidden: function* () {
-              const _existingValue = yield* existingValue();
-              return _existingValue === '';
+              return (yield* (yield* ResumeRequest()).existingText()) === '';
             },
           },
-          existingText,
+          function* () {
+            return yield* (yield* ResumeRequest()).existingText();
+          },
         ),
         label(
           { class: ui.fieldLabel, for: 'resume-intent' },
@@ -176,14 +72,19 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
           rows: 4,
           placeholder: i18n.t('copy.copy160'),
           value: resumeIntent,
-          input: (event: Event) =>
-            setStates({ resumeIntent: eventValue(event) }),
+          *input(event: Event) {
+            (yield* ReplayState()).imperative.setStates({
+              resumeIntent: eventValue(event),
+            });
+          },
         }),
         p(
           {
             class: ui.importError,
             role: 'alert',
-            hidden: failedHidden,
+            hidden: function* () {
+              return yield* (yield* ResumeRequest()).failedHidden();
+            },
           },
           i18n.t('copy.copy161'),
         ),
@@ -194,7 +95,9 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
               type: 'button',
               class: buttonUi.root,
               'data-variant': 'secondary',
-              click: closeResumeDialog,
+              click: function* () {
+                yield* (yield* ResumeRequest()).close();
+              },
             },
             i18n.t('copy.copy162'),
           ),
@@ -205,8 +108,12 @@ export const ResumeDialog = craftComponent('ResumeDialog', {}, function* () {
               class: buttonUi.root,
               'data-variant': 'primary',
               'data-lab': 'confirm-resume',
-              disabled: submitDisabled,
-              click: request.submit,
+              disabled: function* () {
+                return yield* (yield* ResumeRequest()).submitDisabled();
+              },
+              click: function* () {
+                yield* (yield* ResumeRequest()).submit();
+              },
             },
             i18n.t('copy.copy163'),
           ),

@@ -8,21 +8,20 @@ import {
   li,
   p,
   span,
-  supportsDebugSessionExportVersion,
-  supportsDebugSessionReplayVersion,
   ul,
 } from '@craft-ts/component';
 import {
-  craftComputed,
-  CraftRouter,
   CraftTemporalRuntime,
+  CraftRouter,
   DEBUG_SESSION_EXPORT_VERSION,
   DEBUG_SESSION_REPLAY_VERSION,
 } from '@craft-ts/core';
 import { DocCallout } from '@craft-ts/ui';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
-import type { SessionSummary } from '../../shared/data-access/session-archive.service';
-import { SessionArchive } from '../../shared/data-access/session-archive.service';
+import {
+  SessionArchive,
+  type SessionSummary,
+} from '../../shared/data-access/session-archive.service';
 import { ReplaySession } from '../../shared/state/replay-session';
 import { page, ReplayState } from '../../shared/state/replay-state';
 import { ui } from '../../shared/ui/dashboard.style';
@@ -42,14 +41,10 @@ import {
   SessionResumeFilter,
   type SessionListView,
 } from './session-resume-filter.service';
-import { SessionPageActions } from './sessions-page-actions.service';
-
-function hasSupportedVersions(session: SessionSummary): boolean {
-  return (
-    supportsDebugSessionExportVersion(session.recordingVersion) &&
-    supportsDebugSessionReplayVersion(session.replayVersion)
-  );
-}
+import {
+  hasSupportedVersions,
+  SessionPageActions,
+} from './sessions-page-actions.service';
 
 const VIEW_LABELS: Readonly<Record<SessionListView, string>> = {
   recordings: 'Enregistrements',
@@ -57,94 +52,61 @@ const VIEW_LABELS: Readonly<Record<SessionListView, string>> = {
   all: 'Toutes',
 };
 
+type SessionsOverview = Readonly<{
+  recordingCount: number;
+  visibleSessions: readonly SessionSummary[];
+  expiredCount: number;
+  incompatibleCount: number;
+  sessionsSummary: string;
+  pageHidden: boolean;
+}>;
+
+function* sessionOverview(): Generator<unknown, SessionsOverview, unknown> {
+  const archive = yield* SessionArchive();
+  const sessions = yield* archive.sessions.savedSessions();
+  const current = yield* (yield* SessionResumeFilter()).filter.view();
+  const visibleSessions =
+    current === 'all'
+      ? sessions
+      : sessions.filter((item) => isDerivedSession(item) === (current === 'derived'));
+  const days = yield* archive.sessions.retentionDays();
+  const cutoff = (yield* CraftTemporalRuntime()).dateNow() - days * 86400000;
+  const expiredCount = sessions.filter(
+    (item) => item.status !== 'recording' && Date.parse(item.createdAt) < cutoff,
+  ).length;
+  const incompatibleCount = sessions.filter(
+    (item) => item.status !== 'recording' && !hasSupportedVersions(item),
+  ).length;
+  const bytes = yield* archive.sessions.storageBytes();
+  return {
+    recordingCount: sessions.filter((item) => !isDerivedSession(item)).length,
+    visibleSessions,
+    expiredCount,
+    incompatibleCount,
+    sessionsSummary: i18n.t('sessionsStorageSummary', {
+      sessionCount: plural(sessions.length, 'session'),
+      storageSize: storageSizeLabel(bytes),
+      retentionDays: days,
+    }),
+    pageHidden: page() !== 'sessions',
+  };
+}
+
 /**
  * Page 1: the sessions the local archive holds. By default the recordings a
  * person made; the sessions the resume tooling recorded from them sit in their
  * own view, and each recording says what came out of it.
  */
-export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
-  const replaySession = yield* ReplaySession();
-  const { pendingDeleteSessionId, setStates } = (yield* ReplayState())
-    .imperative;
-  const archive = yield* SessionArchive();
-  const listView = yield* SessionResumeFilter();
-  const actions = yield* SessionPageActions();
-  const savedSessions = archive.sessions.savedSessions;
-  const savedRecipes = archive.recipeCatalog.resumeRecipeList;
-  const retentionDays = archive.sessions.retentionDays;
-  const storageBytes = archive.sessions.storageBytes;
-  const reachable = archive.sessions.reachable;
-  const view = listView.filter.view;
-
-  const recordingCount = yield* craftComputed('recordingCount', function* () {
-    const _savedSessions = yield* savedSessions();
-    return _savedSessions.filter((item) => !isDerivedSession(item)).length;
-  });
-  const recordingCountValue = recordingCount;
-  const visibleSessions = yield* craftComputed('visibleSessions', function* () {
-    const _savedSessions = yield* savedSessions();
-    const sessions = _savedSessions;
-    const _view = yield* view();
-    const current = _view;
-    return current === 'all'
-      ? sessions
-      : sessions.filter(
-          (item) => isDerivedSession(item) === (current === 'derived'),
-        );
-  });
-  const visibleSessionsValue = visibleSessions;
-
-  const temporal = yield* CraftTemporalRuntime();
-  const dateNow = temporal.dateNow;
-  const expiredSessions = yield* craftComputed('expiredSessions', function* () {
-    const _retentionDays = yield* retentionDays();
-    const cutoff = dateNow() - _retentionDays * 24 * 60 * 60 * 1000;
-    const _savedSessions = yield* savedSessions();
-    return _savedSessions.filter(
-      (item) =>
-        item.status !== 'recording' && Date.parse(item.createdAt) < cutoff,
-    );
-  });
-  const expiredSessionsValue = expiredSessions;
-  const expiredCount = yield* craftComputed(
-    'expiredSessionCount',
-    function* () {
-      const _expiredSessionsValue = yield* expiredSessionsValue();
-      return _expiredSessionsValue.length;
-    },
-  );
-  const incompatibleSessions = yield* craftComputed(
-    'incompatibleSessions',
-    function* () {
-      const _savedSessions = yield* savedSessions();
-      return _savedSessions.filter(
-        (item) => item.status !== 'recording' && !hasSupportedVersions(item),
-      );
-    },
-  );
-  const incompatibleSessionsValue = incompatibleSessions;
-  const incompatibleCount = yield* craftComputed(
-    'incompatibleCountSignal',
-    function* () {
-      const _incompatibleSessionsValue = yield* incompatibleSessionsValue();
-      return _incompatibleSessionsValue.length;
-    },
-  );
-  const sessionsSummary = yield* craftComputed('sessionsSummary', function* () {
-    const _retentionDays = yield* retentionDays();
-    const _storageBytes = yield* storageBytes();
-    const _savedSessions = yield* savedSessions();
-    return i18n.t('sessionsStorageSummary', {
-      sessionCount: plural(_savedSessions.length, 'session'),
-      storageSize: storageSizeLabel(_storageBytes),
-      retentionDays: _retentionDays,
-    });
-  });
-
+export const SessionsPage = craftComponent(
+  'SessionsPage',
+  {},
+  function* () {
   const head = div({ class: ui.listHead }, [
     div([
       heading({ class: ui.title }, i18n.t('copy.copy168')),
-      p({ class: ui.lede }, sessionsSummary),
+      p({ class: ui.lede }, function* () {
+        return (yield* sessionOverview()).sessionsSummary;
+      }),
     ]),
     button(
       'openImport',
@@ -152,7 +114,9 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
         type: 'button',
         class: buttonUi.root,
         'data-variant': 'secondary',
-        click: replaySession.openImport,
+        click: function* () {
+          (yield* ReplaySession()).openImport();
+        },
       },
       i18n.t('copy.copy169'),
     ),
@@ -166,27 +130,26 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
         class: ui.segment,
         'data-lab': `session-view-${id}`,
         'aria-pressed': function* () {
-          const _view = yield* view();
+          const _view = yield* (yield* SessionResumeFilter()).filter.view();
           return _view === id ? 'true' : 'false';
         },
         'data-segment-on': function* () {
-          const _view = yield* view();
+          const _view = yield* (yield* SessionResumeFilter()).filter.view();
           return _view === id ? 'true' : undefined;
         },
         click: function* () {
-          yield* listView.filter.show(id);
+          yield* (yield* SessionResumeFilter()).filter.show(id);
         },
       },
       function* () {
-        const _savedSessions = yield* savedSessions();
+        const _savedSessions = yield* (yield* SessionArchive()).sessions.savedSessions();
         const sessions = _savedSessions;
-        const _recordingCountValue = yield* recordingCountValue();
-        const _recordingCountValue2 = yield* recordingCountValue();
+        const _recordingCountValue = (yield* sessionOverview()).recordingCount;
         const count =
           id === 'all'
             ? sessions.length
             : id === 'recordings'
-              ? _recordingCountValue2
+              ? _recordingCountValue
               : sessions.length - _recordingCountValue;
         return `${VIEW_LABELS[id]} · ${count}`;
       },
@@ -206,27 +169,27 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
       class: ui.housekeeping,
       'data-lab': 'housekeeping',
       hidden: function* () {
-        const _expiredCount = yield* expiredCount();
-        const _incompatibleCount = yield* incompatibleCount();
+        const overview = yield* sessionOverview();
+        const _expiredCount = overview.expiredCount;
+        const _incompatibleCount = overview.incompatibleCount;
         return _incompatibleCount === 0 && _expiredCount === 0;
       },
     },
     [
       span(function* () {
-        const _retentionDays = yield* retentionDays();
-        const _expiredCount = yield* expiredCount();
-        const _expiredCount2 = yield* expiredCount();
-        const _incompatibleCount = yield* incompatibleCount();
-        const _incompatibleCount2 = yield* incompatibleCount();
+        const _retentionDays = yield* (yield* SessionArchive()).sessions.retentionDays();
+        const overview = yield* sessionOverview();
+        const _expiredCount = overview.expiredCount;
+        const _incompatibleCount = overview.incompatibleCount;
         return [
-          ...(_incompatibleCount2 > 0
+          ...(_incompatibleCount > 0
             ? [
                 i18n.t('sessionsIncompatible', {
                   count: plural(_incompatibleCount, 'session'),
                 }),
               ]
             : []),
-          ...(_expiredCount2 > 0
+          ...(_expiredCount > 0
             ? [
                 i18n.t('sessionsOlderThan', {
                   count: plural(_expiredCount, 'session'),
@@ -245,23 +208,17 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
             'data-variant': 'secondary',
             'data-lab': 'delete-incompatible-sessions',
             hidden: function* () {
-              const _incompatibleCount = yield* incompatibleCount();
+              const _incompatibleCount = (yield* sessionOverview()).incompatibleCount;
               return _incompatibleCount === 0;
             },
             disabled: function* () {
-              const _reachable = yield* reachable();
+              const _reachable = yield* (yield* SessionArchive()).sessions.reachable();
               return !_reachable;
             },
             'data-tooltip':
               'Supprime les sessions dont le format ou le replay n’est pas pris en charge.',
             click: function* () {
-              const _incompatibleSessionsValue =
-                yield* incompatibleSessionsValue();
-              const incompatible = _incompatibleSessionsValue;
-              if (incompatible.length > 0)
-                yield* actions.deleteIncompatibleSessions(
-                  incompatible.map((item) => item.id),
-                );
+              yield* (yield* SessionPageActions()).deleteIncompatibleSessions();
             },
           },
           i18n.t('copy.copy170'),
@@ -274,19 +231,20 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
             'data-variant': 'secondary',
             'data-lab': 'cleanup-old-sessions',
             hidden: function* () {
-              const _expiredCount = yield* expiredCount();
+              const _expiredCount = (yield* sessionOverview()).expiredCount;
               return _expiredCount === 0;
             },
             disabled: function* () {
-              const _reachable = yield* reachable();
+              const _reachable = yield* (yield* SessionArchive()).sessions.reachable();
               return !_reachable;
             },
             click: function* () {
-              const _expiredCount = yield* expiredCount();
+              const overview = yield* sessionOverview();
+              const _expiredCount = overview.expiredCount;
               const count = _expiredCount;
-              const _retentionDays = yield* retentionDays();
+              const _retentionDays = yield* (yield* SessionArchive()).sessions.retentionDays();
               const days = _retentionDays;
-              if (count > 0) yield* actions.pruneExpiredSessions(count, days);
+              if (count > 0) yield* (yield* SessionPageActions()).pruneExpiredSessions(count, days);
             },
           },
           i18n.t('copy.copy171'),
@@ -295,7 +253,9 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     ],
   );
 
-  const unreachable = div({ class: ui.gap, hidden: reachable }, [
+  const unreachable = div({ class: ui.gap, hidden: function* () {
+    return yield* (yield* SessionArchive()).sessions.reachable();
+  } }, [
     DocCallout({
       tone: lit('warning'),
       caption: lit('Archive injoignable'),
@@ -310,7 +270,9 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
 
   const rows = ul(
     { class: ui.sessions },
-    forNode(visibleSessions, { track: (saved) => saved.id }, (saved) =>
+    forNode(function* () {
+      return (yield* sessionOverview()).visibleSessions;
+    }, { track: (saved) => saved.id }, (saved) =>
       li({ class: ui.row }, [
         button(
           'savedSession',
@@ -393,7 +355,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                 },
               },
               function* () {
-                const _savedSessions = yield* savedSessions();
+                const _savedSessions = yield* (yield* SessionArchive()).sessions.savedSessions();
                 return `↳ ${continuationLabel(yield* saved(), _savedSessions)}`;
               },
             ),
@@ -408,8 +370,8 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                 },
               },
               function* () {
-                const _savedRecipes = yield* savedRecipes();
-                const _savedSessions = yield* savedSessions();
+                const _savedRecipes = yield* (yield* SessionArchive()).recipeCatalog.resumeRecipeList();
+                const _savedSessions = yield* (yield* SessionArchive()).sessions.savedSessions();
                 return `↳ ${derivationLabel(yield* saved(), _savedSessions, _savedRecipes)}`;
               },
             ),
@@ -419,8 +381,8 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                 class: ui.rowChips,
                 hidden: function* () {
                   const item = yield* saved();
-                  const _savedRecipes = yield* savedRecipes();
-                  const _savedSessions = yield* savedSessions();
+                  const _savedRecipes = yield* (yield* SessionArchive()).recipeCatalog.resumeRecipeList();
+                  const _savedSessions = yield* (yield* SessionArchive()).sessions.savedSessions();
                   return (
                     isDerivedSession(item) ||
                     ((item.resumeCount ?? 0) === 0 &&
@@ -472,8 +434,8 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                     'data-lab': 'derived-count',
                     hidden: function* () {
                       const item = yield* saved();
-                      const _savedRecipes = yield* savedRecipes();
-                      const _savedSessions = yield* savedSessions();
+                      const _savedRecipes = yield* (yield* SessionArchive()).recipeCatalog.resumeRecipeList();
+                      const _savedSessions = yield* (yield* SessionArchive()).sessions.savedSessions();
                       return (
                         derivedSessionsOf(
                           item.id,
@@ -485,8 +447,8 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                   },
                   function* () {
                     const item = yield* saved();
-                    const _savedRecipes = yield* savedRecipes();
-                    const _savedSessions = yield* savedSessions();
+                    const _savedRecipes = yield* (yield* SessionArchive()).recipeCatalog.resumeRecipeList();
+                    const _savedSessions = yield* (yield* SessionArchive()).sessions.savedSessions();
                     return plural(
                       derivedSessionsOf(item.id, _savedSessions, _savedRecipes)
                         .length,
@@ -509,7 +471,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               'data-variant': 'link',
               hidden: function* () {
                 const item = yield* saved();
-                return (yield* pendingDeleteSessionId()) === item.id;
+                return (yield* (yield* ReplayState()).imperative.pendingDeleteSessionId()) === item.id;
               },
               'aria-label': function* () {
                 const item = yield* saved();
@@ -518,7 +480,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               'data-tooltip': 'Supprime cette session de l’archive locale.',
               click: function* () {
                 const item = yield* saved();
-                setStates({ pendingDeleteSessionId: item.id });
+                (yield* ReplayState()).imperative.setStates({ pendingDeleteSessionId: item.id });
               },
             },
             i18n.t('copy.copy178'),
@@ -531,7 +493,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
               'aria-label': 'Confirmer la suppression de la session',
               hidden: function* () {
                 const item = yield* saved();
-                return (yield* pendingDeleteSessionId()) !== item.id;
+                return (yield* (yield* ReplayState()).imperative.pendingDeleteSessionId()) !== item.id;
               },
             },
             [
@@ -543,7 +505,9 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                   class: buttonUi.root,
                   'data-variant': 'secondary',
                   'data-lab': 'cancel-delete-session',
-                  click: () => setStates({ pendingDeleteSessionId: undefined }),
+                  click: function* () {
+                    (yield* ReplayState()).imperative.setStates({ pendingDeleteSessionId: undefined });
+                  },
                 },
                 i18n.t('copy.copy180'),
               ),
@@ -556,7 +520,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
                   'data-lab': 'confirm-delete-session',
                   click: function* () {
                     const item = yield* saved();
-                    yield* actions.confirmDeleteSession(item.id);
+                    yield* (yield* SessionPageActions()).confirmDeleteSession(item.id);
                   },
                 },
                 i18n.t('copy.copy181'),
@@ -573,8 +537,8 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
       class: ui.empty,
       'data-lab': 'empty',
       hidden: function* () {
-        const _reachable = yield* reachable();
-        const _savedSessions = yield* savedSessions();
+        const _reachable = yield* (yield* SessionArchive()).sessions.reachable();
+        const _savedSessions = yield* (yield* SessionArchive()).sessions.savedSessions();
         return _savedSessions.length > 0 || !_reachable;
       },
     },
@@ -585,13 +549,13 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
       class: ui.empty,
       'data-lab': 'empty-resume-filter',
       hidden: function* () {
-        const _visibleSessionsValue = yield* visibleSessionsValue();
-        const _savedSessions = yield* savedSessions();
+        const _visibleSessionsValue = (yield* sessionOverview()).visibleSessions;
+        const _savedSessions = yield* (yield* SessionArchive()).sessions.savedSessions();
         return _savedSessions.length === 0 || _visibleSessionsValue.length > 0;
       },
     },
     function* () {
-      const _view = yield* view();
+      const _view = yield* (yield* SessionResumeFilter()).filter.view();
       return _view === 'derived'
         ? i18n.t('copy.copy183')
         : i18n.t('copy.copy184');
@@ -602,7 +566,9 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     {
       class: ui.scroll,
       'data-lab': 'list-page',
-      hidden: yield* craftComputed('hidden', () => page() !== 'sessions'),
+      hidden: function* () {
+        return (yield* sessionOverview()).pageHidden;
+      },
     },
     [
       div({ class: ui.listPage }, [

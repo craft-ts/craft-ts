@@ -111,7 +111,7 @@ export const provideMcpExperimentation = () => [
       // This value is resolved while the root injector is bootstrapping.
       // eslint-disable-next-line craft-ts/prefer-browser-boundaries
       globalThis.sessionStorage,
-      // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+
       () => ɵinjectCraftRandomRuntime().uuid(),
     ),
   ),

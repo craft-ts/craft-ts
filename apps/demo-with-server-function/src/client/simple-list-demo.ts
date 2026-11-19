@@ -65,34 +65,44 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
         },
       },
       ({ resource, exceptions }) => {
-        const notFound = craftUse(craftComputed('notFoundClientSimpleListDemo', function* () {
-          const error = (yield* exceptions()).loader;
-          return isCraftException(error) && error._tag === 'UsersNotFound';
-        }));
+        const notFound = craftUse(
+          craftComputed('notFoundClientSimpleListDemo', function* () {
+            const error = (yield* exceptions()).loader;
+            return isCraftException(error) && error._tag === 'UsersNotFound';
+          }),
+        );
 
         return {
           notFound,
-          requestTitle: craftUse(craftComputed('requestTitleClientSimpleListDemo', function* () {
-            const currentStatus = yield* resource.status();
-            if (yield* notFound()) return 'Server returned 404';
-            return currentStatus === 'loading' || currentStatus === 'reloading'
-              ? 'Calling demo.users.list from the URL filter…'
-              : 'Server function ready';
-          })),
-          requestDetail: craftUse(craftComputed('requestDetailClientSimpleListDemo', function* () {
-            const currentStatus = yield* resource.status();
-            if (yield* notFound()) {
-              const error = (yield* exceptions()).loader;
-              return `404 · ${exceptionMessage(error, 'No matching users.')}`;
-            }
-            return currentStatus === 'loading' || currentStatus === 'reloading'
-              ? 'POST /__server-functions · Effect is running'
-              : `Status: ${currentStatus}`;
-          })),
-          resultCount: craftUse(craftComputed('resultCountClientSimpleListDemo', function* () {
-            const value = yield* resource.value();
-            return Array.isArray(value) ? value.length.toString() : '—';
-          })),
+          requestTitle: craftUse(
+            craftComputed('requestTitleClientSimpleListDemo', function* () {
+              const currentStatus = yield* resource.status();
+              if (yield* notFound()) return 'Server returned 404';
+              return currentStatus === 'loading' ||
+                currentStatus === 'reloading'
+                ? 'Calling demo.users.list from the URL filter…'
+                : 'Server function ready';
+            }),
+          ),
+          requestDetail: craftUse(
+            craftComputed('requestDetailClientSimpleListDemo', function* () {
+              const currentStatus = yield* resource.status();
+              if (yield* notFound()) {
+                const error = (yield* exceptions()).loader;
+                return `404 · ${exceptionMessage(error, 'No matching users.')}`;
+              }
+              return currentStatus === 'loading' ||
+                currentStatus === 'reloading'
+                ? 'POST /__server-functions · Effect is running'
+                : `Status: ${currentStatus}`;
+            }),
+          ),
+          resultCount: craftUse(
+            craftComputed('resultCountClientSimpleListDemo', function* () {
+              const value = yield* resource.value();
+              return Array.isArray(value) ? value.length.toString() : '—';
+            }),
+          ),
         };
       },
     );
@@ -100,7 +110,9 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
       const value = yield* usersQuery.value();
       return Array.isArray(value) ? value : [];
     });
-    let writeSearchInput: ((value: string) => Generator<never, unknown, unknown>) | undefined;
+    let writeSearchInput:
+      | ((value: string) => Generator<never, unknown, unknown>)
+      | undefined;
     const searchInput = yield* state(
       'searchInputClientSimpleListDemo',
       yield* usersFilter.filter(),
@@ -111,13 +123,19 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
         return {};
       },
     );
-    yield* craftMethod('setSearchInputClientSimpleListDemo', function* (value: string) {
-      if (writeSearchInput) yield* writeSearchInput(value);
-    });
-    yield* craftMethod('submitSearchClientSimpleListDemo', function* (event?: Event) {
-      event?.preventDefault();
-      yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
-    });
+    yield* craftMethod(
+      'setSearchInputClientSimpleListDemo',
+      function* (value: string) {
+        if (writeSearchInput) yield* writeSearchInput(value);
+      },
+    );
+    yield* craftMethod(
+      'submitSearchClientSimpleListDemo',
+      function* (event?: Event) {
+        event?.preventDefault();
+        yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
+      },
+    );
   },
 );
 
@@ -127,13 +145,6 @@ const SimpleListDemo = craftComponent(
     providers: [provideSimpleListDemoView()],
   },
   function* () {
-    const {
-      searchInputClientSimpleListDemo: searchInput,
-      usersQueryClientSimpleListDemo: usersQuery,
-      users,
-      submitSearchClientSimpleListDemo: submitSearch,
-      setSearchInputClientSimpleListDemo: setSearchInput,
-    } = yield* SimpleListDemoView();
     return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
@@ -162,42 +173,58 @@ const SimpleListDemo = craftComponent(
             { class: demoPage.copy },
             'La valeur est conservée dans le paramètre URL `filter`.',
           ),
-          form('simpleSearchForm', { submit: submitSearch }, [
-            label(
-              { class: demoPage.label, htmlFor: 'simpleFilterInput' },
-              'Filter',
-            ),
-            div({ class: demoPage.searchRow }, [
-              input('simpleFilterInput', {
-                class: demoPage.input,
-                type: 'search',
-                value: searchInput,
-                placeholder: 'ada, craft.dev…',
-                autocomplete: 'off',
-                'aria-label': 'User filter',
-                *input(event) {
-                  setSearchInput(event.target.value);
-                },
-              }),
-              button(
-                'simpleSearchButton',
-                {
-                  class: demoPage.button,
-                  type: 'submit',
-                  disabled: usersQuery.isLoading,
-                },
-                'Run ↗',
+          form(
+            'simpleSearchForm',
+            {
+              *submit(event) {
+                (yield* SimpleListDemoView()).submitSearchClientSimpleListDemo(
+                  event,
+                );
+              },
+            },
+            [
+              label(
+                { class: demoPage.label, htmlFor: 'simpleFilterInput' },
+                'Filter',
               ),
-            ]),
-          ]),
+              div({ class: demoPage.searchRow }, [
+                input('simpleFilterInput', {
+                  class: demoPage.input,
+                  type: 'search',
+                  value: function* () {
+                    return yield* (yield* SimpleListDemoView()).searchInputClientSimpleListDemo();
+                  },
+                  placeholder: 'ada, craft.dev…',
+                  autocomplete: 'off',
+                  'aria-label': 'User filter',
+                  *input(event) {
+                    (yield* SimpleListDemoView()).setSearchInputClientSimpleListDemo(
+                      event.target.value,
+                    );
+                  },
+                }),
+                button(
+                  'simpleSearchButton',
+                  {
+                    class: demoPage.button,
+                    type: 'submit',
+                    disabled: function* () {
+                      return yield* (yield* SimpleListDemoView()).usersQueryClientSimpleListDemo.isLoading();
+                    },
+                  },
+                  'Run ↗',
+                ),
+              ]),
+            ],
+          ),
           div({ class: demoPage.requestCard }, [
             span({ class: demoPage.requestDot }),
             div([
               strong({ class: demoPage.requestTitle }, function* () {
-                return yield* usersQuery.requestTitle();
+                return yield* (yield* SimpleListDemoView()).usersQueryClientSimpleListDemo.requestTitle();
               }),
               small({ class: demoPage.requestDetail }, function* () {
-                return yield* usersQuery.requestDetail();
+                return yield* (yield* SimpleListDemoView()).usersQueryClientSimpleListDemo.requestDetail();
               }),
             ]),
           ]),
@@ -209,29 +236,34 @@ const SimpleListDemo = craftComponent(
               heading({ class: demoPage.panelTitle }, 'Users'),
             ]),
             span({ class: demoPage.countBadge }, function* () {
-              return yield* usersQuery.resultCount();
+              return yield* (yield* SimpleListDemoView()).usersQueryClientSimpleListDemo.resultCount();
             }),
           ]),
           div([
             ul(
               { class: demoPage.results },
-              forNode(users, { track: (user) => user.id }, (user) =>
-                article({ class: demoPage.row }, [
-                  div({ class: demoPage.avatar }, function* () {
-                    return (yield* user()).name.slice(0, 1);
-                  }),
-                  div({ class: demoPage.rowInfo }, [
-                    strong({ class: demoPage.rowName }, function* () {
-                      return (yield* user()).name;
+              forNode(
+                function* () {
+                  return yield* (yield* SimpleListDemoView()).users();
+                },
+                { track: (user) => user.id },
+                (user) =>
+                  article({ class: demoPage.row }, [
+                    div({ class: demoPage.avatar }, function* () {
+                      return (yield* user()).name.slice(0, 1);
                     }),
-                    span({ class: demoPage.rowMeta }, function* () {
-                      return (yield* user()).email;
+                    div({ class: demoPage.rowInfo }, [
+                      strong({ class: demoPage.rowName }, function* () {
+                        return (yield* user()).name;
+                      }),
+                      span({ class: demoPage.rowMeta }, function* () {
+                        return (yield* user()).email;
+                      }),
+                    ]),
+                    span({ class: demoPage.rowId }, function* () {
+                      return `#${(yield* user()).id}`;
                     }),
                   ]),
-                  span({ class: demoPage.rowId }, function* () {
-                    return `#${(yield* user()).id}`;
-                  }),
-                ]),
               ),
             ),
           ]).pipe(

@@ -210,29 +210,18 @@ export const { FolderLayoutViewState, provideFolderLayoutViewState } =
 export const FolderLayoutView = craftComponent(
   'FolderLayoutView',
   {},
-  function* (inputs: {
+  (inputs: {
     readonly entries: Input<readonly FolderLayoutEntry[]>;
     readonly sourceGraphHash: Input<string>;
     readonly configHash: Input<string>;
     readonly moves: Input<number>;
     readonly reviews: Input<number>;
-  }) {
-    const {
-      summary,
-      trees,
-      root,
-      sourceRows,
-      toggleFolder,
-      collapseFolders,
-      expandFolders,
-      revealFolders,
-      folderIds,
-      proposedRows,
-    } = yield* FolderLayoutViewState();
-    return section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
+  }) => section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
       div({ class: folderLayout.summary }, [
         strong('Folder layout proposal'),
-        small({ class: folderLayout.muted }, summary),
+        small({ class: folderLayout.muted }, function* () {
+          return yield* (yield* FolderLayoutViewState()).summary();
+        }),
       ]),
       div({ class: folderLayout.legend, 'aria-label': 'Change legend' }, [
         span(
@@ -258,50 +247,49 @@ export const FolderLayoutView = craftComponent(
       ]),
       div({ class: folderLayout.trees, 'data-testid': 'folder-layout-trees' }, [
         tree('Current organisation', 'source', {
-          root,
-          trees,
-          rows: sourceRows,
-          toggleFolder,
-          collapseFolders,
-          expandFolders,
-          revealFolders,
-          folderIds,
+          root: function* () {
+            return yield* (yield* FolderLayoutViewState()).root();
+          },
+          trees: function* () {
+            return yield* (yield* FolderLayoutViewState()).trees();
+          },
+          rows: function* () {
+            return yield* (yield* FolderLayoutViewState()).sourceRows();
+          },
+          folderIds: function* () {
+            return yield* (yield* FolderLayoutViewState()).folderIds();
+          },
         }),
         tree('Proposed organisation', 'proposed', {
-          root,
-          trees,
-          rows: proposedRows,
-          toggleFolder,
-          collapseFolders,
-          expandFolders,
-          revealFolders,
-          folderIds,
+          root: function* () {
+            return yield* (yield* FolderLayoutViewState()).root();
+          },
+          trees: function* () {
+            return yield* (yield* FolderLayoutViewState()).trees();
+          },
+          rows: function* () {
+            return yield* (yield* FolderLayoutViewState()).proposedRows();
+          },
+          folderIds: function* () {
+            return yield* (yield* FolderLayoutViewState()).folderIds();
+          },
         }),
       ]),
       p({ class: folderLayout.hash }, function* () {
         return `Graph ${yield* inputs.sourceGraphHash()} · configuration ${yield* inputs.configHash()}`;
       }),
-    ]);
-  },
+  ]),
 ).pipe(
   withComponentProviders((inputs) => [provideFolderLayoutViewState(inputs)]),
 );
 
+type TemplateRead<T> = () => Generator<unknown, T, unknown>;
+
 interface TreeBindings {
-  readonly root: Input<string>;
-  readonly trees: Input<FolderLayoutTrees>;
-  readonly rows: Input<readonly VisibleFolderLayoutRow[]>;
-  readonly toggleFolder: (id: string) => void;
-  readonly collapseFolders: (
-    side: FolderLayoutSide,
-    ids: readonly string[],
-  ) => void;
-  readonly expandFolders: (side: FolderLayoutSide) => void;
-  readonly revealFolders: (
-    side: FolderLayoutSide,
-    links: readonly string[],
-  ) => void;
-  readonly folderIds: Input<
+  readonly root: TemplateRead<string>;
+  readonly trees: TemplateRead<FolderLayoutTrees>;
+  readonly rows: TemplateRead<readonly VisibleFolderLayoutRow[]>;
+  readonly folderIds: TemplateRead<
     Readonly<Record<FolderLayoutSide, readonly string[]>>
   >;
 }
@@ -313,10 +301,6 @@ function tree(
     root,
     trees,
     rows,
-    toggleFolder,
-    collapseFolders,
-    expandFolders,
-    revealFolders,
     folderIds,
   }: TreeBindings,
 ) {
@@ -324,7 +308,9 @@ function tree(
     div({ class: folderLayout.treeHeading }, [
       div({ class: folderLayout.treeTitle }, [
         strong({ class: folderLayout.treeName }, title),
-        small({ class: folderLayout.treeRoot }, root),
+        small({ class: folderLayout.treeRoot }, function* () {
+          return yield* root();
+        }),
       ]),
       div({ class: folderLayout.treeActions }, [
         button(
@@ -334,6 +320,7 @@ function tree(
             class: folderLayout.treeAction,
             title: 'Collapse every folder',
             *click() {
+              const { collapseFolders } = yield* FolderLayoutViewState();
               collapseFolders(side, (yield* folderIds())[side]);
             },
           },
@@ -345,7 +332,8 @@ function tree(
             type: 'button',
             class: folderLayout.treeAction,
             title: 'Expand every folder',
-            click() {
+            *click() {
+              const { expandFolders } = yield* FolderLayoutViewState();
               expandFolders(side);
             },
           },
@@ -355,7 +343,9 @@ function tree(
     ]),
     ul(
       { class: folderLayout.treeList, 'data-folder-layout': 'list' },
-      forNode(rows, { track: (row) => row.key }, (row) =>
+      forNode(function* () {
+        return yield* rows();
+      }, { track: (row) => row.key }, (row) =>
         li(
           'FolderLayoutRow',
           {
@@ -419,6 +409,7 @@ function tree(
                 *click() {
                   const value = yield* row();
                   if (value.kind === 'folder') {
+                    const { toggleFolder } = yield* FolderLayoutViewState();
                     toggleFolder(folderId(side, value));
                   }
                 },
@@ -440,6 +431,7 @@ function tree(
                     (yield* trees())[side],
                     yield* row(),
                   );
+                  const { revealFolders } = yield* FolderLayoutViewState();
                   revealFolders(otherFolderLayoutSide(side), links);
                   locateFolderLayoutRows(event, links);
                 },

@@ -45,6 +45,11 @@ export const behaviorWaiverList = defineBehaviorWaivers(behaviorCatalog, [
   },
   {
     rule: 'behavior-unproven',
+    target: 'method:reviewDecisionPanelView.clearMention',
+    reason: LIVE_REPLAY,
+  },
+  {
+    rule: 'behavior-unproven',
     target: 'method:ReviewAppModel.selectNodes',
     reason: LIVE_REPLAY,
   },

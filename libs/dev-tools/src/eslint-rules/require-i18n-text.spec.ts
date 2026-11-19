@@ -123,6 +123,18 @@ describe('require-i18n-text', () => {
     ).resolves.toEqual([]);
   });
 
+  it('does not treat palette color values as visible copy', async () => {
+    const messages = await lint(`
+      const palette = definePalette('page', {
+        text: {
+          strong: { light: '#172033', dark: '#f2f4f8' },
+          muted: { light: '#5c677d', dark: '#98a2b3' },
+        },
+      });
+    `);
+    expect(messages).toEqual([]);
+  });
+
   it('is part of the opt-in i18n preset', () => {
     expect(plugin.configs.i18n.rules['craft-ts/require-i18n-text']).toBe(
       'error',

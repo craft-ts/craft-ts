@@ -133,14 +133,6 @@ const EffectPlaygroundComponent = craftComponent(
     providers: [provideEffectPlaygroundView()],
   },
   function* () {
-    const {
-      add,
-      addTodo,
-      removeTodoMutation,
-      titleInput,
-      toggleTodoMutation,
-      todosQuery,
-    } = yield* EffectPlaygroundView();
     return div({ class: example.card, 'data-exampleTint': 'sky' }, [
       heading({ class: example.title }, 'Effect Playground'),
       p(
@@ -152,12 +144,18 @@ const EffectPlaygroundComponent = craftComponent(
           class: example.input,
           type: 'text',
           placeholder: 'New todo title…',
-          value: titleInput,
+          value: function* () {
+            return yield* (yield* EffectPlaygroundView()).titleInput();
+          },
           *input(event) {
-            yield* titleInput.setTitle(event.target.value);
+            yield* (yield* EffectPlaygroundView()).titleInput.setTitle(
+              event.target.value,
+            );
           },
           *keydown(event) {
-            if (event.key === 'Enter') add();
+            if (event.key === 'Enter') {
+              (yield* EffectPlaygroundView()).add();
+            }
           },
         }),
         button(
@@ -165,18 +163,28 @@ const EffectPlaygroundComponent = craftComponent(
           {
             class: example.button,
             type: 'button',
-            disabled: addTodo.isLoading,
-            click: add,
+            disabled: function* () {
+              return yield* (yield* EffectPlaygroundView()).addTodo.isLoading();
+            },
+            *click() {
+              (yield* EffectPlaygroundView()).add();
+            },
           },
           ifNode(
-            addTodo.isLoading,
+            'todo-adding',
+            function* () {
+              return yield* (yield* EffectPlaygroundView()).addTodo.isLoading();
+            },
             () => 'Adding…',
             () => 'Add',
           ),
         ),
       ]),
       ifNode(
-        todosQuery.isLoading,
+        'todos-loading',
+        function* () {
+          return yield* (yield* EffectPlaygroundView()).todosQuery.isLoading();
+        },
         () => p({ class: example.status }, 'Loading todos…'),
         () =>
           p({ class: example.status }, 'The list is loaded by queryEffect.'),
@@ -184,7 +192,9 @@ const EffectPlaygroundComponent = craftComponent(
       div(
         { class: example.list },
         forNode(
-          todosQuery.value,
+          function* () {
+            return yield* (yield* EffectPlaygroundView()).todosQuery.value();
+          },
           { track: (todo) => todo.id, empty: () => p('No todos yet.') },
           (todo) =>
             div(
@@ -198,12 +208,16 @@ const EffectPlaygroundComponent = craftComponent(
                     class: example.button,
                     'data-exampleButton': 'ghost',
                     type: 'button',
-                    disabled: toggleTodoMutation.isLoading,
+                    disabled: function* () {
+                      return yield* (yield* EffectPlaygroundView()).toggleTodoMutation.isLoading();
+                    },
                     'aria-label': function* () {
                       return `Toggle ${(yield* todo()).title}`;
                     },
                     *click() {
-                      yield* toggleTodoMutation.mutate((yield* todo()).id);
+                      yield* (yield* EffectPlaygroundView()).toggleTodoMutation.mutate(
+                        (yield* todo()).id,
+                      );
                     },
                   },
                   function* () {
@@ -227,12 +241,16 @@ const EffectPlaygroundComponent = craftComponent(
                     class: example.button,
                     'data-exampleButton': 'ghost',
                     type: 'button',
-                    disabled: removeTodoMutation.isLoading,
+                    disabled: function* () {
+                      return yield* (yield* EffectPlaygroundView()).removeTodoMutation.isLoading();
+                    },
                     'aria-label': function* () {
                       return `Delete ${(yield* todo()).title}`;
                     },
                     *click() {
-                      yield* removeTodoMutation.mutate((yield* todo()).id);
+                      yield* (yield* EffectPlaygroundView()).removeTodoMutation.mutate(
+                        (yield* todo()).id,
+                      );
                     },
                   },
                   '🗑️',

@@ -180,42 +180,32 @@ export const { ReviewActionDialogsView, provideReviewActionDialogsView } =
 export const ReviewActionDialogs = craftComponent(
   'ReviewActionDialogs',
   {},
-  function* (_inputs: Inputs) {
+  function* (inputs: Inputs) {
     const {
-      isRegenerationOpen,
       t,
       queueValue,
-      regenerationHistoryText,
       closeRegenerationDialog,
       regenerating,
       confirmRegeneration,
-      isFolderApplyOpen,
-      folderApplyDescription,
-      isApplyError,
-      isApplyCopied,
+      folderLayoutApplyCopied: isApplyCopied,
       dismissFolderLayoutApply,
       copyFolderLayoutCommand,
       applyingLayout,
       confirmFolderLayoutApply,
-      folderApplyLabel,
-      isIterationOpen,
-      isIterationSetup,
-      rejectedIterationDescription,
       closeIterationDialog,
       handoffBusy,
       confirmIterationHandoff,
-      isHandoffBusy,
-      isHandoffReady,
-      handoffFilesDescription,
       handoffValue,
       copyIterationPrompt,
       closing,
       closeReviewSession,
-      closeReviewLabel,
-      isHandoffCopied,
-    } = yield* ReviewActionDialogsView();
+      iterationDialogOpen,
+      iterationPreparationNotStarted,
+      iterationHandoffReady,
+      iterationPromptCopied: isHandoffCopied,
+    } = inputs;
     return [
-      ifNode(isRegenerationOpen, () =>
+      ifNode('regenerationDialogOpen', inputs.regenerationDialogOpen, () =>
         div({ class: dialog.backdrop }, [
           section(
             'RegenerationDialog',
@@ -250,7 +240,9 @@ export const ReviewActionDialogs = craftComponent(
                 li(function* () {
                   return (yield* t()).regenerationReplacesArtifacts;
                 }),
-                li(regenerationHistoryText),
+                li(function* () {
+                  return yield* (yield* ReviewActionDialogsView()).regenerationHistoryText();
+                }),
                 li(function* () {
                   return (yield* t()).regenerationRebuildsQueue;
                 }),
@@ -290,7 +282,7 @@ export const ReviewActionDialogs = craftComponent(
           ),
         ]),
       ),
-      ifNode(isFolderApplyOpen, () =>
+      ifNode('folderLayoutApplyDialogOpen', inputs.folderLayoutApplyDialogOpen, () =>
         div({ class: dialog.backdrop }, [
           section(
             'FolderLayoutApplyDialog',
@@ -311,7 +303,9 @@ export const ReviewActionDialogs = craftComponent(
               ),
               p(
                 { class: dialog.body, id: 'folder-layout-apply-description' },
-                folderApplyDescription,
+                function* () {
+                  return yield* (yield* ReviewActionDialogsView()).folderApplyDescription();
+                },
               ),
               p({ class: dialog.staged }, function* () {
                 return (yield* t()).folderLayoutApplyStaged;
@@ -332,7 +326,12 @@ export const ReviewActionDialogs = craftComponent(
                   );
                 }),
               ]),
-              ifNode(isApplyError, () =>
+              ifNode(
+                'isApplyError',
+                function* () {
+                  return (yield* inputs.applyStatus()) === 'exception';
+                },
+                () =>
                 p(
                   {
                     class: dialog.error,
@@ -343,7 +342,7 @@ export const ReviewActionDialogs = craftComponent(
                   },
                 ),
               ),
-              ifNode(isApplyCopied, () =>
+              ifNode('folderLayoutApplyCopied', isApplyCopied, () =>
                 p(
                   { class: dialog.status, 'aria-live': 'polite' },
                   function* () {
@@ -385,14 +384,16 @@ export const ReviewActionDialogs = craftComponent(
                     disabled: applyingLayout,
                     click: confirmFolderLayoutApply,
                   },
-                  folderApplyLabel,
+                  function* () {
+                    return yield* (yield* ReviewActionDialogsView()).folderApplyLabel();
+                  },
                 ),
               ]),
             ],
           ),
         ]),
       ),
-      ifNode(isIterationOpen, () =>
+      ifNode('iterationDialogOpen', iterationDialogOpen, () =>
         div({ class: dialog.backdrop }, [
           section(
             {
@@ -406,7 +407,7 @@ export const ReviewActionDialogs = craftComponent(
               small({ class: reviewBits.eyebrow }, function* () {
                 return (yield* t()).iterationModalEyebrow;
               }),
-              ifNode(isIterationSetup, () => [
+              ifNode('iterationPreparationNotStarted', iterationPreparationNotStarted, () => [
                 heading(
                   { class: dialog.title, id: 'iteration-dialog-title' },
                   function* () {
@@ -415,7 +416,9 @@ export const ReviewActionDialogs = craftComponent(
                 ),
                 p(
                   { class: dialog.body, id: 'iteration-dialog-description' },
-                  rejectedIterationDescription,
+                  function* () {
+                    return yield* (yield* ReviewActionDialogsView()).rejectedIterationDescription();
+                  },
                 ),
                 ul({ class: dialog.consequences }, [
                   li(function* () {
@@ -457,7 +460,7 @@ export const ReviewActionDialogs = craftComponent(
                   ),
                 ]),
               ]),
-              ifNode(isHandoffBusy, () =>
+              ifNode('handoffBusy', handoffBusy, () =>
                 p(
                   { class: dialog.status, 'aria-live': 'polite' },
                   function* () {
@@ -465,7 +468,7 @@ export const ReviewActionDialogs = craftComponent(
                   },
                 ),
               ),
-              ifNode(isHandoffReady, () => [
+              ifNode('iterationHandoffReady', iterationHandoffReady, () => [
                 heading(
                   { class: dialog.title, id: 'iteration-dialog-title' },
                   function* () {
@@ -474,7 +477,9 @@ export const ReviewActionDialogs = craftComponent(
                 ),
                 p(
                   { class: dialog.body, id: 'iteration-dialog-description' },
-                  handoffFilesDescription,
+                  function* () {
+                    return yield* (yield* ReviewActionDialogsView()).handoffFilesDescription();
+                  },
                 ),
                 p({ class: dialog.status }, function* () {
                   return (yield* t()).iterationModalReady;
@@ -511,10 +516,12 @@ export const ReviewActionDialogs = craftComponent(
                       disabled: closing,
                       click: closeReviewSession,
                     },
-                    closeReviewLabel,
+                    function* () {
+                      return yield* (yield* ReviewActionDialogsView()).closeReviewLabel();
+                    },
                   ),
                 ]),
-                ifNode(isHandoffCopied, () =>
+                ifNode('iterationPromptCopied', isHandoffCopied, () =>
                   p(
                     { class: dialog.status, 'aria-live': 'polite' },
                     function* () {

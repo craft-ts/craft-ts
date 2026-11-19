@@ -283,9 +283,9 @@ export const behaviorCatalog = {
       "file": "libs/review-attestation/attestation-app/src/folder-layout-view.ts"
     },
     {
-      "id": "method:reviewQueuePanelView.reopenHistoryItem",
+      "id": "method:reviewDecisionPanelView.clearMention",
       "kind": "method",
-      "file": "libs/review-attestation/attestation-app/src/review-queue-panel.ts"
+      "file": "libs/review-attestation/attestation-app/src/review-decision-panel.ts"
     },
     {
       "id": "mutation:CloseReview.closeReview#success",

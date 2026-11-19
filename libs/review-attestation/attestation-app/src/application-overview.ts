@@ -206,26 +206,6 @@ export const ApplicationOverview = craftComponent(
     readonly decide: Output<(value: ApplicationVerdict) => void>;
     readonly inspect: Output<(subject: string) => void>;
   }) {
-    const {
-      progress,
-      pageProgress,
-      pageFilter,
-      category,
-      pages,
-      scenarioFilter,
-      scenarios,
-      viewportFilter,
-      viewports,
-      statusFilter,
-      applicationOverviewZoom: zoom,
-      imageKind,
-      applicationOverviewNote: note,
-      actions,
-      submit,
-      next,
-      applicationOverviewRows: rows,
-      selected,
-    } = yield* ApplicationOverviewView();
     return div([
       p(
         {
@@ -233,18 +213,27 @@ export const ApplicationOverview = craftComponent(
           'data-testid': 'application-progress',
           'aria-live': 'polite',
         },
-        progress,
+        function* () {
+          return yield* (yield* ApplicationOverviewView()).progress();
+        },
       ),
       div(
         { class: applicationOverview.row },
-        forNode(pageProgress, { track: (page) => page.name }, (page) =>
+        forNode(
+          function* () {
+            return yield* (yield* ApplicationOverviewView()).pageProgress();
+          },
+          { track: (page) => page.name },
+          (page) =>
           button(
             'ApplicationPageProgress',
             {
               type: 'button',
               class: applicationOverview.button,
               *click() {
-                yield* pageFilter.choose((yield* page()).name);
+                yield* (yield* ApplicationOverviewView()).pageFilter.choose(
+                  (yield* page()).name,
+                );
               },
             },
             function* () {
@@ -259,9 +248,13 @@ export const ApplicationOverview = craftComponent(
           select(
             'ApplicationCategory',
             {
-              value: category,
+              value: function* () {
+                return yield* (yield* ApplicationOverviewView()).category();
+              },
               *change(event) {
-                yield* category.choose(eventValue(event));
+                yield* (yield* ApplicationOverviewView()).category.choose(
+                  eventValue(event),
+                );
               },
             },
             [
@@ -276,14 +269,23 @@ export const ApplicationOverview = craftComponent(
           select(
             'ApplicationPage',
             {
-              value: pageFilter,
+              value: function* () {
+                return yield* (yield* ApplicationOverviewView()).pageFilter();
+              },
               *change(event) {
-                yield* pageFilter.choose(eventValue(event));
+                yield* (yield* ApplicationOverviewView()).pageFilter.choose(
+                  eventValue(event),
+                );
               },
             },
             [
               option({ value: '' }, 'Toutes'),
-              forNode(pages, { track: (v) => v }, (v) =>
+              forNode(
+                function* () {
+                  return yield* (yield* ApplicationOverviewView()).pages();
+                },
+                { track: (v) => v },
+                (v) =>
                 option({ value: v }, v),
               ),
             ],
@@ -294,14 +296,23 @@ export const ApplicationOverview = craftComponent(
           select(
             'ApplicationScenario',
             {
-              value: scenarioFilter,
+              value: function* () {
+                return yield* (yield* ApplicationOverviewView()).scenarioFilter();
+              },
               *change(event) {
-                yield* scenarioFilter.choose(eventValue(event));
+                yield* (yield* ApplicationOverviewView()).scenarioFilter.choose(
+                  eventValue(event),
+                );
               },
             },
             [
               option({ value: '' }, 'Tous'),
-              forNode(scenarios, { track: (v) => v }, (v) =>
+              forNode(
+                function* () {
+                  return yield* (yield* ApplicationOverviewView()).scenarios();
+                },
+                { track: (v) => v },
+                (v) =>
                 option({ value: v }, v),
               ),
             ],
@@ -312,14 +323,23 @@ export const ApplicationOverview = craftComponent(
           select(
             'ApplicationViewport',
             {
-              value: viewportFilter,
+              value: function* () {
+                return yield* (yield* ApplicationOverviewView()).viewportFilter();
+              },
               *change(event) {
-                yield* viewportFilter.choose(eventValue(event));
+                yield* (yield* ApplicationOverviewView()).viewportFilter.choose(
+                  eventValue(event),
+                );
               },
             },
             [
               option({ value: '' }, 'Tous'),
-              forNode(viewports, { track: (v) => v }, (v) =>
+              forNode(
+                function* () {
+                  return yield* (yield* ApplicationOverviewView()).viewports();
+                },
+                { track: (v) => v },
+                (v) =>
                 option({ value: v }, v),
               ),
             ],
@@ -330,9 +350,13 @@ export const ApplicationOverview = craftComponent(
           select(
             'ApplicationStatus',
             {
-              value: statusFilter,
+              value: function* () {
+                return yield* (yield* ApplicationOverviewView()).statusFilter();
+              },
               *change(event) {
-                yield* statusFilter.choose(eventValue(event));
+                yield* (yield* ApplicationOverviewView()).statusFilter.choose(
+                  eventValue(event),
+                );
               },
             },
             [
@@ -349,9 +373,13 @@ export const ApplicationOverview = craftComponent(
           select(
             'ApplicationZoom',
             {
-              value: zoom,
+              value: function* () {
+                return yield* (yield* ApplicationOverviewView()).applicationOverviewZoom();
+              },
               *change(event) {
-                yield* zoom.choose(eventValue(event));
+                yield* (yield* ApplicationOverviewView()).applicationOverviewZoom.choose(
+                  eventValue(event),
+                );
               },
             },
             [
@@ -365,9 +393,13 @@ export const ApplicationOverview = craftComponent(
           select(
             'ApplicationImage',
             {
-              value: imageKind,
+              value: function* () {
+                return yield* (yield* ApplicationOverviewView()).imageKind();
+              },
               *change(event) {
-                yield* imageKind.choose(eventValue(event));
+                yield* (yield* ApplicationOverviewView()).imageKind.choose(
+                  eventValue(event),
+                );
               },
             },
             [
@@ -384,9 +416,13 @@ export const ApplicationOverview = craftComponent(
           textarea('ApplicationComment', {
             class: applicationOverview.comment,
             'aria-label': 'Commentaire',
-            value: note,
+            value: function* () {
+              return yield* (yield* ApplicationOverviewView()).applicationOverviewNote();
+            },
             *input(event) {
-              yield* note.write(eventValue(event));
+              yield* (yield* ApplicationOverviewView()).applicationOverviewNote.write(
+                eventValue(event),
+              );
             },
           }),
         ]),
@@ -396,10 +432,10 @@ export const ApplicationOverview = craftComponent(
             type: 'button',
             class: applicationOverview.button,
             disabled: function* () {
-              return (yield* actions()).disableAccept;
+              return (yield* (yield* ApplicationOverviewView()).actions()).disableAccept;
             },
             *click() {
-              submit('ok');
+              (yield* ApplicationOverviewView()).submit('ok');
             },
           },
           'Accepter la sélection affichée',
@@ -410,23 +446,34 @@ export const ApplicationOverview = craftComponent(
             type: 'button',
             class: applicationOverview.button,
             disabled: function* () {
-              return (yield* actions()).disableReject;
+              return (yield* (yield* ApplicationOverviewView()).actions()).disableReject;
             },
             *click() {
-              submit('rejected');
+              (yield* ApplicationOverviewView()).submit('rejected');
             },
           },
           'Rejeter la sélection',
         ),
         button(
           'NextApplicationCapture',
-          { type: 'button', class: applicationOverview.button, click: next },
+          {
+            type: 'button',
+            class: applicationOverview.button,
+            *click() {
+              (yield* ApplicationOverviewView()).next();
+            },
+          },
           'Prochaine capture à examiner',
         ),
       ]),
       div(
         { class: applicationOverview.captures },
-        forNode(rows, { track: (row) => row.subject }, (row) =>
+        forNode(
+          function* () {
+            return yield* (yield* ApplicationOverviewView()).applicationOverviewRows();
+          },
+          { track: (row) => row.subject },
+          (row) =>
           div(
             {
               class: applicationOverview.capture,
@@ -450,7 +497,9 @@ export const ApplicationOverview = craftComponent(
                     return (yield* row()).disabled;
                   },
                   *change() {
-                    yield* selected.toggle((yield* row()).subject);
+                    yield* (yield* ApplicationOverviewView()).selected.toggle(
+                      (yield* row()).subject,
+                    );
                   },
                 }),
                 'Sélectionner cette capture',

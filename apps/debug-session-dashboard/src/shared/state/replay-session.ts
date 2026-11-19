@@ -32,6 +32,7 @@ import { ReplayPlayback } from './replay-playback';
 import {
   canReplaySelectedSession,
   continuations,
+  dismissAllWarnings,
   participantTitle,
   recordingClock,
   rememberAutoSkipDifferences,
@@ -56,6 +57,8 @@ export const { ReplaySession } = craftService(
       stopReplayVisibilityClock,
       updateActiveReplayFrame,
       updateReplayViewport,
+      pauseReplay,
+      playReplay,
     } = yield* ReplayPlayback();
     const { handshake, listenToReplayBridge } = yield* ReplayBridge();
     const {
@@ -307,6 +310,13 @@ export const { ReplaySession } = craftService(
 
     /* ── steering the replay ────────────────────────────────────────────────── */
 
+    function toggleReplay(): void {
+      const state = craftUse(replayState());
+      if (state === 'playing') pauseReplay();
+      else if (state === 'completed') startReplay();
+      else playReplay();
+    }
+
     function startReplay(): void {
       const slices = sessionsForReplay();
       if (slices.length === 0) {
@@ -455,6 +465,11 @@ export const { ReplaySession } = craftService(
     /** Stop waiting for the next action: it starts now. Only meaningful while playing. */
     function skipReplayWait(): void {
       if (craftUse(replayState()) === 'playing') send('skip-wait');
+    }
+
+    function dismissWarningsAndSkipReplayWait(): void {
+      dismissAllWarnings();
+      skipReplayWait();
     }
 
     /**
@@ -706,8 +721,10 @@ export const { ReplaySession } = craftService(
     yield* craftExpose('importSelectedFile', importSelectedFile);
     yield* craftExpose('setShowAllEvents', setShowAllEvents);
     yield* craftExpose('startReplay', startReplay);
+    yield* craftExpose('toggleReplay', toggleReplay);
     yield* craftExpose('stepNextReplayAction', stepNextReplayAction);
     yield* craftExpose('skipReplayWait', skipReplayWait);
+    yield* craftExpose('dismissWarningsAndSkipReplayWait', dismissWarningsAndSkipReplayWait);
     yield* craftExpose('seekReplayToWarning', seekReplayToWarning);
     yield* craftExpose('seekReplayToIndex', seekReplayToIndex);
     yield* craftExpose('seekReplayToEvent', seekReplayToEvent);

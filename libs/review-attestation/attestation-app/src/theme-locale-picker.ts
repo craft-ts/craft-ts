@@ -5,9 +5,7 @@ import {
   option,
   select,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
-import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
 import { preferences } from './review-controls.style';
 
@@ -19,24 +17,21 @@ import { preferences } from './review-controls.style';
 export const ThemeLocalePicker = craftComponent(
   'ThemeLocalePicker',
   {},
-  function* () {
-    const { locale, theme, ide, chooseLocale, chooseTheme, chooseIde } =
-      yield* ReviewPreferences();
-    const t = yield* craftComputed('themeLocaleMessages', function* () {
-      return MESSAGES[yield* locale()];
-    });
-    return div({ class: preferences.root }, [
+  () =>
+    div({ class: preferences.root }, [
       label({ htmlFor: 'review-locale' }, function* () {
-        return (yield* t()).language;
+        return (yield* (yield* ReviewPreferences()).locale.messages()).language;
       }),
       select(
         'ReviewLocale',
         {
           class: preferences.control,
           id: 'review-locale',
-          value: locale,
+          value: function* () {
+            return yield* (yield* ReviewPreferences()).locale();
+          },
           *change(event: Event) {
-            chooseLocale(eventValue(event));
+            (yield* ReviewPreferences()).chooseLocale(eventValue(event));
           },
         },
         [
@@ -45,16 +40,18 @@ export const ThemeLocalePicker = craftComponent(
         ],
       ),
       label({ htmlFor: 'review-theme' }, function* () {
-        return (yield* t()).theme;
+        return (yield* (yield* ReviewPreferences()).locale.messages()).theme;
       }),
       select(
         'ReviewTheme',
         {
           class: preferences.control,
           id: 'review-theme',
-          value: theme,
+          value: function* () {
+            return yield* (yield* ReviewPreferences()).theme();
+          },
           *change(event: Event) {
-            chooseTheme(eventValue(event));
+            (yield* ReviewPreferences()).chooseTheme(eventValue(event));
           },
         },
         [
@@ -62,27 +59,29 @@ export const ThemeLocalePicker = craftComponent(
           // gets what their machine asks for, and keeps getting it when the
           // machine changes its mind at sunset.
           option({ value: 'system' }, function* () {
-            return (yield* t()).themeSystem;
+            return (yield* (yield* ReviewPreferences()).locale.messages()).themeSystem;
           }),
           option({ value: 'light' }, function* () {
-            return (yield* t()).themeLight;
+            return (yield* (yield* ReviewPreferences()).locale.messages()).themeLight;
           }),
           option({ value: 'dark' }, function* () {
-            return (yield* t()).themeDark;
+            return (yield* (yield* ReviewPreferences()).locale.messages()).themeDark;
           }),
         ],
       ),
       label({ htmlFor: 'review-ide' }, function* () {
-        return (yield* t()).ide;
+        return (yield* (yield* ReviewPreferences()).locale.messages()).ide;
       }),
       select(
         'ReviewIde',
         {
           class: preferences.control,
           id: 'review-ide',
-          value: ide,
+          value: function* () {
+            return yield* (yield* ReviewPreferences()).ide();
+          },
           *change(event: Event) {
-            chooseIde(eventValue(event));
+            (yield* ReviewPreferences()).chooseIde(eventValue(event));
           },
         },
         [
@@ -91,6 +90,5 @@ export const ThemeLocalePicker = craftComponent(
           option({ value: 'zed' }, 'Zed'),
         ],
       ),
-    ]);
-  },
+    ]),
 );

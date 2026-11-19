@@ -104,6 +104,7 @@ const guideSidebar: readonly SidebarEntry[] = [
       { text: 'Local state', link: '/guide/state/local-state' },
       { text: 'State machines', link: '/guide/state/state-machines' },
       { text: 'query', link: '/guide/state/server-state' },
+      { text: 'Awaiting promises', link: '/guide/state/awaiting-promises' },
       { text: 'Mutations', link: '/guide/state/mutations' },
       { text: 'queryParams', link: '/guide/state/url-state' },
       { text: 'asyncProcess', link: '/guide/state/async-process' },
@@ -216,6 +217,7 @@ const guideSidebar: readonly SidebarEntry[] = [
         text: 'Content projection',
         link: '/guide/components/content-projection',
       },
+      { text: 'Portals', link: '/guide/components/portals' },
       { text: 'Styling a component', link: '/guide/components/styles' },
       {
         text: 'Template migrator',

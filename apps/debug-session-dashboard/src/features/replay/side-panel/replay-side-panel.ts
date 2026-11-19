@@ -8,23 +8,11 @@ import {
   span,
   type CraftNodeChild,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { DocIcon, type IconName } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import {
-  SessionArchive,
-  type ResumeCheckpointSummary,
-  type ResumeRecipeSummary,
-  type SessionSummary,
-} from '../../../shared/data-access/session-archive.service';
-import {
   errorCount,
-  isReplayErrorNote,
-  pendingWarnings,
-  replayDifferences,
   ReplayState,
-  replayWarnings,
-  routeSessionId,
   sidePanelOpen,
   sideTab,
   toggleSideTab,
@@ -32,12 +20,12 @@ import {
 } from '../../../shared/state/replay-state';
 import { ui } from '../../../shared/ui/dashboard.style';
 import { i18n } from '../../../shared/util/catalog';
-import { derivedSessionsOf } from '../../../shared/util/session-lineage';
 import { lit } from '../../../shared/util/view-helpers';
 import { ReplayDetails } from './replay-details';
 import { ReplayJournal } from './replay-journal';
 import { ReplayResumes } from './replay-resumes';
 import { ReplayReview } from './replay-review';
+import { ReplaySidePanelViewModel } from './replay-side-panel-view-model.service';
 
 const TAB_TITLES: Readonly<Record<SideTab, string>> = {
   journal: i18n.t('tabJournalTitle'),
@@ -45,21 +33,6 @@ const TAB_TITLES: Readonly<Record<SideTab, string>> = {
   resumes: i18n.t('tabResumesTitle'),
   details: i18n.t('tabDetailsTitle'),
 };
-
-/** What the « Reprises » view lists for a session: points, recipes, derived sessions. */
-function resumeItemCount(
-  sessionId: string | undefined,
-  checkpoints: readonly ResumeCheckpointSummary[],
-  recipes: readonly ResumeRecipeSummary[],
-  sessions: readonly SessionSummary[],
-): number {
-  if (!sessionId) return 0;
-  return (
-    checkpoints.filter((checkpoint) => !checkpoint.expired).length +
-    recipes.filter((recipe) => recipe.sessionId === sessionId).length +
-    derivedSessionsOf(sessionId, sessions, recipes).length
-  );
-}
 
 /** The view of the panel that one tab shows; the others stay built, hidden. */
 function tabPanel(tab: SideTab, body: CraftNodeChild) {
@@ -82,15 +55,10 @@ export const ReplaySidePanel = craftComponent(
   'ReplaySidePanel',
   {},
   function* () {
-    const { setStates, sidePanelOpen: panelOpen } = (yield* ReplayState())
-      .imperative;
-    const closed = yield* craftComputed('closed', function* () {
-      return !(yield* panelOpen());
-    });
-    const title = yield* craftComputed('title', () => TAB_TITLES[sideTab()]);
-
     const head = div({ class: ui.sideHead }, [
-      heading({ class: ui.sideTitle }, title),
+      heading({ class: ui.sideTitle }, function* () {
+        return yield* (yield* ReplaySidePanelViewModel()).panelTitle();
+      }),
       button(
         'closeSidePanel',
         {
@@ -98,7 +66,9 @@ export const ReplaySidePanel = craftComponent(
           class: buttonUi.root,
           'data-variant': 'link',
           'aria-label': i18n.t('copy.copy127'),
-          click: () => setStates({ sidePanelOpen: false }),
+          click: function* () {
+            (yield* ReplayState()).imperative.setStates({ sidePanelOpen: false });
+          },
         },
         i18n.t('copy.copy128'),
       ),
@@ -110,7 +80,9 @@ export const ReplaySidePanel = craftComponent(
         id: 'replay-side-panel',
         'data-lab': 'side',
         'aria-label': 'Panneau du replay',
-        hidden: closed,
+        hidden: function* () {
+          return yield* (yield* ReplaySidePanelViewModel()).panelClosed();
+        },
       },
       [
         head,
@@ -129,34 +101,6 @@ export const ReplaySidePanel = craftComponent(
  * press opens it, the same press closes it.
  */
 export const ReplayRail = craftComponent('ReplayRail', {}, function* () {
-  const archive = yield* SessionArchive();
-  const savedSessions = archive.sessions.savedSessions;
-  const savedRecipes = archive.recipeCatalog.resumeRecipeList;
-  const checkpoints = archive.resumeCheckpoints.resumeCheckpointList;
-
-  const reviewCount = yield* craftComputed(
-    'reviewCount',
-    () => replayDifferences().length + replayWarnings().length,
-  );
-  const reviewAlert = yield* craftComputed(
-    'reviewAlert',
-    () =>
-      replayDifferences().length > 0 ||
-      pendingWarnings().length > 0 ||
-      replayWarnings().some(isReplayErrorNote),
-  );
-  const resumeCount = yield* craftComputed('resumeCount', function* () {
-    const _savedSessions = yield* savedSessions();
-    const _savedRecipes = yield* savedRecipes();
-    const _checkpoints = yield* checkpoints();
-    return resumeItemCount(
-      routeSessionId(),
-      _checkpoints,
-      _savedRecipes,
-      _savedSessions,
-    );
-  });
-
   const railButton = (
     tab: SideTab,
     label: string,
@@ -223,15 +167,21 @@ export const ReplayRail = craftComponent('ReplayRail', {}, function* () {
       'review',
       'Écarts',
       'warning',
-      reviewCount,
-      reviewAlert,
+      function* () {
+        return yield* (yield* ReplaySidePanelViewModel()).reviewCount();
+      },
+      function* () {
+        return yield* (yield* ReplaySidePanelViewModel()).reviewAlert();
+      },
       'Là où le replay s’est écarté de l’enregistrement, et ses notes.',
     ),
     railButton(
       'resumes',
       'Reprises',
       'branch',
-      resumeCount,
+      function* () {
+        return yield* (yield* ReplaySidePanelViewModel()).resumeCount();
+      },
       function* () {
         return false;
       },

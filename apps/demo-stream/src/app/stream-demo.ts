@@ -9,7 +9,12 @@ import {
   section,
   span,
 } from '@craft-ts/component';
-import { craftComputed, craftExpose, craftService, subject } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftExpose,
+  craftService,
+  subject,
+} from '@craft-ts/core';
 import {
   debounce,
   distinctUntilChanged,
@@ -25,7 +30,7 @@ import {
 } from '@craft-ts/stream';
 import { provideSearchApi, SearchApi } from './search-api';
 import { demo } from './stream-demo.style';
-import { traceLines } from './trace-log';
+import { TraceLog } from './trace-log';
 
 function eventValue(event: Event): string {
   const target = event.target;
@@ -58,13 +63,14 @@ export const { StreamDemoView, provideStreamDemoView } = craftService(
       ),
     );
     yield* craftComputed('resultJson', function* () {
-      return JSON.stringify((yield* results.value()) ?? null);
+      return JSON.stringify(results.value() ?? null);
     });
     yield* craftComputed('exceptionJson', function* () {
-      return JSON.stringify((yield* results.exception()) ?? null);
+      return JSON.stringify(results.exception() ?? null);
     });
-    yield* craftComputed('traceText', () => traceLines().join('\n'));
-
+    yield* craftComputed('traceText', function* () {
+      return (yield* TraceLog.lines()).join('\n');
+    });
     yield* streamSignal(
       'ticker',
       interval(1000).pipe(
@@ -112,14 +118,8 @@ const StreamDemo = craftComponent(
           },
         }),
         p(['Status: ', span(StreamDemoView.results.status)]),
-        p([
-          'Result: ',
-          span(StreamDemoView.resultJson),
-        ]),
-        p([
-          'Exception: ',
-          span(StreamDemoView.exceptionJson),
-        ]),
+        p(['Result: ', span(StreamDemoView.resultJson)]),
+        p(['Exception: ', span(StreamDemoView.exceptionJson)]),
       ]),
       section({ class: demo.card }, [
         heading({ class: demo.title }, 'Ticker'),
@@ -166,7 +166,10 @@ const StreamDemo = craftComponent(
           { class: demo.hint },
           'Every root subscription, with the gesture that started it.',
         ),
-        pre({ class: demo.trace, 'data-testid': 'trace' }, StreamDemoView.traceText),
+        pre(
+          { class: demo.trace, 'data-testid': 'trace' },
+          StreamDemoView.traceText,
+        ),
       ]),
     ]),
 );

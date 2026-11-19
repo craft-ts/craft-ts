@@ -1,42 +1,34 @@
-import { i18n } from '../../../shared/util/catalog';
-import { craftComponent, div, p, span, type Output } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComponent, div, p, span, type Input } from '@craft-ts/component';
 import { assign, unit } from '@craft-ts/style';
 import { progressVars, ui } from '../../../shared/ui/dashboard.style';
 import { pointerShare } from '../../../shared/util/replay-browser';
-import {
-  currentNextActionLabel,
-  nextActionTimingLabel,
-  progressLabel,
-  replayDurationMs,
-  replayElapsedMs,
-  replayElapsedShare,
-  scrubValueText,
-  timeProgressLabel,
-  timeRemainingLabel,
-} from '../../../shared/util/replay-labels';
+import { replayElapsedShare } from '../../../shared/util/replay-labels';
+import { ReplayPageViewModel } from '../replay-page-view-model.service';
 import { ReplaySession } from '../../../shared/state/replay-session';
-import { replayIndex, replayableEvents } from '../../../shared/state/replay-state';
+import {
+  replayIndex,
+  replayableEvents,
+} from '../../../shared/state/replay-state';
 import {
   ReplayThumbnailMarks,
   ReplayThumbnailsStatus,
 } from './replay-thumbnails';
 
 /** The arrow keys walk the recording an action at a time; Home and End go to its ends. */
-function scrubKey(
+function scrubTarget(
   event: KeyboardEvent,
-  seekToIndex: (index: number) => void,
-): void {
-  const total = replayableEvents().length;
+  index: number,
+  total: number,
+): number | undefined {
   const target = {
-    ArrowRight: replayIndex() + 1,
-    ArrowLeft: replayIndex() - 1,
+    ArrowRight: index + 1,
+    ArrowLeft: index - 1,
     Home: 0,
     End: total,
   }[event.key];
-  if (target === undefined || total === 0) return;
+  if (target === undefined || total === 0) return undefined;
   event.preventDefault();
-  seekToIndex(target);
+  return target;
 }
 
 /**
@@ -48,44 +40,8 @@ function scrubKey(
 export const ReplayTimeline = craftComponent(
   'ReplayTimeline',
   {},
-  function* (inputs: { readonly retryThumbnails: Output<() => void> }) {
+  function* (inputs: { readonly retryThumbnails: Input<() => void> }) {
     const { retryThumbnails } = inputs;
-    const replaySession = yield* ReplaySession();
-    const ariaValueMax = yield* craftComputed('ariaValueMax', () =>
-      Math.round(replayDurationMs() / 1000),
-    );
-    const ariaValueNow = yield* craftComputed('ariaValueNow', () =>
-      Math.round(replayElapsedMs() / 1000),
-    );
-    const ariaValueText = yield* craftComputed('ariaValueText', scrubValueText);
-    const ariaDisabled = yield* craftComputed('ariaDisabled', () =>
-      replayableEvents().length === 0 ? i18n.t("copy.copy146") : i18n.t("copy.copy147"),
-    );
-    const timeProgress = yield* craftComputed(
-      'timeProgress',
-      timeProgressLabel,
-    );
-    const timeRemaining = yield* craftComputed(
-      'timeRemaining',
-      timeRemainingLabel,
-    );
-    const timelineProgress = yield* craftComputed(
-      'timelineProgress',
-      progressLabel,
-    );
-    const nextAction = yield* craftComputed(
-      'nextAction',
-      currentNextActionLabel,
-    );
-    const nextActionTimingHidden = yield* craftComputed(
-      'nextActionTimingHidden',
-      () => nextActionTimingLabel() === '',
-    );
-    const nextActionTimingText = yield* craftComputed(
-      'nextActionTimingText',
-      () => ` · ${nextActionTimingLabel()}`,
-    );
-
     const share = function* () {
       return assign(progressVars.done, unit.pct(replayElapsedShare()));
     };
@@ -99,14 +55,30 @@ export const ReplayTimeline = craftComponent(
         'data-lab': 'replay-scrubber',
         'aria-label': 'Position dans l’enregistrement',
         'aria-valuemin': 0,
-        'aria-valuemax': ariaValueMax,
-        'aria-valuenow': ariaValueNow,
-        'aria-valuetext': ariaValueText,
-        'aria-disabled': ariaDisabled,
-        click: (event: MouseEvent) =>
-          replaySession.seekReplayToShare(pointerShare(event)),
-        keydown: (event: KeyboardEvent) =>
-          scrubKey(event, replaySession.seekReplayToIndex),
+        'aria-valuemax': function* () {
+          return yield* (yield* ReplayPageViewModel()).ariaValueMax();
+        },
+        'aria-valuenow': function* () {
+          return yield* (yield* ReplayPageViewModel()).ariaValueNow();
+        },
+        'aria-valuetext': function* () {
+          return yield* (yield* ReplayPageViewModel()).ariaValueText();
+        },
+        'aria-disabled': function* () {
+          return yield* (yield* ReplayPageViewModel()).ariaDisabled();
+        },
+        click: function* (event: MouseEvent) {
+          (yield* ReplaySession()).seekReplayToShare(pointerShare(event));
+        },
+        keydown: function* (event: KeyboardEvent) {
+          const target = scrubTarget(
+            event,
+            replayIndex(),
+            replayableEvents().length,
+          );
+          if (target !== undefined)
+            (yield* ReplaySession()).seekReplayToIndex(target);
+        },
       },
       [
         div({ class: ui.scrubTrack }, [
@@ -122,10 +94,14 @@ export const ReplayTimeline = craftComponent(
 
     const info = div({ class: ui.timelineInfo }, [
       div({ class: ui.timelineClock }, [
-        p({ class: ui.progressLabel, 'data-lab': 'replay-time' }, timeProgress),
+        p({ class: ui.progressLabel, 'data-lab': 'replay-time' }, function* () {
+          return yield* (yield* ReplayPageViewModel()).timeProgress();
+        }),
         p(
           { class: ui.progressLabel, 'data-lab': 'replay-time-remaining' },
-          timeRemaining,
+          function* () {
+            return yield* (yield* ReplayPageViewModel()).timeRemaining();
+          },
         ),
       ]),
       div({ class: ui.timelineStep }, [
@@ -135,25 +111,35 @@ export const ReplayTimeline = craftComponent(
             'data-lab': 'replay-progress',
             role: 'status',
           },
-          timelineProgress,
+          function* () {
+            return yield* (yield* ReplayPageViewModel()).timelineProgress();
+          },
         ),
         p({ class: ui.next }, [
           span(
             { class: ui.nextName, 'data-lab': 'next-action-name' },
-            nextAction,
+            function* () {
+              return yield* (yield* ReplayPageViewModel()).nextAction();
+            },
           ),
           span(
             {
               class: ui.nextTiming,
               'data-lab': 'next-action-timing',
               role: 'timer',
-              hidden: nextActionTimingHidden,
+              hidden: function* () {
+                return yield* (yield* ReplayPageViewModel()).nextActionTimingHidden();
+              },
             },
-            nextActionTimingText,
+            function* () {
+              return yield* (yield* ReplayPageViewModel()).nextActionTimingText();
+            },
           ),
         ]),
       ]),
-      ReplayThumbnailsStatus({ retryThumbnails }),
+      ReplayThumbnailsStatus({
+        retryThumbnails,
+      }),
     ]);
 
     return div({ class: ui.timeline, 'data-lab': 'replay-timeline' }, [

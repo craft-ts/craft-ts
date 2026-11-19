@@ -11,7 +11,7 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { CraftRouter, craftComputed, craftUse } from '@craft-ts/core';
+import { CraftRouter } from '@craft-ts/core';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
 import {
   CHECK_ARCHIVE_URL,
@@ -24,7 +24,6 @@ import {
   checkPictureUrl,
   replayLineFor,
   replayStatusLine,
-  sessionsCheckView,
   suiteRunLine,
   type SessionsCheckMomentRow,
   type SessionsCheckRow,
@@ -39,51 +38,34 @@ import {
  * and a change it found, when it is wanted, is approved from here.
  */
 export const SuitePage = craftComponent('SuitePage', {}, function* () {
-  const archive = yield* GoldenSuiteArchive();
-  const loading = archive.suite.suiteLoading;
-  const unreachable = archive.suite.suiteUnreachable;
-  const origins = archive.suite.origins;
-  const origin = archive.chosenOrigin.effective;
-  const lastRun = archive.suiteRun.lastRun;
-  const replaying = archive.suiteRun.replaying;
-  const replayFailed = archive.suiteRun.replayUnreachable;
-  const lastCheck = archive.lastCheck.check;
-  const approving = archive.approveChange.approving;
-  const approveFailed = archive.approveChange.approveFailed;
-  const openedCheck = archive.openedCheckSession.current;
-  const check = yield* craftComputed('check', function* () {
-    const _lastCheck = yield* lastCheck();
-    return sessionsCheckView(_lastCheck);
-  });
-  const checkRows = yield* craftComputed('checkRows', function* () {
-    const _lastCheck = yield* lastCheck();
-    return sessionsCheckView(_lastCheck).rows;
-  });
-
   const originPicker = div(
     {
       class: ui.segments,
       role: 'group',
       'aria-label': i18n.t('suiteAppsLabel'),
       'data-lab': 'suite-origins',
-      hidden: () => craftUse(origins()).length < 2,
+      hidden: function* () {
+        return (yield* (yield* GoldenSuiteArchive()).suite.originsCount()) < 2;
+      },
     },
-    forNode(origins, { track: (item) => item }, (item) =>
+    forNode(function* () {
+      return yield* (yield* GoldenSuiteArchive()).suite.origins();
+    }, { track: (item) => item }, (item) =>
       button(
         'chooseSuiteOrigin',
         {
           type: 'button',
           class: ui.segment,
           'aria-pressed': function* () {
-            const _origin = yield* origin();
+            const _origin = yield* (yield* GoldenSuiteArchive()).chosenOrigin.effective();
             return _origin === (yield* item()) ? 'true' : 'false';
           },
           'data-segment-on': function* () {
-            const _origin = yield* origin();
+            const _origin = yield* (yield* GoldenSuiteArchive()).chosenOrigin.effective();
             return _origin === (yield* item()) ? 'true' : undefined;
           },
           click: function* () {
-            yield* archive.chosenOrigin.choose(yield* item());
+            yield* (yield* GoldenSuiteArchive()).chosenOrigin.choose(yield* item());
           },
         },
         item,
@@ -93,7 +75,9 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
 
   const factList = ul(
     { class: ui.rowChips, 'data-lab': 'suite-facts' },
-    forNode(archive.suite.facts, { track: (fact) => fact.label }, (fact) =>
+    forNode(function* () {
+      return yield* (yield* GoldenSuiteArchive()).suite.facts();
+    }, { track: (fact) => fact.label }, (fact) =>
       li({ class: ui.fact }, [
         span({ class: ui.factLabel }, function* () {
           return (yield* fact()).label;
@@ -113,12 +97,12 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       'data-variant': 'primary',
       'data-lab': 'suite-replay-all',
       disabled: function* () {
-        const _replaying = yield* replaying();
-        return _replaying || (yield* archive.suite.keptCount()) === 0;
+        const _replaying = yield* (yield* GoldenSuiteArchive()).suiteRun.replaying();
+        return _replaying || (yield* (yield* GoldenSuiteArchive()).suite.keptCount()) === 0;
       },
       click: function* () {
-        yield* archive.suiteRun.call(
-          (yield* archive.suite.kept()).map((row) => row.sessionId),
+        yield* (yield* GoldenSuiteArchive()).suiteRun.call(
+          (yield* (yield* GoldenSuiteArchive()).suite.kept()).map((row) => row.sessionId),
         );
       },
     },
@@ -129,25 +113,39 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
     {
       class: ui.lede,
       'data-lab': 'suite-replay-status',
-      hidden: () => !craftUse(replaying()) && !craftUse(replayFailed()),
+      hidden: function* () {
+        const archive = yield* GoldenSuiteArchive();
+        return !(yield* archive.suiteRun.replaying()) && !(yield* archive.suiteRun.replayUnreachable());
+      },
     },
-    () => replayStatusLine(craftUse(replaying()), craftUse(replayFailed())),
+    function* () {
+      const archive = yield* GoldenSuiteArchive();
+      return replayStatusLine(yield* archive.suiteRun.replaying(), yield* archive.suiteRun.replayUnreachable());
+    },
   );
 
   const runSummary = p(
     {
       class: badgeUi.root,
       'data-lab': 'suite-run-summary',
-      'data-tone': () => suiteRunLine(craftUse(lastRun())).tone,
-      hidden: () =>
-        craftUse(replaying()) || suiteRunLine(craftUse(lastRun())).hidden,
+      'data-tone': function* () {
+        return suiteRunLine(yield* (yield* GoldenSuiteArchive()).suiteRun.lastRun()).tone;
+      },
+      hidden: function* () {
+        const archive = yield* GoldenSuiteArchive();
+        return (yield* archive.suiteRun.replaying()) || suiteRunLine(yield* archive.suiteRun.lastRun()).hidden;
+      },
     },
-    () => suiteRunLine(craftUse(lastRun())).text,
+    function* () {
+      return suiteRunLine(yield* (yield* GoldenSuiteArchive()).suiteRun.lastRun()).text;
+    },
   );
 
   const keptList = ul(
     { class: ui.sessions, 'data-lab': 'suite-sessions' },
-    forNode(archive.suite.kept, { track: (row) => row.sessionId }, (row) =>
+    forNode(function* () {
+      return yield* (yield* GoldenSuiteArchive()).suite.kept();
+    }, { track: (row) => row.sessionId }, (row) =>
       li({ class: ui.row, 'data-lab': 'suite-session' }, [
         span({ class: ui.rowBody }, [
           span({ class: ui.rowTitle }, [
@@ -187,16 +185,16 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
               class: badgeUi.root,
               'data-lab': 'suite-replay-result',
               'data-tone': function* () {
-                const _lastRun = yield* lastRun();
+                const _lastRun = yield* (yield* GoldenSuiteArchive()).suiteRun.lastRun();
                 return replayLineFor(_lastRun, (yield* row()).sessionId).tone;
               },
               hidden: function* () {
-                const _lastRun = yield* lastRun();
+                const _lastRun = yield* (yield* GoldenSuiteArchive()).suiteRun.lastRun();
                 return replayLineFor(_lastRun, (yield* row()).sessionId).hidden;
               },
             },
             function* () {
-              const _lastRun = yield* lastRun();
+              const _lastRun = yield* (yield* GoldenSuiteArchive()).suiteRun.lastRun();
               return replayLineFor(_lastRun, (yield* row()).sessionId).text;
             },
           ),
@@ -225,9 +223,11 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
               class: [buttonUi.root, ui.inlineAction],
               'data-variant': 'secondary',
               'data-lab': 'suite-replay-session',
-              disabled: replaying,
+              disabled: function* () {
+                return yield* (yield* GoldenSuiteArchive()).suiteRun.replaying();
+              },
               click: function* () {
-                yield* archive.suiteRun.call([(yield* row()).sessionId]);
+                yield* (yield* GoldenSuiteArchive()).suiteRun.call([(yield* row()).sessionId]);
               },
             },
             i18n.t('suiteReplay'),
@@ -260,8 +260,8 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
           alt: label,
           src: function* () {
             const id = yield* sessionId();
-            const _origin = yield* origin();
-            const _openedCheck = yield* openedCheck();
+            const _origin = yield* (yield* GoldenSuiteArchive()).chosenOrigin.effective();
+            const _openedCheck = yield* (yield* GoldenSuiteArchive()).openedCheckSession.current();
             const url =
               _openedCheck === id
                 ? checkPictureUrl(
@@ -289,7 +289,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
         class: ui.checkMoments,
         'data-lab': 'suite-check-moments',
         hidden: function* () {
-          const _openedCheck = yield* openedCheck();
+          const _openedCheck = yield* (yield* GoldenSuiteArchive()).openedCheckSession.current();
           return _openedCheck !== (yield* row()).sessionId;
         },
       },
@@ -360,11 +360,11 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
             class: badgeUi.root,
             'data-lab': 'suite-check-builds',
             hidden: function* () {
-              return (yield* check()).none;
+              return (yield* (yield* GoldenSuiteArchive()).lastCheck.view()).none;
             },
           },
           function* () {
-            return (yield* check()).builds;
+            return (yield* (yield* GoldenSuiteArchive()).lastCheck.view()).builds;
           },
         ),
       ]),
@@ -373,7 +373,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
           class: ui.lede,
           'data-lab': 'suite-check-none',
           hidden: function* () {
-            return !(yield* check()).none;
+            return !(yield* (yield* GoldenSuiteArchive()).lastCheck.view()).none;
           },
         },
         i18n.t('suiteCheckNone'),
@@ -383,21 +383,21 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
           class: badgeUi.root,
           'data-lab': 'suite-check-verdict',
           'data-tone': function* () {
-            return (yield* check()).tone;
+            return (yield* (yield* GoldenSuiteArchive()).lastCheck.view()).tone;
           },
           hidden: function* () {
-            return (yield* check()).none;
+            return (yield* (yield* GoldenSuiteArchive()).lastCheck.view()).none;
           },
         },
         function* () {
-          return (yield* check()).verdictLine;
+          return (yield* (yield* GoldenSuiteArchive()).lastCheck.view()).verdictLine;
         },
       ),
       p(
         {
           class: ui.lede,
           hidden: function* () {
-            return (yield* check()).none;
+            return (yield* (yield* GoldenSuiteArchive()).lastCheck.view()).none;
           },
         },
         i18n.t('suiteCheckHint'),
@@ -406,13 +406,18 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
         {
           class: ui.lede,
           'data-lab': 'suite-approve-failed',
-          hidden: () => craftUse(approving()) || !craftUse(approveFailed()),
+          hidden: function* () {
+            const archive = yield* GoldenSuiteArchive();
+            return (yield* archive.approveChange.approving()) || !(yield* archive.approveChange.approveFailed());
+          },
         },
         i18n.t('suiteApproveFailed'),
       ),
       ul(
         { class: ui.sessions },
-        forNode(checkRows, { track: (row) => row.sessionId }, (row) =>
+        forNode(function* () {
+          return yield* (yield* GoldenSuiteArchive()).lastCheck.rows();
+        }, { track: (row) => row.sessionId }, (row) =>
           li(
             { class: [ui.row, ui.checkRow], 'data-lab': 'suite-check-session' },
             [
@@ -447,7 +452,7 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
                     'data-variant': 'secondary',
                     'data-lab': 'suite-check-toggle',
                     'aria-expanded': function* () {
-                      const _openedCheck = yield* openedCheck();
+                      const _openedCheck = yield* (yield* GoldenSuiteArchive()).openedCheckSession.current();
                       return _openedCheck === (yield* row()).sessionId
                         ? 'true'
                         : 'false';
@@ -456,13 +461,13 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
                       return (yield* row()).moments.length === 0;
                     },
                     click: function* () {
-                      yield* archive.openedCheckSession.toggle(
+                      yield* (yield* GoldenSuiteArchive()).openedCheckSession.toggle(
                         (yield* row()).sessionId,
                       );
                     },
                   },
                   function* () {
-                    const _openedCheck = yield* openedCheck();
+                    const _openedCheck = yield* (yield* GoldenSuiteArchive()).openedCheckSession.current();
                     return _openedCheck === (yield* row()).sessionId
                       ? i18n.t('suiteCheckHide')
                       : i18n.t('suiteCheckShow');
@@ -493,19 +498,24 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
                     hidden: function* () {
                       return !(yield* row()).approvable;
                     },
-                    disabled: approving,
+                    disabled: function* () {
+                      return yield* (yield* GoldenSuiteArchive()).approveChange.approving();
+                    },
                     click: function* () {
-                      const _origin = yield* origin();
-                      yield* archive.approveCheckedChange(
+                      const _origin = yield* (yield* GoldenSuiteArchive()).chosenOrigin.effective();
+                      yield* (yield* GoldenSuiteArchive()).approveCheckedChange(
                         _origin,
                         (yield* row()).sessionId,
                       );
                     },
                   },
-                  () =>
-                    craftUse(approving())
+                  function* () {
+                    const approving = yield* (yield* GoldenSuiteArchive())
+                      .approveChange.approving();
+                    return approving
                       ? i18n.t('suiteApproving')
-                      : i18n.t('suiteApprove'),
+                      : i18n.t('suiteApprove');
+                  },
                 ),
               ]),
               checkMoments(row),
@@ -520,30 +530,42 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
     lab: string,
     title: string,
     hint: string,
-    units: typeof archive.suite.toRecapture | typeof archive.suite.uncovered,
-    unitCount:
-      | typeof archive.suite.toRecaptureCount
-      | typeof archive.suite.uncoveredCount,
+    collection: 'toRecapture' | 'uncovered',
   ) =>
     div(
       {
         class: ui.sideSection,
         'data-lab': lab,
         hidden: function* () {
-          return (yield* unitCount()) === 0;
+          const archive = yield* GoldenSuiteArchive();
+          const count =
+            collection === 'toRecapture'
+              ? yield* archive.suite.toRecaptureCount()
+              : yield* archive.suite.uncoveredCount();
+          return count === 0;
         },
       },
       [
         p({ class: ui.sideSectionTitle }, [
           span(title),
           span({ class: badgeUi.root, 'data-tone': 'warning' }, function* () {
-            return String(yield* unitCount());
+            const archive = yield* GoldenSuiteArchive();
+            return String(
+              collection === 'toRecapture'
+                ? yield* archive.suite.toRecaptureCount()
+                : yield* archive.suite.uncoveredCount(),
+            );
           }),
         ]),
         p({ class: ui.lede }, hint),
         span(
           { class: ui.rowChips },
-          forNode(units, { track: (unit) => unit }, (unit) =>
+          forNode(function* () {
+            const archive = yield* GoldenSuiteArchive();
+            return collection === 'toRecapture'
+              ? yield* archive.suite.toRecapture()
+              : yield* archive.suite.uncovered();
+          }, { track: (unit) => unit }, (unit) =>
             span({ class: ui.unitTag }, unit),
           ),
         ),
@@ -555,19 +577,21 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       class: ui.sideSection,
       'data-lab': 'suite-rejected',
       hidden: function* () {
-        return (yield* archive.suite.rejectedCount()) === 0;
+        return (yield* (yield* GoldenSuiteArchive()).suite.rejectedCount()) === 0;
       },
     },
     [
       p({ class: ui.sideSectionTitle }, [
         span(i18n.t('suiteRejectedTitle')),
         span({ class: badgeUi.root }, function* () {
-          return String(yield* archive.suite.rejectedCount());
+          return String(yield* (yield* GoldenSuiteArchive()).suite.rejectedCount());
         }),
       ]),
       ul(
         { class: ui.sessions },
-        forNode(archive.suite.rejected, { track: (row) => row.sessionId }, (row) =>
+        forNode(function* () {
+          return yield* (yield* GoldenSuiteArchive()).suite.rejected();
+        }, { track: (row) => row.sessionId }, (row) =>
           li({ class: ui.row, 'data-lab': 'suite-rejected-session' }, [
             span({ class: ui.rowBody }, [
               span({ class: ui.rowTitle }, function* () {
@@ -588,8 +612,9 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
       class: ui.empty,
       'data-lab': 'suite-empty',
       hidden: function* () {
-        const _unreachable = yield* unreachable();
-        const _loading = yield* loading();
+        const archive = yield* GoldenSuiteArchive();
+        const _unreachable = yield* archive.suite.suiteUnreachable();
+        const _loading = yield* archive.suite.suiteLoading();
         return _loading || _unreachable || (yield* archive.suite.keptCount()) > 0;
       },
     },
@@ -599,7 +624,9 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
     {
       class: ui.empty,
       'data-lab': 'suite-unreachable',
-      hidden: () => !craftUse(unreachable()),
+      hidden: function* () {
+        return !(yield* (yield* GoldenSuiteArchive()).suite.suiteUnreachable());
+      },
     },
     i18n.t('suiteUnreachable'),
   );
@@ -624,16 +651,14 @@ export const SuitePage = craftComponent('SuitePage', {}, function* () {
           'suite-to-recapture',
           i18n.t('suiteToRecaptureTitle'),
           i18n.t('suiteToRecaptureHint'),
-          archive.suite.toRecapture,
-          archive.suite.toRecaptureCount,
+          'toRecapture',
         ),
         rejectedSection,
         unitSection(
           'suite-uncovered',
           i18n.t('suiteUncoveredTitle'),
           i18n.t('suiteUncoveredHint'),
-          archive.suite.uncovered,
-          archive.suite.uncoveredCount,
+          'uncovered',
         ),
       ]),
       empty,

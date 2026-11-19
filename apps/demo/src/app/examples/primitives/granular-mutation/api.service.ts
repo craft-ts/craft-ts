@@ -17,7 +17,7 @@ export const { ApiServiceGranularMutationApiService2: ApiService } = craftServic
   { name: 'ApiServiceGranularMutationApiService2', providedIn: 'global' },
   function* () {
     const dataList = yield* craftPrivate(state(
-      'dataListGranularMutationApiService2',
+      'dataList',
       [
         { id: '1', name: 'Romain' },
         { id: '2', name: 'Geffrault' },

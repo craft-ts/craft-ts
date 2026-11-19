@@ -33,119 +33,165 @@ import { CurrentUser, requireAdmin } from '../shared/authenticated-user';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-client';
 import { demoPage } from './demo.style';
 
-export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftService(
-  { name: 'serverFunctionDemoView', providedIn: 'toProvide' },
-  function* () {
-    let writeSearchInput: ((value: string) => Generator<never, unknown, unknown>) | undefined;
-    const searchInput = yield* state('searchInputClientServerFunctionDemo', '', ({ set }) => {
-      writeSearchInput = function* (value: string) {
-        return yield* set(value);
-      };
-      return {};
-    });
-    yield* craftMethod('setSearchInputClientServerFunctionDemo', function* (value: string) {
-      if (writeSearchInput) yield* writeSearchInput(value);
-    });
-    const currentUserQuery = yield* craftPrivate(query('currentUserQuery', {
-      params: () => true,
-      loader: function* () {
-        return yield* CurrentUser;
-      },
-    }));
-    const currentUser = yield* craftComputed('currentUser', function* () {
-      return yield* currentUserQuery.value();
-    });
-    const isAdmin = yield* craftPrivate(craftComputed('isAdmin', function* () {
-      return (yield* currentUser())?.role === 'admin';
-    }));
-    // todo removeImporve and remove all the coments
-    const usersQuery = yield* query(
-      'usersQueryClientServerFunctionDemo',
-      {
-        method: (term: string) => term,
-        loader: function* ({ params }) {
-          // Contrôle d'UX uniquement : il évite un aller-retour réseau, il
-          // n'autorise rien.
-          yield* requireAdmin;
-          // L'identité annoncée ne se recopie plus à la main dans l'input :
-          // elle voyage dans le canal `context`, alimenté par la chaîne
-          // client déclarée sur la façade.
-          return yield* getAuthenticatedUsers({ filter: params });
+export const { ServerFunctionDemoView, provideServerFunctionDemoView } =
+  craftService(
+    { name: 'serverFunctionDemoView', providedIn: 'toProvide' },
+    function* () {
+      let writeSearchInput:
+        | ((value: string) => Generator<never, unknown, unknown>)
+        | undefined;
+      const searchInput = yield* state(
+        'searchInputClientServerFunctionDemo',
+        '',
+        ({ set }) => {
+          writeSearchInput = function* (value: string) {
+            return yield* set(value);
+          };
+          return {};
         },
-      },
-      ({ resource, exceptions }) => {
-        const hasUsers = craftUse(craftComputed('hasUsersClientServerFunctionDemo', () => resource.hasValue()));
-        const notFound = craftUse(craftComputed('notFoundClientServerFunctionDemo', function* () {
-          const error = (yield* exceptions()).loader;
-          return (
-            isCraftException(error) &&
-            error._tag === 'AuthenticatedUsersNotFound'
+      );
+      yield* craftMethod(
+        'setSearchInputClientServerFunctionDemo',
+        function* (value: string) {
+          if (writeSearchInput) yield* writeSearchInput(value);
+        },
+      );
+      const currentUserQuery = yield* craftPrivate(
+        query('currentUserQuery', {
+          params: () => true,
+          loader: function* () {
+            return yield* CurrentUser;
+          },
+        }),
+      );
+      const currentUser = yield* craftComputed('currentUser', function* () {
+        return yield* currentUserQuery.value();
+      });
+      const isAdmin = yield* craftPrivate(
+        craftComputed('isAdmin', function* () {
+          return (yield* currentUser())?.role === 'admin';
+        }),
+      );
+      // todo removeImporve and remove all the coments
+      const usersQuery = yield* query(
+        'usersQueryClientServerFunctionDemo',
+        {
+          method: (term: string) => term,
+          loader: function* ({ params }) {
+            // Contrôle d'UX uniquement : il évite un aller-retour réseau, il
+            // n'autorise rien.
+            yield* requireAdmin;
+            // L'identité annoncée ne se recopie plus à la main dans l'input :
+            // elle voyage dans le canal `context`, alimenté par la chaîne
+            // client déclarée sur la façade.
+            return yield* getAuthenticatedUsers({ filter: params });
+          },
+        },
+        ({ resource, exceptions }) => {
+          const hasUsers = craftUse(
+            craftComputed('hasUsersClientServerFunctionDemo', () =>
+              resource.hasValue(),
+            ),
           );
-        }));
-        const notFoundMessage = craftUse(craftComputed('notFoundMessage', function* () {
-          const error = (yield* exceptions()).loader;
-          if (!isCraftException(error)) return '';
-          const payload = error.payload;
-          const message =
-            payload && typeof payload === 'object' && 'message' in payload
-              ? payload.message
-              : undefined;
-          return `404 · ${String(message ?? 'No matching users.')}`;
-        }));
-        return {
-          accessDenied: craftUse(craftComputed('accessDenied', function* () {
-            return (yield* currentUser())?.role === 'member';
-          })),
-          hasUsers,
-          notFound,
-          notFoundMessage,
-          isEmpty: craftUse(craftComputed('isEmptyClientServerFunctionDemo', function* () {
-            const currentStatus = yield* resource.status();
-            return (
-              (yield* currentUser())?.role !== 'member' &&
-              !(yield* notFound()) &&
-              currentStatus !== 'loading' &&
-              currentStatus !== 'reloading' &&
-              !resource.hasValue()
-            );
-          })),
-          requestTitle: craftUse(craftComputed('requestTitleClientServerFunctionDemo', function* () {
-            const currentStatus = yield* resource.status();
-            if ((yield* currentUser())?.role === 'member') {
-              return 'Client-side access denied';
-            }
-            if (yield* notFound()) return 'Server returned 404';
-            return currentStatus === 'loading' || currentStatus === 'reloading'
-              ? 'Calling demo.users.authenticated-list…'
-              : 'Server function ready';
-          })),
-          requestDetail: craftUse(craftComputed('requestDetailClientServerFunctionDemo', function* () {
-            const currentStatus = yield* resource.status();
-            if ((yield* currentUser())?.role === 'member') {
-              return `Role “${(yield* currentUser())?.role ?? '…'}” · no request sent`;
-            }
-            if (yield* notFound()) {
-              return 'No matching users were found on the server';
-            }
-            return currentStatus === 'loading' || currentStatus === 'reloading'
-              ? 'POST /__server-functions · Effect is running'
-              : `Status: ${currentStatus}`;
-          })),
-          resultCount: craftUse(craftComputed('resultCountClientServerFunctionDemo', function* () {
-            const value = yield* resource.value();
-            return Array.isArray(value) ? value.length.toString() : '—';
-          })),
-        };
-      },
-    );
-    yield* usersQuery.call(''); // trigger first call
-    yield* craftMethod('submitSearchClientServerFunctionDemo', function* (event?: Event) {
-      event?.preventDefault();
-      if (!(yield* isAdmin())) return; // todo remove
-      yield* usersQuery.call((yield* searchInput()).trim());
-    });
-  },
-);
+          const notFound = craftUse(
+            craftComputed('notFoundClientServerFunctionDemo', function* () {
+              const error = (yield* exceptions()).loader;
+              return (
+                isCraftException(error) &&
+                error._tag === 'AuthenticatedUsersNotFound'
+              );
+            }),
+          );
+          const notFoundMessage = craftUse(
+            craftComputed('notFoundMessage', function* () {
+              const error = (yield* exceptions()).loader;
+              if (!isCraftException(error)) return '';
+              const payload = error.payload;
+              const message =
+                payload && typeof payload === 'object' && 'message' in payload
+                  ? payload.message
+                  : undefined;
+              return `404 · ${String(message ?? 'No matching users.')}`;
+            }),
+          );
+          return {
+            accessDenied: craftUse(
+              craftComputed('accessDenied', function* () {
+                return (yield* currentUser())?.role === 'member';
+              }),
+            ),
+            hasUsers,
+            notFound,
+            notFoundMessage,
+            isEmpty: craftUse(
+              craftComputed('isEmptyClientServerFunctionDemo', function* () {
+                const currentStatus = yield* resource.status();
+                return (
+                  (yield* currentUser())?.role !== 'member' &&
+                  !(yield* notFound()) &&
+                  currentStatus !== 'loading' &&
+                  currentStatus !== 'reloading' &&
+                  !resource.hasValue()
+                );
+              }),
+            ),
+            requestTitle: craftUse(
+              craftComputed(
+                'requestTitleClientServerFunctionDemo',
+                function* () {
+                  const currentStatus = yield* resource.status();
+                  if ((yield* currentUser())?.role === 'member') {
+                    return 'Client-side access denied';
+                  }
+                  if (yield* notFound()) return 'Server returned 404';
+                  return currentStatus === 'loading' ||
+                    currentStatus === 'reloading'
+                    ? 'Calling demo.users.authenticated-list…'
+                    : 'Server function ready';
+                },
+              ),
+            ),
+            requestDetail: craftUse(
+              craftComputed(
+                'requestDetailClientServerFunctionDemo',
+                function* () {
+                  const currentStatus = yield* resource.status();
+                  if ((yield* currentUser())?.role === 'member') {
+                    return `Role “${(yield* currentUser())?.role ?? '…'}” · no request sent`;
+                  }
+                  if (yield* notFound()) {
+                    return 'No matching users were found on the server';
+                  }
+                  return currentStatus === 'loading' ||
+                    currentStatus === 'reloading'
+                    ? 'POST /__server-functions · Effect is running'
+                    : `Status: ${currentStatus}`;
+                },
+              ),
+            ),
+            resultCount: craftUse(
+              craftComputed(
+                'resultCountClientServerFunctionDemo',
+                function* () {
+                  const value = yield* resource.value();
+                  return Array.isArray(value) ? value.length.toString() : '—';
+                },
+              ),
+            ),
+          };
+        },
+      );
+      yield* usersQuery.call(''); // trigger first call
+      yield* craftMethod(
+        'submitSearchClientServerFunctionDemo',
+        function* (event?: Event) {
+          event?.preventDefault();
+          if (!(yield* isAdmin())) return; // todo remove
+          yield* usersQuery.call((yield* searchInput()).trim());
+        },
+      );
+    },
+  );
 
 const ServerFunctionDemo = craftComponent(
   'ServerFunctionDemo',
@@ -153,13 +199,6 @@ const ServerFunctionDemo = craftComponent(
     providers: [provideServerFunctionDemoView()],
   },
   function* () {
-    const {
-      searchInputClientServerFunctionDemo: searchInput,
-      setSearchInputClientServerFunctionDemo: setSearchInput,
-      usersQueryClientServerFunctionDemo: usersQuery,
-      currentUser,
-      submitSearchClientServerFunctionDemo: submitSearch,
-    } = yield* ServerFunctionDemoView();
     return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
@@ -192,46 +231,65 @@ const ServerFunctionDemo = craftComponent(
             span({ class: demoPage.requestDot }),
             div([
               strong({ class: demoPage.requestTitle }, function* () {
-                return `User: ${(yield* currentUser())?.id ?? '…'}`;
+                return `User: ${(yield* (yield* ServerFunctionDemoView()).currentUser())?.id ?? '…'}`;
               }),
               small({ class: demoPage.requestDetail }, function* () {
-                return `Role: ${(yield* currentUser())?.role ?? '…'}`;
+                return `Role: ${(yield* (yield* ServerFunctionDemoView()).currentUser())?.role ?? '…'}`;
               }),
             ]),
           ]),
-          form('searchForm', { submit: submitSearch }, [
-            label({ class: demoPage.label, htmlFor: 'filterInput' }, 'Filter'),
-            div({ class: demoPage.searchRow }, [
-              input('filterInput', {
-                class: demoPage.input,
-                type: 'search',
-                value: searchInput,
-                placeholder: 'ada, craft.dev…',
-                autocomplete: 'off',
-                'aria-label': 'User filter',
-                *input(event) {
-                  setSearchInput(event.target.value);
-                },
-              }),
-              button(
-                'searchButton',
-                {
-                  class: demoPage.button,
-                  type: 'submit',
-                  disabled: usersQuery.isLoading,
-                },
-                'Run ↗',
+          form(
+            'searchForm',
+            {
+              *submit(event) {
+                (yield* ServerFunctionDemoView()).submitSearchClientServerFunctionDemo(
+                  event,
+                );
+              },
+            },
+            [
+              label(
+                { class: demoPage.label, htmlFor: 'filterInput' },
+                'Filter',
               ),
-            ]),
-          ]),
+              div({ class: demoPage.searchRow }, [
+                input('filterInput', {
+                  class: demoPage.input,
+                  type: 'search',
+                  value: function* () {
+                    return yield* (yield* ServerFunctionDemoView()).searchInputClientServerFunctionDemo();
+                  },
+                  placeholder: 'ada, craft.dev…',
+                  autocomplete: 'off',
+                  'aria-label': 'User filter',
+                  *input(event) {
+                    (yield* ServerFunctionDemoView()).setSearchInputClientServerFunctionDemo(
+                      event.target.value,
+                    );
+                  },
+                }),
+                button(
+                  'searchButton',
+                  {
+                    class: demoPage.button,
+                    type: 'submit',
+                    disabled: function* () {
+                      return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.isLoading();
+                    },
+                  },
+                  'Run ↗',
+                ),
+              ]),
+            ],
+          ),
           div({ class: demoPage.requestCard }, [
             span({ class: demoPage.requestDot }),
             div([
               strong({ class: demoPage.requestTitle }, function* () {
-                return yield* usersQuery.requestTitle();
+                return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.requestTitle();
               }),
               small({ class: demoPage.requestDetail }, function* () {
-                return yield* usersQuery.requestDetail();
+                return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.requestDetail();
               }),
             ]),
           ]),
@@ -243,64 +301,97 @@ const ServerFunctionDemo = craftComponent(
               heading({ class: demoPage.panelTitle }, 'Users'),
             ]),
             span({ class: demoPage.countBadge }, function* () {
-              return yield* usersQuery.resultCount();
+              return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.resultCount();
             }),
           ]),
-          ifNode(usersQuery.isLoading, () =>
-            p({ class: demoPage.loading }, '⏳ The Effect backend is working…'),
-          ),
-          ifNode(usersQuery.accessDenied, () =>
-            div({ class: demoPage.empty }, [
-              strong({ class: demoPage.emptyTitle }, 'Access denied'),
-              span(
-                { class: demoPage.emptyText },
-                'The client-side check blocked the request before it reached the network: admin role required.',
+          ifNode(
+            'authenticated-users-loading',
+            function* () {
+              return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.isLoading();
+            },
+            () =>
+              p(
+                { class: demoPage.loading },
+                '⏳ The Effect backend is working…',
               ),
-            ]),
           ),
-          ifNode(usersQuery.notFound, () =>
-            div({ class: demoPage.empty }, [
-              strong({ class: demoPage.emptyTitle }, 'No users found'),
-              span({ class: demoPage.emptyText }, function* () {
-                return yield* usersQuery.notFoundMessage();
-              }),
-              span(
-                { class: demoPage.emptyText },
-                'The server returned a 404 exception for this filter.',
-              ),
-            ]),
+          ifNode(
+            'authenticated-users-access-denied',
+            function* () {
+              return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.accessDenied();
+            },
+            () =>
+              div({ class: demoPage.empty }, [
+                strong({ class: demoPage.emptyTitle }, 'Access denied'),
+                span(
+                  { class: demoPage.emptyText },
+                  'The client-side check blocked the request before it reached the network: admin role required.',
+                ),
+              ]),
           ),
-          ifNode(usersQuery.hasUsers, () =>
-            ul(
-              { class: demoPage.results },
-              forNode(usersQuery.value, { track: (user) => user.id }, (user) =>
-                article({ class: demoPage.row }, [
-                  div({ class: demoPage.avatar }, function* () {
-                    return (yield* user()).name.slice(0, 1);
-                  }),
-                  div({ class: demoPage.rowInfo }, [
-                    strong({ class: demoPage.rowName }, function* () {
-                      return (yield* user()).name;
-                    }),
-                    span({ class: demoPage.rowMeta }, function* () {
-                      return (yield* user()).email;
-                    }),
-                  ]),
-                  span({ class: demoPage.rowId }, function* () {
-                    return `#${(yield* user()).id}`;
-                  }),
-                ]),
-              ),
-            ),
+          ifNode(
+            'authenticated-users-not-found',
+            function* () {
+              return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.notFound();
+            },
+            () =>
+              div({ class: demoPage.empty }, [
+                strong({ class: demoPage.emptyTitle }, 'No users found'),
+                span({ class: demoPage.emptyText }, function* () {
+                  return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.notFoundMessage();
+                }),
+                span(
+                  { class: demoPage.emptyText },
+                  'The server returned a 404 exception for this filter.',
+                ),
+              ]),
           ),
-          ifNode(usersQuery.isEmpty, () =>
-            div({ class: demoPage.empty }, [
-              strong({ class: demoPage.emptyTitle }, 'No results loaded'),
-              span(
-                { class: demoPage.emptyText },
-                'Run a search to display users.',
+          ifNode(
+            'authenticated-users-has-users',
+            function* () {
+              return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.hasUsers();
+            },
+            () =>
+              ul(
+                { class: demoPage.results },
+                forNode(
+                  function* () {
+                    return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.value();
+                  },
+                  { track: (user) => user.id },
+                  (user) =>
+                    article({ class: demoPage.row }, [
+                      div({ class: demoPage.avatar }, function* () {
+                        return (yield* user()).name.slice(0, 1);
+                      }),
+                      div({ class: demoPage.rowInfo }, [
+                        strong({ class: demoPage.rowName }, function* () {
+                          return (yield* user()).name;
+                        }),
+                        span({ class: demoPage.rowMeta }, function* () {
+                          return (yield* user()).email;
+                        }),
+                      ]),
+                      span({ class: demoPage.rowId }, function* () {
+                        return `#${(yield* user()).id}`;
+                      }),
+                    ]),
+                ),
               ),
-            ]),
+          ),
+          ifNode(
+            'authenticated-users-empty',
+            function* () {
+              return yield* (yield* ServerFunctionDemoView()).usersQueryClientServerFunctionDemo.isEmpty();
+            },
+            () =>
+              div({ class: demoPage.empty }, [
+                strong({ class: demoPage.emptyTitle }, 'No results loaded'),
+                span(
+                  { class: demoPage.emptyText },
+                  'Run a search to display users.',
+                ),
+              ]),
           ),
         ]),
       ]),

@@ -13,6 +13,7 @@ import {
   goldenSuiteDecoder,
   sessionsCheckApprovalDecoder,
   sessionsCheckDecoder,
+  sessionsCheckView,
   suiteOrigins,
   suiteRunDecoder,
   suiteView,
@@ -151,6 +152,9 @@ export const { GoldenSuiteArchive } = craftService(
             },
           ),
           origins: suiteOriginList,
+          originsCount: yield* craftComputed('originsCount', function* () {
+            return (yield* suiteOriginList()).length;
+          }),
         };
       },
     );
@@ -222,9 +226,16 @@ export const { GoldenSuiteArchive } = craftService(
       },
       insertQueryPipe(
         function* ({ resource }) {
+          const view = yield* craftComputed('view', function* () {
+            return sessionsCheckView(yield* resource.value());
+          });
           return {
             check: yield* craftComputed('check', function* () {
               return yield* resource.value();
+            }),
+            view,
+            rows: yield* craftComputed('rows', function* () {
+              return (yield* view()).rows;
             }),
           };
         },

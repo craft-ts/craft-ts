@@ -9,7 +9,13 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftService, craftComputed, settled, craftUse, craftExpose } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  settled,
+  craftUse,
+  craftExpose,
+} from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
 import { Database } from './effect-database';
@@ -35,10 +41,12 @@ export const { EffectFunctionView, provideEffectFunctionView } = craftService(
       },
       ({ resource }) => ({
         hasData: craftUse(craftComputed('hasData', () => resource.hasValue())),
-        summary: craftUse(craftComputed('summary', function* () {
-          const rows = yield* settled(resource);
-          return rows.map(({ id, value }) => `${id}: ${value}`).join(', ');
-        })),
+        summary: craftUse(
+          craftComputed('summary', function* () {
+            const rows = yield* settled(resource);
+            return rows.map(({ id, value }) => `${id}: ${value}`).join(', ');
+          }),
+        ),
       }),
     );
 
@@ -53,7 +61,6 @@ const EffectFunctionComponent = craftComponent(
     providers: [provideEffectFunctionView()],
   },
   function* () {
-    const { dataQuery, hasData, summary } = yield* EffectFunctionView();
     return div({ class: example.card, 'data-exampleTint': 'violet' }, [
       heading(
         { class: example.title },
@@ -66,7 +73,10 @@ const EffectFunctionComponent = craftComponent(
       div({ class: example.panel }, [
         p({ class: example.panelTitle }, 'Database result'),
         ifNode(
-          dataQuery.isLoading,
+          'database-loading',
+          function* () {
+            return yield* (yield* EffectFunctionView()).dataQuery.isLoading();
+          },
           () =>
             p(
               { class: example.result },
@@ -74,16 +84,32 @@ const EffectFunctionComponent = craftComponent(
             ),
           () =>
             ifNode(
-              hasData,
-              () => p({ class: example.result }, [strong('Rows: '), summary]),
+              'database-has-data',
+              function* () {
+                return yield* (yield* EffectFunctionView()).hasData();
+              },
               () =>
-                matchNode.exhaustive(dataQuery.exceptions.loader, '_tag', {
-                  DatabaseConnectionError: () =>
-                    p(
-                      { class: example.result },
-                      'DatabaseConnectionError: the in-memory connection failed.',
-                    ),
-                }),
+                p({ class: example.result }, [
+                  strong('Rows: '),
+                  function* () {
+                    return yield* (yield* EffectFunctionView()).summary();
+                  },
+                ]),
+              () =>
+                matchNode.exhaustive(
+                  function* () {
+                    return (yield* (yield* EffectFunctionView()).dataQuery.exceptions())
+                      .loader;
+                  },
+                  '_tag',
+                  {
+                    DatabaseConnectionError: () =>
+                      p(
+                        { class: example.result },
+                        'DatabaseConnectionError: the in-memory connection failed.',
+                      ),
+                  },
+                ),
             ),
         ),
       ]).pipe(

@@ -4,7 +4,7 @@ import {
   div,
   fieldset,
   form,
-  h,
+  heading,
   ifNode,
   input,
   label,
@@ -16,19 +16,31 @@ import {
   textarea,
 } from '@craft-ts/component';
 import { craftExpose, craftService, state } from '@craft-ts/core';
-import { buttonUi, fieldUi } from '@craft-ts/ui';
+import { buttonUi, fieldUi } from '@craft-ts/ui/style';
 import { CLOUD_WAITLIST_ENDPOINT } from '../cloud.ts';
 import { cloudWaitlistUi } from './cloud.style.ts';
 
 /** What the cloud would do. The reader ticks the ones they would use first. */
 export const CLOUD_FEATURES = [
-  { value: 'session-replay', label: 'Replay real user sessions to reproduce a bug' },
-  { value: 'e2e-from-sessions', label: 'Turn real sessions into end-to-end tests' },
+  {
+    value: 'session-replay',
+    label: 'Replay real user sessions to reproduce a bug',
+  },
+  {
+    value: 'e2e-from-sessions',
+    label: 'Turn real sessions into end-to-end tests',
+  },
   { value: 'frustration', label: 'Find where users get stuck or frustrated' },
   { value: 'business-analytics', label: 'Analytics on business events' },
 ] as const;
 
-const TEAM_SIZES = ['Just me', '2–10', '11–50', '51–200', 'More than 200'] as const;
+const TEAM_SIZES = [
+  'Just me',
+  '2–10',
+  '11–50',
+  '51–200',
+  'More than 200',
+] as const;
 
 const CRAFT_USAGE = [
   { value: 'production', label: 'Yes, in production' },
@@ -61,7 +73,9 @@ const { CloudWaitlistView, provideCloudWaitlistView } = craftService(
             body: data,
             headers: { Accept: 'application/json' },
           })
-            .then((response) => update(() => ({ status: response.ok ? 'sent' : 'failed' })))
+            .then((response) =>
+              update(() => ({ status: response.ok ? 'sent' : 'failed' })),
+            )
             .catch(() => update(() => ({ status: 'failed' })));
         },
       }),
@@ -96,7 +110,10 @@ export const CloudWaitlist = craftComponent(
         },
         () =>
           div({ class: cloudWaitlistUi.thanks, role: 'status' }, [
-            h('h3', { class: cloudWaitlistUi.thanksHeading }, 'You are on the list. Thank you!'),
+            heading(
+              { class: cloudWaitlistUi.thanksHeading },
+              'You are on the list. Thank you!',
+            ),
             p(
               { class: cloudWaitlistUi.thanksText },
               'You will hear about CraftTS Cloud before anyone else — early access first, then the launch.',
@@ -108,7 +125,9 @@ export const CloudWaitlist = craftComponent(
             {
               class: cloudWaitlistUi.root,
               method: 'post',
-              ...(CLOUD_WAITLIST_ENDPOINT ? { action: CLOUD_WAITLIST_ENDPOINT } : {}),
+              ...(CLOUD_WAITLIST_ENDPOINT
+                ? { action: CLOUD_WAITLIST_ENDPOINT }
+                : {}),
               'aria-label': 'CraftTS Cloud waitlist',
               *submit(event) {
                 event.preventDefault();
@@ -118,7 +137,10 @@ export const CloudWaitlist = craftComponent(
             },
             [
               div({ class: cloudWaitlistUi.field }, [
-                label({ class: fieldUi.label, htmlFor: 'cloud-waitlist-email' }, 'Work email'),
+                label(
+                  { class: fieldUi.label, htmlFor: 'cloud-waitlist-email' },
+                  'Work email',
+                ),
                 input('cloudWaitlistEmail', {
                   id: 'cloud-waitlist-email',
                   class: fieldUi.input,
@@ -130,24 +152,59 @@ export const CloudWaitlist = craftComponent(
                 }),
               ]),
               fieldset({ class: cloudWaitlistUi.group }, [
-                legend({ class: cloudWaitlistUi.legend }, 'What would you use first?'),
-                ...CLOUD_FEATURES.map((feature) =>
-                  label({ class: cloudWaitlistUi.choice }, [
-                    input(`cloudFeature-${feature.value}`, {
-                      class: cloudWaitlistUi.box,
-                      type: 'checkbox',
-                      name: 'features',
-                      value: feature.value,
-                    }),
-                    span(feature.label),
-                  ]),
+                legend(
+                  { class: cloudWaitlistUi.legend },
+                  'What would you use first?',
                 ),
+                label({ class: cloudWaitlistUi.choice }, [
+                  input('cloudFeatureSessionReplay', {
+                    class: cloudWaitlistUi.box,
+                    type: 'checkbox',
+                    name: 'features',
+                    value: 'session-replay',
+                  }),
+                  span(CLOUD_FEATURES[0].label),
+                ]),
+                label({ class: cloudWaitlistUi.choice }, [
+                  input('cloudFeatureGeneratedTests', {
+                    class: cloudWaitlistUi.box,
+                    type: 'checkbox',
+                    name: 'features',
+                    value: 'e2e-from-sessions',
+                  }),
+                  span(CLOUD_FEATURES[1].label),
+                ]),
+                label({ class: cloudWaitlistUi.choice }, [
+                  input('cloudFeatureFrustration', {
+                    class: cloudWaitlistUi.box,
+                    type: 'checkbox',
+                    name: 'features',
+                    value: 'frustration',
+                  }),
+                  span(CLOUD_FEATURES[2].label),
+                ]),
+                label({ class: cloudWaitlistUi.choice }, [
+                  input('cloudFeatureBusinessAnalytics', {
+                    class: cloudWaitlistUi.box,
+                    type: 'checkbox',
+                    name: 'features',
+                    value: 'business-analytics',
+                  }),
+                  span(CLOUD_FEATURES[3].label),
+                ]),
               ]),
               div({ class: cloudWaitlistUi.field }, [
-                label({ class: fieldUi.label, htmlFor: 'cloud-waitlist-team' }, 'Team size'),
+                label(
+                  { class: fieldUi.label, htmlFor: 'cloud-waitlist-team' },
+                  'Team size',
+                ),
                 select(
                   'cloudWaitlistTeam',
-                  { id: 'cloud-waitlist-team', class: fieldUi.input, name: 'team_size' },
+                  {
+                    id: 'cloud-waitlist-team',
+                    class: fieldUi.input,
+                    name: 'team_size',
+                  },
                   [
                     option({ value: '' }, 'Choose…'),
                     ...TEAM_SIZES.map((size) => option({ value: size }, size)),
@@ -161,10 +218,16 @@ export const CloudWaitlist = craftComponent(
                 ),
                 select(
                   'cloudWaitlistUsage',
-                  { id: 'cloud-waitlist-usage', class: fieldUi.input, name: 'craft_usage' },
+                  {
+                    id: 'cloud-waitlist-usage',
+                    class: fieldUi.input,
+                    name: 'craft_usage',
+                  },
                   [
                     option({ value: '' }, 'Choose…'),
-                    ...CRAFT_USAGE.map((usage) => option({ value: usage.value }, usage.label)),
+                    ...CRAFT_USAGE.map((usage) =>
+                      option({ value: usage.value }, usage.label),
+                    ),
                   ],
                 ),
               ]),
@@ -175,6 +238,7 @@ export const CloudWaitlist = craftComponent(
                 ),
                 textarea('cloudWaitlistMessage', {
                   id: 'cloud-waitlist-message',
+                  'aria-label': 'What would make it a must-have for you?',
                   class: fieldUi.input,
                   name: 'message',
                   rows: 3,
@@ -215,13 +279,18 @@ export const CloudWaitlist = craftComponent(
                   },
                   [
                     span(function* () {
-                      return (yield* status()) === 'sending' ? 'Sending…' : 'Join the waitlist';
+                      return (yield* status()) === 'sending'
+                        ? 'Sending…'
+                        : 'Join the waitlist';
                     }),
                   ],
                 ),
-                p({ class: cloudWaitlistUi.failed, 'aria-live': 'polite' }, function* () {
-                  return failureText[yield* status()] ?? '';
-                }),
+                p(
+                  { class: cloudWaitlistUi.failed, 'aria-live': 'polite' },
+                  function* () {
+                    return failureText[yield* status()] ?? '';
+                  },
+                ),
               ]),
             ],
           ),

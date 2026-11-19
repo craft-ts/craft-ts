@@ -5,29 +5,36 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region counter-auth
-import { state } from '@craft-ts/core';
-import {
-  button,
-  craftComponent,
-  div,
-  ifNode,
-  span,
-} from '@craft-ts/component';
+import { craftService, state } from '@craft-ts/core';
+import { button, craftComponent, div, ifNode, span } from '@craft-ts/component';
 
-const Counter = craftComponent('Counter', {}, function* () {
-  const isAuth = yield* state('isAuth', true);
-  const brandedStatus = yield* state('brandedStatus', 'ready');
+const { CounterView, provideCounterView } = craftService(
+  { name: 'counterView', providedIn: 'toProvide' },
+  function* () {
+    yield* state('isAuth', true);
+    yield* state('brandedStatus', 'ready');
+  },
+);
 
-  return ifNode(
-    isAuth,
-    () =>
-      div([
-        button('increment', { type: 'button', click: function* () {} }, '+'),
-        span(brandedStatus),
-      ]),
-    () => [],
-  );
-});
+const Counter = craftComponent(
+  'Counter',
+  { providers: [provideCounterView()] },
+  () =>
+    ifNode(
+      'counter-authenticated',
+      function* () {
+        return yield* (yield* CounterView()).isAuth();
+      },
+      () =>
+        div([
+          button('increment', { type: 'button', click: function* () {} }, '+'),
+          span(function* () {
+            return yield* (yield* CounterView()).brandedStatus();
+          }),
+        ]),
+      () => [],
+    ),
+);
 // #endregion counter-auth
 
 describe('guide/testing/type-level.md #counter-auth', () => {

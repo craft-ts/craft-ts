@@ -1,7 +1,5 @@
 import { craftComponent, label, option, select } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
-import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
 import { decisionColumn } from './review-card.style';
 import { RetirementReasonChoice } from './retirement-reason.service';
@@ -15,37 +13,35 @@ export const RetirementReasonPicker = craftComponent(
   'RetirementReasonPicker',
   {},
   function* () {
-    const { retirementReason, chooseRetirementReason } =
-      yield* RetirementReasonChoice();
-    const { locale } = yield* ReviewPreferences();
-    const t = yield* craftComputed('retirementReasonMessages', function* () {
-      return MESSAGES[yield* locale()];
-    });
     return [
       label(
         { class: decisionColumn.retirementLabel, htmlFor: 'retirement-reason' },
         function* () {
-          return (yield* t()).retirementReason;
+          return (yield* (yield* ReviewPreferences()).locale.messages()).retirementReason;
         },
       ),
       select(
         'RetirementReason',
         {
           id: 'retirement-reason',
-          value: retirementReason,
+          value: function* () {
+            return yield* (yield* RetirementReasonChoice()).retirementReason();
+          },
           *change(event: Event) {
-            chooseRetirementReason(eventValue(event));
+            (yield* RetirementReasonChoice()).chooseRetirementReason(
+              eventValue(event),
+            );
           },
         },
         [
           option({ value: 'superseded' }, function* () {
-            return (yield* t()).superseded;
+            return (yield* (yield* ReviewPreferences()).locale.messages()).superseded;
           }),
           option({ value: 'defect' }, function* () {
-            return (yield* t()).defect;
+            return (yield* (yield* ReviewPreferences()).locale.messages()).defect;
           }),
           option({ value: 'derivation' }, function* () {
-            return (yield* t()).derivation;
+            return (yield* (yield* ReviewPreferences()).locale.messages()).derivation;
           }),
         ],
       ),

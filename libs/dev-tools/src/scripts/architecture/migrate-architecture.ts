@@ -309,6 +309,7 @@ function buildScaffoldFiles(
       {
         extends: './tsconfig.json',
         compilerOptions: { skipLibCheck: true },
+        files: [],
         include: [`${context.sourceGlob}/**/*.ts`],
         exclude: [
           `${context.sourceGlob}/**/*.spec.ts`,
@@ -338,7 +339,7 @@ function buildScaffoldFiles(
     ...Object.fromEntries(
       RULES.map((rule) => [
         `architecture/rules/${rule.file}`,
-        ruleSpecSource(rule),
+        ruleSpecSource(rule, context),
       ]),
     ),
   };
@@ -491,7 +492,14 @@ describe('architecture', () => {
 `;
 }
 
-function ruleSpecSource(rule: (typeof RULES)[number]): string {
+function ruleSpecSource(
+  rule: (typeof RULES)[number],
+  context: ArchitectureContext,
+): string {
+  const call =
+    rule.file === 'lazy-route-imports.spec.ts'
+      ? `assertLazyRouteTargetsStayLazy(graph.graph, { entryPoints: ['${context.sourceGlob}/main.ts'] })`
+      : rule.call;
   return `import { beforeAll, describe, it } from 'vitest';
 import { ${rule.helper} } from '@craft-ts/dev-tools';
 import { loadArchitectureGraph } from '../load-graph';
@@ -504,7 +512,7 @@ describe('${rule.describe}', () => {
   }, 180_000);
 
   it('${rule.it}', () => {
-    ${rule.call};
+    ${call};
   });
 });
 `;

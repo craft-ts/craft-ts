@@ -9,41 +9,11 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { CraftRouter, craftComputed } from '@craft-ts/core';
+import { CraftRouter } from '@craft-ts/core';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
-import { BehaviorCoverageArchive } from '../../shared/data-access/behavior-coverage.service';
 import { ui } from '../../shared/ui/dashboard.style';
-import {
-  COVERAGE_SECTIONS,
-  coverageView,
-  type CoverageSection,
-} from '../../shared/util/behavior-coverage';
 import { i18n } from '../../shared/util/catalog';
-
-/** What each section says, and what to do about the behaviours in it. */
-const SECTION_COPY: Readonly<
-  Record<CoverageSection, { title: string; hint: string }>
-> = {
-  hollow: { title: i18n.t('copy.copy185'), hint: i18n.t('copy.copy186') },
-  seen: { title: i18n.t('copy.copy187'), hint: i18n.t('copy.copy188') },
-  unseenHappy: { title: i18n.t('copy.copy189'), hint: i18n.t('copy.copy190') },
-  unseenException: {
-    title: i18n.t('copy.copy191'),
-    hint: i18n.t('copy.copy192'),
-  },
-  waived: { title: i18n.t('copy.copy193'), hint: i18n.t('copy.copy194') },
-  proven: { title: i18n.t('copy.copy195'), hint: i18n.t('copy.copy196') },
-};
-
-/** The tone of a section's count: what needs work stands out. */
-const SECTION_TONE: Readonly<Record<CoverageSection, string>> = {
-  hollow: 'danger',
-  seen: 'warning',
-  unseenHappy: 'warning',
-  unseenException: 'warning',
-  waived: 'tip',
-  proven: 'important',
-};
+import { CoveragePageView } from './coverage-page-view.service';
 
 /**
  * The behaviours each app owes a test for, sorted by what to do next: a proof
@@ -52,42 +22,14 @@ const SECTION_TONE: Readonly<Record<CoverageSection, string>> = {
  * seen at all, then what is excused and what is proven.
  */
 export const CoveragePage = craftComponent('CoveragePage', {}, function* () {
-  const archive = yield* BehaviorCoverageArchive();
-  const apps = archive.coverage.coverageApps;
-  const loading = archive.coverage.coverageLoading;
-  const unreachable = archive.coverage.coverageUnreachable;
-
-  const coverageSummaries = yield* craftComputed(
-    'coverageSummaries',
-    function* () {
-      const _apps = yield* apps();
-      return coverageView(_apps).summaries;
-    },
-  );
-  const severalApps = yield* craftComputed('severalApps', function* () {
-    const _apps = yield* apps();
-    return _apps.length > 1;
-  });
-  const coverageSections = yield* craftComputed(
-    'coverageSections',
-    function* () {
-      const _apps = yield* apps();
-      const view = coverageView(_apps);
-      return COVERAGE_SECTIONS.filter(
-        (section) => view.sections[section].length > 0,
-      ).map((section) => ({
-        section,
-        ...SECTION_COPY[section],
-        tone: SECTION_TONE[section],
-        count: String(view.sections[section].length),
-        rows: view.sections[section],
-      }));
-    },
-  );
-
   const summaryList = ul(
     { class: ui.rowChips, 'data-lab': 'coverage-summaries' },
-    forNode(coverageSummaries, { track: (summary) => summary.app }, (summary) =>
+    forNode(
+      function* () {
+        return yield* (yield* CoveragePageView()).coverageSummaries();
+      },
+      { track: (summary) => summary.app },
+      (summary) =>
       li({ class: ui.fact }, [
         span({ class: ui.factLabel }, function* () {
           return (yield* summary()).app;
@@ -101,7 +43,12 @@ export const CoveragePage = craftComponent('CoveragePage', {}, function* () {
 
   const sectionList = div(
     { class: ui.sectionStack, 'data-lab': 'coverage-sections' },
-    forNode(coverageSections, { track: (block) => block.section }, (block) =>
+    forNode(
+      function* () {
+        return yield* (yield* CoveragePageView()).coverageSections();
+      },
+      { track: (block) => block.section },
+      (block) =>
       div(
         {
           class: ui.sideSection,
@@ -150,7 +97,7 @@ export const CoveragePage = craftComponent('CoveragePage', {}, function* () {
                         {
                           class: badgeUi.root,
                           hidden: function* () {
-                            return !(yield* severalApps());
+                            return !(yield* (yield* CoveragePageView()).severalApps());
                           },
                         },
                         function* () {
@@ -224,10 +171,12 @@ export const CoveragePage = craftComponent('CoveragePage', {}, function* () {
       class: ui.empty,
       'data-lab': 'empty-coverage',
       hidden: function* () {
-        const _apps = yield* apps();
-        const _unreachable = yield* unreachable();
-        const _loading = yield* loading();
-        return _loading || _unreachable || _apps.length > 0;
+        const view = yield* CoveragePageView();
+        return (
+          (yield* view.coverageLoading()) ||
+          (yield* view.coverageUnreachable()) ||
+          (yield* view.coverageHasApps())
+        );
       },
     },
     i18n.t('copy.copy198'),
@@ -237,8 +186,7 @@ export const CoveragePage = craftComponent('CoveragePage', {}, function* () {
       class: ui.empty,
       'data-lab': 'coverage-unreachable',
       hidden: function* () {
-        const _unreachable = yield* unreachable();
-        return !_unreachable;
+        return !(yield* (yield* CoveragePageView()).coverageUnreachable());
       },
     },
     i18n.t('copy.copy199'),

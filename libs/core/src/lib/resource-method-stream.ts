@@ -45,15 +45,15 @@ export function subscribeCraftResourceMethodStream<Params, Yielded>(
 ): Unsubscribable {
   const owner = injector.get(DestroyRef);
   let active = true;
-  let subscription: Unsubscribable | undefined;
+  const subscription: { current?: Unsubscribable } = {};
   const unsubscribe = () => {
     if (!active) return;
     active = false;
-    subscription?.unsubscribe();
+    subscription.current?.unsubscribe();
   };
 
   owner.onDestroy(unsubscribe);
-  subscription = runInInjectionContext(injector, () => {
+  subscription.current = runInInjectionContext(injector, () => {
     const streamObserver = {
       next: (value) => {
         if (active) observer.next(value);
@@ -73,7 +73,7 @@ export function subscribeCraftResourceMethodStream<Params, Yielded>(
 
   // A synchronous stream can complete during subscribe. Re-check the owner
   // after the subscription handle exists in case it was destroyed reentrantly.
-  if (!active) subscription.unsubscribe();
+  if (!active) subscription.current.unsubscribe();
   return { unsubscribe };
 }
 

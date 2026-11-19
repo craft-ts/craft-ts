@@ -1,4 +1,15 @@
-import { craftComponent, div, h, li, p, section, span, strong, ul, type Input } from '@craft-ts/component';
+import {
+  craftComponent,
+  div,
+  heading,
+  li,
+  p,
+  section,
+  span,
+  strong,
+  ul,
+  type Input,
+} from '@craft-ts/component';
 import { withBase } from '@craft-ts/docs-ui';
 import { DocLinkButton } from '@craft-ts/ui';
 import { CLOUD_PAGE } from '../cloud.ts';
@@ -28,39 +39,52 @@ export interface CloudTeaserInput {
 }
 
 /** The card of the home page that presents CraftTS Cloud and leads to its waitlist. */
-export const CloudTeaser = craftComponent('CloudTeaser', {}, function* (input: CloudTeaserInput) {
-  const base = yield* input.base();
-  return section({ class: cloudTeaserUi.root, 'aria-labelledby': 'cloud-teaser-heading' }, [
-    div({ class: cloudTeaserUi.head }, [
-      span({ class: cloudTeaserUi.tag }, 'Early access'),
-      h('h2', { id: 'cloud-teaser-heading', class: cloudTeaserUi.heading }, 'CraftTS Cloud'),
-      p(
-        { class: cloudTeaserUi.lead },
-        'Everything this page promises, without setting it up yourself: plug in your app and get the recordings, the tests and the insights.',
-      ),
-    ]),
-    ul(
-      { class: cloudTeaserUi.list },
-      PROMISES.map((promise) =>
-        li({ class: cloudTeaserUi.item }, [
-          strong({ class: cloudTeaserUi.itemTitle }, promise.title),
-          span(` — ${promise.text}`),
+export const CloudTeaser = craftComponent(
+  'CloudTeaser',
+  {},
+  function* (input: CloudTeaserInput) {
+    const base = yield* input.base();
+    return section(
+      { class: cloudTeaserUi.root, 'aria-labelledby': 'cloud-teaser-heading' },
+      [
+        div({ class: cloudTeaserUi.head }, [
+          span({ class: cloudTeaserUi.tag }, 'Early access'),
+          heading(
+            { id: 'cloud-teaser-heading', class: cloudTeaserUi.heading },
+            'CraftTS Cloud',
+          ),
+          p(
+            { class: cloudTeaserUi.lead },
+            'Everything this page promises, without setting it up yourself: plug in your app and get the recordings, the tests and the insights.',
+          ),
         ]),
-      ),
-    ),
-    div({ class: cloudTeaserUi.actions }, [
-      DocLinkButton({
-        label: function* () {
-          return 'Join the waitlist';
-        },
-        href: function* () {
-          return withBase(base, CLOUD_PAGE);
-        },
-        variant: function* () {
-          return 'primary' as const;
-        },
-      }),
-      span({ class: cloudTeaserUi.note }, 'Not available yet — tell us what you need first.'),
-    ]),
-  ]);
-});
+        ul(
+          { class: cloudTeaserUi.list },
+          PROMISES.map((promise) =>
+            li({ class: cloudTeaserUi.item }, [
+              strong({ class: cloudTeaserUi.itemTitle }, promise.title),
+              span(` — ${promise.text}`),
+            ]),
+          ),
+        ),
+        div({ class: cloudTeaserUi.actions }, [
+          DocLinkButton({
+            label: function* () {
+              return 'Join the waitlist';
+            },
+            href: function* () {
+              return withBase(base, CLOUD_PAGE);
+            },
+            variant: function* () {
+              return 'primary' as const;
+            },
+          }),
+          span(
+            { class: cloudTeaserUi.note },
+            'Not available yet — tell us what you need first.',
+          ),
+        ]),
+      ],
+    );
+  },
+);

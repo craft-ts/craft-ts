@@ -8,33 +8,24 @@ import {
   p,
   textarea,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { DocDialog } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from '../../shared/ui/dashboard.style';
 import { ReplaySession } from '../../shared/state/replay-session';
-import { importOpen, loadError, ReplayState } from '../../shared/state/replay-state';
+import { ReplayState } from '../../shared/state/replay-state';
 import { eventValue, lit } from '../../shared/util/view-helpers';
 
 /** The sheet where a session is imported from a file or pasted as JSON. */
-export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
-  const replaySession = yield* ReplaySession();
-  const { sessionText, setStates } = (yield* ReplayState()).imperative;
-  const loadErrorHidden = yield* craftComputed(
-    'loadErrorHidden',
-    () => loadError() === undefined,
-  );
-  const loadErrorText = yield* craftComputed(
-    'loadErrorText',
-    () => loadError() ?? '',
-  );
-  return DocDialog({
+export const ImportDialog = craftComponent('ImportDialog', {}, () =>
+  DocDialog({
     heading: lit('Importer une session'),
     dialogId: lit('import-session'),
     open: function* () {
-      return importOpen();
+      return yield* (yield* ReplayState()).imperative.importOpen();
     },
-    dismiss: replaySession.closeImport,
+    dismiss: function* () {
+      return (yield* ReplaySession()).closeImport;
+    },
     body: content(() => [
       div({ class: ui.importFields }, [
         p(
@@ -45,24 +36,37 @@ export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
           type: 'file',
           accept: 'application/json,.json',
           'aria-label': i18n.t("copy.copy023"),
-          change: replaySession.importSelectedFile,
+          change: function* (event: Event) {
+            (yield* ReplaySession()).importSelectedFile(event);
+          },
         }),
         textarea('sessionJson', {
           class: ui.importText,
           rows: 8,
           placeholder: i18n.t("copy.copy024"),
-          value: sessionText,
-          input: (event: Event) =>
-            setStates({ sessionText: eventValue(event) }),
+          value: function* () {
+            return yield* (yield* ReplayState()).sessionText();
+          },
+          input: function* (event: Event) {
+            (yield* ReplayState()).imperative.setStates({
+              sessionText: eventValue(event),
+            });
+          },
           'aria-label': i18n.t("copy.copy025"),
         }),
         p(
           {
             class: ui.importError,
             role: 'alert',
-            hidden: loadErrorHidden,
+            hidden: function* () {
+              return (
+                yield* (yield* ReplayState()).imperative.loadError()
+              ) === undefined;
+            },
           },
-          loadErrorText,
+          function* () {
+            return (yield* (yield* ReplayState()).imperative.loadError()) ?? '';
+          },
         ),
         div({ class: ui.importActions }, [
           button(
@@ -71,12 +75,14 @@ export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
               type: 'button',
               class: buttonUi.root,
               'data-variant': 'primary',
-              click: replaySession.importPastedSession,
+              click: function* () {
+                (yield* ReplaySession()).importPastedSession();
+              },
             },
             i18n.t("copy.copy026"),
           ),
         ]),
       ]),
     ]),
-  });
-});
+  }),
+);

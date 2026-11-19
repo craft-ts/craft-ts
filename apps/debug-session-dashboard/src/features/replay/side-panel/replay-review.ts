@@ -13,19 +13,17 @@ import {
   summary,
   ul,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from '../../../shared/ui/dashboard.style';
 import { copyReplayNote } from '../replay-notices';
 import { ReplaySession } from '../../../shared/state/replay-session';
 import {
-  autoSkipDifferences,
   dismissedWarnings,
   isReplayErrorNote,
   rememberAutoSkipDifferences,
   replayDifferences,
-  replayWarnings,
 } from '../../../shared/state/replay-state';
+import { ReplayReviewViewModel } from './replay-review-view-model.service';
 
 const RESOLUTION_LABEL: Readonly<Record<string, string>> = {
   pending: 'en attente',
@@ -39,41 +37,30 @@ const RESOLUTION_LABEL: Readonly<Record<string, string>> = {
  * reproduce). Both used to be popovers of the head; they are one view now.
  */
 export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
-  const replaySession = yield* ReplaySession();
-  const nothingHidden = yield* craftComputed(
-    'nothingHidden',
-    () => replayDifferences().length > 0 || replayWarnings().length > 0,
-  );
-
-  const differenceTitle = yield* craftComputed('differenceTitle', () =>
-    replayDifferences().length > 1
-      ? (i18n.t("copy.copy109") + (replayDifferences().length) + i18n.t("copy.copy110"))
-      : i18n.t("copy.copy111"),
-  );
-  const notesTitle = yield* craftComputed('notesTitle', () =>
-    replayWarnings().length > 1
-      ? (i18n.t("copy.copy112") + (replayWarnings().length) + i18n.t("copy.copy113"))
-      : i18n.t("copy.copy114"),
-  );
-
   const differences = div(
     {
       class: ui.sideSection,
       'data-lab': 'difference-history',
-      hidden: yield* craftComputed(
-        'hidden',
-        () => replayDifferences().length === 0,
-      ),
+      hidden: function* () {
+        return yield* (yield* ReplayReviewViewModel()).differencesHidden();
+      },
     },
     [
-      heading({ class: ui.sideSectionTitle }, differenceTitle),
+      heading(
+        { class: ui.sideSectionTitle },
+        function* () {
+          return yield* (yield* ReplayReviewViewModel()).differenceTitle();
+        },
+      ),
       button(
         'disableAutoSkipDifferences',
         {
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'secondary',
-          hidden: yield* craftComputed('hidden', () => !autoSkipDifferences()),
+          hidden: function* () {
+            return yield* (yield* ReplayReviewViewModel()).autoSkipHidden();
+          },
           click: () => rememberAutoSkipDifferences(false),
         },
         i18n.t("copy.copy115"),
@@ -131,13 +118,17 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
       'data-lab': 'warning-history',
       role: 'region',
       'aria-label': 'Toutes les notes du replay',
-      hidden: yield* craftComputed(
-        'hidden',
-        () => replayWarnings().length === 0,
-      ),
+      hidden: function* () {
+        return yield* (yield* ReplayReviewViewModel()).notesHidden();
+      },
     },
     [
-      heading({ class: ui.sideSectionTitle }, notesTitle),
+      heading(
+        { class: ui.sideSectionTitle },
+        function* () {
+          return yield* (yield* ReplayReviewViewModel()).notesTitle();
+        },
+      ),
       p(
         { class: ui.lede },
         i18n.t("copy.copy122"),
@@ -145,9 +136,9 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
       ul(
         { class: ui.events },
         forNode(
-          yield* craftComputed('warningHistory', () =>
-            [...replayWarnings()].reverse(),
-          ),
+          function* () {
+            return yield* (yield* ReplayReviewViewModel()).warningHistory();
+          },
           { track: (warning) => warning },
           (warning) =>
             li(
@@ -195,7 +186,9 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
                     'data-tooltip':
                       'Relance le replay sans attendre les délais et s’arrête juste avant l’action à l’origine de cette note. « Action suivante » l’exécute ensuite.',
                     click: function* () {
-                      replaySession.seekReplayToWarning(yield* warning());
+                      (yield* ReplaySession()).seekReplayToWarning(
+                        yield* warning(),
+                      );
                     },
                   },
                   i18n.t("copy.copy125"),
@@ -208,7 +201,12 @@ export const ReplayReview = craftComponent('ReplayReview', {}, function* () {
   );
 
   const empty = p(
-    { class: ui.lede, hidden: nothingHidden },
+    {
+      class: ui.lede,
+      hidden: function* () {
+        return yield* (yield* ReplayReviewViewModel()).nothingHidden();
+      },
+    },
     i18n.t("copy.copy126"),
   );
 

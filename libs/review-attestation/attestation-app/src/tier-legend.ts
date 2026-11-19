@@ -98,33 +98,47 @@ export const { TierLegendView, provideTierLegendView } = craftService(
 export const TierLegend = craftComponent(
   'TierLegend',
   {},
-  function* (_inputs: {
+  (_inputs: {
     readonly showing: Input<boolean>;
     readonly changedCount: Input<number>;
     readonly coveredCount: Input<number>;
     readonly chromeNames: Input<readonly string[]>;
     readonly t: Input<Messages>;
-  }) {
-    const {
-      hiddenLegend,
-      subjectLabel,
-      changedHidden,
-      changedLabel,
-      occludedHidden,
-      occludedLabel,
-      pickedLabel,
-    } = yield* TierLegendView();
-    return ul({ class: tierLegend.root, hidden: hiddenLegend }, [
-      legendEntry('subject', { label: subjectLabel }),
+  }) =>
+    ul(
+      {
+        class: tierLegend.root,
+        hidden: function* () {
+          return yield* (yield* TierLegendView()).hiddenLegend();
+        },
+      },
+      [
+      legendEntry('subject', {
+        label: function* () {
+          return yield* (yield* TierLegendView()).subjectLabel();
+        },
+      }),
       legendEntry('changed', {
-        hidden: changedHidden,
-        label: changedLabel,
+        hidden: function* () {
+          return yield* (yield* TierLegendView()).changedHidden();
+        },
+        label: function* () {
+          return yield* (yield* TierLegendView()).changedLabel();
+        },
       }),
       legendEntry('occluded', {
-        hidden: occludedHidden,
-        label: occludedLabel,
+        hidden: function* () {
+          return yield* (yield* TierLegendView()).occludedHidden();
+        },
+        label: function* () {
+          return yield* (yield* TierLegendView()).occludedLabel();
+        },
       }),
-      legendEntry('picked', { label: pickedLabel }),
-    ]);
-  },
+      legendEntry('picked', {
+        label: function* () {
+          return yield* (yield* TierLegendView()).pickedLabel();
+        },
+      }),
+      ],
+    ),
 ).pipe(withComponentProviders((inputs) => [provideTierLegendView(inputs)]));

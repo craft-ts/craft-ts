@@ -59,7 +59,7 @@ const TODOS: Todo[] = [
 const { ApiServicePlaygroundPlayground: ApiService } = craftService(
   { name: 'ApiServicePlaygroundPlayground', providedIn: 'global' },
   function* () {
-    const nextId = yield* craftPrivate(state('nextIdPlaygroundPlayground', 4, ({ state, update }) => ({
+    const nextId = yield* craftPrivate(state('nextId', 4, ({ state, update }) => ({
       take: function* () {
         const _state = yield* state();
         const id = _state;

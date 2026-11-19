@@ -28,24 +28,33 @@ export const { EffectSharedServiceView, provideEffectSharedServiceView } =
           loader: ({ params }) => checkUserAccess(params),
         },
         ({ resource }) => ({
-          hasDecision: craftUse(craftComputed('hasDecision', () => resource.hasValue())),
-          showUnknown: craftUse(craftComputed('showUnknown', function* () {
-            return !(yield* resource.isLoading()) && !resource.hasValue();
-          })),
-          userName: craftUse(craftComputed('userName', function* () {
-            return (yield* resource.value())?.user.name ?? '…';
-          })),
-          accessLabel: craftUse(craftComputed('accessLabel', function* () {
-            return (yield* resource.value())?.label ?? '…';
-          })),
-          accessReason: craftUse(craftComputed('accessReason', function* () {
-            return (yield* resource.value())?.reason ?? '…';
-          })),
+          hasDecision: craftUse(
+            craftComputed('hasDecision', () => resource.hasValue()),
+          ),
+          showUnknown: craftUse(
+            craftComputed('showUnknown', function* () {
+              return !(yield* resource.isLoading()) && !resource.hasValue();
+            }),
+          ),
+          userName: craftUse(
+            craftComputed('userName', function* () {
+              return (yield* resource.value())?.user.name ?? '…';
+            }),
+          ),
+          accessLabel: craftUse(
+            craftComputed('accessLabel', function* () {
+              return (yield* resource.value())?.label ?? '…';
+            }),
+          ),
+          accessReason: craftUse(
+            craftComputed('accessReason', function* () {
+              return (yield* resource.value())?.reason ?? '…';
+            }),
+          ),
         }),
       );
 
       yield* accessQuery.call('user-ada'); // trigger first call
-
     },
   );
 
@@ -55,7 +64,6 @@ const EffectSharedServiceComponent = craftComponent(
     providers: [provideEffectSharedServiceView()],
   },
   function* () {
-    const { accessQuery } = yield* EffectSharedServiceView();
     return div({ class: example.card, 'data-exampleTint': 'blue' }, [
       heading({ class: example.title }, 'Check access rights'),
       p(
@@ -69,7 +77,9 @@ const EffectSharedServiceComponent = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              yield* accessQuery.call('user-ada');
+              yield* (yield* EffectSharedServiceView()).accessQuery.call(
+                'user-ada',
+              );
             },
           },
           'Ada — administrator',
@@ -80,7 +90,9 @@ const EffectSharedServiceComponent = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              yield* accessQuery.call('user-grace');
+              yield* (yield* EffectSharedServiceView()).accessQuery.call(
+                'user-grace',
+              );
             },
           },
           'Grace — member',
@@ -91,7 +103,9 @@ const EffectSharedServiceComponent = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              yield* accessQuery.call('user-linus');
+              yield* (yield* EffectSharedServiceView()).accessQuery.call(
+                'user-linus',
+              );
             },
           },
           'Linus — suspended account',
@@ -99,20 +113,45 @@ const EffectSharedServiceComponent = craftComponent(
       ]),
       div({ class: example.panel }, [
         p({ class: example.panelTitle }, 'Access decision'),
-        ifNode(accessQuery.isLoading, () => p('Checking access…')),
-        ifNode(accessQuery.hasDecision, () => [
-          p({ class: example.row }, [strong('User: '), accessQuery.userName]),
-          p({ class: example.row }, [
-            strong('Level: '),
-            accessQuery.accessLabel,
-          ]),
-          p({ class: example.row }, [
-            strong('Why: '),
-            accessQuery.accessReason,
-          ]),
-        ]),
-        ifNode(accessQuery.showUnknown, () =>
-          p({ class: example.row }, 'Unknown user.'),
+        ifNode(
+          'access-loading',
+          function* () {
+            return yield* (yield* EffectSharedServiceView()).accessQuery.isLoading();
+          },
+          () => p('Checking access…'),
+        ),
+        ifNode(
+          'access-has-decision',
+          function* () {
+            return yield* (yield* EffectSharedServiceView()).accessQuery.hasDecision();
+          },
+          () => [
+            p({ class: example.row }, [
+              strong('User: '),
+              function* () {
+                return yield* (yield* EffectSharedServiceView()).accessQuery.userName();
+              },
+            ]),
+            p({ class: example.row }, [
+              strong('Level: '),
+              function* () {
+                return yield* (yield* EffectSharedServiceView()).accessQuery.accessLabel();
+              },
+            ]),
+            p({ class: example.row }, [
+              strong('Why: '),
+              function* () {
+                return yield* (yield* EffectSharedServiceView()).accessQuery.accessReason();
+              },
+            ]),
+          ],
+        ),
+        ifNode(
+          'access-unknown',
+          function* () {
+            return yield* (yield* EffectSharedServiceView()).accessQuery.showUnknown();
+          },
+          () => p({ class: example.row }, 'Unknown user.'),
         ),
       ]),
       p({ class: example.note }, [

@@ -17,37 +17,45 @@ import { example } from '../../effect-demo.style';
  * The query returns a team overview; it never exposes the services used to
  * produce that overview as if they were server-state data.
  */
-export const { EffectLayerScopeView, provideEffectLayerScopeView } = craftService(
-  { name: 'effectLayerScopeView', providedIn: 'toProvide' },
-  function* () {
-    yield* queryEffect(
-      'teamOverviewQuery',
-      {
-        params: () => 'support',
-        loader: () => loadTeamOverview,
-      },
-      ({ resource }) => ({
-        teamName: craftUse(craftComputed('teamName', function* () {
-          return (yield* resource.value())?.teamName ?? '…';
-        })),
-        viewerName: craftUse(craftComputed('viewerName', function* () {
-          return (yield* resource.value())?.viewerName ?? '…';
-        })),
-        viewerAccess: craftUse(craftComputed('viewerAccess', function* () {
-          return (yield* resource.value())?.viewerAccess ?? '…';
-        })),
-        memberNames: craftUse(craftComputed('memberNames', function* () {
-          return (
-            (yield* resource.value())?.members
-              .map((member: { readonly name: string }) => member.name)
-              .join(', ') ?? '…'
-          );
-        })),
-      }),
-    );
-
-  },
-);
+export const { EffectLayerScopeView, provideEffectLayerScopeView } =
+  craftService(
+    { name: 'effectLayerScopeView', providedIn: 'toProvide' },
+    function* () {
+      yield* queryEffect(
+        'teamOverviewQuery',
+        {
+          params: () => 'support',
+          loader: () => loadTeamOverview,
+        },
+        ({ resource }) => ({
+          teamName: craftUse(
+            craftComputed('teamName', function* () {
+              return (yield* resource.value())?.teamName ?? '…';
+            }),
+          ),
+          viewerName: craftUse(
+            craftComputed('viewerName', function* () {
+              return (yield* resource.value())?.viewerName ?? '…';
+            }),
+          ),
+          viewerAccess: craftUse(
+            craftComputed('viewerAccess', function* () {
+              return (yield* resource.value())?.viewerAccess ?? '…';
+            }),
+          ),
+          memberNames: craftUse(
+            craftComputed('memberNames', function* () {
+              return (
+                (yield* resource.value())?.members
+                  .map((member: { readonly name: string }) => member.name)
+                  .join(', ') ?? '…'
+              );
+            }),
+          ),
+        }),
+      );
+    },
+  );
 
 const EffectLayerScopeComponent = craftComponent(
   'EffectLayerScopeComponent',
@@ -55,7 +63,6 @@ const EffectLayerScopeComponent = craftComponent(
     providers: [provideEffectLayerScopeView()],
   },
   function* () {
-    const { teamOverviewQuery } = yield* EffectLayerScopeView();
     return div({ class: example.card, 'data-exampleTint': 'green' }, [
       heading({ class: example.title }, 'Team overview'),
       p(
@@ -64,22 +71,36 @@ const EffectLayerScopeComponent = craftComponent(
       ),
       div({ class: example.panel }, [
         p({ class: example.panelTitle }, 'Active team'),
-        ifNode(teamOverviewQuery.isLoading, () => p('Loading team overview…')),
+        ifNode(
+          'team-overview-loading',
+          function* () {
+            return yield* (yield* EffectLayerScopeView()).teamOverviewQuery.isLoading();
+          },
+          () => p('Loading team overview…'),
+        ),
         p({ class: example.row }, [
           strong('Team: '),
-          teamOverviewQuery.teamName,
+          function* () {
+            return yield* (yield* EffectLayerScopeView()).teamOverviewQuery.teamName();
+          },
         ]),
         p({ class: example.row }, [
           strong('Signed-in user: '),
-          teamOverviewQuery.viewerName,
+          function* () {
+            return yield* (yield* EffectLayerScopeView()).teamOverviewQuery.viewerName();
+          },
         ]),
         p({ class: example.row }, [
           strong('Access level: '),
-          teamOverviewQuery.viewerAccess,
+          function* () {
+            return yield* (yield* EffectLayerScopeView()).teamOverviewQuery.viewerAccess();
+          },
         ]),
         p({ class: example.row }, [
           strong('Visible members: '),
-          teamOverviewQuery.memberNames,
+          function* () {
+            return yield* (yield* EffectLayerScopeView()).teamOverviewQuery.memberNames();
+          },
         ]),
       ]),
       p({ class: example.note, 'data-exampleNote': 'callout' }, [

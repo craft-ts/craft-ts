@@ -35,47 +35,62 @@ export const {
 } = craftService(
   { name: 'portableServerFunctionDemoView', providedIn: 'toProvide' },
   function* () {
-    let writeSearchInput: ((value: string) => Generator<never, unknown, unknown>) | undefined;
-    const searchInput = yield* state('searchInputClientPortableServerFunctionDemo', '', ({ set }) => {
-      writeSearchInput = function* (value: string) {
-        return yield* set(value);
-      };
-      return {};
-    });
-    yield* craftMethod('setPortableSearchInputClientPortableServerFunctionDemo', function* (value: string) {
-      if (writeSearchInput) yield* writeSearchInput(value);
-    });
-    const usersQuery = yield* query('usersQueryClientPortableServerFunctionDemo', {
-      method: (term: string) => term,
-      loader: function* ({ params }) {
-        return yield* getPortableUsers({ filter: params });
+    let writeSearchInput:
+      | ((value: string) => Generator<never, unknown, unknown>)
+      | undefined;
+    const searchInput = yield* state(
+      'searchInputClientPortableServerFunctionDemo',
+      '',
+      ({ set }) => {
+        writeSearchInput = function* (value: string) {
+          return yield* set(value);
+        };
+        return {};
       },
-    });
+    );
+    yield* craftMethod(
+      'setPortableSearchInputClientPortableServerFunctionDemo',
+      function* (value: string) {
+        if (writeSearchInput) yield* writeSearchInput(value);
+      },
+    );
+    const usersQuery = yield* query(
+      'usersQueryClientPortableServerFunctionDemo',
+      {
+        method: (term: string) => term,
+        loader: function* ({ params }) {
+          return yield* getPortableUsers({ filter: params });
+        },
+      },
+    );
     yield* usersQuery.call('');
     // Le payload remonté par la chaîne : chaque clé a été produite par une
     // couche différente du `.pipe(...)` côté serveur.
     yield* craftComputed('portableUsers', function* () {
       return (yield* usersQuery.value())?.users ?? [];
     });
-    yield* craftComputed('hasUsersClientPortableServerFunctionDemo', function* () {
-      return ((yield* usersQuery.value())?.users ?? []).length > 0;
-    });
-    yield* craftComputed('isEmptyClientPortableServerFunctionDemo', function* () {
-      return (
-        !(yield* usersQuery.isLoading()) &&
-        ((yield* usersQuery.value())?.users ?? []).length === 0
-      );
-    });
+    yield* craftComputed(
+      'hasUsersClientPortableServerFunctionDemo',
+      function* () {
+        return ((yield* usersQuery.value())?.users ?? []).length > 0;
+      },
+    );
+    yield* craftComputed(
+      'isEmptyClientPortableServerFunctionDemo',
+      function* () {
+        return (
+          !(yield* usersQuery.isLoading()) &&
+          ((yield* usersQuery.value())?.users ?? []).length === 0
+        );
+      },
+    );
     yield* craftComputed('auditId', function* () {
       return (yield* usersQuery.value())?.auditId ?? '—';
     });
-    yield* craftComputed(
-      'normalizedFilter',
-      function* () {
-        const value = (yield* usersQuery.value())?.filter ?? '';
-        return value.length === 0 ? '(empty)' : value;
-      },
-    );
+    yield* craftComputed('normalizedFilter', function* () {
+      const value = (yield* usersQuery.value())?.filter ?? '';
+      return value.length === 0 ? '(empty)' : value;
+    });
     yield* craftComputed('scannedCount', function* () {
       const value = yield* usersQuery.value();
       return value === undefined ? '—' : value.scanned.toString();
@@ -88,10 +103,13 @@ export const {
         yield* usersQuery.call((yield* searchInput()).trim());
       },
     );
-    yield* craftComputed('resultCountClientPortableServerFunctionDemo', function* () {
-      const value = yield* usersQuery.value();
-      return value === undefined ? '—' : value.users.length.toString();
-    });
+    yield* craftComputed(
+      'resultCountClientPortableServerFunctionDemo',
+      function* () {
+        const value = yield* usersQuery.value();
+        return value === undefined ? '—' : value.users.length.toString();
+      },
+    );
   },
 );
 
@@ -101,19 +119,6 @@ const PortableServerFunctionDemo = craftComponent(
     providers: [providePortableServerFunctionDemoView()],
   },
   function* () {
-    const {
-      searchInputClientPortableServerFunctionDemo: searchInput,
-      setPortableSearchInputClientPortableServerFunctionDemo: setSearchInput,
-      usersQueryClientPortableServerFunctionDemo: usersQuery,
-      submitSearchClientPortableServerFunctionDemo: submitSearch,
-      resultCountClientPortableServerFunctionDemo: resultCount,
-      hasUsersClientPortableServerFunctionDemo: hasUsers,
-      isEmptyClientPortableServerFunctionDemo: isEmpty,
-      portableUsers,
-      auditId,
-      normalizedFilter,
-      scannedCount,
-    } = yield* PortableServerFunctionDemoView();
     return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
@@ -142,44 +147,60 @@ const PortableServerFunctionDemo = craftComponent(
             { class: demoPage.copy },
             'The first layer creates an audit id, mapContext derives the normalized filter from it, and flatMapContext runs the Promise that loads the local database. The handler only reads the accumulated context.',
           ),
-          form('portableSearchForm', { submit: submitSearch }, [
-            label(
-              { class: demoPage.label, htmlFor: 'portableFilterInput' },
-              'Filter',
-            ),
-            div({ class: demoPage.searchRow }, [
-              input('portableFilterInput', {
-                class: demoPage.input,
-                type: 'search',
-                value: searchInput,
-                placeholder: 'ada, craft.dev…',
-                autocomplete: 'off',
-                'aria-label': 'User filter',
-                *input(event) {
-                  setSearchInput(event.target.value);
-                },
-              }),
-              button(
-                'portableSearchButton',
-                {
-                  class: demoPage.button,
-                  type: 'submit',
-                  disabled: usersQuery.isLoading,
-                },
-                'Run ↗',
+          form(
+            'portableSearchForm',
+            {
+              *submit(event) {
+                (yield* PortableServerFunctionDemoView()).submitSearchClientPortableServerFunctionDemo(
+                  event,
+                );
+              },
+            },
+            [
+              label(
+                { class: demoPage.label, htmlFor: 'portableFilterInput' },
+                'Filter',
               ),
-            ]),
-          ]),
+              div({ class: demoPage.searchRow }, [
+                input('portableFilterInput', {
+                  class: demoPage.input,
+                  type: 'search',
+                  value: function* () {
+                    return yield* (yield* PortableServerFunctionDemoView()).searchInputClientPortableServerFunctionDemo();
+                  },
+                  placeholder: 'ada, craft.dev…',
+                  autocomplete: 'off',
+                  'aria-label': 'User filter',
+                  *input(event) {
+                    (yield* PortableServerFunctionDemoView()).setPortableSearchInputClientPortableServerFunctionDemo(
+                      event.target.value,
+                    );
+                  },
+                }),
+                button(
+                  'portableSearchButton',
+                  {
+                    class: demoPage.button,
+                    type: 'submit',
+                    disabled: function* () {
+                      return yield* (yield* PortableServerFunctionDemoView()).usersQueryClientPortableServerFunctionDemo.isLoading();
+                    },
+                  },
+                  'Run ↗',
+                ),
+              ]),
+            ],
+          ),
           div({ class: demoPage.requestCard }, [
             span({ class: demoPage.requestDot }),
             div([
               strong({ class: demoPage.requestTitle }, function* () {
-                return (yield* usersQuery.isLoading())
+                return (yield* (yield* PortableServerFunctionDemoView()).usersQueryClientPortableServerFunctionDemo.isLoading())
                   ? 'Calling portable server function…'
                   : 'Portable request ready';
               }),
               small({ class: demoPage.requestDetail }, function* () {
-                return (yield* usersQuery.isLoading())
+                return (yield* (yield* PortableServerFunctionDemoView()).usersQueryClientPortableServerFunctionDemo.isLoading())
                   ? 'POST /__server-functions · middleware is running'
                   : 'Promise handler · local users.json';
               }),
@@ -192,10 +213,17 @@ const PortableServerFunctionDemo = craftComponent(
               span({ class: demoPage.kicker }, 'Response'),
               heading({ class: demoPage.panelTitle }, 'Users'),
             ]),
-            span({ class: demoPage.countBadge }, resultCount),
+            span({ class: demoPage.countBadge }, function* () {
+              return yield* (yield* PortableServerFunctionDemoView()).resultCountClientPortableServerFunctionDemo();
+            }),
           ]),
-          ifNode(usersQuery.isLoading, () =>
-            p({ class: demoPage.loading }, '⏳ Promise program is running…'),
+          ifNode(
+            'portable-users-loading',
+            function* () {
+              return yield* (yield* PortableServerFunctionDemoView()).usersQueryClientPortableServerFunctionDemo.isLoading();
+            },
+            () =>
+              p({ class: demoPage.loading }, '⏳ Promise program is running…'),
           ),
           // Une ligne par couche : ce qu'elle a ajouté au contexte, tel que le
           // handler l'a lu avant de répondre.
@@ -203,50 +231,71 @@ const PortableServerFunctionDemo = craftComponent(
             div({ class: demoPage.payloadStep }, [
               span({ class: demoPage.payloadLayer }, 'portableAudit'),
               span({ class: demoPage.payloadKey }, 'auditId'),
-              span({ class: demoPage.payloadValue }, auditId),
+              span({ class: demoPage.payloadValue }, function* () {
+                return yield* (yield* PortableServerFunctionDemoView()).auditId();
+              }),
             ]),
             div({ class: demoPage.payloadStep }, [
               span({ class: demoPage.payloadLayer }, 'mapContext'),
               span({ class: demoPage.payloadKey }, 'normalizedFilter'),
-              span({ class: demoPage.payloadValue }, normalizedFilter),
+              span({ class: demoPage.payloadValue }, function* () {
+                return yield* (yield* PortableServerFunctionDemoView()).normalizedFilter();
+              }),
             ]),
             div({ class: demoPage.payloadStep }, [
               span({ class: demoPage.payloadLayer }, 'flatMapContext'),
               span({ class: demoPage.payloadKey }, 'scanned'),
-              span({ class: demoPage.payloadValue }, scannedCount),
+              span({ class: demoPage.payloadValue }, function* () {
+                return yield* (yield* PortableServerFunctionDemoView()).scannedCount();
+              }),
             ]),
           ]),
-          ifNode(hasUsers, () =>
-            ul(
-              { class: demoPage.results },
-              forNode(portableUsers, { track: (user) => user.id }, (user) =>
-                article({ class: demoPage.row }, [
-                  div({ class: demoPage.avatar }, function* () {
-                    return (yield* user()).name.slice(0, 1);
-                  }),
-                  div({ class: demoPage.rowInfo }, [
-                    strong({ class: demoPage.rowName }, function* () {
-                      return (yield* user()).name;
-                    }),
-                    span({ class: demoPage.rowMeta }, function* () {
-                      return (yield* user()).email;
-                    }),
-                  ]),
-                  span({ class: demoPage.rowId }, function* () {
-                    return `#${(yield* user()).id}`;
-                  }),
-                ]),
+          ifNode(
+            'portable-users-has-users',
+            function* () {
+              return yield* (yield* PortableServerFunctionDemoView()).hasUsersClientPortableServerFunctionDemo();
+            },
+            () =>
+              ul(
+                { class: demoPage.results },
+                forNode(
+                  function* () {
+                    return yield* (yield* PortableServerFunctionDemoView()).portableUsers();
+                  },
+                  { track: (user) => user.id },
+                  (user) =>
+                    article({ class: demoPage.row }, [
+                      div({ class: demoPage.avatar }, function* () {
+                        return (yield* user()).name.slice(0, 1);
+                      }),
+                      div({ class: demoPage.rowInfo }, [
+                        strong({ class: demoPage.rowName }, function* () {
+                          return (yield* user()).name;
+                        }),
+                        span({ class: demoPage.rowMeta }, function* () {
+                          return (yield* user()).email;
+                        }),
+                      ]),
+                      span({ class: demoPage.rowId }, function* () {
+                        return `#${(yield* user()).id}`;
+                      }),
+                    ]),
+                ),
               ),
-            ),
           ),
-          ifNode(isEmpty, () =>
-            div({ class: demoPage.empty }, [
-              strong({ class: demoPage.emptyTitle }, 'No results loaded'),
-              span(
-                { class: demoPage.emptyText },
-                'Run a search to display users.',
-              ),
-            ]),
+          ifNode(
+            'portable-users-empty',
+            function* () {
+              return yield* (yield* PortableServerFunctionDemoView()).isEmptyClientPortableServerFunctionDemo();
+            },
+            () =>
+              div({ class: demoPage.empty }, [
+                strong({ class: demoPage.emptyTitle }, 'No results loaded'),
+                span(
+                  { class: demoPage.emptyText },
+                  'Run a search to display users.',
+                ),
+              ]),
           ),
         ]),
       ]),

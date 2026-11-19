@@ -6,7 +6,7 @@ import {
   provideCorrelationIdTracking,
 } from '@craft-ts/core';
 import StreamDemo from './stream-demo';
-import { provideDemoStreamTrace, traceLines } from './trace-log';
+import { provideDemoStreamTrace } from './trace-log';
 
 let clock: VirtualCraftTemporalRuntime;
 let restoreClock: () => void;
@@ -14,7 +14,6 @@ let restoreClock: () => void;
 beforeEach(() => {
   clock = new VirtualCraftTemporalRuntime();
   restoreClock = activateCraftTemporalRuntime(clock);
-  traceLines.set([]);
 });
 
 afterEach(() => {
@@ -51,7 +50,9 @@ describe('the typed streams demo', () => {
     await rendered.flush();
 
     expect(section(rendered.element, 'Live search')).toContain('Dune Messiah');
-    expect(traceLines().join('\n')).toContain('· answered: next');
+    expect(
+      rendered.element.querySelector('[data-testid="trace"]')?.textContent,
+    ).toContain('· answered: next');
     rendered.destroy();
   });
 
@@ -81,9 +82,12 @@ describe('the typed streams demo', () => {
     await clock.advanceBy(3000);
     await rendered.flush();
 
-    expect(traceLines().some((line) => /^ticker \[.*:click:/.test(line))).toBe(
-      true,
-    );
+    expect(
+      rendered.element
+        .querySelector('[data-testid="trace"]')
+        ?.textContent?.split('\n')
+        .some((line) => /^ticker \[.*:click:/.test(line)),
+    ).toBe(true);
     expect(section(rendered.element, 'Ticker')).toContain('Tick: 3');
     rendered.destroy();
   });
@@ -98,9 +102,11 @@ describe('the typed streams demo', () => {
     await rendered.flush();
 
     expect(section(rendered.element, 'Defect')).toContain('demo defect');
-    expect(traceLines().some((line) => line.includes(' defect Error'))).toBe(
-      true,
-    );
+    expect(
+      rendered.element
+        .querySelector('[data-testid="trace"]')
+        ?.textContent?.includes(' defect Error'),
+    ).toBe(true);
     rendered.destroy();
   });
 });

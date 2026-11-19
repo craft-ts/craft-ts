@@ -379,13 +379,13 @@ describe('createCraftProject', () => {
         join(result.directory, 'src/dev-typecheck-indicator.ts'),
         'utf8',
       ),
-    ).toContain('Type checking failed — app is still running');
+    ).toContain("i18n.t('ui.typecheck.failed')");
     expect(
       await readFile(
         join(result.directory, 'src/dev-typecheck-indicator.ts'),
         'utf8',
       ),
-    ).toContain('Dismiss type-check warning');
+    ).toContain("i18n.t('ui.typecheck.dismiss')");
     // The indicator is built imperatively, but still styled by a sheet: its
     // failed state is an axis the script sets, not a class it assembles.
     expect(
@@ -950,14 +950,21 @@ describe('createCraftProject', () => {
       'utf8',
     );
 
-    expect(homePage).toContain("import { query } from '@craft-ts/core';");
+    expect(homePage).toContain("import { HomePageViewModel } from './home-page.service';");
+    expect(homePage).not.toContain("import { query } from '@craft-ts/core';");
     expect(homePage).toContain(
-      "import { getStarterMessage } from '../starter.fn-client';",
+      'yield* welcomeQuery.value()',
     );
-    expect(homePage).toContain(
+    const homePageService = await readFile(
+      join(result.directory, 'src/app/home-page.service.ts'),
+      'utf8',
+    );
+    expect(homePageService).toContain(
+      "import { craftService, query } from '@craft-ts/core';",
+    );
+    expect(homePageService).toContain(
       "function* () { return yield* getStarterMessage({ filter: 'starter' }); }",
     );
-    expect(homePage).toContain('yield* welcomeQuery.value()');
     expect(homePage).not.toContain('queryEffect');
     expect(homePage).not.toContain('Effect.tryPromise');
     expect(homePage).not.toContain("from './api'");
@@ -999,7 +1006,12 @@ describe('createCraftProject', () => {
       join(result.directory, 'src/app/home-page.ts'),
       'utf8',
     );
-    expect(homePage).toContain(
+    expect(homePage).toContain("import { HomePageViewModel } from './home-page.service';");
+    const homePageService = await readFile(
+      join(result.directory, 'src/app/home-page.service.ts'),
+      'utf8',
+    );
+    expect(homePageService).toContain(
       "function* () { return yield* getStarterMessage({ filter: 'starter' }); }",
     );
     expect(

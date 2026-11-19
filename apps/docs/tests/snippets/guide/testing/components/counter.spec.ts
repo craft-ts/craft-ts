@@ -26,31 +26,29 @@ const { CounterView, provideCounterView } = craftService(
   { name: 'counterView', providedIn: 'toProvide' },
   function* () {
     yield* state('counter', 0, ({ state, update }) => ({
-      disabled: craftUse(craftComputed('disabled', function* () {
-        return (yield* state()) % 2 === 0;
-      })),
+      disabled: craftUse(
+        craftComputed('disabled', function* () {
+          return (yield* state()) % 2 === 0;
+        }),
+      ),
       increment: () => update((value) => value + 1),
     }));
-
   },
 );
 
 const Counter = craftComponent(
   'Counter',
   { providers: [provideCounterView()] },
-  function* () {
-    const { counter } = yield* CounterView();
-
-    return button(
+  () =>
+    button(
       'increment',
       {
         type: 'button',
-        disabled: counter.disabled,
-        click: counter.increment,
+        disabled: CounterView.counter.disabled,
+        click: CounterView.counter.increment,
       },
       '+',
-    );
-  },
+    ),
 );
 
 // The service is where the state lives, so that is where the derivation is
@@ -88,7 +86,7 @@ type _DisabledBindingIsCorrect = Expect<
   Equal<
     TemplateRendersStateWhen<
       TemplateChildren<ComponentTemplateOf<typeof Counter>>,
-      'counter.disabled'
+      'disabled'
     >,
     true
   >

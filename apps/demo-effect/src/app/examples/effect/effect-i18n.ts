@@ -7,7 +7,13 @@ import {
   pendingNode,
   span,
 } from '@craft-ts/component';
-import { craftService, craftComputed, settled, state, craftUse } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  settled,
+  state,
+  craftUse,
+} from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   i18nRuntime,
@@ -49,12 +55,16 @@ export const { EffectI18nView, provideEffectI18nView } = craftService(
       return {
         chooseEnglish: choose('en-US'),
         chooseFrench: choose('fr-FR'),
-        englishPressed: craftUse(craftComputed('englishPressed', function* () {
-          return (yield* read()) === 'en-US' ? 'true' : 'false';
-        })),
-        frenchPressed: craftUse(craftComputed('frenchPressed', function* () {
-          return (yield* read()) === 'fr-FR' ? 'true' : 'false';
-        })),
+        englishPressed: craftUse(
+          craftComputed('englishPressed', function* () {
+            return (yield* read()) === 'en-US' ? 'true' : 'false';
+          }),
+        ),
+        frenchPressed: craftUse(
+          craftComputed('frenchPressed', function* () {
+            return (yield* read()) === 'fr-FR' ? 'true' : 'false';
+          }),
+        ),
       };
     });
 
@@ -67,21 +77,28 @@ export const { EffectI18nView, provideEffectI18nView } = craftService(
         loader: () => renderReceipt(ORDER),
       },
       ({ resource }) => ({
-        heading: craftUse(craftComputed('heading', function* () {
-          return (yield* settled(resource)).heading;
-        })),
-        placed: craftUse(craftComputed('placed', function* () {
-          return (yield* settled(resource)).placed;
-        })),
-        total: craftUse(craftComputed('total', function* () {
-          return (yield* settled(resource)).total;
-        })),
-        lines: craftUse(craftComputed('linesEffectEffectI18n', function* () {
-          return (yield* settled(resource)).lines;
-        })),
+        heading: craftUse(
+          craftComputed('heading', function* () {
+            return (yield* settled(resource)).heading;
+          }),
+        ),
+        placed: craftUse(
+          craftComputed('placed', function* () {
+            return (yield* settled(resource)).placed;
+          }),
+        ),
+        total: craftUse(
+          craftComputed('total', function* () {
+            return (yield* settled(resource)).total;
+          }),
+        ),
+        lines: craftUse(
+          craftComputed('linesEffectEffectI18n', function* () {
+            return (yield* settled(resource)).lines;
+          }),
+        ),
       }),
     );
-
   },
 );
 
@@ -91,7 +108,6 @@ const EffectI18nComponent = craftComponent(
     providers: [provideEffectI18nView()],
   },
   function* () {
-    const { locale, receiptQuery } = yield* EffectI18nView();
     return div({ class: example.card, 'data-exampleTint': 'violet' }, [
       heading({ class: example.title }, 'Translating inside an Effect program'),
       p(
@@ -104,8 +120,12 @@ const EffectI18nComponent = craftComponent(
           {
             class: example.button,
             type: 'button',
-            click: locale.chooseEnglish,
-            'aria-pressed': locale.englishPressed,
+            *click() {
+              yield* (yield* EffectI18nView()).locale.chooseEnglish();
+            },
+            'aria-pressed': function* () {
+              return yield* (yield* EffectI18nView()).locale.englishPressed();
+            },
           },
           'English',
         ),
@@ -114,17 +134,29 @@ const EffectI18nComponent = craftComponent(
           {
             class: example.button,
             type: 'button',
-            click: locale.chooseFrench,
-            'aria-pressed': locale.frenchPressed,
+            *click() {
+              yield* (yield* EffectI18nView()).locale.chooseFrench();
+            },
+            'aria-pressed': function* () {
+              return yield* (yield* EffectI18nView()).locale.frenchPressed();
+            },
           },
           'Français',
         ),
       ]),
       div({ class: example.receipt }, [
-        heading({ class: example.receiptTitle }, receiptQuery.heading),
-        p({ class: example.receiptText }, receiptQuery.placed),
-        p({ class: example.receiptText }, receiptQuery.total),
-        p({ class: example.receiptText }, receiptQuery.lines),
+        heading({ class: example.receiptTitle }, function* () {
+          return yield* (yield* EffectI18nView()).receiptQuery.heading();
+        }),
+        p({ class: example.receiptText }, function* () {
+          return yield* (yield* EffectI18nView()).receiptQuery.placed();
+        }),
+        p({ class: example.receiptText }, function* () {
+          return yield* (yield* EffectI18nView()).receiptQuery.total();
+        }),
+        p({ class: example.receiptText }, function* () {
+          return yield* (yield* EffectI18nView()).receiptQuery.lines();
+        }),
       ]).pipe(
         pendingNode({
           fallback: () =>

@@ -96,7 +96,7 @@ describe('the pages of apps/docs, as the site model sees them', () => {
     '/guide/testing/folder-layout',
   ];
 
-  it('puts every page in the sidebar of its section, bar the six that no sidebar lists yet', () => {
+  it('puts every page in the sidebar of its section, bar the known orphan pages', () => {
     const orphans = pages
       .filter((page) => page.route !== '/')
       .filter((page) => {

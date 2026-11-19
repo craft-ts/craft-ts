@@ -16,7 +16,14 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftService, craftComputed, query, state, craftUse, craftExpose } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  query,
+  state,
+  craftUse,
+  craftExpose,
+} from '@craft-ts/core';
 import { getEffectMiddlewareUsers } from '../users/effect-middleware-list.fn-client';
 import { demoPage } from './demo.style';
 
@@ -41,9 +48,11 @@ export const {
         },
       },
       ({ exceptions }) => ({
-        serverError: craftUse(craftComputed('effectMiddlewareServerError', function* () {
-          return (yield* exceptions()).loader;
-        })),
+        serverError: craftUse(
+          craftComputed('effectMiddlewareServerError', function* () {
+            return (yield* exceptions()).loader;
+          }),
+        ),
       }),
     );
     yield* usersQuery.call({ filter: '', simulateError: 'none' });
@@ -64,13 +73,16 @@ export const {
     yield* craftComputed('hasServerError', function* () {
       return Boolean(yield* usersQuery.serverError());
     });
-    yield* craftComputed('isEmptyClientEffectServerMiddlewareDemo', function* () {
-      return (
-        !(yield* usersQuery.isLoading()) &&
-        !usersQuery.hasValue() &&
-        !(yield* usersQuery.serverError())
-      );
-    });
+    yield* craftComputed(
+      'isEmptyClientEffectServerMiddlewareDemo',
+      function* () {
+        return (
+          !(yield* usersQuery.isLoading()) &&
+          !usersQuery.hasValue() &&
+          !(yield* usersQuery.serverError())
+        );
+      },
+    );
     function* runScenario(simulateError: 'none' | 'middleware' | 'handler') {
       yield* usersQuery.call({
         filter: (yield* filter()).trim(),
@@ -92,16 +104,6 @@ const EffectServerMiddlewareDemo = craftComponent(
     providers: [provideEffectServerMiddlewareDemoView()],
   },
   function* () {
-    const {
-      filter,
-      usersQueryClientEffectServerMiddlewareDemo: usersQuery,
-      hasUsersClientEffectServerMiddlewareDemo: hasUsers,
-      hasServerError,
-      serverErrorText,
-      isEmptyClientEffectServerMiddlewareDemo: isEmpty,
-      runScenario,
-      submit,
-    } = yield* EffectServerMiddlewareDemoView();
     return main({ class: demoPage.shell }, [
       div({ class: demoPage.eyebrow }, 'runnable playground · Effect adapter'),
       heading(
@@ -120,37 +122,51 @@ const EffectServerMiddlewareDemo = craftComponent(
             { class: demoPage.copy },
             'The middleware reads CurrentUser, runs before the handler, and stays inside the same Effect runtime as the server function.',
           ),
-          form('effectMiddlewareSearchForm', { submit }, [
-            label(
-              {
-                class: [demoPage.label, demoPage.spacedLabel],
-                htmlFor: 'effectMiddlewareFilterInput',
+          form(
+            'effectMiddlewareSearchForm',
+            {
+              *submit(event) {
+                yield* (yield* EffectServerMiddlewareDemoView()).submit(event);
               },
-              'Filter',
-            ),
-            div({ class: demoPage.searchRow }, [
-              input('effectMiddlewareFilterInput', {
-                class: demoPage.input,
-                type: 'search',
-                value: filter,
-                placeholder: 'ada, craft.dev…',
-                autocomplete: 'off',
-                'aria-label': 'User filter',
-                *input(event) {
-                  yield* filter.setEffectMiddlewareFilter(event.target.value);
-                },
-              }),
-              button(
-                'effectMiddlewareSearchButton',
+            },
+            [
+              label(
                 {
-                  class: demoPage.button,
-                  type: 'submit',
-                  disabled: usersQuery.isLoading,
+                  class: [demoPage.label, demoPage.spacedLabel],
+                  htmlFor: 'effectMiddlewareFilterInput',
                 },
-                'Run success ↗',
+                'Filter',
               ),
-            ]),
-          ]),
+              div({ class: demoPage.searchRow }, [
+                input('effectMiddlewareFilterInput', {
+                  class: demoPage.input,
+                  type: 'search',
+                  value: function* () {
+                    return yield* (yield* EffectServerMiddlewareDemoView()).filter();
+                  },
+                  placeholder: 'ada, craft.dev…',
+                  autocomplete: 'off',
+                  'aria-label': 'User filter',
+                  *input(event) {
+                    yield* (yield* EffectServerMiddlewareDemoView()).filter.setEffectMiddlewareFilter(
+                      event.target.value,
+                    );
+                  },
+                }),
+                button(
+                  'effectMiddlewareSearchButton',
+                  {
+                    class: demoPage.button,
+                    type: 'submit',
+                    disabled: function* () {
+                      return yield* (yield* EffectServerMiddlewareDemoView()).usersQueryClientEffectServerMiddlewareDemo.isLoading();
+                    },
+                  },
+                  'Run success ↗',
+                ),
+              ]),
+            ],
+          ),
           div({ class: demoPage.actions }, [
             button(
               'effectMiddlewareErrorButton',
@@ -158,9 +174,13 @@ const EffectServerMiddlewareDemo = craftComponent(
                 type: 'button',
                 class: demoPage.button,
                 'data-demoButton': 'danger',
-                disabled: usersQuery.isLoading,
+                disabled: function* () {
+                  return yield* (yield* EffectServerMiddlewareDemoView()).usersQueryClientEffectServerMiddlewareDemo.isLoading();
+                },
                 *click() {
-                  yield* runScenario('middleware');
+                  yield* (yield* EffectServerMiddlewareDemoView()).runScenario(
+                    'middleware',
+                  );
                 },
               },
               'Fail in middleware',
@@ -171,16 +191,20 @@ const EffectServerMiddlewareDemo = craftComponent(
                 type: 'button',
                 class: demoPage.button,
                 'data-demoButton': 'danger',
-                disabled: usersQuery.isLoading,
+                disabled: function* () {
+                  return yield* (yield* EffectServerMiddlewareDemoView()).usersQueryClientEffectServerMiddlewareDemo.isLoading();
+                },
                 *click() {
-                  yield* runScenario('handler');
+                  yield* (yield* EffectServerMiddlewareDemoView()).runScenario(
+                    'handler',
+                  );
                 },
               },
               'Fail in handler',
             ),
           ]),
           div({ class: demoPage.status }, function* () {
-            return (yield* usersQuery.isLoading())
+            return (yield* (yield* EffectServerMiddlewareDemoView()).usersQueryClientEffectServerMiddlewareDemo.isLoading())
               ? 'Effect middleware is running…'
               : 'Effect middleware ready';
           }),
@@ -188,49 +212,76 @@ const EffectServerMiddlewareDemo = craftComponent(
         div({ class: demoPage.panel }, [
           span({ class: demoPage.kicker }, 'Response'),
           heading({ class: demoPage.panelTitle }, 'Users'),
-          ifNode(hasServerError, () =>
-            div({ class: demoPage.error }, [
-              strong('Server error · '),
-              span(serverErrorText),
-            ]),
+          ifNode(
+            'middleware-has-server-error',
+            function* () {
+              return yield* (yield* EffectServerMiddlewareDemoView()).hasServerError();
+            },
+            () =>
+              div({ class: demoPage.error }, [
+                strong('Server error · '),
+                function* () {
+                  return yield* (yield* EffectServerMiddlewareDemoView()).serverErrorText();
+                },
+              ]),
           ),
-          ifNode(usersQuery.isLoading, () =>
-            p(
-              { class: demoPage.copy },
-              'Waiting for the Effect runtime and database…',
-            ),
-          ),
-          ifNode(hasUsers, () =>
-            ul(
-              { class: demoPage.results },
-              forNode(usersQuery.value, { track: (user) => user.id }, (user) =>
-                article({ class: demoPage.row }, [
-                  div({ class: demoPage.avatar }, function* () {
-                    return (yield* user()).name.slice(0, 1);
-                  }),
-                  div({ class: demoPage.rowInfo }, [
-                    strong({ class: demoPage.rowName }, function* () {
-                      return (yield* user()).name;
-                    }),
-                    span({ class: demoPage.rowMeta }, function* () {
-                      return (yield* user()).email;
-                    }),
-                  ]),
-                  span({ class: demoPage.rowId }, function* () {
-                    return `#${(yield* user()).id}`;
-                  }),
-                ]),
+          ifNode(
+            'middleware-users-loading',
+            function* () {
+              return yield* (yield* EffectServerMiddlewareDemoView()).usersQueryClientEffectServerMiddlewareDemo.isLoading();
+            },
+            () =>
+              p(
+                { class: demoPage.copy },
+                'Waiting for the Effect runtime and database…',
               ),
-            ),
           ),
-          ifNode(isEmpty, () =>
-            div({ class: demoPage.empty }, [
-              strong({ class: demoPage.emptyTitle }, 'No results loaded'),
-              span(
-                { class: demoPage.emptyText },
-                'Run a search to see the Effect response.',
+          ifNode(
+            'middleware-has-users',
+            function* () {
+              return yield* (yield* EffectServerMiddlewareDemoView()).hasUsersClientEffectServerMiddlewareDemo();
+            },
+            () =>
+              ul(
+                { class: demoPage.results },
+                forNode(
+                  function* () {
+                    return yield* (yield* EffectServerMiddlewareDemoView()).usersQueryClientEffectServerMiddlewareDemo.value();
+                  },
+                  { track: (user) => user.id },
+                  (user) =>
+                    article({ class: demoPage.row }, [
+                      div({ class: demoPage.avatar }, function* () {
+                        return (yield* user()).name.slice(0, 1);
+                      }),
+                      div({ class: demoPage.rowInfo }, [
+                        strong({ class: demoPage.rowName }, function* () {
+                          return (yield* user()).name;
+                        }),
+                        span({ class: demoPage.rowMeta }, function* () {
+                          return (yield* user()).email;
+                        }),
+                      ]),
+                      span({ class: demoPage.rowId }, function* () {
+                        return `#${(yield* user()).id}`;
+                      }),
+                    ]),
+                ),
               ),
-            ]),
+          ),
+          ifNode(
+            'middleware-empty',
+            function* () {
+              return yield* (yield* EffectServerMiddlewareDemoView()).isEmptyClientEffectServerMiddlewareDemo();
+            },
+            () =>
+              div({ class: demoPage.empty }, [
+                strong({ class: demoPage.emptyTitle }, 'No results loaded'),
+                span(
+                  { class: demoPage.emptyText },
+                  'Run a search to see the Effect response.',
+                ),
+              ]),
           ),
         ]),
       ]),

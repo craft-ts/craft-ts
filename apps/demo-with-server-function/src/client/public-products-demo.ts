@@ -24,48 +24,60 @@ import { demoPage } from './demo.style';
  * server-function path before any middleware, context, or authorization is
  * introduced by the other examples.
  */
-export const { PublicProductsDemoView, providePublicProductsDemoView } = craftService(
-  { name: 'publicProductsDemoView', providedIn: 'toProvide' },
-  function* () {
-    yield* query(
-      'productsQuery',
-      {
-        params: () => true,
-        loader: function* () {
-          return yield* getPublicProducts({});
+export const { PublicProductsDemoView, providePublicProductsDemoView } =
+  craftService(
+    { name: 'publicProductsDemoView', providedIn: 'toProvide' },
+    function* () {
+      yield* query(
+        'productsQuery',
+        {
+          params: () => true,
+          loader: function* () {
+            return yield* getPublicProducts({});
+          },
         },
-      },
-      ({ resource }) => ({
-        hasProducts: craftUse(craftComputed('hasProducts', () => resource.hasValue())),
-        isEmpty: craftUse(craftComputed('productsIsEmpty', function* () {
-          const currentStatus = yield* resource.status();
-          return (
-            currentStatus !== 'loading' &&
-            currentStatus !== 'reloading' &&
-            !resource.hasValue()
-          );
-        })),
-        requestTitle: craftUse(craftComputed('productsRequestTitle', function* () {
-          const currentStatus = yield* resource.status();
-          return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'Calling demo.products.list…'
-            : 'Public response ready';
-        })),
-        requestDetail: craftUse(craftComputed('productsRequestDetail', function* () {
-          const currentStatus = yield* resource.status();
-          return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'POST /__server-functions · no middleware'
-            : `Status: ${currentStatus}`;
-        })),
-        resultCount: craftUse(craftComputed('productsResultCount', function* () {
-          const value = yield* resource.value();
-          return Array.isArray(value) ? value.length.toString() : '—';
-        })),
-      }),
-    );
-
-  },
-);
+        ({ resource }) => ({
+          hasProducts: craftUse(
+            craftComputed('hasProducts', () => resource.hasValue()),
+          ),
+          isEmpty: craftUse(
+            craftComputed('productsIsEmpty', function* () {
+              const currentStatus = yield* resource.status();
+              return (
+                currentStatus !== 'loading' &&
+                currentStatus !== 'reloading' &&
+                !resource.hasValue()
+              );
+            }),
+          ),
+          requestTitle: craftUse(
+            craftComputed('productsRequestTitle', function* () {
+              const currentStatus = yield* resource.status();
+              return currentStatus === 'loading' ||
+                currentStatus === 'reloading'
+                ? 'Calling demo.products.list…'
+                : 'Public response ready';
+            }),
+          ),
+          requestDetail: craftUse(
+            craftComputed('productsRequestDetail', function* () {
+              const currentStatus = yield* resource.status();
+              return currentStatus === 'loading' ||
+                currentStatus === 'reloading'
+                ? 'POST /__server-functions · no middleware'
+                : `Status: ${currentStatus}`;
+            }),
+          ),
+          resultCount: craftUse(
+            craftComputed('productsResultCount', function* () {
+              const value = yield* resource.value();
+              return Array.isArray(value) ? value.length.toString() : '—';
+            }),
+          ),
+        }),
+      );
+    },
+  );
 
 const PublicProductsDemo = craftComponent(
   'PublicProductsDemo',
@@ -73,7 +85,6 @@ const PublicProductsDemo = craftComponent(
     providers: [providePublicProductsDemoView()],
   },
   function* () {
-    const { productsQuery } = yield* PublicProductsDemoView();
     return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
@@ -102,56 +113,74 @@ const PublicProductsDemo = craftComponent(
           span({ class: demoPage.requestDot }),
           div([
             strong({ class: demoPage.requestTitle }, function* () {
-              return yield* productsQuery.requestTitle();
+              return yield* (yield* PublicProductsDemoView()).productsQuery.requestTitle();
             }),
             small({ class: demoPage.requestDetail }, function* () {
-              return yield* productsQuery.requestDetail();
+              return yield* (yield* PublicProductsDemoView()).productsQuery.requestDetail();
             }),
           ]),
         ]),
-        ifNode(productsQuery.isLoading, () =>
-          p({ class: demoPage.loading }, '⏳ Loading public products…'),
+        ifNode(
+          'public-products-loading',
+          function* () {
+            return yield* (yield* PublicProductsDemoView()).productsQuery.isLoading();
+          },
+          () => p({ class: demoPage.loading }, '⏳ Loading public products…'),
         ),
-        ifNode(productsQuery.hasProducts, () =>
-          ul(
-            { class: demoPage.results },
-            forNode(
-              productsQuery.value,
-              { track: (product) => product.id },
-              (product) =>
-                article({ class: demoPage.row }, [
-                  div({ class: demoPage.avatar }, function* () {
-                    return (yield* product()).name.slice(0, 1);
-                  }),
-                  div({ class: demoPage.rowInfo }, [
-                    strong({ class: demoPage.rowName }, function* () {
-                      return (yield* product()).name;
+        ifNode(
+          'public-products-has-products',
+          function* () {
+            return yield* (yield* PublicProductsDemoView()).productsQuery.hasProducts();
+          },
+          () =>
+            ul(
+              { class: demoPage.results },
+              forNode(
+                function* () {
+                  return yield* (yield* PublicProductsDemoView()).productsQuery.value();
+                },
+                { track: (product) => product.id },
+                (product) =>
+                  article({ class: demoPage.row }, [
+                    div({ class: demoPage.avatar }, function* () {
+                      return (yield* product()).name.slice(0, 1);
                     }),
-                    span({ class: demoPage.rowMeta }, function* () {
+                    div({ class: demoPage.rowInfo }, [
+                      strong({ class: demoPage.rowName }, function* () {
+                        return (yield* product()).name;
+                      }),
+                      span({ class: demoPage.rowMeta }, function* () {
+                        const value = yield* product();
+                        return `${value.category} · ${value.description}`;
+                      }),
+                    ]),
+                    span({ class: demoPage.price }, function* () {
                       const value = yield* product();
-                      return `${value.category} · ${value.description}`;
+                      return value.available
+                        ? `€${value.price}`
+                        : 'Unavailable';
                     }),
                   ]),
-                  span({ class: demoPage.price }, function* () {
-                    const value = yield* product();
-                    return value.available ? `€${value.price}` : 'Unavailable';
-                  }),
-                ]),
+              ),
             ),
-          ),
         ),
-        ifNode(productsQuery.isEmpty, () =>
-          div({ class: demoPage.empty }, [
-            strong({ class: demoPage.emptyTitle }, 'No products loaded'),
-            span(
-              { class: demoPage.emptyText },
-              'The public server function returned no products.',
-            ),
-          ]),
+        ifNode(
+          'public-products-empty',
+          function* () {
+            return yield* (yield* PublicProductsDemoView()).productsQuery.isEmpty();
+          },
+          () =>
+            div({ class: demoPage.empty }, [
+              strong({ class: demoPage.emptyTitle }, 'No products loaded'),
+              span(
+                { class: demoPage.emptyText },
+                'The public server function returned no products.',
+              ),
+            ]),
         ),
         div({ class: demoPage.requestCard }, [
           span({ class: demoPage.countBadge }, function* () {
-            return yield* productsQuery.resultCount();
+            return yield* (yield* PublicProductsDemoView()).productsQuery.resultCount();
           }),
           small(
             { class: demoPage.requestDetail },

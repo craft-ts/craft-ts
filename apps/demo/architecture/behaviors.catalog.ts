@@ -43,6 +43,71 @@ export const behaviorCatalog = {
       "file": "apps/demo/src/app/app.ts"
     },
     {
+      "id": "method:controlRoomChecklistView.toggleTask",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-checklist.ts"
+    },
+    {
+      "id": "method:controlRoomColorChooserView.chooseColor",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-stepper-color.ts"
+    },
+    {
+      "id": "method:controlRoomDisclosureView.toggle",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-disclosure-tabs.ts"
+    },
+    {
+      "id": "method:controlRoomGaugeView.decrement",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-gauge.ts"
+    },
+    {
+      "id": "method:controlRoomGaugeView.increment",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-gauge.ts"
+    },
+    {
+      "id": "method:controlRoomGaugeView.reset",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-gauge.ts"
+    },
+    {
+      "id": "method:controlRoomRatingView.rate",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-text-rating.ts"
+    },
+    {
+      "id": "method:controlRoomSliderView.moveTo",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-switch-slider.ts"
+    },
+    {
+      "id": "method:controlRoomStepperView.advance",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-stepper-color.ts"
+    },
+    {
+      "id": "method:controlRoomStepperView.goBack",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-stepper-color.ts"
+    },
+    {
+      "id": "method:controlRoomSwitchView.toggle",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-switch-slider.ts"
+    },
+    {
+      "id": "method:controlRoomTabsView.selectTab",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-disclosure-tabs.ts"
+    },
+    {
+      "id": "method:controlRoomTextFieldView.writeText",
+      "kind": "method",
+      "file": "apps/demo/src/app/examples/primitives/control-room/control-room-text-rating.ts"
+    },
+    {
       "id": "method:exceptionQueryParamsView.navigate",
       "kind": "method",
       "file": "apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts"

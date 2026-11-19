@@ -123,7 +123,8 @@ function containsYieldedCall(node, sourceCode) {
   if (
     node.type === 'YieldExpression' &&
     node.delegate &&
-    node.argument?.type === 'CallExpression'
+    node.argument?.type === 'CallExpression' &&
+    isServiceCall(node.argument)
   ) {
     return true;
   }
@@ -135,6 +136,19 @@ function containsYieldedCall(node, sourceCode) {
       ? child.some((item) => containsYieldedCall(item, sourceCode))
       : containsYieldedCall(child, sourceCode);
   });
+}
+
+function isServiceCall(call) {
+  const callee = call.callee;
+  const name =
+    callee.type === 'Identifier'
+      ? callee.name
+      : callee.type === 'MemberExpression' &&
+          !callee.computed &&
+          callee.property.type === 'Identifier'
+        ? callee.property.name
+        : undefined;
+  return name !== undefined && /^[A-Z]/.test(name);
 }
 
 function referencesServiceBinding(node, bindings, sourceCode) {

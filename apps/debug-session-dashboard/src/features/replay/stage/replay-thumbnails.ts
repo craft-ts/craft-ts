@@ -1,4 +1,4 @@
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftService } from '@craft-ts/core';
 import { i18n } from '../../../shared/util/catalog';
 import {
   button,
@@ -11,7 +11,7 @@ import {
   safeResourceUrl,
   span,
   ul,
-  type Output,
+  type Input,
 } from '@craft-ts/component';
 import { assign, unit } from '@craft-ts/style';
 import { buttonUi } from '@craft-ts/ui/style';
@@ -88,11 +88,10 @@ export const ReplayThumbnailMarks = craftComponent(
                   yield* (yield* ThumbnailPreview()).show(undefined);
                 },
                 click: function* () {
-                  const item = yield* mark();
-                  if (item.entry.eventId)
+                  if ((yield* mark()).entry.eventId)
                     (yield* ReplaySession()).seekReplayToEvent(
-                      item.entry.eventId,
-                      item.entry.participantId,
+                      (yield* mark()).entry.eventId,
+                      (yield* mark()).entry.participantId,
                     );
                 },
               }),
@@ -100,14 +99,12 @@ export const ReplayThumbnailMarks = craftComponent(
                 {
                   class: ui.markCard,
                   'aria-hidden': 'true',
-                  'data-mark-card': function* () {
-                    const item = yield* mark();
+                  'data-mark-card': 'open',
+                  hidden: function* () {
                     const openEntryIndex = yield* (
                       yield* ThumbnailPreview()
                     ).openEntryIndex();
-                    return openEntryIndex === item.entry.index
-                      ? 'open'
-                      : undefined;
+                    return openEntryIndex !== (yield* mark()).entry.index;
                   },
                 },
                 [
@@ -144,28 +141,20 @@ export const ReplayThumbnailMarks = craftComponent(
 export const ReplayThumbnailsStatus = craftComponent(
   'ReplayThumbnailsStatus',
   {},
-  function* (inputs: { readonly retryThumbnails: Output<() => void> }) {
-    const { retryThumbnails } = inputs;
-    const retryHidden = yield* craftComputed(
-      'retryHidden',
-      () => thumbnailManifest()?.status !== 'failed',
-    );
-    const summaryHidden = yield* craftComputed('summaryHidden', () => {
-      const status = thumbnailManifest()?.status;
-      return status === undefined || status === 'none' || status === 'ready';
-    });
-    const summary = yield* craftComputed('summary', thumbnailsSummary);
-
-    return div(
+  (inputs: { readonly retryThumbnails: Input<() => void> }) =>
+    div(
       {
         class: ui.timelineNote,
         'data-lab': 'thumbnails-strip',
-        hidden: summaryHidden,
+        hidden: ReplayThumbnailsStatusView.summaryHidden,
       },
       [
-        p({ 'data-lab': 'thumbnails-summary', role: 'status' }, summary),
+        p(
+          { 'data-lab': 'thumbnails-summary', role: 'status' },
+          ReplayThumbnailsStatusView.summary,
+        ),
         // The button's own display wins over `hidden`: the wrapper carries it.
-        span({ hidden: retryHidden }, [
+        span({ hidden: ReplayThumbnailsStatusView.retryHidden }, [
           button(
             'retryThumbnails',
             {
@@ -173,12 +162,28 @@ export const ReplayThumbnailsStatus = craftComponent(
               class: buttonUi.root,
               'data-variant': 'link',
               'data-lab': 'thumbnails-retry',
-              click: retryThumbnails,
+              click: function* () {
+                (yield* inputs.retryThumbnails())();
+              },
             },
             i18n.t("copy.copy145"),
           ),
         ]),
       ],
+    ),
+);
+
+export const { ReplayThumbnailsStatusView } = craftService(
+  { name: 'replayThumbnailsStatusView', providedIn: 'global' },
+  function* () {
+    yield* craftComputed(
+      'retryHidden',
+      () => thumbnailManifest()?.status !== 'failed',
     );
+    yield* craftComputed('summaryHidden', () => {
+      const status = thumbnailManifest()?.status;
+      return status === undefined || status === 'none' || status === 'ready';
+    });
+    yield* craftComputed('summary', thumbnailsSummary);
   },
 );

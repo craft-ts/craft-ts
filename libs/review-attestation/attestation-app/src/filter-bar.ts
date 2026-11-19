@@ -8,12 +8,25 @@ import {
   select,
   small,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftService } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
 import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
 import { ReviewFilters } from './review-filters.service';
 import { filters } from './review-controls.style';
+
+const { FilterBarActionsView } = craftService(
+  { name: 'FilterBarActionsView', providedIn: 'global' },
+  function* () {
+    const { activeFilterCount } = yield* ReviewFilters();
+    const { locale } = yield* ReviewPreferences();
+    yield* craftComputed('statusText', function* () {
+      return MESSAGES[yield* locale()].activeFilters(
+        yield* activeFilterCount(),
+      );
+    });
+  },
+);
 
 /**
  * The filter status and the button that clears every filter at once.
@@ -27,32 +40,22 @@ export const FilterBarActions = craftComponent(
   'FilterBarActions',
   {},
   function* () {
-    const { clearFilters, activeFilterCount } = yield* ReviewFilters();
-    const { locale } = yield* ReviewPreferences();
-    const t = yield* craftComputed('filterBarActionsMessages', function* () {
-      return MESSAGES[yield* locale()];
-    });
-    const statusText = yield* craftComputed('statusText', function* () {
-      return (yield* t()).activeFilters(yield* activeFilterCount());
-    });
-    const noFiltersActive = yield* craftComputed(
-      'noFiltersActive',
-      function* () {
-        return (yield* activeFilterCount()) === 0;
-      },
-    );
     return div({ class: filters.actions }, [
-      small({ class: filters.status, 'aria-live': 'polite' }, statusText),
+      small({ class: filters.status, 'aria-live': 'polite' }, function* () {
+        return yield* (yield* FilterBarActionsView()).statusText();
+      }),
       button(
         'ClearFilters',
         {
           type: 'button',
           class: filters.clear,
-          disabled: noFiltersActive,
-          click: clearFilters,
+          disabled: function* () {
+            return (yield* (yield* ReviewFilters()).activeFilterCount()) === 0;
+          },
+          click: ReviewFilters.clearFilters,
         },
         function* () {
-          return (yield* t()).clearFilters;
+          return MESSAGES[yield* (yield* ReviewPreferences()).locale()].clearFilters;
         },
       ),
     ]);
@@ -64,98 +67,92 @@ export const FilterBarFields = craftComponent(
   'FilterBarFields',
   {},
   function* () {
-    const {
-      componentFilter,
-      textFilter,
-      writeTextFilter,
-      kindFilter,
-      stateFilter,
-      directionFilter,
-    } = yield* ReviewFilters();
-    const { locale } = yield* ReviewPreferences();
-    const t = yield* craftComputed('filterBarFieldsMessages', function* () {
-      return MESSAGES[yield* locale()];
-    });
     return [
       div({ class: filters.field }, [
         label(
           { class: filters.label, htmlFor: 'component-filter' },
           function* () {
-            return (yield* t()).filterComponent;
+            return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterComponent;
           },
         ),
         input('ComponentFilter', {
           class: filters.control,
           id: 'component-filter',
-          value: componentFilter,
+          value: function* () {
+            return yield* (yield* ReviewFilters()).componentFilter();
+          },
           placeholder: 'UserCard',
           *input(event: Event) {
-            yield* componentFilter.writeFromInput(eventValue(event));
+            yield* (yield* ReviewFilters()).componentFilter.writeFromInput(eventValue(event));
           },
         }),
       ]),
       div({ class: filters.field }, [
         label({ class: filters.label, htmlFor: 'kind-filter' }, function* () {
-          return (yield* t()).filterType;
+          return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterType;
         }),
         select(
           'KindFilter',
           {
             class: filters.control,
             id: 'kind-filter',
-            value: kindFilter,
+            value: function* () {
+              return yield* (yield* ReviewFilters()).kindFilter();
+            },
             *change(event: Event) {
-              yield* kindFilter.chooseFromInput(eventValue(event));
+              yield* (yield* ReviewFilters()).kindFilter.chooseFromInput(eventValue(event));
             },
           },
           [
             option({ value: 'all' }, function* () {
-              return (yield* t()).filterAll;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterAll;
             }),
             option({ value: 'visual' }, function* () {
-              return (yield* t()).filterVisual;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterVisual;
             }),
             option({ value: 'template' }, function* () {
-              return (yield* t()).filterTemplate;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterTemplate;
             }),
             option({ value: 'removal' }, function* () {
-              return (yield* t()).filterRemoved;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterRemoved;
             }),
           ],
         ),
       ]),
       div({ class: filters.field }, [
         label({ class: filters.label, htmlFor: 'state-filter' }, function* () {
-          return (yield* t()).filterState;
+          return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterState;
         }),
         select(
           'StateFilter',
           {
             class: filters.control,
             id: 'state-filter',
-            value: stateFilter,
+            value: function* () {
+              return yield* (yield* ReviewFilters()).stateFilter();
+            },
             *change(event: Event) {
-              yield* stateFilter.chooseFromInput(eventValue(event));
+              yield* (yield* ReviewFilters()).stateFilter.chooseFromInput(eventValue(event));
             },
           },
           [
             option({ value: 'all' }, function* () {
-              return (yield* t()).filterAll;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterAll;
             }),
             option({ value: 'current' }, function* () {
-              return (yield* t()).filterCurrent;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterCurrent;
             }),
             option({ value: 'renewed' }, function* () {
-              return (yield* t()).filterRenewed;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterRenewed;
             }),
             option({ value: 'missing' }, function* () {
-              return (yield* t()).filterMissing;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterMissing;
             }),
             option({ value: 'review' }, function* () {
-              return (yield* t()).filterReview;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterReview;
             }),
             option({ value: 'removed' }, function* () {
-              return (yield* t()).filterRemoved;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterRemoved;
             }),
           ],
         ),
@@ -164,7 +161,7 @@ export const FilterBarFields = craftComponent(
         label(
           { class: filters.label, htmlFor: 'direction-filter' },
           function* () {
-            return (yield* t()).filterDirection;
+            return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterDirection;
           },
         ),
         select(
@@ -172,35 +169,39 @@ export const FilterBarFields = craftComponent(
           {
             class: filters.control,
             id: 'direction-filter',
-            value: directionFilter,
+            value: function* () {
+              return yield* (yield* ReviewFilters()).directionFilter();
+            },
             *change(event: Event) {
-              yield* directionFilter.chooseFromInput(eventValue(event));
+              yield* (yield* ReviewFilters()).directionFilter.chooseFromInput(eventValue(event));
             },
           },
           [
             option({ value: 'all' }, function* () {
-              return (yield* t()).filterAll;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterAll;
             }),
             option({ value: 'render' }, function* () {
-              return (yield* t()).filterRender;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterRender;
             }),
             option({ value: 'command' }, function* () {
-              return (yield* t()).filterCommand;
+              return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterCommand;
             }),
           ],
         ),
       ]),
       div({ class: filters.field }, [
         label({ class: filters.label, htmlFor: 'text-filter' }, function* () {
-          return (yield* t()).filterText;
+          return MESSAGES[yield* (yield* ReviewPreferences()).locale()].filterText;
         }),
         input('TextFilter', {
           class: filters.control,
           id: 'text-filter',
-          value: textFilter,
+          value: function* () {
+            return yield* (yield* ReviewFilters()).textFilter();
+          },
           placeholder: 'save',
           *input(event: Event) {
-            yield* writeTextFilter(eventValue(event));
+            yield* (yield* ReviewFilters()).writeTextFilter(eventValue(event));
           },
         }),
       ]),

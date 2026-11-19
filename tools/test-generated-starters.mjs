@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import {
   existsSync,
   mkdtempSync,
@@ -119,6 +120,24 @@ function runAsync(command, args, cwd = root, extraEnv = {}) {
         new Error(
           `Command failed: ${command} ${args.join(' ')} (${signal ?? `exit ${code}`})`,
         ),
+      );
+    });
+  });
+}
+
+function findAvailablePort() {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const server = createServer();
+    server.once('error', rejectPromise);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        server.close();
+        rejectPromise(new Error('Could not reserve a local starter port.'));
+        return;
+      }
+      server.close((error) =>
+        error ? rejectPromise(error) : resolvePromise(address.port),
       );
     });
   });
@@ -279,9 +298,9 @@ function assertStaticStarter(cell, directory, name) {
   }
 }
 
-async function runExecutableStarter(cell, directory, name, localRelease, port) {
+async function runExecutableStarter(cell, directory, name, localRelease) {
   if (localRelease) useLocalReleasePackages(directory, localRelease.overrides);
-  const environment = { CRAFT_STARTER_PORT: String(port) };
+  const environment = {};
   await runAsync(
     'npm',
     ['install', '--no-audit', '--no-fund'],
@@ -297,6 +316,9 @@ async function runExecutableStarter(cell, directory, name, localRelease, port) {
     'build',
     'e2e',
   ]) {
+    if (command === 'e2e') {
+      environment.CRAFT_STARTER_PORT = String(await findAvailablePort());
+    }
     await runAsync('npm', ['run', command], directory, environment);
   }
   if (cell.i18n !== 'none') {
@@ -332,7 +354,6 @@ async function runCell(cell, localRelease) {
   const name = `cell-${String(cellIndex + 1).padStart(2, '0')}`;
   const directory = join(fixtureRoot, name);
   const executable = executableCellKeys.has(JSON.stringify(cell));
-  const port = 4173 + cellIndex;
   console.log(
     `\n[generated-starters] ${JSON.stringify({ profile, executable, jobs: requestedJobs, ...cell, releaseVersion, directory })}`,
   );
@@ -359,7 +380,7 @@ async function runCell(cell, localRelease) {
   await runAsync('npx', args);
   assertStaticStarter(cell, directory, name);
   if (executable)
-    await runExecutableStarter(cell, directory, name, localRelease, port);
+    await runExecutableStarter(cell, directory, name, localRelease);
 }
 
 async function main() {

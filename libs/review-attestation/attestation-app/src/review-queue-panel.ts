@@ -24,7 +24,6 @@ import type {
 } from '@craft-ts/style-testing/review';
 import {
   craftComputed,
-  craftMethod,
   deepYieldable,
   craftService,
   craftExpose,
@@ -148,17 +147,16 @@ export const { ReviewQueuePanelView, provideReviewQueuePanelView } =
               shape: entry.decision.shape,
               id: entry.decision.id ?? '',
               cardSubject: entry.card.subject,
+              scenario: scenarioOf(entry.card.subject),
               verdict: entry.decision.verdict,
+              reopen: function* () {
+                const selected = (yield* inputs.sessionHistory())[index];
+                if (selected) inputs.reopenDecision(selected);
+              },
             }));
           }),
         ),
       );
-      yield* craftMethod('reopenHistoryItem', function* (index: number) {
-        const entry = (yield* inputs.sessionHistory())[index];
-        if (entry) {
-          inputs.reopenDecision(entry);
-        }
-      });
       yield* craftExpose('t', t);
       yield* craftExpose('queueValue', queueValue);
       yield* craftExpose('regenerating', regenerating);
@@ -188,16 +186,14 @@ export const { ReviewQueuePanelView, provideReviewQueuePanelView } =
 export const ReviewQueuePanel = craftComponent(
   'ReviewQueuePanel',
   {},
-  function* (_inputs: Inputs) {
+  function* (inputs: Inputs) {
     const {
       t,
-      queueTitle,
       queueValue,
-      canRegenerate,
+      regenerationAvailable,
       regenerating,
       openRegenerationDialog,
-      regeneratingLabel,
-      canStartHandoff,
+      iterationHandoffAvailable,
       handoffBusy,
       openIterationDialog,
       devtoolView,
@@ -207,19 +203,15 @@ export const ReviewQueuePanel = craftComponent(
       folderLayouts,
       bypasses,
       reviewCards,
-      queueItems,
       reviewFailed,
       activeIndex,
       selectCard,
       sessionHistory,
-      historyItems,
       reopening,
-      reopenHistoryItem,
-      reopeningLabel,
       movePrevious,
       cards,
       moveNext,
-    } = yield* ReviewQueuePanelView();
+    } = inputs;
     return aside(
       {
         class: shell.queuePanel,
@@ -237,7 +229,9 @@ export const ReviewQueuePanel = craftComponent(
               return (yield* t()).brand;
             },
           ),
-          heading({ class: shell.brandTitle }, queueTitle),
+          heading({ class: shell.brandTitle }, function* () {
+            return yield* (yield* ReviewQueuePanelView()).queueTitle();
+          }),
           div(
             { class: shell.queueSummary, 'aria-live': 'polite' },
             function* () {
@@ -248,7 +242,10 @@ export const ReviewQueuePanel = craftComponent(
               );
             },
           ),
-          ifNode(canRegenerate, () =>
+          ifNode(
+            'regenerationAvailable',
+            regenerationAvailable,
+            () =>
             button(
               'OpenRegenerationDialog',
               {
@@ -257,10 +254,18 @@ export const ReviewQueuePanel = craftComponent(
                 disabled: regenerating,
                 click: openRegenerationDialog,
               },
-              [span({ 'aria-hidden': 'true' }, '↻'), regeneratingLabel],
+              [
+                span({ 'aria-hidden': 'true' }, '↻'),
+                function* () {
+                  return yield* (yield* ReviewQueuePanelView()).regeneratingLabel();
+                },
+              ],
             ),
           ),
-          ifNode(canStartHandoff, () =>
+          ifNode(
+            'iterationHandoffAvailable',
+            iterationHandoffAvailable,
+            () =>
             button(
               'GenerateIterationHandoff',
               {
@@ -371,7 +376,9 @@ export const ReviewQueuePanel = craftComponent(
             },
           },
           forNode(
-            queueItems,
+            function* () {
+              return yield* (yield* ReviewQueuePanelView()).queueItems();
+            },
             {
               track: (item) => item.card.shape,
               empty: () =>
@@ -406,8 +413,12 @@ export const ReviewQueuePanel = craftComponent(
                   },
                 },
                 [
-                  span({ class: shell.scenarioName }, item.scenario),
-                  small({ class: shell.queueItemHint }, item.hint),
+                  span({ class: shell.scenarioName }, function* () {
+                    return (yield* item()).scenario;
+                  }),
+                  small({ class: shell.queueItemHint }, function* () {
+                    return (yield* item()).hint;
+                  }),
                 ],
               ),
           ),
@@ -432,7 +443,9 @@ export const ReviewQueuePanel = craftComponent(
             ul(
               { class: shell.historyList },
               forNode(
-                historyItems,
+                function* () {
+                  return yield* (yield* ReviewQueuePanelView()).historyItems();
+                },
                 {
                   track: (entry) => `${entry.shape}:${entry.id}`,
                 },
@@ -444,20 +457,22 @@ export const ReviewQueuePanel = craftComponent(
                         type: 'button',
                         disabled: reopening,
                         class: shell.historyItem,
-                        *click() {
-                          reopenHistoryItem(yield* entry.index());
+                        click: function* () {
+                          yield* (yield* entry()).reopen();
                         },
                       },
                       [
                         strong({ class: shell.historyTitle }, function* () {
-                          return `${(yield* index()) + 1}. ${scenarioOf(yield* entry.cardSubject())}`;
+                          return `${(yield* index()) + 1}. ${(yield* entry()).scenario}`;
                         }),
                         small({ class: shell.historyVerdict }, function* () {
                           return (yield* t()).previousVerdict(
-                            yield* entry.verdict(),
+                            (yield* entry()).verdict,
                           );
                         }),
-                        span({ class: shell.historyAction }, reopeningLabel),
+                        span({ class: shell.historyAction }, function* () {
+                          return yield* (yield* ReviewQueuePanelView()).reopeningLabel();
+                        }),
                       ],
                     ),
                   ]),

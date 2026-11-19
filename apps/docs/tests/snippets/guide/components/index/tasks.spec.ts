@@ -5,24 +5,36 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 // #region tasks
 import { craftComponent, forNode, h1, li, ul } from '@craft-ts/component';
-import { state } from '@craft-ts/core';
+import { craftService, state } from '@craft-ts/core';
 
 type Task = { id: string; title: string; done: boolean };
 
-export const Tasks = craftComponent('Tasks', {}, function* () {
-  const tasks = yield* state('tasks', [] as Task[]);
+const { TasksView, provideTasksView } = craftService(
+  { name: 'tasksView', providedIn: 'toProvide' },
+  function* () {
+    yield* state('tasks', [] as Task[]);
+  },
+);
 
-  return [
+export const Tasks = craftComponent(
+  'Tasks',
+  { providers: [provideTasksView()] },
+  () => [
     h1('Tasks'),
     ul(
-      forNode(tasks, { track: (task) => task.id }, (task) =>
-        li(function* () {
-          return (yield* task()).title;
-        }),
+      forNode(
+        function* () {
+          return yield* (yield* TasksView()).tasks();
+        },
+        { track: (task) => task.id },
+        (task) =>
+          li(function* () {
+            return (yield* task()).title;
+          }),
       ),
     ),
-  ];
-});
+  ],
+);
 // #endregion tasks
 
 beforeAll(() => {});

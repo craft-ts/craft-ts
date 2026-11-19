@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { setupCraftComponentTemplateTest } from '@craft-ts/component/testing';
 import {
+  craftSignal,
   craftService,
   craftUse,
+  markYieldableValue,
   setupCraftServiceTestingByRegister,
   state,
 } from '@craft-ts/core';
@@ -31,22 +33,23 @@ import { craftComponent, forNode, h1, li, ul } from '@craft-ts/component';
 export const Tasks = craftComponent(
   'Tasks',
   { providers: [provideTaskList()] },
-  function* () {
-    const { tasks } = yield* TaskList();
-
-    return [
-      h1(function* () {
-        return `Tasks — ${yield* tasks.remaining()} left`;
-      }),
-      ul(
-        forNode(tasks, { track: (task) => task.id }, (task) =>
+  () => [
+    h1(function* () {
+      return `Tasks — ${yield* (yield* TaskList()).tasks.remaining()} left`;
+    }),
+    ul(
+      forNode(
+        function* () {
+          return (yield* TaskList()).tasks();
+        },
+        { track: (task) => task.id },
+        (task) =>
           li(function* () {
             return (yield* task()).title;
           }),
-        ),
       ),
-    ];
-  },
+    ),
+  ],
 );
 // #endregion tasks-component
 
@@ -67,10 +70,13 @@ describe('Learn 10 Tasks component', () => {
       inputs: {},
       register: {
         TaskList: {
-          // The exposed `tasks` state: its call shape and the members read.
-          // A state method hands back an invocation, so the fake does too.
+          // State reads are yieldable signals; preserve that contract in the
+          // mock so the template can yield the list like it does in the app.
           tasks: Object.assign(
-            () => [{ id: '1', title: 'Write tests', done: false }],
+            markYieldableValue(
+              craftSignal([{ id: '1', title: 'Write tests', done: false }]),
+              'tasks',
+            ),
             {
               remaining: function* () {
                 return 1;

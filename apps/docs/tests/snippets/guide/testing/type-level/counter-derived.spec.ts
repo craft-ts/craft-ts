@@ -6,24 +6,36 @@ useSnippetHarness();
 
 // #region counter-derived
 import { button, craftComponent } from '@craft-ts/component';
-import { craftComputed, state, craftUse } from '@craft-ts/core';
+import { craftComputed, craftService, state, craftUse } from '@craft-ts/core';
 
-const Counter = craftComponent('Counter', {}, function* () {
-  const counter = yield* state('counter', 0, ({ state }) => ({
-    disabled: craftUse(craftComputed('disabled', function* () {
-      return (yield* state()) % 2 === 0;
-    })),
-  }));
+const { CounterView, provideCounterView } = craftService(
+  { name: 'counterView', providedIn: 'toProvide' },
+  function* () {
+    yield* state('counter', 0, ({ state }) => ({
+      disabled: craftUse(
+        craftComputed('disabled', function* () {
+          return (yield* state()) % 2 === 0;
+        }),
+      ),
+    }));
+  },
+);
 
-  return button(
-    'increment',
-    {
-      type: 'button',
-      disabled: counter.disabled,
-    },
-    '+',
-  );
-});
+const Counter = craftComponent(
+  'Counter',
+  { providers: [provideCounterView()] },
+  () =>
+    button(
+      'increment',
+      {
+        type: 'button',
+        disabled: function* () {
+          return yield* (yield* CounterView()).counter.disabled();
+        },
+      },
+      '+',
+    ),
+);
 // #endregion counter-derived
 
 describe('guide/testing/type-level.md #counter-derived', () => {

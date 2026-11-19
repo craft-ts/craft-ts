@@ -17,7 +17,7 @@ export const { ApiServiceMutationApiService2: ApiService } = craftService(
   { name: 'ApiServiceMutationApiService2', providedIn: 'global' },
   function* () {
     const dataList = yield* craftPrivate(state(
-      'dataListMutationApiService2',
+      'dataList',
       [
         { id: '1', name: 'Romain' },
         { id: '2', name: 'Geffrault' },

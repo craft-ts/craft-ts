@@ -95,7 +95,6 @@ export const HerbierGallery = craftComponent(
   'HerbierGallery',
   { providers: [provideDocToastQueue()] },
   function* () {
-    const queue = yield* DocToastQueue();
     return div({ class: example.page }, [
       heading({ class: example.title }, 'Herbier design system'),
       p(
@@ -224,12 +223,12 @@ export const HerbierGallery = craftComponent(
       group('Toasts', [
         button(
           'toastTip',
-          { class: buttonUi.root, 'data-variant': 'secondary', type: 'button', click: function* () { yield* queue.push('tip', 'Saved to the herbarium.'); } },
+          { class: buttonUi.root, 'data-variant': 'secondary', type: 'button', click: function* () { yield* (yield* DocToastQueue()).push('tip', 'Saved to the herbarium.'); } },
           'Push a tip',
         ),
         button(
           'toastDanger',
-          { class: buttonUi.root, 'data-variant': 'secondary', type: 'button', click: function* () { yield* queue.push('danger', 'The save failed.'); } },
+          { class: buttonUi.root, 'data-variant': 'secondary', type: 'button', click: function* () { yield* (yield* DocToastQueue()).push('danger', 'The save failed.'); } },
           'Push a danger',
         ),
       ]),

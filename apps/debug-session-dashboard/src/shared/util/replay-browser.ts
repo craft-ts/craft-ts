@@ -63,6 +63,7 @@ export function installReplayPlatform(next: ReplayPlatform): void {
 }
 
 export function after(delayMs: number, run: () => void): ReplayTimer {
+  // eslint-disable-next-line craft-ts/no-recursive-craft-schedule -- delegates a one-shot callback to the browser boundary
   return platform.schedule(run, delayMs);
 }
 
@@ -77,6 +78,7 @@ export function every(periodMs: number, run: () => void): ReplayTimer {
   const tick = () => {
     if (stopped) return;
     run();
+    // eslint-disable-next-line craft-ts/no-recursive-craft-schedule -- this low-level adapter exposes a cancellable browser timer, not a Craft resource method
     if (!stopped) pending = platform.schedule(tick, periodMs);
   };
   pending = platform.schedule(tick, periodMs);

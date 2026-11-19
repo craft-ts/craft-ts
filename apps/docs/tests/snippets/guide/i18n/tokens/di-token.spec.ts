@@ -7,7 +7,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region di-token
-import { craftService, state } from '@craft-ts/core';
+import { craftExpose, craftService, state } from '@craft-ts/core';
 import { button, craftComponent, div, p } from '@craft-ts/component';
 import {
   createI18nRuntime,
@@ -49,20 +49,32 @@ const en = defineLocale(
 );
 const runtime = createI18nRuntime({ locales: [en] });
 
-const ShippingLine = craftComponent('ShippingLine', {}, function* () {
-  const units = yield* Units();
-  // The translator re-reads whenever the unit system does.
-  const translate = runtime.bind(units.system);
+const { ShippingLineView, provideShippingLineView } = craftService(
+  { name: 'shippingLineView', providedIn: 'toProvide' },
+  function* () {
+    const units = yield* Units();
+    yield* craftExpose('translate', runtime.bind(units.system));
+  },
+);
 
-  return div([
-    p(translate('order.line', { weight: 12 })),
-    button(
-      'imperial',
-      { type: 'button', click: units.system.useImperial },
-      'Imperial',
-    ),
-  ]);
-});
+const ShippingLine = craftComponent(
+  'ShippingLine',
+  { providers: [provideShippingLineView()] },
+  () =>
+    div([
+      p(ShippingLineView.translate('order.line', { weight: 12 })),
+      button(
+        'imperial',
+        {
+          type: 'button',
+          click: function* () {
+            yield* (yield* Units()).system.useImperial();
+          },
+        },
+        'Imperial',
+      ),
+    ]),
+);
 // #endregion di-token
 
 describe('guide/i18n/tokens.md #di-token', () => {

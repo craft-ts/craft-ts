@@ -8,7 +8,14 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftService, craftComputed, settled, state, craftUse, craftExpose } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  settled,
+  state,
+  craftUse,
+  craftExpose,
+} from '@craft-ts/core';
 import {
   computedEffect,
   methodEffect,
@@ -47,10 +54,12 @@ export const { EffectSyncMembersView, provideEffectSyncMembersView } =
     function* () {
       // Everything derived from the quantity alone lives in its insertion.
       const qty = yield* state('qty', 2, ({ state: read, update }) => {
-        const lines = craftUse(craftComputed('linesEffectEffectSyncMembers', function* () {
-          const currentQty = yield* read();
-          return CATALOG.map((item) => ({ ...item, qty: currentQty }));
-        }));
+        const lines = craftUse(
+          craftComputed('linesEffectEffectSyncMembers', function* () {
+            const currentQty = yield* read();
+            return CATALOG.map((item) => ({ ...item, qty: currentQty }));
+          }),
+        );
 
         return {
           increment: () => update((value) => Math.min(20, value + 1)),
@@ -84,10 +93,12 @@ export const { EffectSyncMembersView, provideEffectSyncMembersView } =
           loader: ({ params }) => quoteShipping(params),
         },
         ({ resource }) => ({
-          quoteLabel: craftUse(craftComputed('quoteLabel', function* () {
-            const quote = yield* settled(resource);
-            return `${quote.carrier} — ${(quote.cents / 100).toFixed(2)} €`;
-          })),
+          quoteLabel: craftUse(
+            craftComputed('quoteLabel', function* () {
+              const quote = yield* settled(resource);
+              return `${quote.carrier} — ${(quote.cents / 100).toFixed(2)} €`;
+            }),
+          ),
         }),
       );
 
@@ -116,8 +127,6 @@ const EffectSyncMembersComponent = craftComponent(
     providers: [provideEffectSyncMembersView()],
   },
   function* () {
-    const { formattedPreview, formatCurrentCart, qty, shippingQuery } =
-      yield* EffectSyncMembersView();
     return div({ class: example.card, 'data-exampleTint': 'teal' }, [
       heading(
         { class: example.title },
@@ -134,19 +143,28 @@ const EffectSyncMembersComponent = craftComponent(
             class: example.button,
             'data-exampleButton': 'square',
             type: 'button',
-            click: qty.decrement,
+            *click() {
+              yield* (yield* EffectSyncMembersView()).qty.decrement();
+            },
             'aria-label': 'Remove one',
           },
           '−',
         ),
-        span({ class: example.qty }, [strong(qty), ' per product']),
+        span({ class: example.qty }, [
+          strong(function* () {
+            return yield* (yield* EffectSyncMembersView()).qty();
+          }),
+          ' per product',
+        ]),
         button(
           'increaseQty',
           {
             class: example.button,
             'data-exampleButton': 'square',
             type: 'button',
-            click: qty.increment,
+            *click() {
+              yield* (yield* EffectSyncMembersView()).qty.increment();
+            },
             'aria-label': 'Add one',
           },
           '+',
@@ -158,7 +176,9 @@ const EffectSyncMembersComponent = craftComponent(
             { class: example.panelTitle },
             'Callable method — synchronous Effect',
           ),
-          p({ class: example.result }, formattedPreview),
+          p({ class: example.result }, function* () {
+            return yield* (yield* EffectSyncMembersView()).formattedPreview();
+          }),
           button(
             'formatCurrentCart',
             {
@@ -167,7 +187,9 @@ const EffectSyncMembersComponent = craftComponent(
               // A service member runs when it is called; the state method it
               // feeds still hands back a yieldable invocation.
               click: function* () {
-                yield* formattedPreview.setPreview(formatCurrentCart());
+                yield* (yield* EffectSyncMembersView()).formattedPreview.setPreview(
+                  (yield* EffectSyncMembersView()).formatCurrentCart(),
+                );
               },
             },
             'Format current cart',
@@ -180,20 +202,26 @@ const EffectSyncMembersComponent = craftComponent(
         ]),
         div({ class: example.panel }, [
           p({ class: example.panelTitle }, 'Cart total — synchronous'),
-          p({ class: example.result }, qty.totalLabel),
+          p({ class: example.result }, function* () {
+            return yield* (yield* EffectSyncMembersView()).qty.totalLabel();
+          }),
           p({ class: example.hint }, [
             'Computed by ',
             span({ class: example.mono }, 'craftComputed'),
             ' through ',
             span({ class: example.mono }, 'syncEffect'),
             '. Weight: ',
-            qty.weightLabel,
+            function* () {
+              return yield* (yield* EffectSyncMembersView()).qty.weightLabel();
+            },
             '.',
           ]),
         ]),
         div({ class: example.panel }, [
           p({ class: example.panelTitle }, 'Shipping — asynchronous'),
-          p({ class: example.result }, shippingQuery.quoteLabel),
+          p({ class: example.result }, function* () {
+            return yield* (yield* EffectSyncMembersView()).shippingQuery.quoteLabel();
+          }),
           p({ class: example.hint }, [
             'Loaded by ',
             span({ class: example.mono }, 'queryEffect'),

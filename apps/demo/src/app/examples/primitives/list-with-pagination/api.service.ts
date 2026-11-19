@@ -17,7 +17,7 @@ export const { ApiServiceListWithPaginationApiService2: ApiService } = craftServ
   { name: 'ApiServiceListWithPaginationApiService2', providedIn: 'global' },
   function* () {
     const dataList = yield* craftPrivate(state(
-      'dataListListWithPaginationApiService2',
+      'dataList',
       [
         { id: '1', name: 'Romain' },
         { id: '2', name: 'Geffrault' },

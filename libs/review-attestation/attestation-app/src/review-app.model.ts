@@ -28,6 +28,12 @@ import type {
   ReviewSessionDecision,
 } from '@craft-ts/style-testing/review';
 type ReviewCard = ReviewApiQueue['cards'][number];
+type ReviewCardWithScenario = ReviewCard & {
+  readonly scenario: string;
+  readonly members: readonly (ReviewCard['members'][number] & {
+    readonly scenario: string;
+  })[];
+};
 import {
   checkReplay,
   markTiers,
@@ -78,6 +84,7 @@ import {
 import {
   componentOf,
   reasonText,
+  scenarioOf,
   waitForReplayReady,
 } from './card-presentation';
 
@@ -1362,11 +1369,22 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       yield* craftPrivate(
         craftComputed('activeCardForPanel', function* (): Generator<
           unknown,
-          readonly ReviewCard[],
+          readonly ReviewCardWithScenario[],
           unknown
         > {
           const card = yield* current();
-          return card && !(yield* templateGroupVisible()) ? [card] : [];
+          return card && !(yield* templateGroupVisible())
+            ? [
+                {
+                  ...card,
+                  scenario: scenarioOf(card.subject),
+                  members: card.members.map((member) => ({
+                    ...member,
+                    scenario: scenarioOf(member.subject),
+                  })),
+                },
+              ]
+            : [];
         }),
       ),
     );

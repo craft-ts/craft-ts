@@ -44,6 +44,9 @@ export const ReviewLiveEvidence = craftComponent(
   'ReviewLiveEvidence',
   {},
   function* (_inputs: Inputs) {
+    // This evidence root distributes reactive sources to focused evidence
+    // components and controls; each child keeps its own template bindings.
+    // eslint-disable-next-line craft-ts/no-component-service-binding
     const {
       canShowBypass,
       bypassLabel,

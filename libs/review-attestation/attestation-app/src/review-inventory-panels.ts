@@ -216,7 +216,7 @@ export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
 export const ReviewInventoryPanels = craftComponent(
   'ReviewInventoryPanels',
   {},
-  function* (_inputs: Inputs) {
+  function* (inputs: Inputs) {
     const {
       devtoolView,
       applicationCaptures,
@@ -226,21 +226,14 @@ export const ReviewInventoryPanels = craftComponent(
       bypasses,
       styleAdoption,
       visualAssets,
-      visualTests,
       selectedVisualTest,
       selectVisualTest,
       sourceUrl,
-      selectedVisualState,
-      selectedSourceHref,
-      selectedSourceHidden,
       selectedVisualAsset,
-      selectedImageSource,
       visualReviewCard,
       openVisualReview,
-      inventoryTemplateObligations: templateObligations,
-      diagnostics,
       fileUrl,
-    } = yield* ReviewInventoryPanelsView();
+    } = inputs;
     return [
       main(
         {
@@ -304,7 +297,9 @@ export const ReviewInventoryPanels = craftComponent(
           ul(
             { class: inventory.sideList },
             forNode(
-              visualTests,
+              function* () {
+                return yield* (yield* ReviewInventoryPanelsView()).visualTests();
+              },
               {
                 track: (test) => test.subject,
                 empty: () =>
@@ -319,7 +314,7 @@ export const ReviewInventoryPanels = craftComponent(
                     'data-inventoryActive': function* () {
                       return String(
                         (yield* selectedVisualTest())?.subject ===
-                          (yield* test.subject()),
+                          (yield* test()).subject,
                       );
                     },
                   },
@@ -332,7 +327,7 @@ export const ReviewInventoryPanels = craftComponent(
                         'aria-current': function* () {
                           return String(
                             (yield* selectedVisualTest())?.subject ===
-                              (yield* test.subject()),
+                              (yield* test()).subject,
                           );
                         },
                         *click() {
@@ -340,15 +335,21 @@ export const ReviewInventoryPanels = craftComponent(
                         },
                       },
                       [
-                        strong(test.scenario),
+                        strong(function* () {
+                          return (yield* test()).scenario;
+                        }),
                         span(
                           {
                             class: reviewBits.subject,
                             'data-testid': 'subject',
                           },
-                          test.component,
+                          function* () {
+                            return (yield* test()).component;
+                          },
                         ),
-                        small(test.stateLabel),
+                        small(function* () {
+                          return (yield* test()).stateLabel;
+                        }),
                       ],
                     ),
                   ],
@@ -385,16 +386,22 @@ export const ReviewInventoryPanels = craftComponent(
                       'data-navigation': 'external',
                       'data-testid': 'source-link',
                       href: function* () {
-                        return safeUrl(yield* selectedSourceHref());
+                      return safeUrl(
+                        yield* (yield* ReviewInventoryPanelsView()).selectedSourceHref(),
+                      );
                       },
-                      hidden: selectedSourceHidden,
+                      hidden: function* () {
+                        return yield* (yield* ReviewInventoryPanelsView()).selectedSourceHidden();
+                      },
                     },
                     function* () {
                       return (yield* t()).openInIde;
                     },
                   ),
                 ]),
-                span({ class: reviewBits.chip }, selectedVisualState),
+                span({ class: reviewBits.chip }, function* () {
+                  return yield* (yield* ReviewInventoryPanelsView()).selectedVisualState();
+                }),
               ]),
               figure({ class: imageEvidence.detailCanvas }, [
                 img({
@@ -411,7 +418,9 @@ export const ReviewInventoryPanels = craftComponent(
                     );
                   },
                   src: function* () {
-                    return safeResourceUrl(yield* selectedImageSource());
+                    return safeResourceUrl(
+                      yield* (yield* ReviewInventoryPanelsView()).selectedImageSource(),
+                    );
                   },
                 }),
                 p(
@@ -489,7 +498,9 @@ export const ReviewInventoryPanels = craftComponent(
           ul(
             { class: inventory.list },
             forNode(
-              templateObligations,
+              function* () {
+                return yield* (yield* ReviewInventoryPanelsView()).inventoryTemplateObligations();
+              },
               {
                 track: (obligation) => obligation.subject,
                 empty: () =>
@@ -499,7 +510,9 @@ export const ReviewInventoryPanels = craftComponent(
               },
               (obligation) =>
                 li({ class: inventory.entry }, [
-                  strong(obligation.componentDirection),
+                  strong(function* () {
+                    return (yield* obligation()).componentDirection;
+                  }),
                   a(
                     'obligationSource',
                     {
@@ -508,12 +521,14 @@ export const ReviewInventoryPanels = craftComponent(
                       'data-testid': 'source-link',
                       href: function* () {
                         return safeUrl(
-                          (yield* sourceUrl(yield* obligation.subject())) ?? '',
+                          (yield* sourceUrl((yield* obligation()).subject)) ?? '',
                         );
                       },
                       hidden: function* () {
                         return (
-                          Boolean(yield* sourceUrl(yield* obligation.subject())) ===
+                          Boolean(
+                            yield* sourceUrl((yield* obligation()).subject),
+                          ) ===
                           false
                         );
                       },
@@ -527,13 +542,21 @@ export const ReviewInventoryPanels = craftComponent(
                       {
                         class: reviewBits.dim,
                         'data-testid': 'template-when',
-                        hidden: obligation.conditionsHidden,
+                        hidden: function* () {
+                          return (yield* obligation()).conditionsHidden;
+                        },
                       },
-                      obligation.conditionsText,
+                      function* () {
+                        return (yield* obligation()).conditionsText;
+                      },
                     ),
-                    strong(obligation.statementText),
+                    strong(function* () {
+                      return (yield* obligation()).statementText;
+                    }),
                   ]),
-                  small(obligation.stateLabel),
+                  small(function* () {
+                    return (yield* obligation()).stateLabel;
+                  }),
                 ]),
             ),
           ),
@@ -543,7 +566,9 @@ export const ReviewInventoryPanels = craftComponent(
           ul(
             { class: inventory.list, 'data-testid': 'diagnostics' },
             forNode(
-              diagnostics,
+              function* () {
+                return yield* (yield* ReviewInventoryPanelsView()).diagnostics();
+              },
               {
                 track: (diagnostic) =>
                   `${diagnostic.code}:${diagnostic.filePath ?? ''}:${diagnostic.line ?? ''}`,
@@ -551,8 +576,12 @@ export const ReviewInventoryPanels = craftComponent(
               },
               (diagnostic) =>
                 li({ class: inventory.entry }, [
-                  strong(diagnostic.code),
-                  p(diagnostic.message),
+                  strong(function* () {
+                    return (yield* diagnostic()).code;
+                  }),
+                  p(function* () {
+                    return (yield* diagnostic()).message;
+                  }),
                   a(
                     'diagnosticSource',
                     {
@@ -562,8 +591,8 @@ export const ReviewInventoryPanels = craftComponent(
                       href: function* () {
                         return safeUrl(
                           (yield* fileUrl(
-                            yield* diagnostic.filePath(),
-                            yield* diagnostic.line(),
+                            (yield* diagnostic()).filePath,
+                            (yield* diagnostic()).line,
                           )) ?? '',
                         );
                       },
@@ -571,8 +600,8 @@ export const ReviewInventoryPanels = craftComponent(
                         return (
                           Boolean(
                             yield* fileUrl(
-                              yield* diagnostic.filePath(),
-                              yield* diagnostic.line(),
+                              (yield* diagnostic()).filePath,
+                              (yield* diagnostic()).line,
                             ),
                           ) === false
                         );
@@ -583,8 +612,15 @@ export const ReviewInventoryPanels = craftComponent(
                     },
                   ),
                   small(
-                    { class: reviewBits.dim, hidden: diagnostic.summaryHidden },
-                    diagnostic.summary,
+                    {
+                      class: reviewBits.dim,
+                      hidden: function* () {
+                        return (yield* diagnostic()).summaryHidden;
+                      },
+                    },
+                    function* () {
+                      return (yield* diagnostic()).summary;
+                    },
                   ),
                 ]),
             ),

@@ -4,16 +4,33 @@ import {
   craftExpose,
   craftService,
 } from '@craft-ts/core';
+import {
+  supportsDebugSessionExportVersion,
+  supportsDebugSessionReplayVersion,
+} from '@craft-ts/component';
 import { plural } from '../../shared/util/replay-model';
 import { ReplayState, routeSessionId } from '../../shared/state/replay-state';
-import { SessionArchive } from '../../shared/data-access/session-archive.service';
+import {
+  SessionArchive,
+  type SessionSummary,
+} from '../../shared/data-access/session-archive.service';
+
+export function hasSupportedVersions(session: SessionSummary): boolean {
+  return (
+    supportsDebugSessionExportVersion(session.recordingVersion) &&
+    supportsDebugSessionReplayVersion(session.replayVersion)
+  );
+}
 
 export const { SessionPageActions } = craftService(
   { name: 'sessionPageActions', providedIn: 'global' },
   function* () {
     const archive = yield* SessionArchive();
     const { pendingDeleteSessionId } = (yield* ReplayState()).imperative;
-    yield* craftExpose('deleteIncompatibleSessions', function* (ids: string[]) {
+    yield* craftExpose('deleteIncompatibleSessions', function* () {
+      const ids = (yield* archive.sessions.savedSessions())
+        .filter((item) => item.status !== 'recording' && !hasSupportedVersions(item))
+        .map((item) => item.id);
       if (ids.length === 0) return;
       if (
         yield* BrowserWindow.confirm(

@@ -7,7 +7,6 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import type { DevtoolView } from './devtool-view-state';
 import type { Messages } from './messages';
 import { viewTabs } from './view-tabs.style';
@@ -35,43 +34,15 @@ export const ViewTabs = craftComponent(
     readonly cardsCount: Input<number>;
     readonly t: Input<Messages>;
   }) {
-    const applicationPressed = yield* craftComputed(
-      'applicationPressed',
-      function* () {
-        return (yield* devtoolView()) === 'application' ? 'true' : 'false';
-      },
-    );
-    const visualPressed = yield* craftComputed('visualPressed', function* () {
-      return (yield* devtoolView()) === 'visual' ? 'true' : 'false';
-    });
-    const templatePressed = yield* craftComputed(
-      'templatePressed',
-      function* () {
-        return (yield* devtoolView()) === 'template' ? 'true' : 'false';
-      },
-    );
-    const reviewPressed = yield* craftComputed('reviewPressed', function* () {
-      return (yield* devtoolView()) === 'review' ? 'true' : 'false';
-    });
-    const folderLayoutPressed = yield* craftComputed(
-      'folderLayoutPressed',
-      function* () {
-        return (yield* devtoolView()) === 'folder-layout' ? 'true' : 'false';
-      },
-    );
-    const bypassesPressed = yield* craftComputed(
-      'bypassesPressed',
-      function* () {
-        return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
-      },
-    );
     return [
       button(
         'ShowApplicationOverview',
         {
           type: 'button',
           class: viewTabs.tab,
-          'aria-pressed': applicationPressed,
+          'aria-pressed': function* () {
+            return String((yield* devtoolView()) === 'application');
+          },
           *click() {
             chooseDevtoolView('application');
           },
@@ -96,7 +67,9 @@ export const ViewTabs = craftComponent(
         {
           type: 'button',
           class: viewTabs.tab,
-          'aria-pressed': visualPressed,
+          'aria-pressed': function* () {
+            return String((yield* devtoolView()) === 'visual');
+          },
           *click() {
             chooseDevtoolView('visual');
           },
@@ -131,7 +104,9 @@ export const ViewTabs = craftComponent(
         {
           type: 'button',
           class: viewTabs.tab,
-          'aria-pressed': templatePressed,
+          'aria-pressed': function* () {
+            return String((yield* devtoolView()) === 'template');
+          },
           *click() {
             chooseDevtoolView('template');
           },
@@ -166,7 +141,9 @@ export const ViewTabs = craftComponent(
         {
           type: 'button',
           class: viewTabs.tab,
-          'aria-pressed': reviewPressed,
+          'aria-pressed': function* () {
+            return String((yield* devtoolView()) === 'review');
+          },
           *click() {
             chooseDevtoolView('review');
           },
@@ -201,7 +178,9 @@ export const ViewTabs = craftComponent(
         {
           type: 'button',
           class: viewTabs.tab,
-          'aria-pressed': folderLayoutPressed,
+          'aria-pressed': function* () {
+            return String((yield* devtoolView()) === 'folder-layout');
+          },
           *click() {
             chooseDevtoolView('folder-layout');
           },
@@ -236,7 +215,9 @@ export const ViewTabs = craftComponent(
         {
           type: 'button',
           class: viewTabs.tab,
-          'aria-pressed': bypassesPressed,
+          'aria-pressed': function* () {
+            return String((yield* devtoolView()) === 'bypasses');
+          },
           *click() {
             chooseDevtoolView('bypasses');
           },

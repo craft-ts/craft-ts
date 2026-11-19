@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "d68b8d99ea62b36f",
+  "graphHash": "ebd12b30e1b25f5c",
   "routes": [
     "",
     "application",
@@ -18,6 +18,7 @@ export const architectureCatalog = {
     "CraftFieldCheckboxControl",
     "CraftFieldValueControl",
     "CraftLogServerUrl",
+    "FilterBarActionsView",
     "GlobalPersisterHandlerService",
     "MiddlewareExecutionScope",
     "RetirementReasonChoice",
@@ -32,6 +33,8 @@ export const architectureCatalog = {
     "aiSendContextChatState",
     "aiSendDialogState",
     "applicationOverviewView",
+    "bypassCardEvidenceView",
+    "bypassesViewModel",
     "craftRouterOutletState",
     "folderLayoutViewState",
     "reviewActionDialogsView",
@@ -96,7 +99,6 @@ export const architectureCatalog = {
     "applicationOverviewNote",
     "applicationOverviewRows",
     "applicationOverviewZoom",
-    "applicationPressed",
     "applyFolderLayout",
     "band",
     "bandHidden",
@@ -111,7 +113,6 @@ export const architectureCatalog = {
     "bypassReason",
     "bypassRule",
     "bypasses",
-    "bypassesPressed",
     "canRegenerate",
     "canReplay",
     "canShowBypass",
@@ -137,6 +138,7 @@ export const architectureCatalog = {
     "chrome",
     "clearAllCache",
     "clearFilters",
+    "clearMention",
     "clearTemplateSelection",
     "closeIterationDialog",
     "closeRegenerationDialog",
@@ -181,8 +183,6 @@ export const architectureCatalog = {
     "expandFolders",
     "fellBack",
     "fidelitySentence",
-    "filterBarActionsMessages",
-    "filterBarFieldsMessages",
     "findings",
     "foldHidden",
     "foldStyle",
@@ -195,7 +195,6 @@ export const architectureCatalog = {
     "folderLayoutApplyDialogDismissed",
     "folderLayoutApplyDialogOpen",
     "folderLayoutEvidence",
-    "folderLayoutPressed",
     "folderLayouts",
     "folderMoves",
     "folderReviews",
@@ -243,6 +242,7 @@ export const architectureCatalog = {
     "locale",
     "member",
     "mentions",
+    "messages",
     "methodLocation",
     "methodSource",
     "methodSourceHidden",
@@ -252,7 +252,6 @@ export const architectureCatalog = {
     "neverApprovedHidden",
     "next",
     "noAgent",
-    "noFiltersActive",
     "noImageHidden",
     "note",
     "noteState",
@@ -300,7 +299,6 @@ export const architectureCatalog = {
     "reopen",
     "reopenDecision",
     "reopenFailed",
-    "reopenHistoryItem",
     "reopeningLabel",
     "replay",
     "replayFrameId",
@@ -311,7 +309,6 @@ export const architectureCatalog = {
     "requestTemplateReject",
     "retire",
     "retirementReason",
-    "retirementReasonMessages",
     "retirementVisible",
     "revealFolders",
     "reviewAppMessages",
@@ -321,7 +318,6 @@ export const architectureCatalog = {
     "reviewFailed",
     "reviewNavigation",
     "reviewPanelHidden",
-    "reviewPressed",
     "reviewQueue",
     "reviewTemplateRenderSites",
     "reviewTextFilter",
@@ -384,7 +380,6 @@ export const architectureCatalog = {
     "templateAgentReview",
     "templateGroupCount",
     "templateGroupVisible",
-    "templatePressed",
     "templateReviewGroupRows",
     "templateReviewGroups",
     "templateSource",
@@ -393,7 +388,6 @@ export const architectureCatalog = {
     "templateWhenText",
     "theme",
     "themeAttribute",
-    "themeLocaleMessages",
     "timelineExpanded",
     "toggleChrome",
     "toggleFolder",
@@ -410,7 +404,6 @@ export const architectureCatalog = {
     "visualAssets",
     "visualEvidence",
     "visualEvidenceHidden",
-    "visualPressed",
     "visualReviewCard",
     "visualTestRows",
     "visualTests",
@@ -490,6 +483,8 @@ export const architectureCatalog = {
     "aiSendContextChatState",
     "aiSendDialogState",
     "applicationOverviewView",
+    "bypassCardEvidenceView",
+    "bypassesViewModel",
     "craftRouterOutletState",
     "folderLayoutViewState",
     "reviewActionDialogsView",
@@ -517,6 +512,12 @@ export const architectureCatalog = {
     ],
     "ApplicationOverview": [
       "applicationOverviewView"
+    ],
+    "BypassCardEvidence": [
+      "bypassCardEvidenceView"
+    ],
+    "BypassesView": [
+      "bypassesViewModel"
     ],
     "FolderLayoutView": [
       "folderLayoutViewState"
@@ -580,6 +581,20 @@ export const architectureCatalog = {
         "kind": "component",
         "name": "ApplicationOverview",
         "file": "libs/review-attestation/attestation-app/src/application-overview.ts"
+      }
+    ],
+    "bypassCardEvidenceView": [
+      {
+        "kind": "component",
+        "name": "BypassCardEvidence",
+        "file": "libs/review-attestation/attestation-app/src/bypasses-view.ts"
+      }
+    ],
+    "bypassesViewModel": [
+      {
+        "kind": "component",
+        "name": "BypassesView",
+        "file": "libs/review-attestation/attestation-app/src/bypasses-view.ts"
       }
     ],
     "folderLayoutViewState": [
@@ -675,7 +690,10 @@ export const architectureCatalog = {
     "StoragePersister": "abstract",
     "applicationOverviewView": "toProvide",
     "BypassRuleFilter": "global",
+    "bypassCardEvidenceView": "toProvide",
+    "bypassesViewModel": "toProvide",
     "CloseReview": "global",
+    "FilterBarActionsView": "global",
     "folderLayoutViewState": "toProvide",
     "ReviewPreferences": "global",
     "RetirementReasonChoice": "global",

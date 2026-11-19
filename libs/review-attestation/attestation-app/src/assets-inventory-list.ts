@@ -15,9 +15,6 @@ export interface VisualAssetEntry {
   readonly scenarios: readonly unknown[];
 }
 
-const scenarioCountText = (value: VisualAssetEntry): string =>
-  `${value.scenarios.length} scenario${value.scenarios.length === 1 ? '' : 's'}`;
-
 /** The flat list of visual-evidence assets, one row per screenshot family. */
 export const AssetsInventoryList = craftComponent(
   'AssetsInventoryList',
@@ -46,7 +43,7 @@ export const AssetsInventoryList = craftComponent(
               return (yield* asset()).evidence;
             }),
             small(function* () {
-              return scenarioCountText(yield* asset());
+              return `${(yield* asset()).scenarios.length} scenario(s)`;
             }),
           ]),
       ),

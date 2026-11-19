@@ -10,38 +10,21 @@ import {
   select,
   type CraftNodeChild,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from '../../../shared/ui/dashboard.style';
-import { recordingCaption, viewportCaption } from '../../../shared/util/replay-labels';
 import { ReplaySession } from '../../../shared/state/replay-session';
 import {
   environmentWarning,
   ReplayState,
-  session,
+  startMode,
   status,
+  targetUrl,
 } from '../../../shared/state/replay-state';
 import { eventValue } from '../../../shared/util/view-helpers';
+import { ReplayDetailsViewModel } from './replay-details-view-model.service';
 
 /** The details of the open session, and where its replay starts from. */
 export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
-  const replaySession = yield* ReplaySession();
-  const { setStates, startMode, targetUrl } =
-    (yield* ReplayState()).imperative;
-  const environmentWarningHidden = yield* craftComputed(
-    'environmentWarningHidden',
-    () => !environmentWarning(),
-  );
-  const sessionStartUrl = yield* craftComputed(
-    'sessionStartUrl',
-    () => session()?.startUrl ?? i18n.t("copy.copy045"),
-  );
-  const recordingLabel = yield* craftComputed(
-    'recordingLabel',
-    recordingCaption,
-  );
-  const viewportLabel = yield* craftComputed('viewportLabel', viewportCaption);
-
   const fact = (name: string, value: CraftNodeChild, hook?: string) =>
     div({ class: ui.fact }, [
       p({ class: ui.factLabel }, name),
@@ -54,8 +37,14 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
       class: ui.fieldInput,
       type: 'url',
       value: targetUrl,
-      input: (event: Event) => setStates({ targetUrl: eventValue(event) }),
-      change: () => replaySession.scheduleReplayPreparation(),
+      *input(event: Event) {
+        (yield* ReplayState()).imperative.setStates({
+          targetUrl: eventValue(event),
+        });
+      },
+      change: function* () {
+        (yield* ReplaySession()).scheduleReplayPreparation();
+      },
       'aria-label': i18n.t("copy.copy047"),
     }),
   ]);
@@ -67,11 +56,11 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
       {
         class: ui.tabSelect,
         value: startMode,
-        change: (event: Event) => {
-          setStates({
+        *change(event: Event) {
+          (yield* ReplayState()).imperative.setStates({
             startMode: eventValue(event) === 'snapshot' ? 'snapshot' : 'url',
           });
-          replaySession.scheduleReplayPreparation();
+          (yield* ReplaySession()).scheduleReplayPreparation();
         },
         'aria-label': i18n.t("copy.copy049"),
       },
@@ -92,7 +81,9 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
         'Exporte la session de diagnostic capturée par l’application cible, l’ajoute au dashboard et télécharge un fichier JSON.',
       'data-tooltip':
         'Récupère la session de diagnostic de l’application cible, l’ajoute au dashboard et télécharge le JSON.',
-      click: replaySession.exportTarget,
+      click: function* () {
+        (yield* ReplaySession()).exportTarget();
+      },
     },
     i18n.t("copy.copy052"),
   );
@@ -101,7 +92,9 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
     {
       class: ui.dialogNote,
       'data-lab': 'environment-warning',
-      hidden: environmentWarningHidden,
+      hidden: function* () {
+        return yield* (yield* ReplayDetailsViewModel()).environmentWarningHidden();
+      },
       role: 'status',
     },
     environmentWarning,
@@ -112,9 +105,19 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
       div({ class: ui.sideStack, 'data-lab': 'left' }, [
         div({ class: ui.sideSection }, [
           heading({ class: ui.sideSectionTitle }, i18n.t("copy.copy053")),
-          fact('Page de départ', sessionStartUrl),
-          fact('Contenu', recordingLabel),
-          fact('Fenêtre', viewportLabel, 'viewport-caption'),
+          fact('Page de départ', function* () {
+            return yield* (yield* ReplayDetailsViewModel()).sessionStartUrl();
+          }),
+          fact('Contenu', function* () {
+            return yield* (yield* ReplayDetailsViewModel()).recordingLabel();
+          }),
+          fact(
+            'Fenêtre',
+            function* () {
+              return yield* (yield* ReplayDetailsViewModel()).viewportLabel();
+            },
+            'viewport-caption',
+          ),
           environment,
         ]),
         div({ class: ui.sideSection }, [

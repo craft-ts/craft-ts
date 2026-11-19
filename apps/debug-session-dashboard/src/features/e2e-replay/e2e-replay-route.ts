@@ -25,10 +25,10 @@ export const E2eReplayRoute = craftComponent(
   'E2eReplayRoute',
   {},
   function* () {
-    const route = yield* CraftActivatedRoute();
-    const service = yield* E2eReplayRouteService();
-    yield* service.loadSource(
-      sourceFromQuery(route.snapshot.queryParams['source']),
+    yield* (yield* E2eReplayRouteService()).loadSource(
+      sourceFromQuery(
+        (yield* CraftActivatedRoute()).snapshot.queryParams['source'],
+      ),
     );
     return div([
       heading(i18n.t("copy.copy021")),

@@ -158,7 +158,12 @@ export const { ReviewTemplateEvidenceView, provideReviewTemplateEvidenceView } =
         yield* craftPrivate(
           craftComputed('semanticDiff', function* () {
             const card = yield* inputs.card();
-            return card.kind === 'template' ? card.semanticDiff : [];
+            if (card.kind !== 'template') return [];
+            const messages = yield* inputs.t();
+            return card.semanticDiff.map((change) => ({
+              ...change,
+              line: `${messages.templateDiffField(change.field)}: ${change.before ?? messages.templateValueMissing} → ${change.after ?? messages.templateValueMissing}`,
+            }));
           }),
         ),
       );
@@ -207,43 +212,22 @@ export const { ReviewTemplateEvidenceView, provideReviewTemplateEvidenceView } =
 export const ReviewTemplateEvidence = craftComponent(
   'ReviewTemplateEvidence',
   {},
-  function* (_inputs: Inputs) {
-    const {
-      card,
-      evidenceHidden,
-      promiseHeading,
-      templateWhenHidden,
-      templateWhenText,
-      statementText,
-      effectsHidden,
-      t,
-      effects,
-      templateSourceHidden,
-      renderSitesHidden,
-      renderSites,
-      fileUrl,
-      elementSourceHidden,
-      elementLocation,
-      elementSource,
-      sourceDetail,
-      methodSourceHidden,
-      methodLocation,
-      methodSource,
-      semanticDiff,
-      previousEvidenceUnavailable,
-      previousDecisionText,
-      codeDiff,
-    } = yield* ReviewTemplateEvidenceView();
+  function* (inputs: Inputs) {
+    const { card, t, fileUrl, sourceDetail } = inputs;
     return section(
       {
         class: templateEvidence.root,
         'data-reviewKind': function* () {
           return (yield* card()).kind;
         },
-        hidden: evidenceHidden,
+        hidden: function* () {
+          return yield* (yield* ReviewTemplateEvidenceView()).evidenceHidden();
+        },
       },
       [
-        heading(promiseHeading),
+        heading(function* () {
+          return yield* (yield* ReviewTemplateEvidenceView()).promiseHeading();
+        }),
         p(
           {
             class: templateEvidence.statement,
@@ -254,18 +238,26 @@ export const ReviewTemplateEvidence = craftComponent(
               {
                 class: reviewBits.dim,
                 'data-testid': 'template-when',
-                hidden: templateWhenHidden,
+                hidden: function* () {
+                  return yield* (yield* ReviewTemplateEvidenceView()).templateWhenHidden();
+                },
               },
-              templateWhenText,
+              function* () {
+                return yield* (yield* ReviewTemplateEvidenceView()).templateWhenText();
+              },
             ),
-            strong(statementText),
+            strong(function* () {
+              return yield* (yield* ReviewTemplateEvidenceView()).statementText();
+            }),
           ],
         ),
         section(
           {
             class: reviewBits.dim,
             'data-testid': 'template-effects',
-            hidden: effectsHidden,
+            hidden: function* () {
+              return yield* (yield* ReviewTemplateEvidenceView()).effectsHidden();
+            },
           },
           [
             strong(function* () {
@@ -274,7 +266,9 @@ export const ReviewTemplateEvidence = craftComponent(
             ol(
               { class: templateEvidence.effects },
               forNode(
-                effects,
+                function* () {
+                  return yield* (yield* ReviewTemplateEvidenceView()).effects();
+                },
                 {
                   track: (effect, index) => `${index}:${effect}`,
                 },
@@ -287,20 +281,26 @@ export const ReviewTemplateEvidence = craftComponent(
           {
             class: templateEvidence.source,
             'data-testid': 'template-source',
-            hidden: templateSourceHidden,
+            hidden: function* () {
+              return yield* (yield* ReviewTemplateEvidenceView()).templateSourceHidden();
+            },
           },
           [
             section(
               {
                 class: templateEvidence.sourceSection,
-                hidden: renderSitesHidden,
+                hidden: function* () {
+                  return yield* (yield* ReviewTemplateEvidenceView()).renderSitesHidden();
+                },
               },
               [
                 strong(function* () {
                   return (yield* t()).templateRenderSource;
                 }),
                 forNode(
-                  renderSites,
+                  function* () {
+                    return yield* (yield* ReviewTemplateEvidenceView()).renderSites();
+                  },
                   {
                     track: (site) => `${site.file}:${site.line}`,
                   },
@@ -316,7 +316,7 @@ export const ReviewTemplateEvidence = craftComponent(
                             class: templateEvidence.sourceLocation,
                           },
                           function* () {
-                            return `${yield* site.file()}:${yield* site.line()}`;
+                            return `${(yield* site()).file}:${(yield* site()).line}`;
                           },
                         ),
                         a(
@@ -328,16 +328,16 @@ export const ReviewTemplateEvidence = craftComponent(
                             href: function* () {
                               return safeUrl(
                                 (yield* fileUrl(
-                                  yield* site.file(),
-                                  yield* site.line(),
+                                  (yield* site()).file,
+                                  (yield* site()).line,
                                 )) ?? '',
                               );
                             },
                             hidden: function* () {
                               return (
                                 (yield* fileUrl(
-                                  yield* site.file(),
-                                  yield* site.line(),
+                                  (yield* site()).file,
+                                  (yield* site()).line,
                                 )) === undefined
                               );
                             },
@@ -362,7 +362,9 @@ export const ReviewTemplateEvidence = craftComponent(
             section(
               {
                 class: templateEvidence.sourceSection,
-                hidden: elementSourceHidden,
+                hidden: function* () {
+                  return yield* (yield* ReviewTemplateEvidenceView()).elementSourceHidden();
+                },
               },
               [
                 strong(function* () {
@@ -370,7 +372,9 @@ export const ReviewTemplateEvidence = craftComponent(
                 }),
                 small(
                   { class: templateEvidence.sourceLocation },
-                  elementLocation,
+                  function* () {
+                    return yield* (yield* ReviewTemplateEvidenceView()).elementLocation();
+                  },
                 ),
                 a(
                   'elementSource',
@@ -379,11 +383,11 @@ export const ReviewTemplateEvidence = craftComponent(
                     'data-navigation': 'external',
                     'data-testid': 'source-link',
                     href: function* () {
-                      const value = yield* elementSource();
+                      const value = yield* (yield* ReviewTemplateEvidenceView()).elementSource();
                       return safeUrl((yield* fileUrl(value?.file, value?.line)) ?? '');
                     },
                     hidden: function* () {
-                      const value = yield* elementSource();
+                      const value = yield* (yield* ReviewTemplateEvidenceView()).elementSource();
                       return (yield* fileUrl(value?.file, value?.line)) === undefined;
                     },
                   },
@@ -399,7 +403,9 @@ export const ReviewTemplateEvidence = craftComponent(
             section(
               {
                 class: templateEvidence.sourceSection,
-                hidden: methodSourceHidden,
+                hidden: function* () {
+                  return yield* (yield* ReviewTemplateEvidenceView()).methodSourceHidden();
+                },
               },
               [
                 strong(function* () {
@@ -407,7 +413,9 @@ export const ReviewTemplateEvidence = craftComponent(
                 }),
                 small(
                   { class: templateEvidence.sourceLocation },
-                  methodLocation,
+                  function* () {
+                    return yield* (yield* ReviewTemplateEvidenceView()).methodLocation();
+                  },
                 ),
                 a(
                   'methodSource',
@@ -416,11 +424,11 @@ export const ReviewTemplateEvidence = craftComponent(
                     'data-navigation': 'external',
                     'data-testid': 'source-link',
                     href: function* () {
-                      const value = yield* methodSource();
+                      const value = yield* (yield* ReviewTemplateEvidenceView()).methodSource();
                       return safeUrl((yield* fileUrl(value?.file, value?.line)) ?? '');
                     },
                     hidden: function* () {
-                      const value = yield* methodSource();
+                      const value = yield* (yield* ReviewTemplateEvidenceView()).methodSource();
                       return (yield* fileUrl(value?.file, value?.line)) === undefined;
                     },
                   },
@@ -440,13 +448,14 @@ export const ReviewTemplateEvidence = craftComponent(
             class: reviewBits.list,
             'data-testid': 'template-diff',
           },
-          forNode(semanticDiff, { track: (change) => change.field }, (change) =>
+          forNode(
+            function* () {
+              return yield* (yield* ReviewTemplateEvidenceView()).semanticDiff();
+            },
+            { track: (change) => change.field },
+            (change) =>
             li({ class: reviewBits.code }, function* () {
-              const messages = yield* t();
-              const field = yield* change.field();
-              const before = yield* change.before();
-              const after = yield* change.after();
-              return `${messages.templateDiffField(field)}: ${before ?? messages.templateValueMissing} → ${after ?? messages.templateValueMissing}`;
+              return (yield* change()).line;
             }),
           ),
         ),
@@ -454,7 +463,7 @@ export const ReviewTemplateEvidence = craftComponent(
           {
             class: reviewBits.dim,
             hidden: function* () {
-              return (yield* previousEvidenceUnavailable()) === false;
+              return (yield* (yield* ReviewTemplateEvidenceView()).previousEvidenceUnavailable()) === false;
             },
           },
           function* () {
@@ -464,13 +473,20 @@ export const ReviewTemplateEvidence = craftComponent(
         heading(function* () {
           return (yield* t()).previousDecisionLabel;
         }),
-        p(previousDecisionText),
+        p(function* () {
+          return yield* (yield* ReviewTemplateEvidenceView()).previousDecisionText();
+        }),
         heading(function* () {
           return (yield* t()).codeChange;
         }),
         ul(
           { class: reviewBits.list },
-          forNode(codeDiff, { track: (change) => change.line }, (change) =>
+          forNode(
+            function* () {
+              return yield* (yield* ReviewTemplateEvidenceView()).codeDiff();
+            },
+            { track: (change) => change.line },
+            (change) =>
             li({ class: reviewBits.code }, function* () {
               return (yield* change()).line;
             }),

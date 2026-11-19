@@ -74,13 +74,13 @@ export const { DesignSystemDemoView, provideDesignSystemDemoView } =
       initialShowcase(),
       function* ({ state: showcase, update }) {
         return {
-          tone: yield* craftComputed('showcaseTone', function* () {
+          tone: yield* craftComputed('tone', function* () {
             return (yield* showcase()).tone;
           }),
-          size: yield* craftComputed('showcaseSize', function* () {
+          size: yield* craftComputed('size', function* () {
             return (yield* showcase()).size;
           }),
-          progress: yield* craftComputed('showcaseProgress', function* () {
+          progress: yield* craftComputed('progress', function* () {
             return (yield* showcase()).progress;
           }),
           pickTone: (tone: Tone) => update((current) => ({ ...current, tone })),

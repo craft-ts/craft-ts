@@ -1,4 +1,10 @@
-import { craftMethod, craftService, state } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftMethod,
+  craftService,
+  state,
+} from '@craft-ts/core';
+import { MESSAGES } from './messages';
 import { reviewDocument } from './browser-adapter';
 import { initialIde, isIde, storeIde, type Ide } from './ide-links';
 import {
@@ -22,15 +28,25 @@ import {
 export const { ReviewPreferences } = craftService(
   { name: 'ReviewPreferences', providedIn: 'global' },
   function* () {
-    const locale = yield* state('locale', initialLocale(), ({ set }) => ({
-      choose: (value: Locale) => set(value),
-    }));
+    const locale = yield* state(
+      'locale',
+      initialLocale(),
+      function* ({ state: read, set }) {
+        return {
+          choose: (value: Locale) => set(value),
+          messages: yield* craftComputed('messages', function* () {
+            return MESSAGES[yield* read()];
+          }),
+        };
+      },
+    );
     const theme = yield* state('theme', initialTheme(), ({ set }) => ({
       choose: (value: ThemeChoice) => set(value),
     }));
     const ide = yield* state('ide', initialIde(), ({ set }) => ({
       choose: (value: Ide) => set(value),
     }));
+
 
     // Take the raw select value and no-op on anything unexpected, so the
     // template's change handler stays a single yield with no local guard.

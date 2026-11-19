@@ -269,15 +269,15 @@ export const {
                 (yield* permissions.readOnly())
               );
             }),
-            historyLabel: yield* craftComputed('historyLabelStateMachineProfileEditor', function* () {
+            historyLabel: yield* craftComputed('historyLabel', function* () {
               const entries = yield* insertions.history();
               const cursor = yield* insertions.historyCursor();
               return `step ${cursor + 1} of ${entries.length}`;
             }),
-            backDisabled: yield* craftComputed('backDisabledStateMachineProfileEditor', function* () {
+            backDisabled: yield* craftComputed('backDisabled', function* () {
               return !(yield* insertions.canGoBack());
             }),
-            forwardDisabled: yield* craftComputed('forwardDisabledStateMachineProfileEditor', function* () {
+            forwardDisabled: yield* craftComputed('forwardDisabled', function* () {
               return !(yield* insertions.canGoForward());
             }),
             requestEdit: () => context.edit$.emit(),

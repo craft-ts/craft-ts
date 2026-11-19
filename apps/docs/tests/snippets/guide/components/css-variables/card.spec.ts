@@ -8,7 +8,7 @@ useSnippetHarness();
 
 // #region card
 import { article, craftComponent, div, type Input } from '@craft-ts/component';
-import { state } from '@craft-ts/core';
+import { craftService, state } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { card, meter, meterVars, panel } from './card.style';
 
@@ -27,16 +27,36 @@ const Card = craftComponent(
     ]),
 );
 
-const Page = craftComponent('Page', {}, function* () {
-  const alertProgress = yield* state('alertProgress', 20);
-  const panelProgress = yield* state('panelProgress', 80);
-  return [
-    // Per instance: a variant sets the variables it changes.
-    Card({ progress: alertProgress, 'data-cardLook': 'alert' }),
-    // Forwarded: the panel's variable becomes the card's ink.
-    div({ class: panel.root }, [Card({ progress: panelProgress })]),
-  ];
-});
+const { PageView, providePageView } = craftService(
+  { name: 'pageView', providedIn: 'toProvide' },
+  function* () {
+    yield* state('alertProgress', 20);
+    yield* state('panelProgress', 80);
+  },
+);
+
+const Page = craftComponent('Page', { providers: [providePageView()] }, () => [
+  // Per instance: a variant sets the variables it changes.
+  Card({
+    progress: function* () {
+      return yield* (yield* PageView()).alertProgress();
+    },
+    'data-cardLook': 'alert',
+  }),
+  // Forwarded: the panel's variable becomes the card's ink.
+  div(
+    {
+      class: panel.root,
+    },
+    [
+      Card({
+        progress: function* () {
+          return yield* (yield* PageView()).panelProgress();
+        },
+      }),
+    ],
+  ),
+]);
 // #endregion card
 
 describe('guide/components/css-variables.md #card', () => {

@@ -7,17 +7,22 @@ useSnippetHarness();
 
 // #region navigate
 import { button, craftComponent } from '@craft-ts/component';
-import { CraftRouter, craftMethod } from '@craft-ts/core';
+import { CraftRouter } from '@craft-ts/core';
 
-export const TaskOpener = craftComponent('TaskOpener', {}, function* () {
-  const router = yield* CraftRouter(undefined, ({ navigate }) => ({ navigate }));
-
-  const goToTask = yield* craftMethod('goToTask', function* (taskId: string) {
-    void router.navigate({ to: 'tasks/:taskId', params: { taskId } });
-  });
-
-  return button('openTask', { type: 'button', click: () => goToTask('1') }, 'Open task 1');
-});
+export const TaskOpener = craftComponent('TaskOpener', {}, () =>
+  button(
+    'openTask',
+    {
+      type: 'button',
+      *click() {
+        void (yield* CraftRouter(undefined, ({ navigate }) => ({
+          navigate,
+        }))).navigate({ to: 'tasks/:taskId', params: { taskId: '1' } });
+      },
+    },
+    'Open task 1',
+  ),
+);
 // #endregion navigate
 
 describe('Learn 09 CraftRouter navigate', () => {
