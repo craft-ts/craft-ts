@@ -1,3 +1,66 @@
+## 0.11.2 (2026-11-19)
+
+### 🚀 Features
+
+- **component:** render owned portals with SSR and hydration ([5d7c1fd33](https://github.com/craft-ts/craft-ts/commit/5d7c1fd33))
+- **core:** hide raw reactive reader API ([8e1fa7996](https://github.com/craft-ts/craft-ts/commit/8e1fa7996))
+- **demo:** add a control room page to measure large interactive pages ([682e4eddb](https://github.com/craft-ts/craft-ts/commit/682e4eddb))
+
+### 🩹 Fixes
+
+- restore Effect teardown and demo collection interactions ([35dafc70b](https://github.com/craft-ts/craft-ts/commit/35dafc70b))
+- align service shortcuts, field bindings, testing registers and SDK awaits ([8f960c4d8](https://github.com/craft-ts/craft-ts/commit/8f960c4d8))
+- clear lint and release gates ([8b4464dc7](https://github.com/craft-ts/craft-ts/commit/8b4464dc7))
+- align docs snippet with Craft lint rules ([6da20ec52](https://github.com/craft-ts/craft-ts/commit/6da20ec52))
+- stabilize release test fixtures ([2843a331d](https://github.com/craft-ts/craft-ts/commit/2843a331d))
+- **architecture:** retain event ownership through component outputs and action aliases ([455d2d04d](https://github.com/craft-ts/craft-ts/commit/455d2d04d))
+- **ci:** synchronize the npm lockfile for clean installs ([df08e18fb](https://github.com/craft-ts/craft-ts/commit/df08e18fb))
+- **ci:** keep standalone benchmark configs out of Vitest inference ([a0183782b](https://github.com/craft-ts/craft-ts/commit/a0183782b))
+- **ci:** align Nx package-manager detection with npm installs ([628ef6e36](https://github.com/craft-ts/craft-ts/commit/628ef6e36))
+- **ci:** bound graph memory and retain shadowed binding identities ([1291085a6](https://github.com/craft-ts/craft-ts/commit/1291085a6))
+- **component:** preserve the injector for scalar match sources ([51a8ce207](https://github.com/craft-ts/craft-ts/commit/51a8ce207))
+- **component:** render typed SVG nodes with native namespaces ([fedbdad6c](https://github.com/craft-ts/craft-ts/commit/fedbdad6c))
+- **core:** stop teardown loads and forward provided-service shortcut arguments ([d61231e84](https://github.com/craft-ts/craft-ts/commit/d61231e84))
+- **dashboard:** read bridge values and restore replay page loading ([4206f33e4](https://github.com/craft-ts/craft-ts/commit/4206f33e4))
+- **demo:** give interactions distinct actions and cover the control room route ([d923ba5c8](https://github.com/craft-ts/craft-ts/commit/d923ba5c8))
+- **i18n:** align cardinal plurals and generated catalogues with CLDR ([636f151cf](https://github.com/craft-ts/craft-ts/commit/636f151cf))
+- **testing:** observe prepared HTTP requests without executing them twice ([5fe7995dd](https://github.com/craft-ts/craft-ts/commit/5fe7995dd))
+
+### 🔥 Performance
+
+- **component:** create renderer effects through a direct EffectRef entry ([276768127](https://github.com/craft-ts/craft-ts/commit/276768127))
+- **component:** keep renderer-only reactive data in private cells ([87cacc829](https://github.com/craft-ts/craft-ts/commit/87cacc829))
+- **component:** reuse a component's HostName/HostTagList declarations ([a7aa64d9c](https://github.com/craft-ts/craft-ts/commit/a7aa64d9c))
+- ⚠️  **component:** run a component's template again only when it has to ([3294ef423](https://github.com/craft-ts/craft-ts/commit/3294ef423))
+- **core:** run plain craftEffect bodies without a dedicated scope ([eb77f743a](https://github.com/craft-ts/craft-ts/commit/eb77f743a))
+- **core:** share the standard environment injector declarations ([5eb83a0a3](https://github.com/craft-ts/craft-ts/commit/5eb83a0a3))
+- **core:** resolve useValue records through one shared method ([1bf9f8b37](https://github.com/craft-ts/craft-ts/commit/1bf9f8b37))
+- **core:** allocate an injector's default cache and children on demand ([c735d48b9](https://github.com/craft-ts/craft-ts/commit/c735d48b9))
+- **core:** skip the driver for an empty target wrapper chain ([cf67b8548](https://github.com/craft-ts/craft-ts/commit/cf67b8548))
+- **core:** extend a runtime-built identity's hydration key ([45fef441f](https://github.com/craft-ts/craft-ts/commit/45fef441f))
+- **core:** stop inscribing the empty target release ([7eff125f8](https://github.com/craft-ts/craft-ts/commit/7eff125f8))
+- **core,component:** do the renderer's bookkeeping when it is asked for ([62f07669f](https://github.com/craft-ts/craft-ts/commit/62f07669f))
+- **core,component:** read a forNode item without a generator object ([3f4ed1a92](https://github.com/craft-ts/craft-ts/commit/3f4ed1a92))
+- **core,component:** resolve an absent optional service without an error ([ef10ac475](https://github.com/craft-ts/craft-ts/commit/ef10ac475))
+
+### ⚠️  Breaking Changes
+
+- **component:** run a component's template again only when it has to  ([3294ef423](https://github.com/craft-ts/craft-ts/commit/3294ef423))
+  a template that relied on running again at every render of
+  its parent to read a non-reactive value (a module variable, a clock) is no
+  longer refreshed by it. A composed component whose inputs and host properties
+  are unchanged no longer rebuilds its injector when its parent renders.
+  The effects of an updated component are no longer destroyed and recreated,
+  so the effect reports read after a sequence of actions are the same ones in
+  another order. runtime-only.mjs gets RUNTIME_ONLY_EXERCISED_ORDER_MAY_CHANGE
+  to compare them as a set.
+
+### ❤️ Thank You
+
+- Claude Fable 5.2
+- Claude Opus 5.5
+- Romain
+
 ## 0.11.1 (2026-11-19)
 
 ### 🚀 Features
