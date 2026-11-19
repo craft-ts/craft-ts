@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { setupCraftComponentTemplateTest } from '@craft-ts/component/testing';
 import {
-  craftSignal,
   craftService,
   craftUse,
   markYieldableValue,
@@ -40,7 +39,7 @@ export const Tasks = craftComponent(
     ul(
       forNode(
         function* () {
-          return (yield* TaskList()).tasks();
+          return yield* (yield* TaskList()).tasks();
         },
         { track: (task) => task.id },
         (task) =>
@@ -72,16 +71,18 @@ describe('Learn 10 Tasks component', () => {
         TaskList: {
           // State reads are yieldable signals; preserve that contract in the
           // mock so the template can yield the list like it does in the app.
-          tasks: Object.assign(
-            markYieldableValue(
-              craftSignal([{ id: '1', title: 'Write tests', done: false }]),
-              'tasks',
-            ),
-            {
-              remaining: function* () {
-                return 1;
+          tasks: markYieldableValue(
+            Object.assign(
+              function* () {
+                return [{ id: '1', title: 'Write tests', done: false }];
               },
-            },
+              {
+                remaining: function* () {
+                  return 1;
+                },
+              },
+            ),
+            'tasks',
           ),
         },
       },
