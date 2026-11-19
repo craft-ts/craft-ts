@@ -11,7 +11,7 @@ describe('DebugSessionStore', () => {
   let directory: string;
   let store: DebugSessionStore;
   const id = '23e5a8e0-3f2c-4b09-a9fa-6b78ed0c5678';
-  const createdAt = '2026-10-15T08:00:00.000Z';
+  const createdAt = new Date().toISOString();
 
   beforeEach(() => {
     directory = mkdtempSync(join(tmpdir(), 'debug-sessions-'));

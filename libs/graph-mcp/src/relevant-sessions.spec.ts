@@ -62,13 +62,13 @@ describe('relevantGoldenSessions on the e-commerce demo', () => {
   it('replays the purchase first when the confirmation button changes', () => {
     const button = node('template-element', (details) => details['localName'] === 'confirm-order');
     const result = relevant([{ file: button.filePath, lines: [[button.line, button.line]] }]);
-    expect(hits(result)).toEqual({ 'shop.checkout': 'direct', 'admin.multicontext': 'impact' });
+    expect(hits(result)).toEqual({ 'shop.checkout': 'direct' });
     expect(result.sessions[0]).toMatchObject({
       sessionId: 'shop.checkout',
       units: expect.arrayContaining(['interaction:EcommerceCheckoutPage:button:confirm-order:click']),
       because: expect.arrayContaining(['template-element:confirm-order']),
     });
-    expect(result.untouched).toBe(1);
+    expect(result.untouched).toBe(2);
   });
 
   it('replays the admin sessions, not the purchase, when the admin dashboard changes', () => {

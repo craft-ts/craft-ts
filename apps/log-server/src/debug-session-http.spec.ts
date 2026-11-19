@@ -56,7 +56,7 @@ describe('debug session local archive API', () => {
         id,
         participantId: 'tab-profile',
         test: { id: 'cart.checkout', title: 'checkout', specFile: 'e2e/cart.spec.ts', project: 'chromium', retry: 0, gitSha: 'f40a123cb', runId: '7a6c4f8e-1d2b-4c3a-9e8f-0123456789ab' },
-        createdAt: '2026-10-15T08:00:00.000Z',
+        createdAt: new Date().toISOString(),
         participant: {
           title: 'Demo tab',
           state: 'visible',
@@ -535,7 +535,7 @@ function syncMessage(id: string, participantId: string, eventId: string) {
     type: 'session:sync',
     id,
     participantId,
-    createdAt: '2026-10-15T08:00:00.000Z',
+    createdAt: new Date().toISOString(),
     participant: {
       startUrl: `http://localhost:4200/${participantId}`,
       viewport: { width: 390, height: 844 },

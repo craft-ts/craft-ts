@@ -42,7 +42,7 @@ describe('thumbnail preparation', () => {
         events: [],
         clips: [],
       },
-      '2026-10-15T08:00:00.000Z',
+      new Date().toISOString(),
       'tab',
       { title: 'Tab', state: 'visible' },
     );
