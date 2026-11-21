@@ -50,6 +50,7 @@ const TAKES_PRIMITIVES = new Set([
   'defineStateAxis',
   'defineBreakpoints',
   'defineAxis',
+  'axisPoint',
   'craftGlobalStyles',
   'keyframes',
   'defineFont',
@@ -77,7 +78,7 @@ module.exports = {
     schema: [],
     messages: {
       rawValue:
-        "'{{value}}' is a raw CSS value, not a design-system value. Pass {{replacement}} instead. If the scale is missing the value, add it to the scale; if it genuinely cannot be proven, use unsafeLength('{{value}}', reason) so the debt is countable.",
+        "'{{value}}' is a literal where a typed style value is expected. Pass {{replacement}} instead. Use unsafeLength(...) only for a CSS length that has no scale token. For state conditions, prefer built-in points such as interaction.focusVisible, ariaChecked.checked, ariaSelected.selected, or defineContainer(..., at.maxInlineSize(...)); use axisPoint(...) only when no supported point fits.",
       rawGlobal:
         "'{{value}}' is a CSS-wide keyword; pass it as a token — global.{{token}}(prop.<name>) — so no helper has to accept a string.",
     },
@@ -86,6 +87,7 @@ module.exports = {
     const sourceCode = context.sourceCode ?? context.getSourceCode();
     const styleImports = new Set();
     const namespaces = new Set();
+    const primitiveImports = new Set();
 
     const replacementFor = (value) => {
       if (typeof value === 'number') return REPLACEMENTS.length;
@@ -97,7 +99,9 @@ module.exports = {
     const isStyleHelper = (callee) => {
       if (callee.type === 'Identifier') {
         return (
-          styleImports.has(callee.name) && !TAKES_PRIMITIVES.has(callee.name)
+          styleImports.has(callee.name) &&
+          !TAKES_PRIMITIVES.has(callee.name) &&
+          !primitiveImports.has(callee.name)
         );
       }
       if (
@@ -128,6 +132,11 @@ module.exports = {
             namespaces.add(specifier.local.name);
           } else if (specifier.type === 'ImportSpecifier') {
             styleImports.add(specifier.local.name);
+            const importedName =
+              specifier.imported.name ?? specifier.imported.value;
+            if (TAKES_PRIMITIVES.has(importedName)) {
+              primitiveImports.add(specifier.local.name);
+            }
           }
         }
       },

@@ -38,7 +38,7 @@ module.exports = {
     schema: [],
     messages: {
       unassociated:
-        'label must be associated with a control: wrap the control or set htmlFor to match the control id.',
+        'No associated labelable form control was found. Wrap a labelable element (button, input, meter, output, progress, select, or textarea), or set htmlFor to its id. A nested button is labelable in HTML; if one is already present, this diagnostic is a rule false positive—do not add an id just to silence it.',
     },
   },
   create(context) {

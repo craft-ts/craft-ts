@@ -61,8 +61,8 @@ function isDisplayTextProperty(property) {
   return key !== undefined && DISPLAY_TEXT_PROPERTIES.has(key);
 }
 
-// `kind: 'transport'` tags data; copy has spaces or capitals. A label table
-// read through `kind` is still followed: only a bare token literal is skipped.
+// Lowercase identifier-like `kind` values are discriminants, including
+// camelCase driver names. Prose such as `Exception HTTP` remains copy.
 function isDiscriminantKind(property) {
   const key =
     property.key.type === 'Identifier'
@@ -72,8 +72,29 @@ function isDiscriminantKind(property) {
     key === 'kind' &&
     property.value.type === 'Literal' &&
     typeof property.value.value === 'string' &&
-    /^[a-z][a-z0-9-]*$/.test(property.value.value)
+    /^[a-z][a-zA-Z0-9-]*$/.test(property.value.value)
   );
+}
+
+function isInsideAxisPoint(node, importedNames, namespaces) {
+  for (let current = node.parent; current; current = current.parent) {
+    if (current.type !== 'CallExpression') continue;
+    const callee = current.callee;
+    if (callee.type === 'Identifier' && importedNames.has(callee.name)) {
+      return true;
+    }
+    if (
+      callee.type === 'MemberExpression' &&
+      !callee.computed &&
+      callee.object.type === 'Identifier' &&
+      namespaces.has(callee.object.name) &&
+      callee.property.type === 'Identifier' &&
+      callee.property.name === 'axisPoint'
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // The catalog's own definitions (`defineToken({ kind: 'text' })`) describe
@@ -274,9 +295,9 @@ module.exports = {
     schema: [],
     messages: {
       literal:
-        'Visible text must come from i18n.t(...) (or a translation helper). Move this literal to the i18n catalogue; dynamic business values remain allowed.',
+        'This literal is treated as user-visible text. If it is rendered copy, use i18n.t(...) (or a translation helper) and move it to the catalogue. Keep identifiers, camelCase/kebab-case discriminants, CSS selectors, and axisPoint(...) driver metadata literal. For common style states, use interaction.focusVisible, ariaChecked.checked, or ariaSelected.selected instead of a custom axisPoint; if a technical value is reported, the rule is misclassifying metadata.',
       attribute:
-        'The {{attribute}} value must come from i18n.t(...) (or a translation helper). Move this user-visible string to the i18n catalogue.',
+        'The {{attribute}} value is treated as user-visible text. Translate it when people read it (for example, placeholder or aria-label copy). Keep technical values such as identifiers, discriminants, and axisPoint(...) metadata literal; if one is reported, this rule is misclassifying a technical value.',
     },
   },
   create(context) {
@@ -284,6 +305,8 @@ module.exports = {
     // the supported reader and already exists in 9.
     if (isIgnoredFile(context.filename ?? context.getFilename())) return {};
     const reported = new Set();
+    const axisPointNames = new Set(['axisPoint']);
+    const styleNamespaces = new Set();
     const reportLiteral = (node, messageId = 'literal', data) => {
       if (reported.has(node)) return;
       reported.add(node);
@@ -323,6 +346,19 @@ module.exports = {
       return undefined;
     };
     return {
+      ImportDeclaration(node) {
+        if (node.source.value !== '@craft-ts/style') return;
+        for (const specifier of node.specifiers) {
+          if (specifier.type === 'ImportNamespaceSpecifier') {
+            styleNamespaces.add(specifier.local.name);
+          } else if (
+            specifier.type === 'ImportSpecifier' &&
+            (specifier.imported.name ?? specifier.imported.value) === 'axisPoint'
+          ) {
+            axisPointNames.add(specifier.local.name);
+          }
+        }
+      },
       CallExpression(node) {
         if (node.callee.type === 'Identifier' && node.callee.name === 'craftComputed') {
           const compute = node.arguments.find((argument) => argument.type === 'ArrowFunctionExpression' || argument.type === 'FunctionExpression');
@@ -346,6 +382,7 @@ module.exports = {
       Property(node) {
         if (
           node.computed ||
+          isInsideAxisPoint(node, axisPointNames, styleNamespaces) ||
           isInsideTranslationCall(node) ||
           isInsidePaletteDefinition(node) ||
           !((node.key.type === 'Identifier' &&

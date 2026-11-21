@@ -49,11 +49,11 @@ describe('no-transition-actions', () => {
     `);
 
     expect(messages).toEqual([
-      'Imperative mutation.mutate(...) is forbidden inside a transitionStep. Derive a source and let the resource react to it instead.',
-      'Imperative query.call(...) is forbidden inside a transitionStep. Derive a source and let the resource react to it instead.',
-      'Imperative asyncProcess.method(...) is forbidden inside a transitionStep. Derive a source and let the resource react to it instead.',
-      'Imperative state.restore(...) is forbidden inside a transitionStep. Derive a source and let the resource react to it instead.',
-      'Imperative source$.emit(...) is forbidden inside a transitionStep. Derive a source and let the resource react to it instead.',
+      'mutation.mutate(...) performs an action while a transition step is active. Declare the triggering event with on$(source$, ...), let the machine enter a step with transit(), and let state or resources react to that source instead of calling the action from the transition.',
+      'query.call(...) performs an action while a transition step is active. Declare the triggering event with on$(source$, ...), let the machine enter a step with transit(), and let state or resources react to that source instead of calling the action from the transition.',
+      'asyncProcess.method(...) performs an action while a transition step is active. Declare the triggering event with on$(source$, ...), let the machine enter a step with transit(), and let state or resources react to that source instead of calling the action from the transition.',
+      'state.restore(...) performs an action while a transition step is active. Declare the triggering event with on$(source$, ...), let the machine enter a step with transit(), and let state or resources react to that source instead of calling the action from the transition.',
+      'source$.emit(...) imperatively forwards an event from transitionStep(...). First trace its producer: if it is external, emit there and consume it with on$(source$, ...). If it comes from afterRecomputation(...), keep the value in the machine: register that recomputation under the destination transitionStep(...), then use transit(value).pipe(transitionGuard(({ from, event }) => ...)). transit() targets its declaring step. If choosing a destination or applying state changes requires an insertion-level currentStep() router, stop: the machine needs a declarative event/action API. Do not add a relay source or suppress this rule. See the state-machine guide.',
     ]);
   });
 
@@ -69,7 +69,7 @@ describe('no-transition-actions', () => {
     `);
 
     expect(messages).toEqual([
-      'Imperative mutation.mutate(...) is forbidden inside a transitionStep. Derive a source and let the resource react to it instead.',
+      'mutation.mutate(...) performs an action while a transition step is active. Declare the triggering event with on$(source$, ...), let the machine enter a step with transit(), and let state or resources react to that source instead of calling the action from the transition.',
     ]);
   });
 

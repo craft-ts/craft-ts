@@ -13,12 +13,14 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Disallow imperative state, query, mutation, and asyncProcess actions inside craftStateMachine transitions.',
+        'Disallow imperative state, resource, and source actions inside craftStateMachine transitions.',
     },
     schema: [],
     messages: {
       forbidden:
-        'Imperative {{action}}(...) is forbidden inside a transitionStep. Derive a source and let the resource react to it instead.',
+        '{{action}}(...) performs an action while a transition step is active. Declare the triggering event with on$(source$, ...), let the machine enter a step with transit(), and let state or resources react to that source instead of calling the action from the transition.',
+      sourceEmission:
+        'source$.emit(...) imperatively forwards an event from transitionStep(...). First trace its producer: if it is external, emit there and consume it with on$(source$, ...). If it comes from afterRecomputation(...), keep the value in the machine: register that recomputation under the destination transitionStep(...), then use transit(value).pipe(transitionGuard(({ from, event }) => ...)). transit() targets its declaring step. If choosing a destination or applying state changes requires an insertion-level currentStep() router, stop: the machine needs a declarative event/action API. Do not add a relay source or suppress this rule. See the state-machine guide.',
     },
   },
 
@@ -66,7 +68,7 @@ module.exports = {
             reported.add(node);
             context.report({
               node,
-              messageId: 'forbidden',
+              messageId: action === 'source$.emit' ? 'sourceEmission' : 'forbidden',
               data: { action },
             });
           });

@@ -72,6 +72,34 @@ view can be selected from the typed step context. A step does not need an
 imperative “enter” function that manually changes the machine or coordinates
 the rest of the feature.
 
+## Recomputations as transition triggers
+
+When a transition is caused by a value derived inside Craft, keep that value in
+the machine. Register `afterRecomputation(...)` in the destination step and
+pass the value to `transit(...)`:
+
+```typescript
+reading: transitionStep(function* () {
+  yield* afterRecomputation(context.saveProfile.status, function* (status) {
+    if (status === 'resolved') yield* transit(status);
+  });
+}),
+```
+
+Here `transit(status)` attempts to enter `reading`, because that is the step
+that declares the callback. Add a `transitionGuard(({ from, event }) => ... )`
+when only particular source steps or values may enter it. Do not forward a
+derived value through a second `source$` and an insertion method that switches
+on `currentStep()`; that moves the transition graph out of the machine.
+
+Craft installs callbacks from every declared step, so a guard must control
+which attempts are accepted. A guard should decide whether to transition, not
+perform state updates or resource actions. If one derived event chooses among
+several destinations and needs state changes only after the chosen transition
+is accepted, the target-oriented API may not express that cleanly. Treat that
+as an API gap to design explicitly rather than rebuilding an imperative
+dispatcher in the insertion.
+
 ## The text editor example
 
 The demo application contains a complete [declarative text editor

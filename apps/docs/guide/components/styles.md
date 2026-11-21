@@ -38,7 +38,7 @@ The component imports it and binds **one constant class per element**:
 | ------------------------------------------ | --------------------------------------------------------------------------------------- |
 | the component's own look                   | `craftStyles('name', { root: [...] })` in `name.style.ts`                               |
 | a variant (tone, size, selected)           | `defineStateAxis(...)`, then `when(axis.point, [...])`; the template sets `data-*`      |
-| a state the platform already announces     | `ariaCurrent`, `ariaPressed`, `ariaInvalid`, `interaction.hover` / `.focus` / `.disabled` |
+| a state the platform already announces     | `ariaCurrent`, `ariaPressed`, `ariaInvalid`, `ariaChecked`, `ariaSelected`, `interaction.hover` / `.focus` / `.focusVisible` / `.disabled` |
 | a value known only at runtime              | `cssVars(...)` in the sheet, `assign(...)` in the template                             |
 | a child that follows its parent's state    | a variable declared with `{ inherits: true }`, set by the parent, read by the child     |
 | page defaults (`body`, links, the theme)   | [`craftGlobalStyles`](/guide/style/foundation)                                          |

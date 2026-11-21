@@ -80,6 +80,20 @@ can change. So it is closed at the element that declares the container: the
 matrix prunes it there rather than letting every ancestor inherit scenarios it
 has no way to affect.
 
+`at.minInlineSize(...)` describes a lower bound. Use
+`at.maxInlineSize(...)` for a container that should match at or below a width;
+the scenario runner sets the container to that boundary:
+
+```typescript
+const panelSize = defineContainer(
+  { name: 'panel', type: 'inline-size' },
+  { compact: at.maxInlineSize(unit.rem(32)) },
+);
+```
+
+The query is inclusive (`max-width`), so the generated scenario uses exactly
+the declared width. Viewport breakpoints remain lower-bound only.
+
 ### The standard axes
 
 `scheme`, `motion`, `forcedColors`, `contrast`, `scrollState` and `descendant`
@@ -87,16 +101,21 @@ ship with `@craft-ts/style` and need no declaration — they are driven by the
 user agent or by the element's own state, not by an attribute you own. `scheme`
 is the one the theme below uses.
 
-`interaction` (`hover`, `focus`, `active`, `disabled`) reads the element's own
-pseudo-classes. Three more read an ARIA attribute instead of a `data-*` one, so
-the look and what assistive technology announces cannot disagree:
+`interaction` (`hover`, `focus`, `focusVisible`, `active`, `disabled`) reads the
+element's own pseudo-classes. The visual-matrix harness must use keyboard input
+for `focusVisible`; calling `.focus()` from JavaScript does not reliably set
+the browser's keyboard modality. Five more read an ARIA attribute instead of a
+`data-*` one, so the look and what assistive technology announces cannot
+disagree:
 
-| Axis                  | Opens on                  | Typical element               |
-| --------------------- | ------------------------- | ----------------------------- |
-| `ariaCurrent.page`    | `[aria-current='page']`   | the router's active link      |
-| `ariaCurrent.true`    | `[aria-current='true']`   | the current item of a list    |
-| `ariaPressed.pressed` | `[aria-pressed='true']`   | a toggle button that is on    |
-| `ariaInvalid.true`    | `[aria-invalid='true']`   | a field whose value was refused |
+| Axis                    | Opens on                 | Typical element                 |
+| ----------------------- | ------------------------ | ------------------------------- |
+| `ariaCurrent.page`      | `[aria-current='page']`  | the router's active link        |
+| `ariaCurrent.true`      | `[aria-current='true']`  | the current item of a list      |
+| `ariaPressed.pressed`   | `[aria-pressed='true']`  | a toggle button that is on      |
+| `ariaInvalid.true`      | `[aria-invalid='true']`  | a field whose value was refused |
+| `ariaChecked.checked`   | `[aria-checked='true']`  | a checked composite widget      |
+| `ariaSelected.selected` | `[aria-selected='true']` | a selected composite option     |
 
 Set the attribute for accessibility; the sheet follows it. A second `data-*`
 attribute for the same state would be one more thing to keep in sync.
@@ -104,9 +123,11 @@ attribute for the same state would be one more thing to keep in sync.
 ### `axisPoint` — the escape hatch
 
 `axisPoint(axis, point, open, driver, extra)` builds a point by hand, for a
-selector none of the four constructors produce. You give up nothing type-side,
-but you take on the part the constructors were doing for you: the `driver` must
-really reach the `open` selector, and nothing checks that for you.
+selector none of the standard axes or constructors produce. Prefer
+`defineContainer(..., at.maxInlineSize(...))` for upper container bounds,
+`interaction.focusVisible` for keyboard focus, and `ariaChecked` / `ariaSelected`
+for those announced states. Use `axisPoint` only when no built-in constructor
+matches; then verify that its `driver` really reaches its `open` selector.
 
 ## The theme
 

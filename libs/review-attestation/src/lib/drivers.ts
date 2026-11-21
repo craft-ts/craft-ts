@@ -20,6 +20,8 @@ export interface ScenarioPage {
     body: (argument: Argument) => unknown,
     argument: Argument,
   ): Promise<unknown>;
+  /** Playwright-compatible keyboard input for browser modality changes. */
+  keyboard?: { press(key: string): Promise<unknown> };
   /**
    * Optional because `:hover` is the one state a page script cannot fake.
    *
@@ -36,6 +38,8 @@ export interface ScenarioPage {
    * pseudo-class. A Playwright harness implements it as `hover` + `mouse.down()`.
    */
   holdPointer?(selector: string): Promise<unknown>;
+  /** Uses real keyboard modality to make the element match `:focus-visible`. */
+  focusVisible?(selector: string): Promise<unknown>;
 }
 
 export interface ApplyOptions {
@@ -118,7 +122,9 @@ export async function applyScenario(
       case 'resizeContainer':
         await page.evaluate(applyContainerWidth, {
           container: driver.container,
-          width: toPixels(driver.minInlineSize),
+          width: toPixels(
+            'inlineSize' in driver ? driver.inlineSize : driver.minInlineSize,
+          ),
         });
         break;
       case 'setAttribute':
@@ -138,6 +144,23 @@ export async function applyScenario(
         if (driver.state === 'focus') {
           // Programmatic focus does set `:focus` — unlike a synthetic mouse
           // event and `:hover` — so no harness method is needed.
+          await page.evaluate(applyFocus, { target });
+          break;
+        }
+        if (driver.state === 'focus-visible') {
+          if (page.focusVisible) {
+            await page.focusVisible(target);
+            break;
+          }
+          if (!page.keyboard) {
+            throw new Error(
+              `applyScenario: the scenario needs ':focus-visible' on '${target}', and this page cannot send keyboard input. Programmatic focus alone does not reliably match ':focus-visible'. Pass a Playwright-compatible keyboard or a harness with focusVisible(selector).`,
+            );
+          }
+          // Establish keyboard modality with a real key event, then focus the
+          // requested target. A synthetic KeyboardEvent would not change the
+          // browser's modality heuristic.
+          await page.keyboard.press('Tab');
           await page.evaluate(applyFocus, { target });
           break;
         }

@@ -185,10 +185,8 @@ export const descendant = {
  * the same reason there is no `scheme.light` — the absence of a condition is
  * `base`, and it is implicit on every axis.
  *
- * The axis stops here on purpose. `:focus-visible` on the element itself and
- * `:active` are real states too, but each one added multiplies the matrix of
- * every sheet that uses it; hover is the one whose colour changes are routinely
- * written and never verified, so it is the one that pays for itself first.
+ * `focusVisible` is separate from `focus`: the browser's keyboard-modality
+ * heuristic cannot be reproduced by calling `.focus()` from a page script.
  */
 export const interaction = {
   hover: axisPoint('interaction.hover', 'active', '&:hover', {
@@ -204,6 +202,13 @@ export const interaction = {
     kind: 'selfState',
     state: 'focus',
   }) as AxisPoint<'interaction.focus', 'active'>,
+  /** Keyboard-visible focus; the attestation harness must use keyboard input. */
+  focusVisible: axisPoint(
+    'interaction.focusVisible',
+    'active',
+    '&:focus-visible',
+    { kind: 'selfState', state: 'focus-visible' },
+  ) as AxisPoint<'interaction.focusVisible', 'active'>,
   /** `:active` — pressed. Reached by holding a real pointer down. */
   active: axisPoint('interaction.active', 'active', '&:active', {
     kind: 'selfState',
@@ -271,6 +276,24 @@ export const ariaInvalid = {
   }) as AxisPoint<'ariaInvalid', 'true'>,
 } as const;
 
+/** `aria-checked="true"` — the checked state of a checkable widget. */
+export const ariaChecked = {
+  checked: axisPoint('ariaChecked', 'checked', "&[aria-checked='true']", {
+    kind: 'setAttribute',
+    name: 'aria-checked',
+    value: 'true',
+  }) as AxisPoint<'ariaChecked', 'checked'>,
+} as const;
+
+/** `aria-selected="true"` — the active option in a composite widget. */
+export const ariaSelected = {
+  selected: axisPoint('ariaSelected', 'selected', "&[aria-selected='true']", {
+    kind: 'setAttribute',
+    name: 'aria-selected',
+    value: 'true',
+  }) as AxisPoint<'ariaSelected', 'selected'>,
+} as const;
+
 /** Every standard point, for the specs that assert each one has a driver. */
 export const STANDARD_AXES = [
   ...Object.values(scheme),
@@ -285,4 +308,6 @@ export const STANDARD_AXES = [
   ...Object.values(ariaCurrent),
   ...Object.values(ariaPressed),
   ...Object.values(ariaInvalid),
+  ...Object.values(ariaChecked),
+  ...Object.values(ariaSelected),
 ] as const;

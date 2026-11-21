@@ -35,6 +35,8 @@ export interface RangePoint<
  */
 export const at = {
   minInlineSize: (value: LengthValue) => ({ minInlineSize: value }),
+  /** A container point at or below this inline-size boundary. */
+  maxInlineSize: (value: LengthValue) => ({ maxInlineSize: value }),
 } as const;
 
 export type BreakpointSpec = { readonly minInlineSize: LengthValue };
@@ -184,10 +186,21 @@ export function defineStateAxis<
 
 export type ContainerBreakpoints<
   Name extends string,
-  Points extends Readonly<Record<string, BreakpointSpec>>,
+  Points extends Readonly<Record<string, ContainerBreakpointSpec>>,
 > = {
-  readonly [Key in keyof Points & string]: RangePoint<`container.${Name}`, Key>;
+  readonly [Key in keyof Points & string]: RangePoint<
+    `container.${Name}`,
+    Key,
+    Points[Key] extends { readonly maxInlineSize: LengthValue }
+      ? 'below'
+      : 'above'
+  >;
 };
+
+/** A container can be queried on either side of an inline-size boundary. */
+export type ContainerBreakpointSpec =
+  | BreakpointSpec
+  | { readonly maxInlineSize: LengthValue };
 
 export interface ContainerSpec {
   readonly name: string;
@@ -204,26 +217,44 @@ export interface ContainerSpec {
  */
 export function defineContainer<
   const Name extends string,
-  const Points extends Readonly<Record<string, BreakpointSpec>>,
+  const Points extends Readonly<Record<string, ContainerBreakpointSpec>>,
 >(
   container: { readonly name: Name; readonly type: ContainerSpec['type'] },
   points: Points,
 ): ContainerBreakpoints<Name, Points> {
   return Object.fromEntries(
-    Object.entries(points).map(([name, { minInlineSize }], index) => [
-      name,
-      axisPoint(
-        `container.${container.name}`,
+    Object.entries(points).map(([name, spec], index) => {
+      if ('minInlineSize' in spec) {
+        return [
+          name,
+          axisPoint(
+            `container.${container.name}`,
+            name,
+            `@container ${container.name} (min-width: ${spec.minInlineSize.css})`,
+            {
+              kind: 'resizeContainer',
+              container: container.name,
+              minInlineSize: spec.minInlineSize.css,
+            },
+            { order: index + 1, bound: 'above', container: container.name },
+          ),
+        ];
+      }
+      return [
         name,
-        `@container ${container.name} (min-width: ${minInlineSize.css})`,
-        {
-          kind: 'resizeContainer',
-          container: container.name,
-          minInlineSize: minInlineSize.css,
-        },
-        { order: index + 1, bound: 'above', container: container.name },
-      ),
-    ]),
+        axisPoint(
+          `container.${container.name}`,
+          name,
+          `@container ${container.name} (max-width: ${spec.maxInlineSize.css})`,
+          {
+            kind: 'resizeContainer',
+            container: container.name,
+            inlineSize: spec.maxInlineSize.css,
+          },
+          { order: index + 1, bound: 'below', container: container.name },
+        ),
+      ];
+    }),
   ) as ContainerBreakpoints<Name, Points>;
 }
 

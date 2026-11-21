@@ -27,8 +27,11 @@ export type Driver =
   | {
       readonly kind: 'resizeContainer';
       readonly container: string;
-      readonly minInlineSize: string;
-    }
+    } & (
+      | { readonly minInlineSize: string }
+      /** Exact width to use when exercising an upper-bound query. */
+      | { readonly inlineSize: string }
+    )
   | {
       readonly kind: 'setAttribute';
       readonly name: string;
@@ -51,7 +54,7 @@ export type Driver =
    */
   | {
       readonly kind: 'selfState';
-      readonly state: 'hover' | 'focus' | 'active';
+      readonly state: 'hover' | 'focus' | 'focus-visible' | 'active';
     };
 
 export interface AxisPoint<Axis extends string, Point extends string> {
