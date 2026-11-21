@@ -2,6 +2,7 @@ export * from './lib/after-recomputation';
 export {
   runCraftCleanups as ɵrunCraftCleanups,
   destroyCraftOwner as ɵdestroyCraftOwner,
+  beginCraftOwnerDestruction as ɵbeginCraftOwnerDestruction,
   createCraftCleanup as ɵcreateCraftCleanup,
 } from './lib/lifecycle';
 export * from './lib/app-checked-di';
@@ -192,6 +193,9 @@ export {
   craftComputed as ɵcraftComputed,
   craftWatch as ɵcraftWatch,
   ɵcraftPrivateCell,
+  ɵcraftLazyPrivateCell,
+  ɵcraftDetachedEffect,
+  ɵcraftBindingEffect,
 } from './lib/host/craft-signal';
 export type {
   CraftSignal as ɵCraftSignal,
@@ -321,6 +325,7 @@ export * from './lib/craft-register-for-runtime';
 export * from './lib/craft-target-runtime';
 export * from './lib/craft-node-directive';
 export * from './lib/fn-wrapper';
+export { REACTIVE_READ_OBSERVERS as ɵREACTIVE_READ_OBSERVERS } from './lib/reactive-read';
 export * from './lib/behavior-proof-recorder';
 export * from './lib/behavior-mutant';
 export * from './lib/craft-test-providers';

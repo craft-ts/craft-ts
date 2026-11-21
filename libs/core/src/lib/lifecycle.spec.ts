@@ -5,6 +5,11 @@ import {
   signal,
   ɵdestroyCraftDestroyRef,
 } from './host/craft-compat';
+import {
+  runCraftCleanups,
+  beginCraftOwnerDestruction,
+  destroyCraftOwner,
+} from './lifecycle';
 import { craftEffect } from './craft-effect';
 import { craftUse } from './craft-use';
 import { setupCraftServiceTest } from './setup-craft-service-test';
@@ -135,4 +140,61 @@ describe('cleanup failures', () => {
       expect(() => injector.destroy()).not.toThrow();
     },
   );
+});
+
+describe('lazy cleanup failures', () => {
+  it.each([undefined, null, false, 0, { reason: 'failure' }])(
+    'preserves the exact thrown value and still runs later releases: %s',
+    (failure) => {
+      const released = vi.fn();
+      let caught = false,
+        value: unknown;
+      try {
+        runCraftCleanups([
+          () => {
+            throw failure;
+          },
+          released,
+        ]);
+      } catch (error) {
+        caught = true;
+        value = error;
+      }
+      expect(caught).toBe(true);
+      expect(value).toBe(failure);
+      expect(released).toHaveBeenCalledOnce();
+    },
+  );
+  it('retains ordered failures including undefined and null', () => {
+    const released = vi.fn();
+    let value: unknown;
+    try {
+      runCraftCleanups([
+        () => {
+          throw undefined;
+        },
+        () => {
+          throw null;
+        },
+        released,
+      ]);
+    } catch (error) {
+      value = error;
+    }
+    expect(value).toBeInstanceOf(AggregateError);
+    expect((value as AggregateError).errors).toEqual([undefined, null]);
+    expect(released).toHaveBeenCalledOnce();
+  });
+});
+
+it('shares one-shot state between direct and grouped owner teardown', () => {
+  const owner = {},
+    other = {},
+    release = vi.fn();
+  expect(beginCraftOwnerDestruction(owner)).toBe(true);
+  destroyCraftOwner(owner, [release]);
+  expect(release).not.toHaveBeenCalled();
+  destroyCraftOwner(other, [release]);
+  expect(beginCraftOwnerDestruction(other)).toBe(false);
+  expect(release).toHaveBeenCalledOnce();
 });

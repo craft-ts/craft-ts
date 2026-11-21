@@ -1,13 +1,15 @@
 /** Run every synchronous release in order before surfacing any failures. */
 export function runCraftCleanups(cleanups: Iterable<() => void>): void {
-  const errors: unknown[] = [];
+  let errors: unknown[] | undefined;
   for (const cleanup of cleanups) {
     try {
       cleanup();
     } catch (error) {
-      errors.push(error);
+      if (errors) errors.push(error);
+      else errors = [error];
     }
   }
+  if (!errors) return;
   if (errors.length === 1) throw errors[0];
   if (errors.length > 1) {
     throw new AggregateError(errors, 'Craft cleanup failed.');
@@ -26,12 +28,18 @@ export function createCraftCleanup(cleanups: Iterable<() => void>): () => void {
   };
 }
 
+/** @internal Shared one-shot ownership for grouped and allocation-free teardown. */
+export function beginCraftOwnerDestruction(owner: object): boolean {
+  if (destroyedOwners.has(owner)) return false;
+  destroyedOwners.add(owner);
+  return true;
+}
+
 /** Close an owner before releasing it, including reentrant destruction. */
 export function destroyCraftOwner(
   owner: object,
   cleanups: Iterable<() => void>,
 ): void {
-  if (destroyedOwners.has(owner)) return;
-  destroyedOwners.add(owner);
+  if (!beginCraftOwnerDestruction(owner)) return;
   runCraftCleanups(cleanups);
 }

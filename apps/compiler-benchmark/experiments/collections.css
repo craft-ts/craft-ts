@@ -1,0 +1,99 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font:
+    14px system-ui,
+    sans-serif;
+  color: #182030;
+}
+#controls {
+  height: 48px;
+  padding: 8px;
+}
+#viewport {
+  height: 640px;
+  width: 1072px;
+  overflow: auto;
+  overflow-anchor: none;
+  border: 0;
+  margin: 0 8px;
+}
+.collection {
+  width: 1024px;
+}
+.row {
+  height: 32px;
+  display: grid;
+  grid-template-columns: 80px 688px 160px 96px;
+  align-items: center;
+  border-bottom: 1px solid #e5e8ee;
+}
+.cell {
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row > button {
+  margin: 2px 8px;
+  height: 26px;
+}
+.chunk {
+  height: 1600px;
+}
+body[data-mode='visibility'] .chunk {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1600px;
+}
+table {
+  width: 1024px;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+body[data-mode='table-fixed'] table {
+  table-layout: fixed;
+}
+th,
+td {
+  height: 32px;
+  padding: 0 8px;
+  border-bottom: 1px solid #e5e8ee;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+th:nth-child(1) {
+  width: 80px;
+}
+th:nth-child(2) {
+  width: 688px;
+}
+th:nth-child(3) {
+  width: 160px;
+}
+th:nth-child(4) {
+  width: 96px;
+}
+td button {
+  height: 26px;
+  width: 64px;
+}
+.gap {
+  width: 100%;
+  pointer-events: none;
+}
+button {
+  font: inherit;
+}
+@media print {
+  #viewport {
+    height: auto;
+    overflow: visible;
+  }
+  .chunk {
+    content-visibility: visible !important;
+  }
+}

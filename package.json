@@ -59,7 +59,11 @@
     "generated-starters:release": "CRAFT_RELEASE_VERSION=${CRAFT_RELEASE_VERSION:-0.0.0-release} node tools/test-generated-starters.mjs --profile=release",
     "generated-starters:full": "CRAFT_RELEASE_VERSION=${CRAFT_RELEASE_VERSION:-0.0.0-full} node tools/test-generated-starters.mjs --profile=full",
     "generated-starters:prepare": "node tools/prepare-generated-starter-packages.mjs",
-    "release:local": "node tools/release-local.mjs"
+    "release:local": "node tools/release-local.mjs",
+    "compiler:build": "nx build craft-ts-compiler",
+    "compiler:test": "vitest run --config libs/compiler/vitest.config.ts",
+    "perf:compiler": "tsc -p libs/compiler/tsconfig.lib.json && node apps/compiler-benchmark/run.mjs",
+    "perf:compiler:profile": "tsc -p libs/compiler/tsconfig.lib.json && node apps/compiler-benchmark/profile.mjs"
   },
   "private": true,
   "devDependencies": {

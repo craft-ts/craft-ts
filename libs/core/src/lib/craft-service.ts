@@ -23,6 +23,7 @@ import {
   SERVICE_APP_START_REQUEST_MARKER,
   SERVICE_DEPENDENCY_ACCESS_MARKER,
   SERVICE_YIELD_REQUEST_MARKER,
+  SERVICE_YIELD_WRAPPER,
   type ResolveGeneratorResult,
 } from './craft-generator-runtime';
 import { registerResolvedService } from './craft-register-for-runtime';
@@ -106,6 +107,9 @@ const SERVICE_RUNTIME_META_GLOBAL = Symbol.for(
 );
 const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
 const REGISTERED_SERVICES = new Map<string, ServiceReference>();
+// Exact root helpers only: metadata on a nested shortcut describes its parent
+// service and is insufficient to resolve the shortcut's path.
+const definitionByReference = new WeakMap<object, ConcreteRuntimeDefinition>();
 const REGISTERED_APP_START_SERVICES = new Map<string, ServiceReference>();
 
 type DerivedPropertiesTracking<
@@ -346,8 +350,7 @@ export type ServiceMetaData<
     >;
   } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? { readonly provide: (...args: ProvideArgs) => CraftServiceProvider }
-    : {}) &
-    {}
+    : {}) & {}
 >;
 
 type AnyServiceMetaData = {
@@ -1333,7 +1336,7 @@ export type ServiceYieldRequest<
   [SERVICE_YIELD_REQUEST_MARKER]: true;
   name: string;
   readonly exposure?: [ExposureName] extends [never]
-      ? never
+    ? never
     : {
         readonly name: ExposureName;
         readonly internal?: boolean;
@@ -1424,7 +1427,11 @@ type InjectHelper<
   [Key in `inject${Capitalize<Name>}`]: WithTrackedDependencies<
     WithServiceRuntimeMeta<
       {
-        (): MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>;
+        (): MaybeErrorOutput<
+          ServiceCallInputs<Scope, Inputs>,
+          undefined,
+          Output
+        >;
         <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
           bindings: StrictBindings<
             Partial<PublicInputBindings<Inputs, Scope>>,
@@ -1434,12 +1441,20 @@ type InjectHelper<
         <
           Exposed extends object,
           Yielded extends ExposureYield<
-            SelectableOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>
+            SelectableOutput<
+              ServiceCallInputs<Scope, Inputs>,
+              undefined,
+              Output
+            >
           > = never,
         >(
           bindings: undefined,
           expose: ExposureSelector<
-            SelectableOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
+            SelectableOutput<
+              ServiceCallInputs<Scope, Inputs>,
+              undefined,
+              Output
+            >,
             Exposed,
             Yielded
           >,
@@ -1638,7 +1653,9 @@ type SinglePropertyShortcutGenerator<
     Key & string,
     SinglePropertyShortcutResult<Scope, Inputs, Config, Output, Key>
   >,
-  ShortcutRead<SinglePropertyShortcutResult<Scope, Inputs, Config, Output, Key>>,
+  ShortcutRead<
+    SinglePropertyShortcutResult<Scope, Inputs, Config, Output, Key>
+  >,
   unknown
 >;
 
@@ -1650,7 +1667,9 @@ type InjectPropertyShortcut<
   Key extends OutputDependencyKeys<Output>,
 > = WithTrackedDependencies<
   (keyof ServiceCallInputs<Scope, Inputs> extends never
-    ? { (): SinglePropertyShortcutResult<Scope, Inputs, undefined, Output, Key> }
+    ? {
+        (): SinglePropertyShortcutResult<Scope, Inputs, undefined, Output, Key>;
+      }
     : {}) & {
     <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
       bindings: StrictBindings<
@@ -1751,7 +1770,12 @@ type DeepInjectPropertyShortcuts<
                   ? Rest
                   : readonly []
               >,
-            WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>
+            WithNestedPropertyDerivedProperties<
+              Metadata,
+              Output,
+              Key,
+              NestedKey
+            >
           >;
         }
       : {};
@@ -1905,14 +1929,21 @@ type NestedYieldPropertyShortcut<
   Key extends OutputDependencyKeys<Output>,
   NestedKey extends keyof (Output[Key] extends object ? Output[Key] : never),
 > = WithTrackedDependencies<
-  (IsMethodShortcutMember<NestedPropertyValue<Output[Key], NestedKey>> extends true
+  (IsMethodShortcutMember<
+    NestedPropertyValue<Output[Key], NestedKey>
+  > extends true
     ? {}
     : {
         (): Generator<
           ServiceYieldRequest<
             Scope,
             NestedPropertyValue<Output[Key], NestedKey>,
-            WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>,
+            WithNestedPropertyDerivedProperties<
+              Metadata,
+              Output,
+              Key,
+              NestedKey
+            >,
             NestedKey & string,
             NestedPropertyValue<Output[Key], NestedKey>
           >,
@@ -1941,15 +1972,19 @@ type NestedYieldPropertyShortcut<
       unknown
     >;
   } & (keyof ServiceCallInputs<Scope, Inputs> extends never
-    ? NestedPropertyValue<Output[Key], NestedKey> extends (
-        ...args: infer Args
-      ) => infer Result
-      ? (
+      ? NestedPropertyValue<Output[Key], NestedKey> extends (
+          ...args: infer Args
+        ) => infer Result
+        ? (
             ...args: Args
           ) => Generator<
             ServiceYieldRequest<
               Scope,
-              MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
+              MaybeErrorOutput<
+                ServiceCallInputs<Scope, Inputs>,
+                undefined,
+                Output
+              >,
               WithNestedPropertyDerivedProperties<
                 Metadata,
                 Output,
@@ -1973,9 +2008,12 @@ type NestedYieldPropertyShortcut<
               ResolveGeneratorResult<Result>,
               ShortcutDepthBudget
             >
-      : {}
-    : {}) &
-    ShortcutName<NestedPropertyValue<Output[Key], NestedKey>, NestedKey & string> &
+        : {}
+      : {}) &
+    ShortcutName<
+      NestedPropertyValue<Output[Key], NestedKey>,
+      NestedKey & string
+    > &
     ShortcutSettledBrand<NestedPropertyValue<Output[Key], NestedKey>> &
     ShortcutMember<
       Scope,
@@ -2005,14 +2043,14 @@ type IsMethodShortcutMember<Value> = 0 extends 1 & Value
   ? // `any` stays a readable member, as it was before methods were told apart.
     false
   : [Value] extends [{ readonly [CRAFT_METHOD]: true }]
-  ? true
-  : [Value] extends [{ readonly [YIELDABLE_VALUE]: string }]
-  ? false
-  : [Value] extends [Signal<any>]
-    ? false
-    : [Value] extends [(...args: any[]) => any]
-      ? true
-      : false;
+    ? true
+    : [Value] extends [{ readonly [YIELDABLE_VALUE]: string }]
+      ? false
+      : [Value] extends [Signal<any>]
+        ? false
+        : [Value] extends [(...args: any[]) => any]
+          ? true
+          : false;
 
 /**
  * A shortcut onto a reactive reader is named after its member, so that it can
@@ -2089,7 +2127,9 @@ type DeepYieldPropertyShortcuts<
             NestedKey,
             Value[Member],
             Member,
-            Budget extends readonly [unknown, ...infer Rest] ? Rest : readonly []
+            Budget extends readonly [unknown, ...infer Rest]
+              ? Rest
+              : readonly []
           >;
         }
       : {};
@@ -2116,7 +2156,12 @@ type DeepYieldPropertyShortcut<
           ServiceYieldRequest<
             Scope,
             Value,
-            WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>,
+            WithNestedPropertyDerivedProperties<
+              Metadata,
+              Output,
+              Key,
+              NestedKey
+            >,
             Name,
             Value
           >,
@@ -2141,13 +2186,17 @@ type DeepYieldPropertyShortcut<
       unknown
     >;
   } & (keyof ServiceCallInputs<Scope, Inputs> extends never
-    ? Value extends (...args: infer Args) => infer Result
-      ? (
+      ? Value extends (...args: infer Args) => infer Result
+        ? (
             ...args: Args
           ) => Generator<
             ServiceYieldRequest<
               Scope,
-              MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
+              MaybeErrorOutput<
+                ServiceCallInputs<Scope, Inputs>,
+                undefined,
+                Output
+              >,
               WithNestedPropertyDerivedProperties<
                 Metadata,
                 Output,
@@ -2169,8 +2218,8 @@ type DeepYieldPropertyShortcut<
               ResolveGeneratorResult<Result>,
               Budget
             >
-      : {}
-    : {}) &
+        : {}
+      : {}) &
     ShortcutName<Value, Name> &
     ShortcutSettledBrand<Value> &
     ShortcutMember<
@@ -2326,10 +2375,18 @@ type YieldHelper<
         (): Generator<
           ServiceYieldRequest<
             Scope,
-            MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
+            MaybeErrorOutput<
+              ServiceCallInputs<Scope, Inputs>,
+              undefined,
+              Output
+            >,
             Metadata,
             Uncapitalize<Name>,
-            MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>
+            MaybeErrorOutput<
+              ServiceCallInputs<Scope, Inputs>,
+              undefined,
+              Output
+            >
           >,
           MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
           unknown
@@ -2353,26 +2410,46 @@ type YieldHelper<
         <
           Exposed extends object,
           Yielded extends ExposureYield<
-            SelectableOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>
+            SelectableOutput<
+              ServiceCallInputs<Scope, Inputs>,
+              undefined,
+              Output
+            >
           > = never,
         >(
           bindings: undefined,
           expose: ExposureSelector<
-            SelectableOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
+            SelectableOutput<
+              ServiceCallInputs<Scope, Inputs>,
+              undefined,
+              Output
+            >,
             Exposed,
             Yielded
           >,
         ): Generator<
           | ServiceYieldRequest<
               Scope,
-              SelectableOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
+              SelectableOutput<
+                ServiceCallInputs<Scope, Inputs>,
+                undefined,
+                Output
+              >,
               WithDerivedProperties<Metadata, Exposed, Yielded>
             >
           | ExposureYield<
-              SelectableOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>
+              SelectableOutput<
+                ServiceCallInputs<Scope, Inputs>,
+                undefined,
+                Output
+              >
             >,
           ExposedOutput<
-            SelectableOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
+            SelectableOutput<
+              ServiceCallInputs<Scope, Inputs>,
+              undefined,
+              Output
+            >,
             MaterializeExposureResult<ValidateRootExposure<Exposed>>
           >,
           unknown
@@ -2396,7 +2473,11 @@ type YieldHelper<
         ): Generator<
           | ServiceYieldRequest<
               Scope,
-              SelectableOutput<ServiceCallInputs<Scope, Inputs>, Config, Output>,
+              SelectableOutput<
+                ServiceCallInputs<Scope, Inputs>,
+                Config,
+                Output
+              >,
               WithDerivedProperties<Metadata, Exposed, Yielded>
             >
           | ExposureYield<
@@ -2517,8 +2598,7 @@ type ConcreteServiceApi<
         ProvideArguments<ServiceProvidedInput<Inputs>>,
         ExtractServiceTrackingYielded<Metadata>
       >
-    : {}) &
-  {};
+    : {}) & {};
 
 export type CraftServiceApi<
   Name extends string,
@@ -2727,11 +2807,7 @@ export const SERVICE_RUNTIME_OVERRIDES = new InjectionToken<
 export type CraftServiceInput<
   Value,
   Yielded = ReactiveReadRequest<Value>,
-> = Yieldable<
-  [],
-  Value,
-  Yielded
->;
+> = Yieldable<[], Value, Yielded>;
 
 export type MaybeSignal<T> =
   | T
@@ -3201,6 +3277,7 @@ function createCraftServiceApi(
 
     attachServiceRuntimeMeta(abstractHelper, abstractMetaData);
     attachServiceRuntimeMeta(abstractInjectHelper, abstractMetaData);
+    definitionByReference.set(abstractHelper, abstractYieldDefinition);
 
     REGISTERED_SERVICES.set(
       options.name,
@@ -3236,9 +3313,7 @@ function createCraftServiceApi(
         })
       : options.providedIn === 'function'
         ? undefined
-        : new InjectionToken(
-            `${capitalizedName}ServiceToken`,
-          );
+        : new InjectionToken(`${capitalizedName}ServiceToken`);
   runtimeDefinition.token = token;
 
   // The helper closes over metadata that is initialized immediately below.
@@ -3280,6 +3355,7 @@ function createCraftServiceApi(
 
   attachServiceRuntimeMeta(injectHelper, serviceMetaData);
   attachServiceRuntimeMeta(api[serviceName], serviceMetaData);
+  definitionByReference.set(api[serviceName] as object, runtimeDefinition);
 
   REGISTERED_SERVICES.set(
     runtimeDefinition.name,
@@ -3565,7 +3641,10 @@ function createShortcutCall(
 
   return new Proxy(generator, {
     get(target, property) {
-      if (typeof property !== 'string' || isReservedGeneratorProperty(property)) {
+      if (
+        typeof property !== 'string' ||
+        isReservedGeneratorProperty(property)
+      ) {
         const member = Reflect.get(target, property, target) as unknown;
         return typeof member === 'function' ? member.bind(target) : member;
       }
@@ -3601,7 +3680,10 @@ function createYieldPathShortcut(
       definition,
       key,
       steps,
-      args[0] as Record<string, unknown> | typeof OMIT_INPUTS_BINDINGS | undefined,
+      args[0] as
+        | Record<string, unknown>
+        | typeof OMIT_INPUTS_BINDINGS
+        | undefined,
       false,
     );
   };
@@ -3615,7 +3697,9 @@ function createYieldPathShortcut(
     },
     get(target, property, receiver) {
       if (property === YIELDABLE_VALUE) {
-        const named = [...steps].reverse().find((step) => typeof step === 'string');
+        const named = [...steps]
+          .reverse()
+          .find((step) => typeof step === 'string');
         return named ?? key;
       }
       if (property === SHORTCUT_MEMBER) {
@@ -3678,13 +3762,21 @@ function createInjectPathShortcut(
 
   return new Proxy(shortcut, {
     get(target, property, receiver) {
-      if (typeof property !== 'string' || isReservedShortcutProperty(property)) {
+      if (
+        typeof property !== 'string' ||
+        isReservedShortcutProperty(property)
+      ) {
         return Reflect.get(target, property, receiver);
       }
       if (!children.has(property)) {
         children.set(
           property,
-          createInjectPathShortcut(definition, key, [...path, property], injectMarker),
+          createInjectPathShortcut(
+            definition,
+            key,
+            [...path, property],
+            injectMarker,
+          ),
         );
       }
       return children.get(property);
@@ -4052,7 +4144,13 @@ function createYieldRequest(
   bindings?: ConcreteServiceBindings,
   exposedAs?: string,
   path: readonly string[] = [],
-): ServiceYieldRequest<ConcreteServiceScope, unknown, AnyServiceTrackingMetadata, any, any> {
+): ServiceYieldRequest<
+  ConcreteServiceScope,
+  unknown,
+  AnyServiceTrackingMetadata,
+  any,
+  any
+> {
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
     name: definition.name,
@@ -4078,9 +4176,7 @@ function createYieldRequest(
                 service,
               );
               // A method reached through a shortcut is called, not exposed.
-              return isShortcutMethod(member)
-                ? NOT_EXPOSED
-                : member;
+              return isShortcutMethod(member) ? NOT_EXPOSED : member;
             },
           },
         }
@@ -4112,6 +4208,59 @@ export function ɵresolveOptionalService(
     undefined,
     ɵSERVICE_NOT_FOUND,
   );
+}
+
+/** @internal What {@link ɵreadServiceMember} answers when the caller must read the generic way. */
+export const ɵSERVICE_MEMBER_UNREAD = Symbol('CraftService.memberUnread');
+
+// Services an injector resolved for direct member reads; null when the
+// injector wraps service resolution, which then always takes the generic way.
+const resolvedForReads = new WeakMap<
+  Injector,
+  Map<ConcreteRuntimeDefinition, unknown> | null
+>();
+
+/**
+ * @internal `yield* Service.member()` without the generator protocol, for
+ * code the build compiled: the service is resolved once per injector (it is
+ * the same instance each time: neither a function-scoped service nor an
+ * injector with service-yield wrappers takes this way), then its member is
+ * returned without invoking it. The caller drives readable members once in
+ * its binding context. Methods and references not owned by Craft answer
+ * {@link ɵSERVICE_MEMBER_UNREAD} without probing their properties.
+ */
+export function ɵreadServiceMember(
+  reference: unknown,
+  key: string,
+  injector: Injector,
+): unknown {
+  if (
+    (typeof reference !== 'function' && typeof reference !== 'object') ||
+    reference === null
+  )
+    return ɵSERVICE_MEMBER_UNREAD;
+  const definition = definitionByReference.get(reference);
+  if (!definition || definition.providedIn === 'function')
+    return ɵSERVICE_MEMBER_UNREAD;
+  let resolved = resolvedForReads.get(injector);
+  if (resolved === undefined) {
+    resolved =
+      injector.get(SERVICE_YIELD_WRAPPER as never, [] as readonly unknown[])
+        .length === 0
+        ? new Map()
+        : null;
+    resolvedForReads.set(injector, resolved);
+  }
+  if (resolved === null) return ɵSERVICE_MEMBER_UNREAD;
+  let service = resolved.get(definition);
+  if (service === undefined && !resolved.has(definition)) {
+    const found = definition;
+    service = injector.run(() => resolveConcreteService(found, injector));
+    resolved.set(definition, service);
+  }
+  const member = Reflect.get(Object(service), key);
+  if (isShortcutMethod(member)) return ɵSERVICE_MEMBER_UNREAD;
+  return member;
 }
 
 function resolveConcreteService(
@@ -4259,9 +4408,19 @@ function createConcreteServiceInstance(
 ): unknown {
   return definition.providedIn === 'global'
     ? ɵrunOutsideScheduledContext(() =>
-        buildConcreteServiceInstance(definition, injector, bindingsOverride, providedConfig),
+        buildConcreteServiceInstance(
+          definition,
+          injector,
+          bindingsOverride,
+          providedConfig,
+        ),
       )
-    : buildConcreteServiceInstance(definition, injector, bindingsOverride, providedConfig);
+    : buildConcreteServiceInstance(
+        definition,
+        injector,
+        bindingsOverride,
+        providedConfig,
+      );
 }
 
 function buildConcreteServiceInstance(
@@ -4919,7 +5078,9 @@ export function ɵprovideHostName(name: string): Provider[] {
       useFactory: () => {
         const parentTags =
           inject(ɵHOST_TAG_LIST, OPTIONAL_FROM_PARENT) ?? NO_HOST_TAGS;
-        const id = (ɵinjectComponentRegister() ?? ɵfallbackComponentRegister).next();
+        const id = (
+          ɵinjectComponentRegister() ?? ɵfallbackComponentRegister
+        ).next();
 
         return [...parentTags, `${name}#${id}`] as readonly string[];
       },
@@ -5030,11 +5191,7 @@ export function ɵhostOwnerTags(injector: Injector): readonly string[] {
 
   if (envOnlyTags.length === 0) return nodeTags;
   return nodeTags.length > 0
-    ? [
-        ...nodeTags.slice(0, -1),
-        ...envOnlyTags,
-        nodeTags[nodeTags.length - 1],
-      ]
+    ? [...nodeTags.slice(0, -1), ...envOnlyTags, nodeTags[nodeTags.length - 1]]
     : envOnlyTags;
 }
 

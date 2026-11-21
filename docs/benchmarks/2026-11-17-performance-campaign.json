@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "goal": "teste et mesure toutes tes pistes",
+  "baseline": "89f1e46de",
+  "status": "active",
+  "protocol": {
+    "isolation": "Candidates are materialized from the baseline in tmp/performance-campaign. Retained local/imported compiler passes are integrated separately; experimental runtime strategies remain isolated.",
+    "contractsBeforeTimings": true,
+    "minimumTimingRuns": 5,
+    "timingBuild": "minified production, fresh browser contexts, seeded interleaving",
+    "metrics": [
+      "mount",
+      "updates",
+      "retained JS heap",
+      "JS/gzip bytes",
+      "build time",
+      "layout/paint where relevant"
+    ],
+    "decisions": [
+      "retained",
+      "rejected",
+      "restricted",
+      "non-equivalent ceiling"
+    ],
+    "completion": "Every item requires tests, measurements or a measured feasibility ceiling, provenance and a documented decision. A count/profile alone is not a timing result."
+  },
+  "items": [
+    {
+      "id": "index-lazy",
+      "title": "Index de liste paresseux",
+      "status": "audited historical measurements",
+      "evidence": "2026-11-17-lazy-list-indexes-summary.json",
+      "decision": "retained only for proven lean lists"
+    },
+    {
+      "id": "effectless-bindings",
+      "title": "Bindings prouvés résolus sans effet éphémère",
+      "status": "measured",
+      "decision": "restricted prototype, not enabled",
+      "evidence": "2026-11-17-performance-campaign-summary.json",
+      "coverage": "Only exact framework constant scalar readers and direct input expressions. Object member reads are intentionally excluded; primitive fixture improves, realistic page does not."
+    },
+    {
+      "id": "scalar-binding-fusion",
+      "title": "Fusion de bindings d'une source scalaire prouvée",
+      "status": "measured",
+      "decision": "non-equivalent ceiling: reject the current prototype; input-reader replacement changes callback granularity and ordinary cases gain no established benefit",
+      "evidence": "2026-11-17-scalar-fusion-summary.json",
+      "coverage": "Consecutive exact reads of renderer-owned numeric indexes or normalized primitive constants. Unknown-reader side effects, DOM observation order, Proxy probes, primitive rebinds, identity and destruction are tested. A reader-replacement counterexample rejects general activation. Ordinary rows, a favorable repeated-index fixture, the realistic page and no-plugin controls are measured."
+    },
+    {
+      "id": "incremental-rebind",
+      "title": "Dépendances d'inputs et rebinds partiels",
+      "status": "measured",
+      "decision": "restricted prototype, not enabled: ordinary row update gain not established and retained heap increases",
+      "evidence": "2026-11-17-incremental-rebind-summary.json",
+      "coverage": "Only proven lean list factories own the input objects. Static dependency analysis, stable primitive index readers, getter refusal, Proxy fallback, DOM observation order and destruction are tested. Standard rows, indexed/nested controls, realistic page and a sixteen-index-cell synthetic control are measured."
+    },
+    {
+      "id": "local-list-specialization",
+      "title": "Listes de composants constants locaux",
+      "status": "measured",
+      "decision": "retained",
+      "evidence": "2026-11-17-performance-campaign-summary.json",
+      "coverage": "Local const components after definite initialization; conservative fallback through hoisted declarations. Default and lean compiler modes retain their existing contracts."
+    },
+    {
+      "id": "imported-list-specialization",
+      "title": "Listes de composants importés et graphe du bundler",
+      "status": "measured",
+      "decision": "retained behind imports: true, default false",
+      "evidence": "2026-11-17-imported-lists-summary.json",
+      "coverage": "Direct named imports of compiled const exports in a proven acyclic loaded application graph. Import aliases, lexical scope, cycle refusal, opt-in, SSR exclusion and real Vite watch rebuilds are tested. Imported 5000-row fixtures improve with lean; the realistic page does not."
+    },
+    {
+      "id": "service-empty-wrapper",
+      "title": "Éviter le contexte de résolution quand il n'y a pas de wrapper",
+      "status": "measured",
+      "decision": "not retained: timing gain not confirmed",
+      "evidence": "2026-11-17-performance-campaign-summary.json"
+    },
+    {
+      "id": "service-request-records",
+      "title": "Records de requêtes et résolveurs partagés",
+      "status": "measured",
+      "decision": "rejected: bound shared resolvers give negligible memory savings and regress focused resolution",
+      "evidence": "2026-11-17-performance-campaign-summary.json"
+    },
+    {
+      "id": "service-marking",
+      "title": "Scans de marquage versionnés sur objets possédés par Craft",
+      "status": "partial",
+      "decision": "two cache prototypes rejected by contracts; owned/versioned design remains pending",
+      "evidence": "2026-11-17-performance-campaign-summary.json"
+    },
+    {
+      "id": "coverage-style-attrs",
+      "title": "Couverture des styles, attrs et helpers de propriétés",
+      "status": "measured",
+      "decision": "retain lean function/generator style bindings and tracked generic styled children; root object/string styles and standard compilation retain generic fallback",
+      "evidence": "2026-11-18-styles-summary.json",
+      "coverage": "Attrs/h and style coverage are measured and integrated with explicit generic fallbacks. Styles: 344 final timed navigations, 40 page confirmations, 139 compiler and 612 component tests, CSS policy/injection/order/cleanup/getter contracts, old-runtime fallback, ordinary three-mode controls and 80 integrated output comparisons. A 264-navigation prototype is rejected by three later contracts. Root object/string styles remain generic; no page coverage gain is claimed.",
+      "followUpEvidence": [
+        "2026-11-18-owned-source-summary.json",
+        "2026-11-18-initial-binding-error-summary.json"
+      ],
+      "previousEvidence": [
+        "2026-11-18-attrs-properties-summary.json",
+        "2026-11-18-owned-source-summary.json",
+        "2026-11-18-initial-binding-error-summary.json"
+      ]
+    },
+    {
+      "id": "coverage-controls",
+      "title": "Couverture des éléments de formulaire",
+      "status": "pending"
+    },
+    {
+      "id": "coverage-multiple-roots",
+      "title": "Plans à plusieurs racines",
+      "status": "measured",
+      "decision": "restricted measured prototype, not integrated: connected-DOM observation differs and ordinary-case overhead needs removal",
+      "evidence": "2026-11-17-multiple-roots-summary.json",
+      "coverage": "Nonempty fixed element/text ranges, nested arrays, scopes, replay identities, owners, range reorders, rebinds, events/holes, cloning and cleanup failures are tested. Favorable standard/lean/list-ablation/clone cohorts, ordinary standard/lean controls, realistic page and no-plugin controls are measured. A connected-DOM counterexample is reproduced against both the prototype and existing compiler."
+    },
+    {
+      "id": "structural-for-if",
+      "title": "forNode et ifNode dans les plans plutôt qu'en trous",
+      "status": "pending"
+    },
+    {
+      "id": "joint-dom-factories",
+      "title": "Fabrique DOM commune parent/enfants avec propriétaires conservés",
+      "status": "pending"
+    },
+    {
+      "id": "inert-fragment-staging",
+      "title": "Insertions groupées des sous-arbres prouvés inertes",
+      "status": "pending"
+    },
+    {
+      "id": "lazy-owner-injector",
+      "title": "Matérialisation paresseuse de l'injecteur, propriétaire logique conservé",
+      "status": "pending"
+    },
+    {
+      "id": "runtime-tree-shaking",
+      "title": "Isoler le support du compilateur du bundle sans plugin",
+      "status": "measured",
+      "decision": "restricted prototype, not enabled: bundle reduction proved; latency is noisy and activation introduces an ESM cycle",
+      "evidence": "2026-11-17-compiler-activation-summary.json",
+      "coverage": "Both compiled component renderer classes and their plan lookup/create helpers disappear without plans and remain with the plugin. Some list bookkeeping remains. Ordinary, lean and standard browser contracts, realistic page, late activation, invalidation, TypeScript and library suites are checked. Bundle reduction is measured; no mounting improvement is established."
+    },
+    {
+      "id": "fallback-specialized-build",
+      "title": "Réduction du template de repli dans un build spécialisé",
+      "status": "pending"
+    },
+    {
+      "id": "compiled-hydration",
+      "title": "Hydratation compilée et récupération des mismatches",
+      "status": "pending"
+    },
+    {
+      "id": "oxc-build",
+      "title": "Parse/bind/emit : intérêt mesuré d'OXC",
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "not retained for the current JavaScript AST pipeline",
+      "coverage": "Thirteen real modules, fully materialized ASTs, seventeen syntax/output contracts, seven fresh processes, compiler stage timings and a measured zero-parser counterfactual. OXC AST incompatibility is tested; no backend migration is claimed."
+    },
+    {
+      "id": "css-content-visibility",
+      "title": "content-visibility et contain-intrinsic-size",
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "restricted; no automatic activation",
+      "coverage": "Fixed-height blocks retain all components and save layout work. A missing offscreen button in the CDP AX tree is reproduced with complete accessibility enabled; focus activates it. Keyboard, window.find, print override and dimensions are tested."
+    },
+    {
+      "id": "css-fixed-table",
+      "title": "table-layout: fixed avec colonnes explicites",
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "restricted application layout policy",
+      "coverage": "Known width and explicit columns reduce layout time on this table. A long-label control proves truncation versus growth; no compiler rewrite is enabled."
+    },
+    {
+      "id": "virtualization",
+      "title": "Fenêtre de lignes visible, composants Craft conservés",
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "restricted benchmark prototype; no public component added",
+      "coverage": "Window plus overscan and pinned focus, with Craft row buttons and global indexes. Offscreen DOM/AX/search/print scope differs; native Tab across a pinned gap skips unmounted rows."
+    },
+    {
+      "id": "progressive-scheduling",
+      "title": "scheduleFor : premier affichage, tâches longues et temps complet",
+      "status": "measured",
+      "evidence": "2026-11-17-collections-and-parser-summary.json",
+      "decision": "measured trade-off; initial-only policy remains a benchmark prototype",
+      "coverage": "Default scheduling, provided FrameForScheduler, and initial-only wrapping of the same FrameForScheduler are interleaved. First rows, full completion, updates, reorder, late append, cancellation and source changes are tested. Total CPU and later long tasks remain visible."
+    },
+    {
+      "id": "existing-compiler-ablation",
+      "title": "Événements/trous, lowering, lectures directes de services, clone/create",
+      "status": "measured",
+      "evidence": "2026-11-17-compiler-ablations-summary.json",
+      "decision": "retain proven lean mechanisms and corrected service reads; create default, clone opt-in",
+      "coverage": "Seven controlled variants, realistic page and 5000-row fixtures, focused service-state updates, no-compiler declaration control, recovered historical raw data, and red/green owner/reader contracts."
+    },
+    {
+      "id": "existing-runtime-ablation",
+      "title": "Nettoyage et raccourci de contexte injecteur",
+      "status": "audited historical measurements",
+      "evidence": "2026-11-17-compiler-followup-summary.json",
+      "decision": "cleanup retained; injector-context shortcut rejected"
+    },
+    {
+      "id": "imperative-retired",
+      "title": "Rendu impératif retiré : observations conservées, sans réintroduction",
+      "status": "audited historical measurements",
+      "evidence": "2026-11-17-imperative-rendering-summary.json",
+      "decision": "removed as requested; measured observations retained"
+    }
+  ],
+  "updatedAt": "2026-11-18T10:03:12.554Z",
+  "progress": {
+    "newItemsMeasured": 16,
+    "partialItems": 1,
+    "historicalItemsAudited": 3,
+    "complete": false
+  }
+}

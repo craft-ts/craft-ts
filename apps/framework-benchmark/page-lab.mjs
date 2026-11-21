@@ -15,6 +15,7 @@
 //   PAGE_CHECK=true|false|only   equivalence check before measuring (only = no timings)
 //   PAGE_COUNT=true|false    component instance counting (instrumented build)
 //   PAGE_CPU=1               CPU throttling rate
+//   PAGE_COMPILER_LABELS=compiled  optional compiler labels (PAGE_COUNT=false)
 //   PAGE_OUTPUT=tmp/perf-lab/page
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -43,6 +44,10 @@ const warmup = 2;
 const throttle = Number(process.env.PAGE_CPU ?? 1);
 const checkMode = process.env.PAGE_CHECK ?? 'true';
 const countMode = (process.env.PAGE_COUNT ?? 'true') === 'true';
+const compilerLabels = new Set((process.env.PAGE_COMPILER_LABELS ?? '').split(',').filter(Boolean));
+// Per-label compiler options, e.g. PAGE_COMPILER_OPTIONS='{"lean":{"lean":true}}'.
+const compilerOptions = JSON.parse(process.env.PAGE_COMPILER_OPTIONS ?? '{}');
+if (compilerLabels.size && countMode) throw new Error('Use PAGE_COUNT=false: instance-counting wrappers disable compiled rendering.');
 const columns = [
   'mount',
   'toggle-one',
@@ -60,6 +65,13 @@ await mkdir(output, { recursive: true });
 const configFile = join(app, 'vite.config.mjs');
 
 async function buildVariant(variant, { minify, count }) {
+  const compilation = [];
+  const compiler = compilerLabels.has(variant.label)
+    ? (await import('../../dist/libs/compiler/src/vite.js')).craftCompiler({
+        ...(compilerOptions[variant.label] ?? {}),
+        onReport: (file, components) => compilation.push({ file, components }),
+      })
+    : undefined;
   const dist = join(
     output,
     'dist',
@@ -68,13 +80,14 @@ async function buildVariant(variant, { minify, count }) {
   await build({
     configFile,
     logLevel: 'error',
-    plugins: count ? [componentCounter()] : [],
+    plugins: [...(compiler ? [compiler] : []), ...(count ? [componentCounter()] : [])],
     resolve: {
-      alias: {
-        '@craft-ts/core': join(variant.root, 'libs/core/src/index.ts'),
-        '@craft-ts/component': join(variant.root, 'libs/component/src/index.ts'),
-        '@craft-ts/style': join(variant.root, 'libs/style/src/index.ts'),
-      },
+      alias: [
+        { find: '@craft-ts/component/compiler-runtime', replacement: join(variant.root, 'libs/component/src/compiler-runtime.ts') },
+        ...['core', 'component', 'style'].map(name => ({
+          find: '@craft-ts/' + name, replacement: join(variant.root, 'libs/' + name + '/src/index.ts'),
+        })),
+      ],
     },
     build: {
       outDir: dist,
@@ -85,6 +98,7 @@ async function buildVariant(variant, { minify, count }) {
       },
     },
   });
+  if (compiler) await writeFile(join(output, variant.label + (minify ? '' : '-plain') + '-compiler.json'), JSON.stringify(compilation, null, 2) + '\n');
   const server = await preview({
     configFile,
     logLevel: 'error',

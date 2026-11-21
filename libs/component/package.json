@@ -40,6 +40,10 @@
     "./testing": {
       "types": "./testing/public-api.d.ts",
       "default": "./testing/public-api.js"
+    },
+    "./compiler-runtime": {
+      "types": "./src/compiler-runtime.d.ts",
+      "default": "./src/compiler-runtime.js"
     }
   }
 }

@@ -3533,6 +3533,70 @@ describe('binding isolation under the application provider set', () => {
 });
 
 describe('reactive forNode indexes', () => {
+  it('starts tracking a saved index first read after several moves', async () => {
+    const items = signal([1, 2, 3]);
+    const showIndex = signal(false);
+    const readers = new Map<number, InputValue<number>>();
+    const templates = vi.fn();
+    const list = craftComponent('lateIndexRead', {}, () =>
+      forNode(items, { track: (item) => item }, (item, index) => {
+        const id = craftUse(item());
+        templates();
+        readers.set(id, index);
+        return p(function* () {
+          return showIndex() ? `${yield* index()}:${id}` : `hidden:${id}`;
+        });
+      }),
+    );
+    const { nativeElement, flush, destroy } = await renderCraftComponent(list);
+    const first = nativeElement.querySelector('p');
+    items.set([3, 1, 2]);
+    items.set([2, 3, 1]);
+    await flush();
+    expect(craftUse(readers.get(1)!())).toBe(2);
+    // A settled invocation captures the position when called, even if its
+    // first next() happens after a move.
+    const invocation = readers.get(3)!();
+    items.set([1, 2, 3]);
+    await flush();
+    expect(craftUse(invocation)).toBe(1);
+    expect(craftUse(readers.get(3)!())).toBe(2);
+    showIndex.set(true);
+    await flush();
+    expect(nativeElement.textContent).toBe('0:11:22:3');
+    items.set([3, 1, 2]);
+    await flush();
+    expect(nativeElement.textContent).toBe('0:31:12:2');
+    expect(nativeElement.querySelectorAll('p')[1]).toBe(first);
+    expect(templates).toHaveBeenCalledTimes(3);
+    destroy();
+  });
+
+  it('keeps an unread removed index separate from a restored key lifetime', async () => {
+    const items = signal([1, 2, 3]);
+    const readers = new Map<number, InputValue<number>>();
+    const list = craftComponent('unreadIndexLifetime', {}, () =>
+      forNode(items, { track: (item) => item }, (item, index) => {
+        const id = craftUse(item());
+        readers.set(id, index);
+        return p(String(id));
+      }),
+    );
+    const { flush, destroy } = await renderCraftComponent(list);
+    const removed = readers.get(2)!;
+    items.set([3, 1, 2]);
+    items.set([3, 1]);
+    await flush();
+    expect(craftUse(removed())).toBe(2);
+    items.set([2, 3, 1]);
+    await flush();
+    expect(readers.get(2)).not.toBe(removed);
+    expect(craftUse(readers.get(2)!())).toBe(0);
+    expect(craftUse(removed())).toBe(2);
+    destroy();
+    expect(craftUse(removed())).toBe(2);
+  });
+
   it('moves keyed children without rerendering rows or their item bindings', async () => {
     const original = [
       { id: 1, name: 'Ada' },

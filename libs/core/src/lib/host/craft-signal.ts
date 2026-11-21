@@ -2,6 +2,7 @@ import {
   computed,
   effect,
   endBatch,
+  getActiveSub,
   setActiveSub,
   signal,
   startBatch,
@@ -113,7 +114,7 @@ function setPrivateCell<T>(this: PrivateCell<T>, next: T): void {
 }
 
 function updatePrivateCell<T>(
-  this: PrivateCell<T>,
+  this: ɵCraftPrivateCell<T>,
   update: (value: T) => T,
 ): void {
   this.set(update(untracked(this)));
@@ -124,6 +125,45 @@ export function ɵcraftPrivateCell<T>(initial: T): ɵCraftPrivateCell<T> {
   const cell = (() => raw().value) as PrivateCell<T>;
   cell.ɵraw = raw;
   cell.set = setPrivateCell;
+  cell.update = updatePrivateCell;
+  return cell;
+}
+
+type LazyPrivateCell<T> = ɵCraftPrivateCell<T> & {
+  ɵraw:
+    | {
+        (): { value: T };
+        (box: { value: T }): void;
+      }
+    | undefined;
+  ɵinitial: T | undefined;
+};
+
+function setLazyPrivateCell<T>(this: LazyPrivateCell<T>, next: T): void {
+  const raw = this.ɵraw;
+  if (raw === undefined) this.ɵinitial = next;
+  else if (!Object.is(untracked(this), next)) raw({ value: next });
+}
+
+/**
+ * A private cell whose kernel node and value box are created on its first read.
+ * set() before a read keeps only the current value; update() reads it untracked,
+ * like an ordinary private cell. Once read, the normal write methods apply.
+ * Useful for optional inputs such as a list index. This stays in the renderer.
+ */
+export function ɵcraftLazyPrivateCell<T>(initial: T): ɵCraftPrivateCell<T> {
+  const cell = (() => {
+    let raw = cell.ɵraw;
+    if (raw === undefined) {
+      raw = cell.ɵraw = signal<{ value: T }>({ value: cell.ɵinitial as T });
+      cell.ɵinitial = undefined;
+      cell.set = setPrivateCell;
+    }
+    return raw().value;
+  }) as LazyPrivateCell<T>;
+  cell.ɵraw = undefined;
+  cell.ɵinitial = initial;
+  cell.set = setLazyPrivateCell;
   cell.update = updatePrivateCell;
   return cell;
 }
@@ -259,6 +299,65 @@ export function ɵcraftDetachedEffect(fn: () => void): () => void {
 }
 
 /**
+ * {@link ɵcraftDetachedEffect} for a renderer binding: when its first run
+ * read no reactive source, nothing can ever run it again, so it is stopped at
+ * once and `undefined` is returned — the binding keeps no subscriber.
+ */
+export function ɵcraftBindingEffect(fn: () => void): (() => void) | undefined {
+  let node: { deps?: unknown } | undefined;
+  let first = true;
+  const previous = setActiveSub();
+  try {
+    const stop = effect(() => {
+      if (first) {
+        first = false;
+        node = getActiveSub() as { deps?: unknown } | undefined;
+      }
+      fn();
+    });
+    if (node !== undefined && node.deps === undefined) {
+      stop();
+      return undefined;
+    }
+    return stop;
+  } finally {
+    setActiveSub(previous);
+  }
+}
+
+let closingBatch = false;
+let pendingBatchEnds = 0;
+
+// Alien's endBatch() publishes synchronously at depth zero. A renderer effect
+// may itself finish a batch while that queue is being drained: calling
+// endBatch() there would recursively drain all the remaining sibling effects.
+// Keep those inner batches open until the current drain returns, then balance
+// every startBatch(), even if an effect failed. No work crosses an async turn.
+function closeCraftBatch(): void {
+  pendingBatchEnds++;
+  if (closingBatch) return;
+  closingBatch = true;
+  let failed = false;
+  let failure: unknown;
+  try {
+    while (pendingBatchEnds) {
+      pendingBatchEnds--;
+      try {
+        endBatch();
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          failure = error;
+        }
+      }
+    }
+  } finally {
+    closingBatch = false;
+  }
+  if (failed) throw failure;
+}
+
+/**
  * Publishes every write made inside `fn` as ONE update: readers and effects run
  * after the last write, never between two of them.
  *
@@ -272,7 +371,7 @@ export function craftBatch<T>(fn: () => T): T {
   try {
     return fn();
   } finally {
-    endBatch();
+    closeCraftBatch();
   }
 }
 
