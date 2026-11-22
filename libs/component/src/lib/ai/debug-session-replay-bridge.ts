@@ -138,6 +138,10 @@ export function provideCraftDebugReplayBridge(
       let releaseHeldLaunchRequests: () => void = () => undefined;
       const liveFetch = globalThis.fetch;
       const session = ɵinjectSendContextSession();
+      // Capture transport definitions while the app initializer still runs in
+      // an injection context. The message handler executes later, from a
+      // window message event, and therefore cannot inject them directly.
+      const replayTransportDefinitions = injectCraftReplayTransports();
       const registry = ɵinjectCraftPrimitiveRegistry();
       const methodReplayRegistry = ɵinjectCraftMethodReplayRegistry();
       const storageRegistry = ɵinjectPersistedStorageSnapshotRegistry();
@@ -270,7 +274,6 @@ export function provideCraftDebugReplayBridge(
             return send(event.origin, 'error', {
               message: 'Session capture is not enabled in this app.',
             });
-          const replayTransportDefinitions = injectCraftReplayTransports();
           const adaptersById = new Map(
             replayTransportDefinitions.map((definition) => [
               definition.id,
