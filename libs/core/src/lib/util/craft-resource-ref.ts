@@ -26,6 +26,8 @@ export type CraftResourceRef<
   snapshot: Signal<ResourceSnapshot<Value | undefined>>;
   hasValue(): boolean;
   reload(): boolean;
+  /** Aborts in-flight work and restores the value/status from before it started. */
+  cancelLoading(): boolean;
   destroy(): void;
   set(value: Value | undefined): void;
   update(update: (value: Value | undefined) => Value | undefined): void;

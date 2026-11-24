@@ -1,5 +1,6 @@
-import { computed, signal } from './host/craft-compat';
+import { computed, signal, type Signal } from './host/craft-compat';
 import { query, ResourceByIdLikeQueryRef } from './query';
+import type { IdentifierQueryInsertionOutput } from './query.core';
 import { craftService } from './craft-service';
 import { craftPipe } from './craft-pipe';
 import { ResourceByIdRef } from './resource-by-id';
@@ -24,7 +25,7 @@ import { craftUse } from './craft-use';
 import { craftGen } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
 import { craftUntilSettled } from './craft-until-settled';
-import { insertQueryPipe } from './insert-typed-pipes';
+import { insertByIdentifierQuery, insertQueryPipe } from './insert-typed-pipes';
 import {
   insertDeepYieldableValue,
   type YieldableReactiveProperties,
@@ -421,6 +422,207 @@ describe('query', () => {
 });
 
 describe('query with identifier>', () => {
+  it('adds identifier insertions only to selected resources in either pipe order', async () => {
+    await runInInjectionContext(async () => {
+      const perIdentifier = insertByIdentifierQuery<
+        {
+          undo: () => boolean;
+          identifierLabel: string;
+          derivedId: Signal<string>;
+        },
+        string,
+        { id: string },
+        { id: string }
+      >(function* ({ id, params, resource }) {
+        expectTypeOf(id).toEqualTypeOf<string>();
+        expectTypeOf(params).toEqualTypeOf<
+          Signal<{ id: string } | undefined>
+        >();
+        expectTypeOf(resource.cancelLoading).toBeFunction();
+        return {
+          undo: () => resource.cancelLoading(),
+          identifierLabel: id,
+          derivedId: computed(() => id),
+        };
+      });
+      const globalInsertion = () => ({ globalMarker: true });
+      expectTypeOf<ReturnType<typeof perIdentifier>>().toEqualTypeOf<
+        IdentifierQueryInsertionOutput<{
+          undo: () => boolean;
+          identifierLabel: string;
+          derivedId: Signal<string>;
+        }>
+      >();
+      const direct = craftUse(
+        query(
+          'identifierDirect',
+          {
+            params: () => ({ id: 'identifierDirect' }),
+            identifier: (params) => params.id,
+            loader: async ({ params }) => ({ id: params.id }),
+          },
+          perIdentifier,
+        ),
+      );
+      expectTypeOf(direct.select('identifierDirect')!.undo).toBeFunction();
+      expectTypeOf(direct.select('identifierDirect')!.derivedId).toBeFunction();
+      const perIdentifierFirst = craftUse(
+        query(
+          'identifierFirst',
+          {
+            params: () => ({ id: 'identifierFirst' }),
+            identifier: (params) => params.id,
+            loader: async ({ params }) => ({ id: params.id }),
+          },
+          insertQueryPipe(perIdentifier, globalInsertion),
+        ),
+      );
+      const globalFirst = craftUse(
+        query(
+          'globalFirst',
+          {
+            params: () => ({ id: 'globalFirst' }),
+            identifier: (params) => params.id,
+            loader: async ({ params }) => ({ id: params.id }),
+          },
+          insertQueryPipe(globalInsertion, perIdentifier),
+        ),
+      );
+      await vi.runAllTimersAsync();
+
+      expect('undo' in perIdentifierFirst).toBe(false);
+      expect('globalMarker' in perIdentifierFirst).toBe(true);
+      expectTypeOf(perIdentifierFirst).not.toHaveProperty('undo');
+      expect(
+        perIdentifierFirst.select('identifierFirst')?.identifierLabel,
+      ).toBe('identifierFirst');
+      expect(
+        craftUse(perIdentifierFirst.select('identifierFirst')!.derivedId()),
+      ).toBe('identifierFirst');
+      expect(
+        craftUse(perIdentifierFirst.select('identifierFirst')!.undo()),
+      ).toBe(false);
+      expect(globalFirst.select('globalFirst')?.identifierLabel).toBe(
+        'globalFirst',
+      );
+      expect('globalMarker' in globalFirst).toBe(true);
+      expect(craftUse(globalFirst.select('globalFirst')!.undo())).toBe(false);
+
+      const created = perIdentifierFirst.selectOrCreate('created');
+      expect(created.identifierLabel).toBe('created');
+      perIdentifierFirst.resetResource('identifierFirst');
+      expect(perIdentifierFirst.select('identifierFirst')).toBeUndefined();
+      expect(
+        perIdentifierFirst.selectOrCreate('identifierFirst').identifierLabel,
+      ).toBe('identifierFirst');
+    });
+  });
+
+  it('cancels only the selected identifier and restores its prior value', async () => {
+    await runInInjectionContext(async () => {
+      const params = signal({ id: 'A' });
+      const requests: Array<{
+        id: string;
+        version: number;
+        signal: AbortSignal;
+        resolve: (value: { id: string; version: number }) => void;
+      }> = [];
+      const versions = new Map<string, number>();
+      const queryRef = craftUse(
+        query(
+          'cancelByIdentifier',
+          {
+            params: () => params(),
+            identifier: (request) => request.id,
+            loader: ({ params, abortSignal }) =>
+              new Promise<{ id: string; version: number }>((resolve) => {
+                const version = (versions.get(params.id) ?? 0) + 1;
+                versions.set(params.id, version);
+                requests.push({
+                  id: params.id,
+                  version,
+                  signal: abortSignal,
+                  resolve,
+                });
+              }),
+          },
+          insertByIdentifierQuery<
+            { undo: () => boolean },
+            string,
+            { id: string; version: number },
+            { id: string }
+          >(({ id, params, resource }) => {
+            expectTypeOf(id).toEqualTypeOf<string>();
+            expectTypeOf(params).toEqualTypeOf<
+              Signal<{ id: string } | undefined>
+            >();
+            expectTypeOf(resource.value).toEqualTypeOf<
+              Signal<{ id: string; version: number } | undefined>
+            >();
+            return { undo: () => resource.cancelLoading() };
+          }),
+        ),
+      );
+
+      const initialA = requests.find((request) => request.id === 'A')!;
+      initialA.resolve({ id: 'A', version: initialA.version });
+      await vi.runAllTimersAsync();
+      expect(craftUse(queryRef.select('A')!.status())).toBe('resolved');
+
+      craftUse(queryRef._resourceById())['A']!.reload();
+      params.set({ id: 'B' });
+      const reloadA = requests.find(
+        (request) => request.id === 'A' && request.version === 2,
+      )!;
+      const firstB = requests.find((request) => request.id === 'B')!;
+      const selectedA = queryRef.select('A')!;
+      const selectedB = queryRef.select('B')!;
+
+      expect(craftUse(selectedA.status())).toBe('reloading');
+      expect(craftUse(selectedB.status())).toBe('loading');
+      expect(craftUse(selectedA.undo())).toBe(true);
+      expect(craftUse(selectedA.status())).toBe('resolved');
+      expect(craftUse(selectedA.value())).toEqual({ id: 'A', version: 1 });
+      expect(craftUse(selectedB.status())).toBe('loading');
+      expect(reloadA.signal.aborted).toBe(true);
+      expect(firstB.signal.aborted).toBe(false);
+
+      reloadA.resolve({ id: 'A', version: 2 });
+      firstB.resolve({ id: 'B', version: 1 });
+      await vi.runAllTimersAsync();
+
+      expect(craftUse(selectedA.status())).toBe('resolved');
+      expect(craftUse(selectedA.value())).toEqual({ id: 'A', version: 1 });
+      expect(craftUse(selectedB.value())).toEqual({ id: 'B', version: 1 });
+    });
+  });
+
+  it('rejects identifier-only insertions on ungrouped queries', () => {
+    runInInjectionContext(() => {
+      query(
+        'ungroupedIdentifierInsertion',
+        // @ts-expect-error this insertion requires an identifier query
+        {
+          params: () => 'item',
+          loader: async ({ params }) => ({ id: params }),
+        },
+        insertByIdentifierQuery(() => ({ onlyOnSelection: true })),
+      );
+      query(
+        'ungroupedIdentifierPipe',
+        // @ts-expect-error a mixed insertion pipe also requires identifier
+        {
+          params: () => 'item',
+          loader: async ({ params }) => ({ id: params }),
+        },
+        insertQueryPipe(
+          insertByIdentifierQuery(() => ({ onlyOnSelection: true })),
+          () => ({ global: true }),
+        ),
+      );
+    });
+  });
+
   it('deepens the resolved value for a regular query', async () => {
     await runInInjectionContext(async () => {
       const queryRef = craftUse(

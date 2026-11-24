@@ -52,9 +52,19 @@ export function craftResource<Value, Params>(
   let requestVersion = 0;
   let abortController: AbortController | undefined;
   let stopStream: (() => void) | undefined;
+  let requestActive = false;
+  let previousRequestState:
+    | {
+        value: Value | undefined;
+        status: ResourceStatus;
+        error: Error | undefined;
+      }
+    | undefined;
 
   const finishWithError = (version: number, error: unknown): void => {
     if (destroyed || version !== requestVersion) return;
+    requestActive = false;
+    previousRequestState = undefined;
     craftBatch(() => {
       valueState.set(undefined);
       errorState.set(error instanceof Error ? error : new Error(String(error)));
@@ -72,6 +82,9 @@ export function craftResource<Value, Params>(
     ) {
       if (owner.destroyed) return;
     }
+    const stateBeforeActiveLoad = requestActive
+      ? previousRequestState
+      : undefined;
     abortController?.abort();
     stopStream?.();
     stopStream = undefined;
@@ -79,6 +92,12 @@ export function craftResource<Value, Params>(
     abortController = controller;
     const version = ++requestVersion;
     const previousStatus = statusState();
+    previousRequestState = stateBeforeActiveLoad ?? {
+      value: valueState(),
+      status: previousStatus,
+      error: errorState(),
+    };
+    requestActive = true;
     // One transition, one notification. These writes describe a single state,
     // and every write notifies synchronously — a reader let in between them
     // sees a resource half in its old state and half in its new one, and code
@@ -96,7 +115,11 @@ export function craftResource<Value, Params>(
     // Loaders remain application logic during replay. Their external effects
     // are replaced at the transport boundary (CraftHttpClient / fetch), while
     // writing a recorded primitive snapshot must not start another load.
-    if (ɵisCraftRestoringState()) return;
+    if (ɵisCraftRestoringState()) {
+      requestActive = false;
+      previousRequestState = undefined;
+      return;
+    }
     const loaderParams: ResourceLoaderParams<Params> = {
       params: params as Exclude<Params, undefined>,
       abortSignal: controller.signal,
@@ -124,6 +147,8 @@ export function craftResource<Value, Params>(
             valueState.set(value);
             statusState.set('resolved');
           });
+          requestActive = false;
+          previousRequestState = undefined;
         },
         (error) => finishWithError(version, error),
       );
@@ -191,6 +216,8 @@ export function craftResource<Value, Params>(
     // not reload over it" — and it is the same statement here.
     if (ɵisCraftRestoringState()) return;
     if (params === undefined) {
+      requestActive = false;
+      previousRequestState = undefined;
       stopStream?.();
       stopStream = undefined;
       abortController?.abort();
@@ -268,6 +295,8 @@ export function craftResource<Value, Params>(
   const destroy = (): void => {
     if (destroyed) return;
     destroyed = true;
+    requestActive = false;
+    previousRequestState = undefined;
     ++requestVersion;
     const releaseStream = stopStream;
     stopStream = undefined;
@@ -286,6 +315,8 @@ export function craftResource<Value, Params>(
     ]);
   };
   const publish = (next: Value | undefined, status: ResourceStatus): void => {
+    requestActive = false;
+    previousRequestState = undefined;
     abortController?.abort();
     stopStream?.();
     stopStream = undefined;
@@ -312,6 +343,8 @@ export function craftResource<Value, Params>(
    */
   const restore = (next: Value | undefined): void => publish(next, 'resolved');
   const restoreError = (nextError: unknown): void => {
+    requestActive = false;
+    previousRequestState = undefined;
     abortController?.abort();
     stopStream?.();
     stopStream = undefined;
@@ -338,6 +371,22 @@ export function craftResource<Value, Params>(
     startLoad(currentParams, true);
     return true;
   };
+  const cancelLoading = (): boolean => {
+    if (destroyed || !requestActive || !previousRequestState) return false;
+    requestActive = false;
+    const previous = previousRequestState;
+    previousRequestState = undefined;
+    ++requestVersion;
+    abortController?.abort();
+    stopStream?.();
+    stopStream = undefined;
+    craftBatch(() => {
+      valueState.set(previous.value);
+      errorState.set(previous.error);
+      statusState.set(previous.status);
+    });
+    return true;
+  };
 
   const resourceRef = {
     value,
@@ -350,6 +399,7 @@ export function craftResource<Value, Params>(
     error,
     isLoading: publicIsLoading,
     reload,
+    cancelLoading,
     destroy,
     update,
     set,

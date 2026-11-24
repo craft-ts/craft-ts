@@ -72,6 +72,7 @@ export function preservedResource<T, R>(
     ).error,
     isLoading: original.isLoading,
     reload: original.reload.bind(original),
+    cancelLoading: original.cancelLoading.bind(original),
     destroy,
     update: original.update.bind(original),
     set: original.set.bind(original),

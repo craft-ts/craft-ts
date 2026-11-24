@@ -34,6 +34,62 @@ import type {
 } from './reactive-read';
 import type { CraftSettledYieldableValue } from './craft-settled';
 
+/** @internal Marks outputs and factories that belong to one query identifier. */
+export const ɵIDENTIFIER_QUERY_INSERTION = Symbol.for(
+  'craft.identifier-query-insertion',
+);
+
+export type IdentifierQueryInsertionOutput<Outputs> = {
+  readonly [ɵIDENTIFIER_QUERY_INSERTION]: Outputs;
+};
+
+export type GlobalQueryInsertionOutput<Outputs> = Outputs extends {
+  readonly [ɵIDENTIFIER_QUERY_INSERTION]: infer PerIdentifierOutputs;
+}
+  ? Omit<
+      Outputs,
+      typeof ɵIDENTIFIER_QUERY_INSERTION | keyof PerIdentifierOutputs
+    >
+  : Omit<Outputs, typeof ɵIDENTIFIER_QUERY_INSERTION>;
+
+export type PerIdentifierQueryInsertionOutput<Outputs> = Outputs extends {
+  readonly [ɵIDENTIFIER_QUERY_INSERTION]: infer PerIdentifierOutputs;
+}
+  ? PerIdentifierOutputs
+  : {};
+
+export type IdentifierQueryInsertionContext<
+  GroupIdentifier extends string = string,
+  ResourceState extends object | undefined = any,
+  ResourceParams = any,
+> = {
+  /** Identifier used to select this resource. */
+  id: GroupIdentifier;
+  /** Current params signal for this resource instance. */
+  params: Signal<ResourceParams | undefined>;
+  /** Resource ref belonging only to this identifier. */
+  resource: CraftResourceRef<ResourceState, ResourceParams>;
+};
+
+export type IdentifierQueryInsertionFactory<
+  GroupIdentifier extends string,
+  ResourceState extends object | undefined,
+  ResourceParams,
+  Outputs,
+> = ((
+  context: InsertionByIdParams<any, any, any, any, any, any>,
+) => IdentifierQueryInsertionOutput<Outputs>) & {
+  readonly [ɵIDENTIFIER_QUERY_INSERTION]: {
+    readonly factories: readonly ((
+      context: IdentifierQueryInsertionContext<
+        GroupIdentifier,
+        ResourceState,
+        ResourceParams
+      >,
+    ) => Outputs | Generator<unknown, Outputs, unknown>)[];
+  };
+};
+
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
   onSameUrlNavigation?: 'reload' | 'ignore';
@@ -593,12 +649,14 @@ export type InsertionParams<
     Exceptions['params'] | Exceptions['loader']
   >;
   set: YieldableInsertionWrite<[newState: ResourceState], ResourceState>;
-  update: YieldableInsertionWrite<[
-    updateFn: (currentState: ResourceState) => ResourceState,
-  ], ResourceState>;
-  patch: YieldableInsertionWrite<[
-    patchFn: (currentState: ResourceState) => Partial<ResourceState>,
-  ], ResourceState>;
+  update: YieldableInsertionWrite<
+    [updateFn: (currentState: ResourceState) => ResourceState],
+    ResourceState
+  >;
+  patch: YieldableInsertionWrite<
+    [patchFn: (currentState: ResourceState) => Partial<ResourceState>],
+    ResourceState
+  >;
   /**
    * Re-runs the loader with the params in force. Resolves to `false` when
    * there is nothing to reload (no request yet, or the resource is destroyed).
@@ -608,6 +666,8 @@ export type InsertionParams<
    * `() => ({ reload: () => reload() })`.
    */
   reload: YieldableInsertionWrite<[], boolean>;
+  /** Cancels this query's active load without starting another one. */
+  cancelLoading: YieldableInsertionWrite<[], boolean>;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
@@ -701,12 +761,14 @@ export type InsertionByIdParams<
     Exceptions['params'] | Exceptions['loader']
   >;
   set: YieldableInsertionWrite<[newState: ResourceState], ResourceState>;
-  update: YieldableInsertionWrite<[
-    updateFn: (currentState: ResourceState) => ResourceState,
-  ], ResourceState>;
-  patch: YieldableInsertionWrite<[
-    patchFn: (currentState: ResourceState) => Partial<ResourceState>,
-  ], ResourceState>;
+  update: YieldableInsertionWrite<
+    [updateFn: (currentState: ResourceState) => ResourceState],
+    ResourceState
+  >;
+  patch: YieldableInsertionWrite<
+    [patchFn: (currentState: ResourceState) => Partial<ResourceState>],
+    ResourceState
+  >;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
@@ -753,18 +815,22 @@ export type InsertionByIdParams<
     'exceptions'
   >;
   identifier: (params: NonNullable<ResourceParams>) => GroupIdentifier;
+  /** Cancels the active load for one identifier, without starting another one. */
+  cancelLoading: (id: GroupIdentifier) => YieldableInvocation<never, boolean>;
 };
 
 export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
   {
     state: YieldableReactiveValue<StateType, 'state'>;
     set: YieldableInsertionWrite<[newState: StateType], StateType>;
-    update: YieldableInsertionWrite<[
-      updateFn: (currentState: StateType) => StateType,
-    ], StateType>;
-    patch: YieldableInsertionWrite<[
-      patchFn: (currentState: StateType) => Partial<StateType>,
-    ], StateType>;
+    update: YieldableInsertionWrite<
+      [updateFn: (currentState: StateType) => StateType],
+      StateType
+    >;
+    patch: YieldableInsertionWrite<
+      [patchFn: (currentState: StateType) => Partial<StateType>],
+      StateType
+    >;
     insertions: keyof PreviousInsertionsOutputs extends string
       ? YieldableInsertionMethods<PreviousInsertionsOutputs>
       : never;

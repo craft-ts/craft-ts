@@ -18,6 +18,10 @@ import {
 import { ɵoutsideBehaviorProof } from './behavior-proof-recorder';
 import {
   InsertionsResourcesFactory,
+  InsertionByIdParams,
+  GlobalQueryInsertionOutput,
+  PerIdentifierQueryInsertionOutput,
+  ɵIDENTIFIER_QUERY_INSERTION,
   ResourceExceptionConstraints,
 } from './query.core';
 import {
@@ -513,7 +517,8 @@ export type ResourceLikeQueryRef<
     [
       {
         // `reload` is deliberately absent: it is a private write of the
-        // insertion context, published (or not) by an insertion.
+        // insertion context, published (or not) by an insertion. `cancelLoading`
+        // remains available on the query itself.
         readonly resource: Omit<
           CraftResourceRef<
             Value,
@@ -526,6 +531,8 @@ export type ResourceLikeQueryRef<
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
+        /** Cancels this query instance's active load and restores its prior state. */
+        cancelLoading(): boolean;
         hasValue(): boolean;
         /**
          * The settled read: never `undefined`, never a value while an exception
@@ -550,7 +557,9 @@ export type ResourceLikeQueryRef<
         : {
             source: ReadonlySource<SourceParams>;
           },
-      YieldableInsertionMethods<Insertions>,
+      YieldableInsertionMethods<
+        BrandReactiveProperties<GlobalQueryInsertionOutput<Insertions>>
+      >,
       ResourceLikeExceptions<QueryException>,
       {
         [key in `~InternalType`]: 'Used to avoid TS type erasure';
@@ -590,13 +599,18 @@ export type ResourceByIdLikeQueryRef<
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
+        /** Cancels this query instance's active load and restores its prior state. */
+        cancelLoading(): boolean;
         hasValue(): boolean;
         readonly settledValue: CraftSettledSignal<
           Exclude<Value, undefined>,
           Name,
           ResourceLikeExceptionUnion<QueryException, GroupIdentifier>
         >;
-      } & ResourceLikeExceptions<QueryException, GroupIdentifier>) // todo exception params should be display outside
+      } & ResourceLikeExceptions<QueryException, GroupIdentifier> &
+        YieldableInsertionMethods<
+          BrandReactiveProperties<PerIdentifierQueryInsertionOutput<Insertions>>
+        >) // todo exception params should be display outside
     | undefined;
   /**
    * Get the associated resource by id, creating an idle resource when it does
@@ -606,16 +620,23 @@ export type ResourceByIdLikeQueryRef<
     readonly value: Signal<Value | undefined>;
     readonly status: Signal<CraftResourceStatus>;
     readonly isLoading: Signal<boolean>;
+    /** Cancels this query instance's active load and restores its prior state. */
+    cancelLoading(): boolean;
     hasValue(): boolean;
     readonly settledValue: CraftSettledSignal<
       Exclude<Value, undefined>,
       Name,
       ResourceLikeExceptionUnion<QueryException, GroupIdentifier>
     >;
-  } & ResourceLikeExceptions<QueryException, GroupIdentifier>;
+  } & ResourceLikeExceptions<QueryException, GroupIdentifier> &
+    YieldableInsertionMethods<
+      BrandReactiveProperties<PerIdentifierQueryInsertionOutput<Insertions>>
+    >;
 } & MergeObjects<
     [
-      YieldableInsertionMethods<Insertions>,
+      YieldableInsertionMethods<
+        BrandReactiveProperties<GlobalQueryInsertionOutput<Insertions>>
+      >,
       IsMethod extends true
         ? {
             call: (
@@ -743,7 +764,7 @@ export type QueryOutput<
     State,
     Params,
     ArgParams,
-    YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
+    Insertions,
     [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
     SourceParams,
     GroupIdentifier,
@@ -1232,6 +1253,15 @@ export function query<
  * Use `select(id)` to access individual query instances.
  * Use `selectOrCreate(id)` to access an instance, creating it when it does not exist yet.
  *
+ * **Canceling a load:**
+ * `cancelLoading()` aborts the active request and restores the state captured
+ * immediately before that load started. It does not start another load, unlike
+ * `reload()`. With no previous value, a first load returns to `idle`; when a
+ * resolved or local value existed before loading, that value remains and the
+ * status returns to `resolved` or `local` according to its origin. The loader's
+ * `abortSignal` is aborted and an active stream is stopped. For queries with an
+ * `identifier`, call `select(id).cancelLoading()` to cancel only that instance.
+ *
  * **Caching & Performance:**
  * - Use `preservePreviousValue: () => true` to prevent flickering by keeping previous data while loading
  * - Use `equalParams` to control when queries should re-execute based on params comparison
@@ -1251,7 +1281,7 @@ export function query<
  *   - `equalParams` (optional): Controls params comparison ('default' | 'useIdentifier' | custom function)
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query.
- *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`, `reload`). `reload` stays private to insertions: publish it from an insertion (`({ reload }) => ({ reload: () => reload() })`) to make it public.
+ *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`, `reload`, `cancelLoading`). These methods stay private to insertions unless an insertion publishes them.
  *   To attach several insertions, compose them with `insertQueryPipe`:
  *   `query('name', config, insertQueryPipe(insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
@@ -1263,10 +1293,11 @@ export function query<
  *   - `exceptions`: Signal with the captured exceptions (`list` / `params` / `loader`)
  *   - `hasException()`: Signal indicating whether an exception is captured
  *   - `isLoading`: Signal indicating if the query is currently executing
+ *   - `cancelLoading()`: Aborts the active load and restores the value/status from before it began. It does not start another load. With an identifier, use it on the selected instance.
  *   - `hasValue()`: Method to check if a value is available
  *   - `call(args)`: Method to trigger the query manually (only for method-based queries)
  *   - `source`: The connected source (only for source-based queries)
- *   - `select(id)`: Method to access a specific query instance by ID (only when identifier is provided)
+ *   - `select(id)`: Method to access a specific query instance by ID (only when identifier is provided); call `select(id).cancelLoading()` to cancel that instance
  *   - `selectOrCreate(id)`: Method to access or create a specific query instance (only when identifier is provided)
  *   - `resourceParamsSrc`: The underlying params signal
  *   - Custom methods from insertions
@@ -1613,6 +1644,85 @@ export function query<
   >
 >;
 
+/** Params based query overload for per-identifier insertion outputs. */
+export function query<
+  Name extends string,
+  Params,
+  State extends object | undefined,
+  GroupIdentifier extends string,
+  Insertions extends { readonly [ɵIDENTIFIER_QUERY_INSERTION]: unknown },
+>(
+  name: Name,
+  queryConfig: Omit<
+    ResourceOptions<NoInfer<State>, Params>,
+    'params' | 'loader' | 'method'
+  > & {
+    params: () => Params;
+    identifier: (params: NonNullable<Params>) => GroupIdentifier;
+    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
+    [key: string]: unknown;
+  },
+  insertion: (
+    context: InsertionByIdParams<any, any, any, any, any, any>,
+  ) => Insertions,
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    StripCraftException<State>,
+    StripCraftException<Params>,
+    unknown,
+    StripCraftException<Params>,
+    GroupIdentifier,
+    Insertions,
+    ResourceExceptionConstraints,
+    {},
+    false,
+    never,
+    Name
+  >
+>;
+/** Accepts a composed pipe that carries per-identifier insertion outputs. */
+export function query<
+  Name extends string,
+  Params,
+  State extends object | undefined,
+  GroupIdentifier extends string,
+  Insertions extends { readonly [ɵIDENTIFIER_QUERY_INSERTION]: unknown },
+>(
+  name: Name,
+  queryConfig: Omit<
+    ResourceOptions<NoInfer<State>, Params>,
+    'params' | 'loader' | 'method'
+  > & {
+    params: () => Params;
+    identifier: (params: NonNullable<Params>) => GroupIdentifier;
+    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
+    [key: string]: unknown;
+  },
+  insertion: ((
+    context: any,
+  ) => Insertions | Generator<unknown, Insertions, unknown>) & {
+    readonly [ɵIDENTIFIER_QUERY_INSERTION]: {
+      readonly factories: readonly ((context: any) => unknown)[];
+    };
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    StripCraftException<State>,
+    StripCraftException<Params>,
+    unknown,
+    StripCraftException<Params>,
+    GroupIdentifier,
+    Insertions,
+    ResourceExceptionConstraints,
+    {},
+    false,
+    never,
+    Name
+  >
+>;
+
 export function query(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1744,6 +1854,11 @@ function createQueryRef<
 
   const isConnectedToSource = isSignal(queryConfig.method);
   const isUsingIdentifier = 'identifier' in queryConfig;
+  const identifierInsertionFactories = insertions.flatMap((insertion) =>
+    typeof insertion === 'function'
+      ? (Reflect.get(insertion, ɵIDENTIFIER_QUERY_INSERTION)?.factories ?? [])
+      : [],
+  );
 
   const methodParamsException = signal<AnyCraftException | undefined>(
     undefined,
@@ -2196,6 +2311,124 @@ function createQueryRef<
     ? computed(() => ({ ...exceptions(), parse: schemaParse() }))
     : exceptions;
 
+  const identifierInsertionResults = new WeakMap<object, object>();
+  const applyIdentifierInsertions = (
+    selectedResource: CraftResourceRef<QueryState, QueryParams>,
+    id: GroupIdentifier,
+  ): CraftResourceRef<QueryState, QueryParams> => {
+    if (!identifierInsertionFactories.length) return selectedResource;
+    const cached = identifierInsertionResults.get(selectedResource as object);
+    if (cached) {
+      Object.assign(selectedResource, cached);
+      return selectedResource;
+    }
+
+    const insertionOutputs: Record<string, unknown> = {};
+    for (const factory of identifierInsertionFactories) {
+      const rawResult = ɵoutsideBehaviorProof(() =>
+        executeGeneratorCompatibleFactory({
+          factory: factory as (context: unknown) => Record<string, unknown>,
+          thisArg: undefined,
+          getInjector,
+          args: [
+            {
+              id,
+              params: selectedResource.paramSrc,
+              resource: createYieldableReactiveFacade(selectedResource, {
+                name: 'resource',
+                primitive: 'query',
+                path: `${name}.select.${String(id)}.resource`,
+              }),
+              insertions: insertionOutputs,
+            },
+          ],
+          invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+        }),
+      );
+      const wrappedResult = Object.entries(rawResult ?? {}).reduce(
+        (wrappedAcc, [key, value]) => {
+          if (
+            typeof value === 'function' &&
+            !isSignal(value) &&
+            !isYieldableReactiveValue(value) &&
+            !isNonYieldableInsertionMethod(value)
+          ) {
+            const methodInjector = ɵcreateHostTaggedInjector(
+              getInjector(),
+              `method:${key}`,
+              [
+                ɵprovidePrimitiveMethodRuntimeContext(
+                  'query',
+                  {
+                    state: selectedResource.state,
+                    set: selectedResource.set,
+                    update: selectedResource.update,
+                    patch: (patchFn) =>
+                      selectedResource.update((current: any) => ({
+                        ...current,
+                        ...patchFn(current),
+                      })),
+                  },
+                  value as (...args: never[]) => unknown,
+                ),
+              ],
+            );
+            const wrappedFn = runInInjectionContext(methodInjector, () =>
+              injectFnWrapper()(value as (...args: unknown[]) => unknown),
+            );
+            const exposedMethod = createYieldableInsertionMethod(wrappedFn, {
+              injector: methodInjector,
+              invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            });
+            ɵregisterCraftReplayMethod(methodInjector, (_receiver, args) => {
+              const result = runInInjectionContext(methodInjector, () =>
+                exposedMethod(...args),
+              );
+              return isGenerator(result)
+                ? runCraftGenerator({
+                    iterator: result,
+                    injector: methodInjector,
+                    hostScope: 'function',
+                    invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      QUERY_APP_START_ERROR_MESSAGE,
+                  }).value
+                : result;
+            });
+            wrappedAcc[key] = exposedMethod;
+          } else {
+            const namedValue = nameInsertedReactiveValue(
+              value,
+              key,
+              'query',
+              `${name}.select.${String(id)}.${key}`,
+            );
+            wrappedAcc[key] = createYieldableReactiveFacade(namedValue, {
+              name: key,
+              primitive: 'query',
+              insertion: key,
+              path: `${name}.select.${String(id)}.${key}`,
+            });
+          }
+          return wrappedAcc;
+        },
+        {} as Record<string, unknown>,
+      );
+      Object.assign(insertionOutputs, wrappedResult);
+    }
+    identifierInsertionResults.set(
+      selectedResource as object,
+      insertionOutputs,
+    );
+    Object.assign(selectedResource, insertionOutputs);
+    return selectedResource;
+  };
+
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup
@@ -2247,7 +2480,7 @@ function createQueryRef<
                   : selectExceptions,
               });
               attachCraftSettledValue(name, result);
-              return result;
+              return applyIdentifierInsertions(result, id);
             })();
           },
           selectOrCreate: (id: GroupIdentifier) => {
@@ -2281,7 +2514,7 @@ function createQueryRef<
                 : selectExceptions,
             });
             attachCraftSettledValue(name, result);
-            return result;
+            return applyIdentifierInsertions(result, id);
           },
         }
       : {},
@@ -2447,6 +2680,22 @@ function createQueryRef<
     resourceTarget as { reload?: () => boolean }
   ).reload?.bind(resourceTarget);
   const rawResourceReload = (): boolean => resourceReloadFn?.() ?? false;
+  const rawResourceCancelLoading = (id?: GroupIdentifier): boolean => {
+    if (isUsingIdentifier) {
+      if (id == null) return false;
+      const selected = (
+        resourceTarget as ResourceByIdRef<
+          GroupIdentifier & string,
+          QueryState,
+          QueryParams
+        >
+      )()[id as GroupIdentifier & string];
+      return selected?.cancelLoading() ?? false;
+    }
+    return (
+      resourceTarget as CraftResourceRef<QueryState, QueryParams>
+    ).cancelLoading();
+  };
 
   const publicQueryContext = createYieldableReactiveFacade(
     queryOutputWithoutInsertions,
@@ -2481,8 +2730,15 @@ function createQueryRef<
         },
       );
 
+  const rootInsertions = insertions.map((insertion) =>
+    typeof insertion === 'function' &&
+    Reflect.has(insertion, ɵIDENTIFIER_QUERY_INSERTION) &&
+    Reflect.get(insertion, ɵIDENTIFIER_QUERY_INSERTION)?.pipe !== true
+      ? () => ({})
+      : insertion,
+  );
   const insertionsResult = (
-    insertions as InsertionsResourcesFactory<
+    rootInsertions as InsertionsResourcesFactory<
       NoInfer<GroupIdentifier>,
       NoInfer<StripCraftException<QueryState>>,
       NoInfer<StripCraftException<QueryParams>>,
@@ -2530,6 +2786,10 @@ function createQueryRef<
                   })),
                 ),
               reload: () => yieldableInvocation(rawResourceReload()),
+              cancelLoading: isUsingIdentifier
+                ? (id: GroupIdentifier) =>
+                    yieldableInvocation(rawResourceCancelLoading(id))
+                : () => yieldableInvocation(rawResourceCancelLoading()),
               __primitiveKind: 'query',
             } as any,
           ],

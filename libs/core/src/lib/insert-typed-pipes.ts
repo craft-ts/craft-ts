@@ -4,8 +4,13 @@ import type {
   InsertionsQueryParamsFactory,
   InsertionsResourcesFactory,
   InsertionsStateFactory,
+  IdentifierQueryInsertionContext,
+  IdentifierQueryInsertionFactory,
+  IdentifierQueryInsertionOutput,
+  InsertionByIdParams,
   ResourceExceptionConstraints,
 } from './query.core';
+import { ɵIDENTIFIER_QUERY_INSERTION } from './query.core';
 import type { CraftMachineInsertionContext } from './craft-state-machine';
 import {
   DEEP_YIELDABLE_INSERTION,
@@ -35,12 +40,35 @@ type QueryPipeFactory<
 type AnyInsertionFactory = (context: any) => any;
 
 function createTypedInsertionPipe(...members: AnyInsertionFactory[]) {
+  const identifierFactories = members.flatMap((member) =>
+    typeof member === 'function'
+      ? (Reflect.get(member, ɵIDENTIFIER_QUERY_INSERTION)?.factories ?? [])
+      : [],
+  );
+  const regularMembers = members.filter(
+    (member) => {
+      if (
+        typeof member !== 'function' ||
+        !Reflect.has(member, ɵIDENTIFIER_QUERY_INSERTION)
+      ) {
+        return true;
+      }
+      return Reflect.get(member, ɵIDENTIFIER_QUERY_INSERTION)?.pipe === true;
+    },
+  );
   const pipe = (context: any) => {
     // The public overloads cap the member count at seven. The implementation
     // delegates to craftPipe so all runtime wrapping and generator handling
     // stays in one place.
-    return (craftPipe as any)(context, ...members);
+    return regularMembers.length
+      ? (craftPipe as any)(context, ...regularMembers)
+      : {};
   };
+  if (identifierFactories.length) {
+    Object.defineProperty(pipe, ɵIDENTIFIER_QUERY_INSERTION, {
+      value: { factories: identifierFactories, pipe: true },
+    });
+  }
   if (
     members.some(
       (member) =>
@@ -71,6 +99,50 @@ function createTypedInsertionPipe(...members: AnyInsertionFactory[]) {
     });
   }
   return pipe;
+}
+
+/**
+ * Adds methods and derived values to each selected query resource independently.
+ * The factory runs once for each resource instance, with that instance's `id`,
+ * current `params` signal, and `resource`. Returned methods and reactive values
+ * are available on `query.select(id)` and `query.selectOrCreate(id)`, and are
+ * not added to the query root.
+ *
+ * Use only with a query configured with `identifier`. Methods using
+ * `resource.cancelLoading()` cancel only this identifier's active load. When
+ * supplying explicit type arguments for concrete context types, their order is
+ * `Outputs`, `GroupIdentifier`, `ResourceState`, then `ResourceParams`.
+ */
+export function insertByIdentifierQuery<
+  Outputs extends Record<string, unknown>,
+  GroupIdentifier extends string = string,
+  ResourceState extends object | undefined = any,
+  ResourceParams = any,
+>(
+  factory: (
+    context: IdentifierQueryInsertionContext<
+      GroupIdentifier,
+      ResourceState,
+      ResourceParams
+    >,
+  ) => Outputs | Generator<unknown, Outputs, unknown>,
+): IdentifierQueryInsertionFactory<
+  GroupIdentifier,
+  ResourceState,
+  ResourceParams,
+  Outputs
+> {
+  const insertion = (() =>
+    ({}) as IdentifierQueryInsertionOutput<Outputs>) as unknown as IdentifierQueryInsertionFactory<
+    GroupIdentifier,
+    ResourceState,
+    ResourceParams,
+    Outputs
+  >;
+  Object.defineProperty(insertion, ɵIDENTIFIER_QUERY_INSERTION, {
+    value: { factories: [factory] },
+  });
+  return insertion;
 }
 
 /**
@@ -776,14 +848,88 @@ type QueryPipeReturn<
   Exceptions extends ResourceExceptionConstraints,
   Insertions,
   Yielded,
-> = QueryPipeFactory<
+> = ((
+  context: Insertions extends {
+    readonly [ɵIDENTIFIER_QUERY_INSERTION]: unknown;
+  }
+    ? InsertionByIdParams<any, any, any, any, any, any>
+    : any,
+) => Insertions | Generator<Yielded, Insertions, unknown>) &
+  (Insertions extends { readonly [ɵIDENTIFIER_QUERY_INSERTION]: unknown }
+    ? {
+        readonly [ɵIDENTIFIER_QUERY_INSERTION]: {
+          readonly factories: readonly AnyInsertionFactory[];
+        };
+      }
+    : {});
+
+/** Composes one per-identifier factory with one query-wide insertion. */
+export function insertQueryPipe<
+  ResourceState extends object | undefined,
+  ResourceParams,
+  Exceptions extends ResourceExceptionConstraints,
+  GroupIdentifier extends string,
+  IdentifierOutputs extends Record<string, unknown>,
+  GlobalOutputs,
+  IdentifierYielded = never,
+  GlobalYielded = never,
+>(
+  identifierInsertion: IdentifierQueryInsertionFactory<
+    GroupIdentifier,
+    ResourceState,
+    ResourceParams,
+    IdentifierOutputs
+  >,
+  globalInsertion: QueryPipeFactory<
+    unknown,
+    ResourceState,
+    ResourceParams,
+    Exceptions,
+    GlobalOutputs,
+    {},
+    GlobalYielded
+  >,
+): QueryPipeReturn<
   GroupIdentifier,
   ResourceState,
   ResourceParams,
   Exceptions,
-  Insertions,
-  {},
-  Yielded
+  IdentifierQueryInsertionOutput<IdentifierOutputs> & GlobalOutputs,
+  IdentifierYielded | GlobalYielded
+>;
+/** Composes one query-wide insertion before a per-identifier factory. */
+export function insertQueryPipe<
+  ResourceState extends object | undefined,
+  ResourceParams,
+  Exceptions extends ResourceExceptionConstraints,
+  GroupIdentifier extends string,
+  IdentifierOutputs extends Record<string, unknown>,
+  GlobalOutputs,
+  GlobalYielded = never,
+  IdentifierYielded = never,
+>(
+  globalInsertion: QueryPipeFactory<
+    unknown,
+    ResourceState,
+    ResourceParams,
+    Exceptions,
+    GlobalOutputs,
+    {},
+    GlobalYielded
+  >,
+  identifierInsertion: IdentifierQueryInsertionFactory<
+    GroupIdentifier,
+    ResourceState,
+    ResourceParams,
+    IdentifierOutputs
+  >,
+): QueryPipeReturn<
+  GroupIdentifier,
+  ResourceState,
+  ResourceParams,
+  Exceptions,
+  IdentifierQueryInsertionOutput<IdentifierOutputs> & GlobalOutputs,
+  IdentifierYielded | GlobalYielded
 >;
 
 /**

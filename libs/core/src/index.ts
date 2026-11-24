@@ -42,6 +42,8 @@ export type {
   InsertionsFactory,
   InsertionByIdParams,
   InsertionsByIdFactory,
+  IdentifierQueryInsertionContext,
+  IdentifierQueryInsertionFactory,
   // queryParams
   InsertionQueryParamsFactoryContext,
   InsertionsQueryParamsFactory,
