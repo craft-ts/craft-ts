@@ -40,14 +40,16 @@ the optional testing package are both `sideEffects: false`.
 | `suffix`   | `'.style.ts'`                                    | the filename suffix that marks a module as a sheet       |
 | `ignore`   | `['node_modules', 'dist', '.git', '.nx', 'tmp']` | directory names the walk never descends into             |
 | `dumpPath` | none — no dump is written                        | where to write the graph dump                            |
-| `alias`    | none                                             | module aliases for the **Node** evaluation of the sheets |
+| `alias`    | `@craft-ts/style` → the installed package entry  | module aliases for the **Node** evaluation of the sheets |
 | `reset`    | `true`                                           | ship the craft-ts reset — see [Global foundation](./foundation.md) |
 | `base`     | `true`                                           | ship colour scheme, focus ring, reduced motion, selection |
 
 `alias` exists because the sheets are evaluated by a real bundler in a separate
-pass, before your app's own resolution applies. In a published project, Node
-resolution finds `@craft-ts/style` on its own and you can leave `alias` out. In
-this monorepo the demo passes the workspace source paths — see
+pass, before your app's own resolution applies, from an entry file written in a
+temporary directory. The plugin points `@craft-ts/style` at the entry of the
+package it ships in, so a project that installed it from npm can leave `alias`
+out. An `@craft-ts/style` key in `alias` replaces that default. In this
+monorepo the demo passes the workspace source paths — see
 [`apps/demo/vite.config.ts`](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/vite.config.ts),
 which is the working reference for everything on this page.
 

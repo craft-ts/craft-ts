@@ -20,8 +20,8 @@ import { existsSync, realpathSync, statSync } from 'node:fs';
 import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AtomicRule, RegisteredClass } from '../lib/styles.ts';
 import type { CssVarDeclaration } from '../lib/css-vars.ts';
 import type { RegisteredKeyframes } from '../lib/animation.ts';
@@ -83,7 +83,11 @@ export interface CraftStyleOptions {
   readonly ignore?: readonly string[];
   /** Where to write the graph dump. Skipped when absent. */
   readonly dumpPath?: string;
-  /** Module aliases for the Node evaluation, e.g. a workspace source path. */
+  /**
+   * Module aliases for the Node evaluation, e.g. a workspace source path.
+   * `@craft-ts/style` defaults to the entry of the package this plugin ships
+   * in; an `@craft-ts/style` key here replaces it.
+   */
   readonly alias?: Readonly<Record<string, string>>;
   /**
    * The craft-ts reset, in `craft.reset`. On by default: an app does not write
@@ -217,6 +221,42 @@ export async function findStyleModules(
   return found.sort();
 }
 
+/**
+ * The entry of the package this plugin ships in — `../index.js` once built,
+ * `../index.ts` in the sources.
+ *
+ * The evaluation entry is written in a temp directory with no `node_modules`
+ * above it, so a bare `@craft-ts/style` resolves to nothing there unless it is
+ * aliased. Pointing it at this copy also keeps one registry: the sheets and the
+ * entry read the same module.
+ */
+const STYLE_PACKAGE_ENTRY = fileURLToPath(
+  new URL(
+    `../index${extname(fileURLToPath(import.meta.url))}`,
+    import.meta.url,
+  ),
+);
+
+/**
+ * The caller's aliases, with `@craft-ts/style` defaulted to
+ * {@link STYLE_PACKAGE_ENTRY}. The default matches the bare specifier only, so
+ * a subpath such as `@craft-ts/style/vite` keeps its normal resolution.
+ */
+function styleEvaluationAliases(
+  alias: Readonly<Record<string, string>> = {},
+): readonly { readonly find: string | RegExp; readonly replacement: string }[] {
+  const entries = Object.entries(alias).map(([find, replacement]) => ({
+    find,
+    replacement,
+  }));
+  return '@craft-ts/style' in alias
+    ? entries
+    : [
+        ...entries,
+        { find: /^@craft-ts\/style$/, replacement: STYLE_PACKAGE_ENTRY },
+      ];
+}
+
 /** Bundles the given style modules and reads the registry they filled. */
 export async function evaluateStyleModules(
   files: readonly string[],
@@ -246,7 +286,7 @@ export async function evaluateStyleModules(
     await build({
       configFile: false,
       logLevel: 'silent',
-      resolve: { alias: { ...alias } },
+      resolve: { alias: [...styleEvaluationAliases(alias)] },
       // Nothing may stay external: an externalised `@craft-ts/style` would be
       // resolved again at import time and hand back a second, empty registry.
       ssr: { noExternal: true },

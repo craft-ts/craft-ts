@@ -78,6 +78,29 @@ describe('the plugin evaluates the style modules and emits the sheet', () => {
     ).toEqual(['scrollPort.block']);
   }, 60_000);
 
+  it('resolves @craft-ts/style from its own package entry without an alias', async () => {
+    // The evaluation entry lives in a temp directory with no node_modules
+    // above it: a bare `@craft-ts/style` only resolves because the plugin
+    // points it at the package it ships in (issue #36).
+    const files = await findStyleModules(root);
+    const { dump } = await emitStyles(files, {
+      '@craft-ts/core': alias['@craft-ts/core'],
+    });
+
+    expect(dump.classes.map((entry) => entry.key)).toContain('badge-root');
+  }, 60_000);
+
+  it('lets a custom alias override the package entry', async () => {
+    const files = await findStyleModules(root);
+
+    await expect(
+      emitStyles(files, {
+        ...alias,
+        '@craft-ts/style': join(root, 'missing-style-entry.ts'),
+      }),
+    ).rejects.toThrow(/missing-style-entry/);
+  }, 60_000);
+
   it('emits the same bytes twice', async () => {
     const files = await findStyleModules(root);
     const first = await emitStyles(files, alias);
