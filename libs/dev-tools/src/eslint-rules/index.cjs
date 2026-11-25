@@ -42,6 +42,7 @@ const preferDeepYieldableForItem = require('./prefer-deep-yieldable-for-item.cjs
 const noCraftUseInTemplate = require('./no-craft-use-in-template.cjs');
 const noCraftUse = require('./no-craft-use.cjs');
 const noCraftComponentReturnType = require('./no-craft-component-return-type.cjs');
+const noReservedComponentInputName = require('./no-reserved-component-input-name.cjs');
 const requireCraftComponentForExportedNodeFactory = require('./require-craft-component-for-exported-node-factory.cjs');
 const noRawCraftRouterUrl = require('./no-raw-craft-router-url.cjs');
 const noManualCraftRouting = require('./no-manual-craft-routing.cjs');
@@ -206,6 +207,7 @@ const plugin = {
     'no-craft-use-in-template': noCraftUseInTemplate,
     'no-craft-use': noCraftUse,
     'no-craft-component-return-type': noCraftComponentReturnType,
+    'no-reserved-component-input-name': noReservedComponentInputName,
     'require-craft-component-for-exported-node-factory':
       requireCraftComponentForExportedNodeFactory,
     'no-raw-craft-router-url': noRawCraftRouterUrl,

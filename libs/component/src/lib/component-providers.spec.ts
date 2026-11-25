@@ -206,10 +206,12 @@ describe('withComponentProviders', () => {
     const Base = craftComponent(
       'TypedProfile',
       {},
-      (inputs: { id: Input<string> }) => p(inputs.id),
+      (inputs: { profileId: Input<string> }) => p(inputs.profileId),
     );
     const _Profile = Base.pipe(
-      withComponentProviders(({ id }) => [provideBound({ id })]),
+      withComponentProviders(({ profileId }) => [
+        provideBound({ id: profileId }),
+      ]),
     );
     type Dependencies = ComponentDepsOf<typeof _Profile>;
     expectTypeOf<keyof Dependencies['provided']>().toEqualTypeOf<'Bound'>();
@@ -220,18 +222,22 @@ describe('withComponentProviders', () => {
     const Consumed = craftComponent(
       'ConsumedProfile',
       {},
-      function* (_inputs: { id: Input<string> }) {
+      function* (_inputs: { profileId: Input<string> }) {
         const service = yield* Bound();
         return p(service.id);
       },
-    ).pipe(withComponentProviders(({ id }) => [provideBound({ id })]));
+    ).pipe(
+      withComponentProviders(({ profileId }) => [
+        provideBound({ id: profileId }),
+      ]),
+    );
     expectTypeOf<
       keyof ComponentDepsOf<typeof Consumed>['missingProvider']
     >().toEqualTypeOf<'Dependency'>();
     const _Complete = Consumed.pipe(
-      withComponentProviders(({ id }) => [
+      withComponentProviders(({ profileId }) => [
         provideDependency(),
-        provideBound({ id }),
+        provideBound({ id: profileId }),
       ]),
     ).pipe(withProviders([]));
     expectTypeOf<
@@ -252,12 +258,12 @@ describe('withComponentProviders', () => {
     const Numeric = craftComponent(
       'NumericProfile',
       {},
-      (inputs: { id: Input<number> }) => p(inputs.id),
+      (inputs: { profileId: Input<number> }) => p(inputs.profileId),
     );
     Numeric.pipe(
-      withComponentProviders(({ id }) => [
+      withComponentProviders(({ profileId }) => [
         // @ts-expect-error — a number reader cannot configure a string reader.
-        provideBound({ id }),
+        provideBound({ id: profileId }),
       ]),
     );
   });

@@ -27,6 +27,13 @@ applied to the component root. Other properties remain factory props. A caller's
 property — `featured` writes the border, which `root` leaves alone. Everything
 else, `attrs` included, replaces the host's value.
 
+Because those names belong to the root element, a component cannot use them as
+input names: an input called `title`, `id`, `slot`, `data-*`, `aria-*`, `error`
+or `onClick` would never reach the component. Give the input a
+component-specific name such as `titleText`; the
+[`craft-ts/no-reserved-component-input-name`](/guide/routing/eslint-rules#component-inputs-with-reserved-names)
+rule reports the declaration.
+
 Values can be reactive. The class stays constant; what moves is an attribute the
 sheet reads as an axis:
 

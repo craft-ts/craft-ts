@@ -34,6 +34,9 @@ module.exports = {
   'craft-ts/require-reactive-template-bindings': 'error',
   'craft-ts/no-craft-computed-side-effects': 'error',
   'craft-ts/no-craft-component-return-type': 'error',
+  // A component call sends DOM properties and events to its root element: an
+  // input declared with such a name would never reach the component.
+  'craft-ts/no-reserved-component-input-name': 'error',
   // A behaviour test checks what the service exposes, never that it calls itself.
   'craft-ts/no-spy-on-system-under-test': 'error',
   'craft-ts/require-craft-component-for-exported-node-factory': 'error',

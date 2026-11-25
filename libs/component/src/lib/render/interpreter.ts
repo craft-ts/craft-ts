@@ -186,6 +186,10 @@ import {
 } from '../locator';
 import { HydrationMismatchError, type HydrationCursor } from './hydration';
 import { setNodeHydrationKey } from './hydration-metadata';
+import {
+  HOST_EVENT_NAMES,
+  isComponentHostPropertyName,
+} from './host-properties';
 import type { CraftSsrCoordinator } from './ssr-coordinator';
 
 type NativeNode = Node;
@@ -1833,41 +1837,6 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   }
 }
 
-const EVENT_NAMES = new Set([
-  'abort',
-  'blur',
-  'change',
-  'click',
-  'contextmenu',
-  'dblclick',
-  'error',
-  'focus',
-  'input',
-  'keydown',
-  'keypress',
-  'keyup',
-  'load',
-  'mousedown',
-  'mouseenter',
-  'mouseleave',
-  'mousemove',
-  'mouseout',
-  'mouseover',
-  'mouseup',
-  'paste',
-  'pointerdown',
-  'pointerenter',
-  'pointerleave',
-  'pointermove',
-  'pointerup',
-  'reset',
-  'scroll',
-  'submit',
-  'touchend',
-  'touchmove',
-  'touchstart',
-]);
-
 const PROPERTY_NAMES = new Set([
   'checked',
   'disabled',
@@ -1883,7 +1852,7 @@ function eventNameFor(key: string, value: unknown): string | undefined {
   if (typeof value !== 'function') {
     return undefined;
   }
-  if (EVENT_NAMES.has(key)) {
+  if (HOST_EVENT_NAMES.has(key)) {
     return key;
   }
   if (/^on[A-Z]/.test(key)) {
@@ -1917,49 +1886,15 @@ function executeDomEventHooks(
   return current();
 }
 
-const HOST_PROPERTY_NAMES = new Set([
-  'accessKey',
-  'autocapitalize',
-  'autofocus',
-  'class',
-  'contentEditable',
-  'dir',
-  'draggable',
-  'hidden',
-  'id',
-  'inert',
-  'lang',
-  'nonce',
-  'slot',
-  'spellcheck',
-  'style',
-  'tabIndex',
-  'title',
-  'translate',
-  'attrs',
-  'directives',
-]);
-
 // A prop name is one of a few literals written in templates: classified once.
 const hostPropertyNames = new Map<string, boolean>();
 
 function isHostProperty(key: string): boolean {
   const known = hostPropertyNames.get(key);
   if (known !== undefined) return known;
-  const host = classifyHostProperty(key);
+  const host = isComponentHostPropertyName(key);
   if (hostPropertyNames.size < 4096) hostPropertyNames.set(key, host);
   return host;
-}
-
-function classifyHostProperty(key: string): boolean {
-  return (
-    HOST_PROPERTY_NAMES.has(key) ||
-    key.startsWith('data-') ||
-    key.startsWith('aria-') ||
-    EVENT_NAMES.has(key) ||
-    (/^on[A-Z]/.test(key) &&
-      EVENT_NAMES.has(`${key[2].toLowerCase()}${key.slice(3)}`))
-  );
 }
 
 /** The properties of a component call that are its inputs, in order. */
