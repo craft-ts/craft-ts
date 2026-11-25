@@ -54,13 +54,173 @@ describe('require-craft-method-for-yieldable-callback', () => {
       declare function button(...args: unknown[]): unknown;
 
       craftComponent('Demo', {}, function* () {
-        return button({ run: () => action() });
+        return button({ click: () => action() });
       });
     `);
 
     expect(result.messages).toEqual([
-      "Callback 'run' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
+      "Callback 'click' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
     ]);
+  });
+
+  it('reports every event prop form the runtime binds as a listener', async () => {
+    const result = await lintFixture(`
+      declare const YIELDABLE_METHOD: unique symbol;
+      type YieldableMethod = (() => Generator<void, void, unknown>) & {
+        readonly [YIELDABLE_METHOD]: true;
+      };
+      declare const action: YieldableMethod;
+      declare function craftComponent(...args: unknown[]): unknown;
+      declare function input(...args: unknown[]): unknown;
+      declare function form(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () =>
+        form(
+          { onSubmit: () => action(), 'keydown': () => action() },
+          input({ input: () => action(), change: () => action(), onDragStart: () => action() }),
+        ),
+      );
+    `);
+
+    expect(result.messages).toEqual([
+      "Callback 'onSubmit' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
+      "Callback 'keydown' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
+      "Callback 'input' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
+      "Callback 'change' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
+      "Callback 'onDragStart' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
+    ]);
+  });
+
+  // Issue #50: a matchNode handler map renders nodes; it binds no event.
+  it('ignores the render handlers of matchNode', async () => {
+    const result = await lintFixture(`
+      declare const YIELDABLE_METHOD: unique symbol;
+      type YieldableMethod<Args extends unknown[], Result> = ((
+        ...args: Args
+      ) => Generator<unknown, Result, unknown>) & {
+        readonly [YIELDABLE_METHOD]: true;
+      };
+      declare const Job: {
+        readonly phase: YieldableMethod<[], 'running' | 'finished'>;
+        readonly t: YieldableMethod<[key: 'loading' | 'done'], string>;
+      };
+      declare const matchNode: {
+        (...args: unknown[]): unknown;
+        exhaustive(...args: unknown[]): unknown;
+      };
+      declare function craftComponent(...args: unknown[]): unknown;
+      declare function p(...args: unknown[]): unknown;
+
+      export const JobStatus = craftComponent('JobStatus', {}, () =>
+        matchNode.exhaustive(Job.phase, {
+          running: () => p(Job.t('loading')),
+          finished: () => p(Job.t('done')),
+        }),
+      );
+
+      export const JobStatusLoose = craftComponent('JobStatusLoose', {}, () =>
+        matchNode(Job.phase, { running: () => p(Job.t('loading')) }),
+      );
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('ignores other render callbacks and slots', async () => {
+    const result = await lintFixture(`
+      declare const YIELDABLE_METHOD: unique symbol;
+      type YieldableMethod<Args extends unknown[], Result> = ((
+        ...args: Args
+      ) => Generator<unknown, Result, unknown>) & {
+        readonly [YIELDABLE_METHOD]: true;
+      };
+      declare const View: {
+        readonly visible: YieldableMethod<[], boolean>;
+        readonly items: YieldableMethod<[], readonly string[]>;
+        readonly label: YieldableMethod<[id: string], string>;
+      };
+      declare function craftComponent(...args: unknown[]): unknown;
+      declare function ifNode(...args: unknown[]): unknown;
+      declare function forNode(...args: unknown[]): unknown;
+      declare function catchNode(...args: unknown[]): unknown;
+      declare function p(...args: unknown[]): unknown;
+      declare function Card(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () => [
+        ifNode(View.visible, { then: () => p(View.label('a')), else: () => p(View.label('b')) }),
+        forNode(View.items, { key: (item: string) => item, render: (item: string) => p(View.label(item)) }),
+        catchNode({ try: () => p(View.label('c')), catch: () => p(View.label('d')) }),
+        Card({ header: () => p(View.label('header')), body: () => p(View.label('body')) }),
+      ]);
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('reports a component output bound to an uncrafted yieldable callback', async () => {
+    const result = await lintFixture(`
+      declare const YIELDABLE_METHOD: unique symbol;
+      type YieldableMethod = (() => Generator<void, void, unknown>) & {
+        readonly [YIELDABLE_METHOD]: true;
+      };
+      declare const OUTPUT_BRAND: unique symbol;
+      type Output<Handler extends (...args: any[]) => unknown> = Handler & {
+        readonly [OUTPUT_BRAND]: Handler;
+      };
+      declare const CRAFT_COMPONENT: unique symbol;
+      type Inputs = {
+        readonly label: string;
+        readonly press: Output<() => void>;
+        readonly onPick?: Output<(id: number) => void>;
+        readonly footer: () => unknown;
+      };
+      declare const DsButton: ((props: {
+        label: string;
+        press: () => void;
+        onPick?: (id: number) => void;
+        footer: () => unknown;
+      }) => unknown) & {
+        // Like CraftComponent: the generic ComponentTemplate signature comes
+        // before the authored one.
+        readonly [CRAFT_COMPONENT]: {
+          readonly template: ((...args: any[]) => unknown) & ((inputs: Inputs) => unknown);
+        };
+      };
+      declare const action: YieldableMethod;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () =>
+        DsButton({
+          label: 'Save',
+          press: () => action(),
+          onPick: (_id: number) => action(),
+          footer: () => action(),
+        }),
+      );
+    `);
+
+    expect(result.messages).toEqual([
+      "Callback 'press' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
+      "Callback 'onPick' calls a yieldable Craft method and must be created with `craftMethod(...)`.",
+    ]);
+  });
+
+  it('ignores a non-event prop of an element', async () => {
+    const result = await lintFixture(`
+      declare const YIELDABLE_METHOD: unique symbol;
+      type YieldableMethod = (() => Generator<void, void, unknown>) & {
+        readonly [YIELDABLE_METHOD]: true;
+      };
+      declare const action: YieldableMethod;
+      declare function craftComponent(...args: unknown[]): unknown;
+      declare function button(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, function* () {
+        return button({ run: () => action(), online: () => action() });
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
   });
 
   it('accepts a callback created with craftMethod', async () => {

@@ -1,4 +1,18 @@
 const { templateRegions } = require('./craft-template-region.cjs');
+const { HOST_EVENT_NAMES } = require('./component-host-properties.cjs');
+
+/**
+ * Whether the runtime binds a function under `key` as a DOM event listener.
+ *
+ * Mirrors `eventNameFor` in `libs/component/src/lib/render/interpreter.ts`: a
+ * listener is bound for a known event name (`click`) or for any `onXxx` key
+ * (`onClick`, `onDragStart`). Every other function-valued property — the
+ * handlers of `matchNode`, the `render` of `forNode`, a slot — is a render
+ * callback, never an event handler.
+ */
+function isEventPropName(key) {
+  return HOST_EVENT_NAMES.has(key) || /^on[A-Z]/.test(key);
+}
 
 module.exports = {
   meta: {
@@ -52,9 +66,11 @@ module.exports = {
 
     function inspectFactory(factory) {
       const localFunctions = collectLocalFunctions(factory);
-      // A callback only reaches the runtime through a binding the template
-      // declares — `{ click: … }` — so that is where the rule looks.
+      // A callback only reaches the runtime as an event through a binding the
+      // template declares — `{ click: … }` or a component output — so that is
+      // where the rule looks. Render callbacks are left alone (issue #50).
       for (const property of collectBoundProperties(factory)) {
+        if (!isEventBinding(property)) continue;
         const callback = resolveCallback(property.value, localFunctions);
         if (!callback || callback.generator) continue;
 
@@ -92,6 +108,69 @@ module.exports = {
         }
         return undefined;
       });
+    }
+
+    function isEventBinding(property) {
+      if (property.computed) return false;
+      const name = getPropertyName(property);
+      if (isEventPropName(name)) return true;
+      return isComponentOutputBinding(property, name);
+    }
+
+    // `Component({ press: … })`: a component declares its outputs with the
+    // branded `Output<Handler>` type on its template inputs. The call-site props
+    // erase the brand, so read it back from the component's template, the same
+    // way the dependency graph recognises an output binding.
+    function isComponentOutputBinding(property, name) {
+      const object = property.parent;
+      const call = object?.parent;
+      if (
+        object?.type !== 'ObjectExpression' ||
+        call?.type !== 'CallExpression' ||
+        call.arguments[0] !== object
+      ) {
+        return false;
+      }
+
+      const calleeNode = esTreeNodeToTSNodeMap.get(call.callee);
+      if (!calleeNode) return false;
+      const componentType = checker.getTypeAtLocation(calleeNode);
+      const definition = findBrandedProperty(componentType, 'CRAFT_COMPONENT');
+      if (!definition) return false;
+
+      const template = checker
+        .getTypeOfSymbolAtLocation(definition, calleeNode)
+        .getProperty?.('template');
+      if (!template) return false;
+      // The template type intersects the generic `ComponentTemplate` signature
+      // with the authored one, so every signature is a candidate.
+      return checker
+        .getTypeOfSymbolAtLocation(template, calleeNode)
+        .getNonNullableType()
+        .getCallSignatures()
+        .some((signature) => {
+          const inputs = signature.getParameters()[0];
+          if (!inputs) return false;
+
+          const input = checker
+            .getTypeOfSymbolAtLocation(inputs, calleeNode)
+            .getNonNullableType()
+            .getProperty(name);
+          if (!input) return false;
+
+          const inputType = checker
+            .getTypeOfSymbolAtLocation(input, calleeNode)
+            .getNonNullableType();
+          return findBrandedProperty(inputType, 'OUTPUT_BRAND') !== undefined;
+        });
+    }
+
+    function findBrandedProperty(type, brand) {
+      return checker
+        .getPropertiesOfType(type)
+        .find((symbol) =>
+          String(symbol.escapedName ?? symbol.name).startsWith(`__@${brand}@`),
+        );
     }
 
     function callbackName(property) {

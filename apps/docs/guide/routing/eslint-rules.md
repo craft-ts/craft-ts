@@ -1113,7 +1113,7 @@ states must respond to one operation, use a shared `source$` and `on$(...)`.
 - `craft-ts/no-imperative-storage-in-craft-method`: forbids direct storage access and imperative location changes in a `craftMethod`; use `insertReactOnMutation(...)` with `optimisticUpdate: () => undefined` to clear the affected query and let its persistence follow the query state.
 - `craft-ts/no-transition-actions`: forbids `query.call(...)`, `mutation.mutate(...)`, `asyncProcess.method(...)`, `state.restore(...)`, and `source$.emit(...)` inside `transitionStep(...)`. Trace the event's producer first: emit external events at their real boundary and consume them with `on$(source$, ...)`; for values derived by `afterRecomputation(...)`, keep the value in the machine, register the reaction under its destination `transitionStep(...)`, and pass it to `transit(value)` with a `transitionGuard(({ from, event }) => ...)`. `transit()` targets the step that declares it. If this requires an insertion-level `currentStep()` router or state changes after acceptance, treat it as an API gap. See [Recomputations as transition triggers](/guide/state/state-machines#recomputations-as-transition-triggers).
 - `craft-ts/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
-- `craft-ts/require-craft-method-for-yieldable-callback`: requires callbacks returned by a `craftComponent` factory to wrap yieldable Craft method calls in `craftMethod(...)`
+- `craft-ts/require-craft-method-for-yieldable-callback`: requires an event callback in a `craftComponent` template — a DOM event prop (`click`, `change`, `onClick`, …) or a component `Output` — to wrap yieldable Craft method calls in `craftMethod(...)`; render callbacks such as `matchNode` handlers, `forNode` renders or slots are not checked. See [Wrap event callbacks that call yieldable methods](#wrap-event-callbacks-that-call-yieldable-methods)
 - `craft-ts/prefer-direct-yieldable-callback`: replaces a template generator or generator method that only delegates `yield* callback()` with the callback reference itself (`callback` or `object.method`)
 - `craft-ts/prefer-direct-yieldable-destructuring`: inlines a `yield*` result into its only object destructuring
 - `craft-ts/prefer-deep-yieldable-for-item`: warns when a `forNode` item is read repeatedly through `yield* item()` property accesses; expose a named `insertDeepYieldable('property')` collection and use direct item property readers
@@ -1587,6 +1587,51 @@ span(counter.increment);
 The rule leaves callbacks with parameters, extra statements, or additional
 computation unchanged. In those cases the generator contains behavior that
 cannot be represented by passing the callback reference alone.
+
+### Wrap event callbacks that call yieldable methods
+
+`require-craft-method-for-yieldable-callback` checks the callbacks a template
+binds to an event. A plain arrow that calls a yieldable Craft method only builds
+an invocation nobody drives, so the action never runs:
+
+```ts
+// Before: rejected — the arrow returns an undriven generator.
+const updatePageSize = (event: Event) =>
+  pagination.updatePageSize(Number((event.target as HTMLSelectElement).value));
+select({ change: updatePageSize });
+DsButton({ label: 'Save', press: () => View.save() });
+
+// After: the callback is a Craft action the runtime drives.
+const updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
+  yield* pagination.updatePageSize(
+    Number((event.target as HTMLSelectElement).value),
+  );
+});
+select({ change: updatePageSize });
+DsButton({ label: 'Save', press: View.save });
+```
+
+There is no autofix: name the action with `craftMethod(...)`, or pass the
+method reference when the callback only forwards to it.
+
+A callback counts as an event binding when its key is one the runtime binds as
+a listener — a DOM event name from the component host vocabulary (`click`,
+`input`, `change`, `submit`, `keydown`, …) or any `onXxx` key — or when it is
+passed to a component input declared as `Output<Handler>`. Every other
+function-valued property renders nodes and is left alone, so this is valid:
+
+```ts
+// Valid: render callbacks build nodes, they handle no event.
+matchNode.exhaustive(Job.phase, {
+  running: () => p(Job.t('loading')),
+  finished: () => p(Job.t('done')),
+});
+```
+
+The rule requires type information (`parserOptions.projectService` or
+`project`): it identifies yieldable methods and component outputs from their
+types. Without it, the rule reports a single `missingTypeInfo` diagnostic
+instead of checking callbacks.
 
 ### Destructure directly from `yield*`
 
