@@ -75,6 +75,32 @@ describe('RouteCheckedDI', () => {
     ]>();
   });
 
+  it('should fail closed when the component contract degraded to any', () => {
+    type Uncomputable = [
+      'The component dependency contract could not be computed; type-safe DI validation is unavailable',
+    ];
+
+    // A contract TypeScript gave up on (TS2589) must not turn the proof into
+    // `any[]`, which any hand-written list of expected errors satisfies.
+    expectTypeOf<
+      RouteCheckedDI<any, 'Counter'>
+    >().toEqualTypeOf<Uncomputable>();
+    expectTypeOf<
+      RouteCheckedDI<
+        {
+          deps: Record<never, never>;
+          provided: Record<never, never>;
+          publicProperties: Record<never, never>;
+          missingProvider: any;
+        },
+        'Counter'
+      >
+    >().toEqualTypeOf<Uncomputable>();
+    type UncomputableProof = RouteCheckedDI<any, 'Counter'>;
+    // @ts-expect-error an uncomputable contract is never a proof.
+    type _CannotRun = CanRun<UncomputableProof>;
+  });
+
   it('should report a missing input from publicProperties', () => {
     type TestDeps_MyComp = GetDeps<{
       deps: {};

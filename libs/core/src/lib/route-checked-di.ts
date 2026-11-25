@@ -139,6 +139,27 @@ type WidenedProviderNamesError<AvailableProviderNames extends string> =
       ]
     : [];
 
+type IsAnyContract<Value> = 0 extends 1 & Value ? true : false;
+
+/**
+ * Fail closed when the component contract itself could not be computed.
+ *
+ * A contract that degraded to `any` (typically TypeScript giving up on a type
+ * with TS2589) turns every check below into `any[]`, which a hand-written
+ * expected list then satisfies. Naming the failure keeps the proof from
+ * silently accepting a broken DI graph.
+ */
+type UncomputableContractError<ComponentDeps> =
+  IsAnyContract<ComponentDeps> extends true
+    ? [
+        'The component dependency contract could not be computed; type-safe DI validation is unavailable',
+      ]
+    : IsAnyContract<MissingProviderMap<ComponentDeps>> extends true
+      ? [
+          'The component dependency contract could not be computed; type-safe DI validation is unavailable',
+        ]
+      : [];
+
 // -----------------------------------------------------------------------------
 // Cascade-specific helpers
 // -----------------------------------------------------------------------------
@@ -216,34 +237,36 @@ export type RouteCheckedDI<
   AvailableInputNames extends string = never,
 > = string extends AvailableProviderNames
   ? WidenedProviderNamesError<AvailableProviderNames>
-  : [
-      ...InputErrorMessagesFromNames<
-        UnionToTuple<
-          Exclude<
-            Extract<keyof PublicPropertiesMap<ComponentDeps>, string>,
-            AvailableInputNames
-          >
-        >,
-        Context
-      >,
-      ...InjectedErrorMessagesFromNames<
-        UnionToTuple<
-          Extract<
-            keyof ResolvedMissing<
-              ComponentDeps,
-              AvailableProviderNames,
-              ProvidedValues
+  : UncomputableContractError<ComponentDeps> extends [string]
+    ? UncomputableContractError<ComponentDeps>
+    : [
+          ...InputErrorMessagesFromNames<
+            UnionToTuple<
+              Exclude<
+                Extract<keyof PublicPropertiesMap<ComponentDeps>, string>,
+                AvailableInputNames
+              >
             >,
-            string
-          >
-        >,
-        Context
-      >,
-    ] extends infer Errors extends string[]
-    ? Errors extends []
-      ? true
-      : Errors
-    : never;
+            Context
+          >,
+          ...InjectedErrorMessagesFromNames<
+            UnionToTuple<
+              Extract<
+                keyof ResolvedMissing<
+                  ComponentDeps,
+                  AvailableProviderNames,
+                  ProvidedValues
+                >,
+                string
+              >
+            >,
+            Context
+          >,
+        ] extends infer Errors extends string[]
+      ? Errors extends []
+        ? true
+        : Errors
+      : never;
 
 /** O(1) DI check for renderComponent/errorComponent/withErrorComponent branches. */
 export type RouteExceptionComponentCheckedDI<

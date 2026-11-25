@@ -206,11 +206,150 @@ type ComponentContextDeps<Context> = Context extends object
   : {};
 
 /**
+ * One key/value pair of a sealed dependency map.
+ *
+ * Declared as an interface on purpose: once its arguments are resolved, a
+ * reference to it carries nothing but those arguments, so instantiating it
+ * never walks back into the types the pair was read from.
+ */
+interface SealedDependencyEntry<Key, Value> {
+  readonly key: Key;
+  readonly value: Value;
+}
+
+type SealedDependencyEntries<Map> = {
+  [Key in keyof Map]: SealedDependencyEntry<Key, Map[Key]>;
+}[keyof Map];
+
+type DependencyMapFromSealedEntries<Entries> = {
+  [Entry in Entries as Entry extends SealedDependencyEntry<
+    infer Key extends PropertyKey,
+    unknown
+  >
+    ? Key
+    : never]: Entry extends SealedDependencyEntry<PropertyKey, infer Value>
+    ? Value
+    : never;
+};
+
+type IsAnyDependencyMap<Value> = 0 extends 1 & Value ? true : false;
+
+/**
+ * Rebuilds a dependency map from its resolved entries.
+ *
+ * The result has the same keys and values as `Map`, but it no longer remembers
+ * how `Map` was computed. That matters at component boundaries: a contract
+ * computed from a template keeps, as type arguments, the whole tree the
+ * template returned — every nested child component, its own template and so
+ * on. Each time a parent instantiates a type that contains that contract,
+ * TypeScript walks those arguments again, one level deeper per nested
+ * component, until it reports TS2589 (issue #40). A sealed map only refers to
+ * its resolved keys and values, so the walk stops at the component boundary.
+ */
+export type SealDependencyMap<Map> =
+  IsAnyDependencyMap<Map> extends true
+    ? Map
+    : [Map] extends [never]
+      ? never
+      : DependencyMapFromSealedEntries<
+            SealedDependencyEntries<Map>
+          > extends infer Sealed extends object
+        ? Sealed
+        : never;
+
+type ComponentDependencyContract<
+  Deps,
+  PropertiesDeps,
+  Provided,
+  PublicProperties,
+  MissingProvider,
+> = {
+  deps: Deps;
+  propertiesDeps: PropertiesDeps;
+  provided: Provided;
+  publicProperties: PublicProperties;
+  missingProvider: MissingProvider;
+};
+
+/**
+ * Stores a component dependency contract in a flat form.
+ *
+ * The contract keeps its public shape (`deps`, `propertiesDeps`, `provided`,
+ * `publicProperties`, `missingProvider`); only the provenance of
+ * `missingProvider` — the part read from the template's children — is dropped
+ * through {@link SealDependencyMap}. A parent then reads the missing providers
+ * its child already flattened instead of re-expanding the child's template.
+ */
+export type SealComponentDependencies<Contract> =
+  IsAnyDependencyMap<Contract> extends true
+    ? Contract
+    : Contract extends {
+          deps: infer Deps;
+          propertiesDeps: infer PropertiesDeps;
+          provided: infer Provided;
+          publicProperties: infer PublicProperties;
+          missingProvider: infer MissingProvider;
+        }
+      ? ComponentDependencyContract<
+          Deps,
+          PropertiesDeps,
+          Provided,
+          PublicProperties,
+          SealDependencyMap<MissingProvider>
+        > extends infer Sealed extends object
+        ? Sealed
+        : never
+      : Contract;
+
+/**
  * Builds the complete dependency contract of a functional component from its
  * yielded requests, the tracked helpers returned in its context, its local
  * providers, and its public input/output properties.
+ *
+ * The contract is computed once per component and sealed (see
+ * {@link SealComponentDependencies}), so its size does not depend on how deep
+ * the tree under the component is.
  */
 export type CraftComponentDependencies<
+  Yielded,
+  Context,
+  Providers,
+  PublicProperties extends object,
+  TemplateDependencies extends object = never,
+> =
+  // The check stays deferred while any parameter is generic, and the contract
+  // reaches the seal through `infer`. Both matter: the contract's keys are
+  // known even while its parameters are generic, so a bare
+  // `SealComponentDependencies<UnsealedCraftComponentDependencies<…>>` would
+  // be resolved on the generic declaration. Every reference would then be an
+  // object aliased with its own (unsealed) arguments, and instantiating it
+  // would unroll the generic missing-provider recursion. Sealing an `infer`
+  // parameter only ever happens on the concrete contract.
+  [
+    Yielded,
+    Context,
+    Providers,
+    PublicProperties,
+    TemplateDependencies,
+    UnsealedCraftComponentDependencies<
+      Yielded,
+      Context,
+      Providers,
+      PublicProperties,
+      TemplateDependencies
+    >,
+  ] extends [
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    infer Contract extends object,
+  ]
+    ? SealComponentDependencies<Contract>
+    : never;
+
+type UnsealedCraftComponentDependencies<
   Yielded,
   Context,
   Providers,

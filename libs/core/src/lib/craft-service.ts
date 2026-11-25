@@ -939,7 +939,15 @@ type MergeDependencyNodeMaps<
       : never;
 }>;
 
-type MergeDependencyNodes<Left, Right> = ServiceDependencies<
+// See `MergeTrackedDependencyNodes`: an `any` node must not be recursed into.
+type MergeDependencyNodes<Left, Right> =
+  0 extends 1 & Left
+    ? Left
+    : 0 extends 1 & Right
+      ? Right
+      : MergeDependencyNodesOf<Left, Right>;
+
+type MergeDependencyNodesOf<Left, Right> = ServiceDependencies<
   DependencyScope<Left> & DependencyScope<Right>,
   MergeDependencyNodeMaps<DependencyChildren<Left>, DependencyChildren<Right>>,
   WithServiceNodeFlags<
@@ -1164,7 +1172,18 @@ type MergeTrackedDependencyUsage<Left, Right> =
           : WholeServiceUsageTracking
         : WholeServiceUsageTracking;
 
-type MergeTrackedDependencyNodes<Left, Right> = Simplify<
+// Merging with an `any` node yields `any`: such a node carries nothing to
+// merge, and recursing into its dependencies never bottoms out. That was
+// harmless while nothing forced the merge, and TS2589 once component contracts
+// are computed eagerly at each component boundary (issue #40).
+type MergeTrackedDependencyNodes<Left, Right> =
+  0 extends 1 & Left
+    ? Left
+    : 0 extends 1 & Right
+      ? Right
+      : MergeTrackedDependencyNodesOf<Left, Right>;
+
+type MergeTrackedDependencyNodesOf<Left, Right> = Simplify<
   {
     providedIn: DependencyScope<Left> & DependencyScope<Right>;
     dependencies: MergeTrackedDependencyNodeMaps<

@@ -5,6 +5,7 @@ import type {
   CRAFT_CHANNELS,
   EmptyChannels,
   MergeChannelUnion,
+  SealChannels,
   CraftNodeDirective,
   CraftLazyLoadHelpers,
   CRAFT_COMPONENT_DEPS,
@@ -1218,8 +1219,10 @@ export type ContentHeadingNeedFromProps<Props extends object> =
 export type ComponentTemplateChannels<Template> = Template extends (
   ...args: any[]
 ) => infer Output
-  ? CraftNodeChildrenChannels<
-      Output extends Generator<any, infer Children, any> ? Children : Output
+  ? SealChannels<
+      CraftNodeChildrenChannels<
+        Output extends Generator<any, infer Children, any> ? Children : Output
+      >
     >
   : EmptyChannels;
 

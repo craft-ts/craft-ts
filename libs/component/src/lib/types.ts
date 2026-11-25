@@ -3,6 +3,8 @@ import type {
   ComponentDepsCarrier,
   CraftComponentDependencies,
   CraftServiceProvider,
+  SealComponentDependencies,
+  SealDependencyMap,
   ExtractCraftGenExceptions,
   ResolveGeneratorResult,
   Yieldable,
@@ -1299,6 +1301,23 @@ type MergePipedComponentDependencies<
   }
 >;
 
+/**
+ * The merged contract of a piped component, sealed like the contract of any
+ * other component so a parent never re-expands the operators' inputs.
+ */
+type SealedPipedComponentDependencies<
+  Existing extends object,
+  Recomputed extends object,
+> = [
+  Existing,
+  Recomputed,
+  MergePipedComponentDependencies<Existing, Recomputed>,
+] extends [unknown, unknown, infer Contract extends object]
+  ? // Sealed through `infer` so the seal only runs on the concrete contract
+    // (see `CraftComponentDependencies`).
+    SealComponentDependencies<Contract>
+  : never;
+
 type DependencyMap<Dependencies, Key extends string> =
   Dependencies extends Record<Key, infer Map extends object> ? Map : {};
 
@@ -1346,7 +1365,7 @@ type PipedComponent<
 > = Factory extends infer NextFactory extends ComponentFactory
   ? CraftComponent<
       PropsFromFactory<NextFactory>,
-      MergePipedComponentDependencies<
+      SealedPipedComponentDependencies<
         ExistingComponentDeps,
         CraftComponentDependencies<
           | FactoryYielded<RootFactory>
@@ -1361,7 +1380,9 @@ type PipedComponent<
       NextFactory,
       Meta,
       RootFactory,
-      TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>,
+      SealDependencyMap<
+        TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>
+      >,
       Template,
       Name,
       (

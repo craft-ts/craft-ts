@@ -2,6 +2,7 @@ import {
   CRAFT_REGISTRATION_TARGET,
   type CraftComponentDependencies,
   type CraftServiceTransform,
+  type SealDependencyMap,
   type UnmetRequirements,
 } from '@craft-ts/core';
 import {
@@ -139,7 +140,7 @@ type ComponentOf<
   Template,
   Meta,
   Template,
-  TemplateDependencies<Template>,
+  SealDependencyMap<TemplateDependencies<Template>>,
   Template,
   Name,
   ComponentInitializationExceptionCodesForTemplate<

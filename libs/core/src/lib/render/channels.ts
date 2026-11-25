@@ -74,6 +74,45 @@ export type MergeChannelUnion<Channels extends CraftChannels> = {
 };
 
 /**
+ * A channel set reduced to its four resolved payload unions.
+ *
+ * An interface on purpose: a reference to it carries nothing but those
+ * unions. A merged set (`MergeChannelUnion<…>`) keeps the raw sets it was built
+ * from as type arguments, and each of those keeps its own children's — so a
+ * parent that instantiates a type containing it walks the whole tree below,
+ * one level deeper per nested component (issue #40).
+ */
+export interface SealedChannels<
+  Accumulate = never,
+  Obligations = never,
+  Discharges = never,
+  Violates = never,
+> extends CraftChannels {
+  readonly accumulate: Accumulate;
+  readonly obligations: Obligations;
+  readonly discharges: Discharges;
+  readonly violates: Violates;
+}
+
+/**
+ * Stores a channel set in a flat form at a component boundary: the same
+ * payloads, without the provenance of the merge that produced them. The common
+ * case — a template that says nothing about style — stays {@link EmptyChannels}.
+ */
+export type SealChannels<Channels extends CraftChannels> = [Channels] extends [
+  {
+    readonly accumulate: infer Accumulate;
+    readonly obligations: infer Obligations;
+    readonly discharges: infer Discharges;
+    readonly violates: infer Violates;
+  },
+]
+  ? [Accumulate | Obligations | Discharges | Violates] extends [never]
+    ? EmptyChannels
+    : SealedChannels<Accumulate, Obligations, Discharges, Violates>
+  : Channels;
+
+/**
  * Non-empty when some node on the path violates an obligation that is still
  * open beneath it — the clip-inside-a-scroll-port case. It is `Extract` and not
  * `Exclude` on purpose: we want the offending demand itself, so the message can
