@@ -117,6 +117,45 @@ const tripled = craftUse(craftComputed('tripled', function* () {
 }));
 ```
 
+## Technical values: `craftLiteral`
+
+A computed often maps state to a token that code reads back: a `data-state`
+value a sheet axis matches, or a `matchNode.exhaustive` key. Such a token is a
+technical value, not copy. Declare each value once with `craftLiteral(...)` and
+return those values; TypeScript infers the union without an annotation.
+
+```typescript
+import { craftComputed, craftLiteral } from '@craft-ts/core';
+
+const drawerOpen = craftLiteral('open');
+const drawerClosed = craftLiteral('closed');
+
+const drawerState = yield* craftComputed('drawerState', function* () {
+  return (yield* open()) ? drawerOpen : drawerClosed;
+}); // reads as 'open' | 'closed'
+```
+
+`craftLiteral<const T extends string>(value: T): T` returns `value` unchanged
+and keeps its literal type. Declare one value per call rather than a list: the
+returned value and its type stay obvious.
+
+With the i18n preset, `craft-ts/require-i18n-text` reports a bare string
+returned by a computed, because it cannot tell a token from copy:
+
+```typescript
+// Before: reported — is 'open' a token or a word shown to the user?
+return (yield* open()) ? 'open' : 'closed';
+
+// After: the marked values are technical and accepted.
+return (yield* open()) ? drawerOpen : drawerClosed;
+```
+
+The rule still asks for `i18n.t(...)` when a marked value reaches visible text
+(a text child, `placeholder`, `aria-label`, `title`, or a `label`-like
+view-model field): text shown to a user always comes from the catalogue. No
+autofix is offered, because only you know whether the string is copy or a
+token.
+
 ## Caveats
 
 - `craftComputed(...)` must be created inside an injection context.

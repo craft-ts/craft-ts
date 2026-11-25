@@ -108,6 +108,7 @@ export * from './lib/util/entities-util';
 export * from './lib/craft-method';
 export * from './lib/craft-method-replay-registry';
 export * from './lib/craft-computed';
+export * from './lib/craft-literal';
 export * from './lib/craft-primitive-registry';
 export * from './lib/craft-runtime-mode';
 export * from './lib/loop-guard';

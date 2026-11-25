@@ -88,6 +88,45 @@ from the recommended preset, because it only makes sense once the catalogue is
 the application's source of truth — which is exactly the condition `craft
 create` checks when it decides to enable it.
 
+### Technical values: declare them with `craftLiteral`
+
+The rule also checks the strings a `craftComputed` returns. A computed that
+maps state to a token — a `data-state` value, a `matchNode` key — returns a
+technical value, not copy, and translating it would break the code that reads
+it. A bare string cannot say which one it is, so the rule reports it:
+
+```ts
+// Before: both literals are reported.
+const drawerState = yield* craftComputed('drawerState', function* () {
+  return (yield* open()) ? 'open' : 'closed';
+});
+```
+
+> This literal is treated as user-visible text. If this is text shown to a
+> user, use i18n.t(...). If it is a technical state or discriminant, declare it
+> with craftLiteral(...) and reuse that value.
+
+Declare each technical value once with `craftLiteral(...)` from
+`@craft-ts/core` and reuse it. The computed is inferred as `'open' | 'closed'`:
+
+```ts
+// After: marked values are technical, nothing is reported.
+import { craftLiteral } from '@craft-ts/core';
+
+const drawerOpen = craftLiteral('open');
+const drawerClosed = craftLiteral('closed');
+
+const drawerState = yield* craftComputed('drawerState', function* () {
+  return (yield* open()) ? drawerOpen : drawerClosed;
+});
+```
+
+A marked value is still a technical value, never copy: if it reaches visible
+text — a text child, a `placeholder`, `aria-label` or `title`, or a
+`label`/`text`/`hint` view-model field — the rule asks for `i18n.t(...)`
+instead. There is no autofix: only you know whether a string is shown to a
+user or read by code.
+
 ## Translation parameters
 
 The complete visible sentence belongs to the catalogue. Do not translate one

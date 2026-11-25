@@ -6,6 +6,9 @@ import { describe, expect, it } from 'vitest';
 const require = createRequire(import.meta.url);
 const plugin = require('./index.cjs');
 
+const CHOICE =
+  'If this is text shown to a user, use i18n.t(...). If it is a technical state or discriminant, declare it with craftLiteral(...) and reuse that value.';
+
 async function lint(code: string, filePath = 'src/app/page.ts') {
   const eslint = new ESLint({
     overrideConfigFile: true,
@@ -29,8 +32,8 @@ describe('require-i18n-text', () => {
     );
     expect(messages).toHaveLength(2);
     expect(messages.map((message) => message.message)).toEqual([
-      expect.stringContaining('Visible text must come from i18n.t'),
-      expect.stringContaining('Visible text must come from i18n.t'),
+      expect.stringContaining(CHOICE),
+      expect.stringContaining(CHOICE),
     ]);
   });
 
@@ -65,7 +68,7 @@ describe('require-i18n-text', () => {
     expect(messages).toHaveLength(7);
     expect(
       messages.every((message) =>
-        message.message.includes('Visible text must come from i18n.t'),
+        message.message.includes(CHOICE),
       ),
     ).toBe(true);
   });
@@ -161,5 +164,129 @@ describe('require-i18n-text', () => {
 };
 const other = { label: i18n.t('row'), side: 'observed' };`);
     expect(messages.map((message) => message.line)).toEqual([3]);
+  });
+
+  describe('technical values declared with craftLiteral (#49)', () => {
+    const TECHNICAL = 'declared as a technical value with craftLiteral(...)';
+
+    it('asks a computed returning bare strings to choose between i18n and craftLiteral', async () => {
+      const messages = await lint(`
+        import { craftComputed, craftService, state } from '@craft-ts/core';
+
+        export const { Drawer } = craftService({ name: 'Drawer', providedIn: 'global' }, function* () {
+          const open = yield* state('open', false);
+          yield* craftComputed('drawerState', function* () {
+            return (yield* open()) ? 'open' : 'closed';
+          });
+        });
+      `);
+      expect(messages.map((message) => message.message)).toEqual([
+        expect.stringContaining(CHOICE),
+        expect.stringContaining(CHOICE),
+      ]);
+    });
+
+    it('accepts a computed returning values declared with craftLiteral', async () => {
+      const messages = await lint(`
+        import { craftComputed, craftLiteral, craftService, state } from '@craft-ts/core';
+
+        const drawerOpen = craftLiteral('open');
+        const drawerClosed = craftLiteral('closed');
+
+        export const { Drawer } = craftService({ name: 'Drawer', providedIn: 'global' }, function* () {
+          const open = yield* state('open', false);
+          const drawerState = yield* craftComputed('drawerState', function* () {
+            return (yield* open()) ? drawerOpen : drawerClosed;
+          });
+          const running = yield* craftComputed('running', () => craftLiteral('running'));
+          const tone = yield* craftComputed('tone', () => craftLiteral('neutral') as const);
+          div({ 'data-state': drawerState });
+        });
+      `);
+      expect(messages).toEqual([]);
+    });
+
+    it('recognises renamed and namespace imports of craftLiteral', async () => {
+      const messages = await lint(`
+        import { craftComputed, craftLiteral as technical } from '@craft-ts/core';
+        import * as core from '@craft-ts/core';
+
+        const finished = core.craftLiteral('finished');
+        const status = craftComputed('status', () => (done ? finished : technical('running')));
+        p(finished);
+        span(technical('running'));
+      `);
+      expect(messages.map((message) => message.line)).toEqual([7, 8]);
+      expect(
+        messages.every((message) => message.message.includes(TECHNICAL)),
+      ).toBe(true);
+    });
+
+    it('still requires i18n when a marked value reaches visible text', async () => {
+      const messages = await lint(`
+        import { craftComputed, craftLiteral } from '@craft-ts/core';
+
+        const drawerOpen = craftLiteral('open');
+        const drawerClosed = craftLiteral('closed');
+        const drawerState = craftComputed('drawerState', () => (open() ? drawerOpen : drawerClosed));
+
+        p(drawerOpen);
+        span(isOpen ? drawerOpen : drawerClosed);
+        p(craftLiteral('closed'));
+        p(drawerState);
+        const row = { label: drawerOpen, kind: drawerClosed };
+      `);
+      expect(messages.map((message) => [message.line, message.column])).toEqual([
+        [8, 11],
+        [9, 23],
+        [9, 36],
+        [10, 11],
+        [11, 11],
+        [12, 30],
+      ]);
+      expect(
+        messages.every((message) => message.message.includes(TECHNICAL)),
+      ).toBe(true);
+      expect(messages[0]?.message).toContain('i18n.t(...)');
+    });
+
+    it('still requires i18n when a marked value reaches a visible attribute', async () => {
+      const messages = await lint(`
+        import { craftLiteral } from '@craft-ts/core';
+
+        const drawerOpen = craftLiteral('open');
+        input({ placeholder: drawerOpen, title: isOpen ? drawerOpen : i18n.t('drawer.closed') });
+      `);
+      expect(messages.map((message) => message.message)).toEqual([
+        expect.stringContaining('The placeholder value comes from craftLiteral(...)'),
+        expect.stringContaining('The title value comes from craftLiteral(...)'),
+      ]);
+    });
+
+    it('does not treat a craftLiteral that is not the @craft-ts/core helper as technical', async () => {
+      const messages = await lint(`
+        import { craftLiteral } from './local';
+
+        const drawerOpen = craftLiteral('open');
+        p(drawerOpen);
+      `);
+      expect(messages).toEqual([]);
+    });
+  });
+
+  it('keeps axisPoint driver metadata out of copy in a style file (#49)', async () => {
+    const messages = await lint(
+      `
+        import { axisPoint } from '@craft-ts/style';
+        import * as style from '@craft-ts/style';
+
+        export const ariaExpanded = {
+          true: axisPoint('ariaExpanded', 'true', "&[aria-expanded='true']", { kind: 'setAttribute', name: 'aria-expanded', value: 'true' }),
+          false: style.axisPoint('ariaExpanded', 'false', "&[aria-expanded='false']", { kind: 'setAttribute', name: 'aria-expanded', value: 'false' }),
+        };
+      `,
+      'src/aria.style.ts',
+    );
+    expect(messages).toEqual([]);
   });
 });

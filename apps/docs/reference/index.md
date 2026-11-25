@@ -140,6 +140,7 @@ already receive those methods as arguments — see
 | Symbol               | What it does                       | Page                                                         |
 | -------------------- | ---------------------------------- | ------------------------------------------------------------ |
 | `craftComputed`      | Tracked `computed`                 | [craftComputed](/guide/reactivity/craft-computed)            |
+| `craftLiteral`       | Marks a technical string value     | [craftComputed](/guide/reactivity/craft-computed#technical-values-craftliteral) |
 | `craftEffect`        | Tracked `effect`                   | [craftEffect](/guide/reactivity/craft-effect)                |
 | `craftMethod`        | A tracked method on a primitive    | [craftMethod](/guide/reactivity/craft-method)                |
 | `source$`            | An imperative event source         | [source$](/guide/reactivity/source)                          |

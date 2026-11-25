@@ -145,6 +145,41 @@ function isInsideTranslationCall(node) {
   return false;
 }
 
+// Every `return` of a followed function, skipping nested callbacks: they are
+// that function's implementation details, not its result.
+function returnedExpressions(fn) {
+  const returned = [];
+  const collect = (part) => {
+    if (!part || typeof part.type !== 'string') return;
+    if (
+      part !== fn &&
+      (part.type === 'FunctionExpression' ||
+        part.type === 'ArrowFunctionExpression' ||
+        part.type === 'FunctionDeclaration')
+    )
+      return;
+    if (part.type === 'ReturnStatement') {
+      if (part.argument) returned.push(part.argument);
+      return;
+    }
+    for (const [key, value] of Object.entries(part)) {
+      if (['parent', 'loc', 'range', 'tokens', 'comments'].includes(key)) continue;
+      if (Array.isArray(value)) value.forEach(collect);
+      else if (value && typeof value === 'object') collect(value);
+    }
+  };
+  if (fn.type === 'ArrowFunctionExpression' && fn.body.type !== 'BlockStatement')
+    return [fn.body];
+  collect(fn.body);
+  return returned;
+}
+
+const FUNCTION_TYPES = [
+  'FunctionDeclaration',
+  'FunctionExpression',
+  'ArrowFunctionExpression',
+];
+
 /**
  * Walks a visible position and reports every literal that is copy — including
  * the ones sitting next to a translated value.
@@ -153,37 +188,43 @@ function isInsideTranslationCall(node) {
  * (concatenation, ternary, fallback, list, template text). A call is a value
  * the application supplies, so `i18n.t('key')` is accepted and its key is never
  * mistaken for copy; a function child stays the application's business too.
+ *
+ * `walk.isTechnical(node)` recognises a value declared with `craftLiteral(...)`.
+ * Such a value is accepted where technical values live (a computed's result),
+ * and reported through `walk.reportTechnical` when the position is visible
+ * text: a technical token is never copy.
  */
-function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) {
+function reportCopyLiterals(node, walk, depth = 0) {
   if (!node || depth > 16) return;
+  const next = (child, nextWalk = walk) =>
+    reportCopyLiterals(child, nextWalk, depth + 1);
   switch (node.type) {
     case 'Literal':
-      if (carriesCopy(node.value)) report(node);
+      if (carriesCopy(node.value)) walk.report(node);
       return;
     case 'TemplateLiteral':
       // `${…}` holes are values; the text around them is copy.
       if (node.quasis.some((quasi) => carriesCopy(quasi.value.cooked)))
-        report(node);
+        walk.report(node);
       return;
     case 'BinaryExpression':
       if (node.operator !== '+') return;
-      reportCopyLiterals(node.left, report, depth + 1, resolve);
-      reportCopyLiterals(node.right, report, depth + 1, resolve);
+      next(node.left);
+      next(node.right);
       return;
     case 'ConditionalExpression':
-      reportCopyLiterals(node.consequent, report, depth + 1, resolve);
-      reportCopyLiterals(node.alternate, report, depth + 1, resolve);
+      next(node.consequent);
+      next(node.alternate);
       return;
     case 'LogicalExpression':
-      reportCopyLiterals(node.left, report, depth + 1, resolve);
-      reportCopyLiterals(node.right, report, depth + 1, resolve);
+      next(node.left);
+      next(node.right);
       return;
     case 'ArrayExpression':
-      for (const element of node.elements)
-        reportCopyLiterals(element, report, depth + 1, resolve);
+      for (const element of node.elements) next(element);
       return;
     case 'SpreadElement':
-      reportCopyLiterals(node.argument, report, depth + 1, resolve);
+      next(node.argument);
       return;
     case 'ObjectExpression': {
       // A view-model row names its copy (`label`, `text`…); its other fields
@@ -192,13 +233,13 @@ function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) 
       const entries = node.properties.filter((entry) => entry.type === 'Property');
       const displayEntries = entries.filter(isDisplayTextProperty);
       for (const entry of displayEntries.length > 0 ? displayEntries : entries)
-        reportCopyLiterals(entry.value, report, depth + 1, resolve);
+        next(entry.value);
       return;
     }
     case 'MemberExpression':
       // A presentation field may come from a local label table, such as
       // `KIND_LABEL[entry.kind]`. Follow the table, not the business value.
-      reportCopyLiterals(node.object, report, depth + 1, resolve);
+      next(node.object);
       return;
     case 'ArrowFunctionExpression':
     case 'FunctionExpression':
@@ -206,16 +247,20 @@ function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) 
       // explicit returns: event handlers and other callback implementation
       // details are not user-facing copy positions.
       if (node.body.type !== 'BlockStatement') {
-        reportCopyLiterals(node.body, report, depth + 1, resolve);
+        next(node.body);
         return;
       }
       for (const statement of node.body.body) {
-        if (statement.type === 'ReturnStatement')
-          reportCopyLiterals(statement.argument, report, depth + 1, resolve);
+        if (statement.type === 'ReturnStatement') next(statement.argument);
       }
       return;
     case 'Identifier':
     case 'CallExpression': {
+      // A value declared with craftLiteral(...) is technical by construction.
+      if (walk.isTechnical(node)) {
+        if (walk.reportTechnical) walk.reportTechnical(node);
+        return;
+      }
       // Text summaries are often built as `[...].join(' · ')`; inspect the
       // parts while leaving the separator alone.
       if (
@@ -225,44 +270,37 @@ function reportCopyLiterals(node, report, depth = 0, resolve = () => undefined) 
         node.callee.property.type === 'Identifier' &&
         node.callee.property.name === 'join'
       ) {
-        reportCopyLiterals(node.callee.object, report, depth + 1, resolve);
+        next(node.callee.object);
         return;
       }
-      const target = resolve(node);
+      const target = walk.resolve(node);
       if (!target) {
         // Imported text-producing helpers cannot be followed into their
         // module by this syntax-only rule. Flag the opaque boundary when its
         // name declares that it returns user-facing copy.
-        if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && /(?:label|text|summary|describe)/i.test(node.callee.name)) report(node);
+        if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && /(?:label|text|summary|describe)/i.test(node.callee.name)) walk.report(node);
         return;
       }
-      if (
-        ![
-          'CallExpression',
-          'FunctionDeclaration',
-          'FunctionExpression',
-          'ArrowFunctionExpression',
-        ].includes(target.type)
-      ) {
-        reportCopyLiterals(target, report, depth + 1, resolve);
-        return;
+      // In a visible position, a technical value reached through a binding, a
+      // helper or a computed is reported where it becomes text.
+      let reachesTechnical = false;
+      const followed = walk.reportTechnical
+        ? { ...walk, reportTechnical: () => { reachesTechnical = true; } }
+        : walk;
+      if (target.type === 'CallExpression') {
+        // `const state = craftComputed(...)`: follow the computation.
+        const computation = walk.resolveComputed(target);
+        if (computation) {
+          for (const expression of returnedExpressions(computation))
+            next(expression, followed);
+        }
+      } else if (FUNCTION_TYPES.includes(target.type)) {
+        for (const expression of returnedExpressions(target))
+          next(expression, followed);
+      } else {
+        next(target, followed);
       }
-      const returned = [];
-      const collect = (part) => {
-        if (!part || typeof part.type !== 'string') return;
-        if (part !== target && (part.type === 'FunctionExpression' || part.type === 'ArrowFunctionExpression')) return;
-        if (part.type === 'ReturnStatement') {
-          if (part.argument) returned.push(part.argument);
-          return;
-        }
-        for (const [key, value] of Object.entries(part)) {
-          if (['parent', 'loc', 'range', 'tokens', 'comments'].includes(key)) continue;
-          if (Array.isArray(value)) value.forEach(collect);
-          else if (value && typeof value === 'object') collect(value);
-        }
-      };
-      collect(target);
-      for (const expression of returned) reportCopyLiterals(expression, report, depth + 1, resolve);
+      if (reachesTechnical) walk.reportTechnical(node);
       return;
     }
     default:
@@ -295,9 +333,13 @@ module.exports = {
     schema: [],
     messages: {
       literal:
-        'This literal is treated as user-visible text. If it is rendered copy, use i18n.t(...) (or a translation helper) and move it to the catalogue. Keep identifiers, camelCase/kebab-case discriminants, CSS selectors, and axisPoint(...) driver metadata literal. For common style states, use interaction.focusVisible, ariaChecked.checked, or ariaSelected.selected instead of a custom axisPoint; if a technical value is reported, the rule is misclassifying metadata.',
+        'This literal is treated as user-visible text. If this is text shown to a user, use i18n.t(...). If it is a technical state or discriminant, declare it with craftLiteral(...) and reuse that value. CSS selectors and axisPoint(...) driver metadata stay literal; for common style states, use interaction.focusVisible, ariaChecked.checked, or ariaSelected.selected instead of a custom axisPoint.',
       attribute:
-        'The {{attribute}} value is treated as user-visible text. Translate it when people read it (for example, placeholder or aria-label copy). Keep technical values such as identifiers, discriminants, and axisPoint(...) metadata literal; if one is reported, this rule is misclassifying a technical value.',
+        'The {{attribute}} value must come from i18n.t(...): {{attribute}} is text a user reads or hears, so it belongs in the catalogue. A technical state or discriminant has no place in this attribute.',
+      technical:
+        'This value is declared as a technical value with craftLiteral(...), but it reaches user-visible text. Text shown to a user must come from i18n.t(...): render a translated message for the technical value instead (for example, one catalogue entry per state).',
+      technicalAttribute:
+        'The {{attribute}} value comes from craftLiteral(...), but {{attribute}} is text a user reads or hears. It must come from i18n.t(...): render a translated message for the technical value instead (for example, one catalogue entry per state).',
     },
   },
   create(context) {
@@ -307,17 +349,77 @@ module.exports = {
     const reported = new Set();
     const axisPointNames = new Set(['axisPoint']);
     const styleNamespaces = new Set();
+    // `craftLiteral` as imported from @craft-ts/core, possibly renamed or
+    // reached through a namespace import.
+    const craftLiteralNames = new Set();
+    const coreNamespaces = new Set();
     const reportLiteral = (node, messageId = 'literal', data) => {
       if (reported.has(node)) return;
       reported.add(node);
       context.report({ node, messageId, ...(data ? { data } : {}) });
     };
 
+    const findDefinition = (identifier) => {
+      let current = context.sourceCode.getScope(identifier);
+      while (current) {
+        const variable = current.set.get(identifier.name);
+        if (variable) return variable.defs[0];
+        current = current.upper;
+      }
+      return undefined;
+    };
+
+    const isCraftLiteralCall = (node) => {
+      if (node.type !== 'CallExpression') return false;
+      const callee = node.callee;
+      if (callee.type === 'Identifier') return craftLiteralNames.has(callee.name);
+      return (
+        callee.type === 'MemberExpression' &&
+        !callee.computed &&
+        callee.object.type === 'Identifier' &&
+        coreNamespaces.has(callee.object.name) &&
+        callee.property.type === 'Identifier' &&
+        callee.property.name === 'craftLiteral'
+      );
+    };
+
+    // `craftLiteral('open')`, or a binding whose value is one.
+    const isTechnical = (node, depth = 0) => {
+      if (!node || depth > 8) return false;
+      if (
+        node.type === 'TSAsExpression' ||
+        node.type === 'TSSatisfiesExpression' ||
+        node.type === 'TSNonNullExpression'
+      )
+        return isTechnical(node.expression, depth + 1);
+      if (isCraftLiteralCall(node)) return true;
+      if (node.type !== 'Identifier') return false;
+      const def = findDefinition(node);
+      if (
+        !def ||
+        def.type !== 'Variable' ||
+        def.node.id.type !== 'Identifier' ||
+        !def.node.init
+      )
+        return false;
+      return isTechnical(def.node.init, depth + 1);
+    };
+
+    const isCraftComputedCall = (node) =>
+      node.type === 'CallExpression' &&
+      node.callee.type === 'Identifier' &&
+      node.callee.name === 'craftComputed';
+
+    const computationOf = (node) =>
+      node.arguments.find(
+        (argument) =>
+          argument.type === 'ArrowFunctionExpression' ||
+          argument.type === 'FunctionExpression',
+      );
+
     const resolve = (node) => {
       if (node.type === 'CallExpression') {
-        if (node.callee.type === 'Identifier' && node.callee.name === 'craftComputed') {
-          return node.arguments.find((argument) => argument.type === 'ArrowFunctionExpression' || argument.type === 'FunctionExpression');
-        }
+        if (isCraftComputedCall(node)) return computationOf(node);
         if (node.callee.type !== 'Identifier' || node.callee.name === 'i18n') return undefined;
         const scope = context.sourceCode.getScope(node);
         let current = scope;
@@ -345,7 +447,45 @@ module.exports = {
       }
       return undefined;
     };
+
+    // A computed's result is where technical values live: accept marked ones.
+    const computedWalk = {
+      report: reportLiteral,
+      resolve,
+      resolveComputed: (node) =>
+        isCraftComputedCall(node) ? computationOf(node) : undefined,
+      isTechnical,
+    };
+    // A visible position also reports technical values that become text.
+    const visibleWalk = {
+      ...computedWalk,
+      reportTechnical: (node) => reportLiteral(node, 'technical'),
+    };
+
     return {
+      Program(program) {
+        // Read imports up front: every visitor below may need them.
+        for (const statement of program.body) {
+          if (
+            statement.type !== 'ImportDeclaration' ||
+            statement.source.value !== '@craft-ts/core' ||
+            statement.importKind === 'type'
+          )
+            continue;
+          for (const specifier of statement.specifiers) {
+            if (specifier.type === 'ImportNamespaceSpecifier') {
+              coreNamespaces.add(specifier.local.name);
+            } else if (
+              specifier.type === 'ImportSpecifier' &&
+              specifier.importKind !== 'type' &&
+              (specifier.imported.name ?? specifier.imported.value) ===
+                'craftLiteral'
+            ) {
+              craftLiteralNames.add(specifier.local.name);
+            }
+          }
+        }
+      },
       ImportDeclaration(node) {
         if (node.source.value !== '@craft-ts/style') return;
         for (const specifier of node.specifiers) {
@@ -360,9 +500,11 @@ module.exports = {
         }
       },
       CallExpression(node) {
-        if (node.callee.type === 'Identifier' && node.callee.name === 'craftComputed') {
-          const compute = node.arguments.find((argument) => argument.type === 'ArrowFunctionExpression' || argument.type === 'FunctionExpression');
-          if (compute) reportCopyLiterals(compute, reportLiteral, 0, resolve);
+        if (isCraftComputedCall(node)) {
+          // Without type information a returned literal may be copy or a
+          // token; a technical token is declared with craftLiteral(...).
+          const compute = computationOf(node);
+          if (compute) reportCopyLiterals(compute, computedWalk);
         }
         const call = parseHyperscriptCall(node);
         if (!call || !call.tag || !TEXT_HELPERS.has(call.tag)) return;
@@ -370,14 +512,19 @@ module.exports = {
         for (const attribute of TEXT_ATTRIBUTES) {
           const entry = property(call.props, attribute);
           if (!entry) continue;
-          reportCopyLiterals(entry.value, (node) =>
-            reportLiteral(node, 'attribute', { attribute }),
-          );
+          reportCopyLiterals(entry.value, {
+            ...visibleWalk,
+            // Attribute values are not followed into local bindings for copy.
+            resolve: () => undefined,
+            report: (node) => reportLiteral(node, 'attribute', { attribute }),
+            reportTechnical: (node) =>
+              reportLiteral(node, 'technicalAttribute', { attribute }),
+          });
         }
 
         // A function, identifier, member expression or translation call is a
         // value supplied by the application. It is intentionally accepted.
-        reportCopyLiterals(call.children, reportLiteral, 0, resolve);
+        reportCopyLiterals(call.children, visibleWalk);
       },
       Property(node) {
         if (
@@ -395,11 +542,13 @@ module.exports = {
         if (isDiscriminantKind(node) || isInsideI18nDefinition(node)) return;
         // The i18n rule also applies when a feature prepares visible copy in a
         // plain view-model object before the component template consumes it.
+        // A `kind` field may carry a technical discriminant; the other display
+        // fields are text, so a craftLiteral value there is reported.
+        const key =
+          node.key.type === 'Identifier' ? node.key.name : String(node.key.value);
         reportCopyLiterals(
           node.value,
-          reportLiteral,
-          0,
-          resolve,
+          key === 'kind' ? computedWalk : visibleWalk,
         );
       },
     };

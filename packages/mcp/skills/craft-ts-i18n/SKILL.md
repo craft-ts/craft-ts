@@ -147,6 +147,22 @@ parameters of `i18n.t(...)`, generator children, catalogue files, server files
 and tests are all exempt. A project generated without i18n does not get the
 rule.
 
+The strings a `craftComputed` returns are checked too. When one is a technical
+state or discriminant (a `data-state` value, a `matchNode` key), do not
+translate it and do not disable the rule: declare each value once with
+`craftLiteral(...)` from `@craft-ts/core` and return that value. The computed
+keeps the literal union type. A marked value that reaches visible text is still
+reported — render a translated message for it instead:
+
+```ts
+const drawerOpen = craftLiteral('open');
+const drawerClosed = craftLiteral('closed');
+const drawerState = yield* craftComputed('drawerState', function* () {
+  return (yield* open()) ? drawerOpen : drawerClosed; // 'open' | 'closed'
+});
+p(drawerOpen); // reported: a technical value is not copy
+```
+
 A project token does the same through `defineToken`, and declares no `format`
 when the formatter only exists at render time:
 
