@@ -401,6 +401,195 @@ describe('analyzeDependencyGraph reactive granularity', () => {
     );
   });
 
+  describe('resolves reads by TypeScript symbol, not by name (#43)', () => {
+    const TYPED_STUBS = `
+      type Reader<T> = () => Generator<unknown, T, unknown>;
+      declare function craftService<O>(
+        config: unknown,
+        factory: () => Generator<unknown, O, unknown>,
+      ): Record<string, () => Generator<unknown, O, unknown>>;
+      declare function state<T>(name: string, initial: T): Generator<unknown, Reader<T>, unknown>;
+      declare function state<T, I>(
+        name: string,
+        initial: T,
+        insertion: (context: { state: Reader<T> }) => Generator<unknown, I, unknown>,
+      ): Generator<unknown, Reader<T> & I, unknown>;
+      declare function craftComputed<T>(
+        name: string,
+        compute: () => Generator<unknown, T, unknown>,
+      ): Generator<unknown, Reader<T>, unknown>;
+    `;
+
+    function analyze(root: string) {
+      return analyzeDependencyGraph({
+        rootDir: root,
+        tsConfigFilePath: 'tsconfig.json',
+      });
+    }
+
+    function readsOf(
+      graph: ReturnType<typeof analyzeDependencyGraph>,
+      label: string,
+    ) {
+      return edgeLabels(graph, label).filter((edge) =>
+        /^(calls|depends-on)->/.test(edge),
+      );
+    }
+
+    it('does not link a state value field to a computed of the same name', async () => {
+      const root = await fixture({
+        'search.ts': `
+          ${TYPED_STUBS}
+          export const { Search } = craftService(
+            { name: 'Search', providedIn: 'global' },
+            function* () {
+              const draft = yield* state('draft', { text: '' });
+              yield* craftComputed('text', function* () {
+                return (yield* draft()).text;
+              });
+              // Reads the text field of the state's value: no computed is called.
+              yield* craftComputed('submitDisabled', function* () {
+                return (yield* draft()).text.trim().length < 2;
+              });
+              yield* craftComputed('localDisabled', function* () {
+                const value = yield* draft();
+                return value.text.length < 2;
+              });
+            },
+          );
+        `,
+      });
+
+      const graph = analyze(root);
+
+      expect(readsOf(graph, 'craftComputed:submitDisabled')).toEqual([
+        'depends-on->state:draft',
+      ]);
+      expect(readsOf(graph, 'craftComputed:localDisabled')).toEqual([
+        'depends-on->state:draft',
+      ]);
+    });
+
+    it('does not link a local name that shadows a computed', async () => {
+      const root = await fixture({
+        'search.ts': `
+          ${TYPED_STUBS}
+          export const { Search } = craftService(
+            { name: 'Search', providedIn: 'global' },
+            function* () {
+              const draft = yield* state('draft', '');
+              const text = yield* craftComputed('text', function* () {
+                return yield* draft();
+              });
+              yield* craftComputed('label', function* () {
+                const echo = (text: string) => text;
+                return echo(yield* draft());
+              });
+              return { text };
+            },
+          );
+        `,
+      });
+
+      const graph = analyze(root);
+
+      expect(readsOf(graph, 'craftComputed:label')).toEqual([
+        'depends-on->state:draft',
+      ]);
+    });
+
+    it('still links genuine reads of the computed', async () => {
+      const root = await fixture({
+        'search.ts': `
+          ${TYPED_STUBS}
+          export const { Search } = craftService(
+            { name: 'Search', providedIn: 'global' },
+            function* () {
+              const draft = yield* state('draft', { text: '' });
+              const text = yield* craftComputed('text', function* () {
+                return (yield* draft()).text;
+              });
+              yield* craftComputed('shout', function* () {
+                return (yield* text()).toUpperCase();
+              });
+              return { text };
+            },
+          );
+          export const { Results } = craftService(
+            { name: 'Results', providedIn: 'global' },
+            function* () {
+              yield* craftComputed('summary', function* () {
+                return (yield* (yield* Search()).text()).length;
+              });
+              yield* craftComputed('initial', function* () {
+                const { text } = yield* Search();
+                return (yield* text()).charAt(0);
+              });
+              const text = (yield* Search()).text;
+              yield* craftComputed('echo', function* () {
+                return yield* text();
+              });
+              return {};
+            },
+          );
+        `,
+      });
+
+      const graph = analyze(root);
+
+      expect(readsOf(graph, 'craftComputed:shout')).toEqual([
+        'depends-on->craftComputed:text',
+      ]);
+      expect(readsOf(graph, 'craftComputed:summary')).toContain(
+        'calls->craftComputed:text',
+      );
+      expect(readsOf(graph, 'craftComputed:initial')).toEqual(
+        expect.arrayContaining([expect.stringMatching(/->craftComputed:text$/)]),
+      );
+      expect(readsOf(graph, 'craftComputed:echo')).toEqual(
+        expect.arrayContaining([expect.stringMatching(/->craftComputed:text$/)]),
+      );
+    });
+
+    it('follows destructured readers to the primitive they hold', async () => {
+      const root = await fixture({
+        'search.ts': `
+          ${TYPED_STUBS}
+          export const { Search } = craftService(
+            { name: 'Search', providedIn: 'global' },
+            function* () {
+              const text = yield* craftComputed('text', function* () {
+                return 'a';
+              });
+              const context = { text };
+              yield* craftComputed('fromContext', function* () {
+                const { text } = context;
+                return (yield* text()).length;
+              });
+              // The insertion context's reader, renamed after the state.
+              yield* state('draft', { text: '' }, function* ({ state: draft }) {
+                return {
+                  size: yield* craftComputed('size', function* () {
+                    return (yield* draft()).text.length;
+                  }),
+                };
+              });
+            },
+          );
+        `,
+      });
+
+      const graph = analyze(root);
+
+      expect(readsOf(graph, 'craftComputed:fromContext')).toEqual(
+        expect.arrayContaining([expect.stringMatching(/->craftComputed:text$/)]),
+      );
+      expect(readsOf(graph, 'craftComputed:size')).toEqual([
+        'depends-on->state:draft',
+      ]);
+    });
+  });
+
   it('records template reads of states/computeds and method calls', async () => {
     const root = await fixture({
       'view.ts': `

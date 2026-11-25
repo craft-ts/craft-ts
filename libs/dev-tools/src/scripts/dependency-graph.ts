@@ -5696,17 +5696,21 @@ function resolvePrimitiveSymbolTarget(
   for (const candidate of candidates) {
     const symbol = candidate.getSymbol();
     const name = symbol?.getName();
-    if (!name) continue;
+    if (!symbol || !name) continue;
     const files = new Set<string>(
-      (symbol?.getDeclarations() ?? []).map((declaration) =>
+      symbol.getDeclarations().map((declaration) =>
         declaration.getSourceFile().getFilePath(),
       ),
     );
+    // The name only narrows the search: the symbol must designate the
+    // primitive, so that `(yield* draft()).text` (a field of a state's value)
+    // is not taken for a read of `craftComputed('text')`.
     const matches = [...builder.nodes.values()].filter(
       (node) =>
         node.kind === 'primitive' &&
         files.has(node.filePath ?? '') &&
-        (node.details?.['usage'] === name || node.details?.['name'] === name),
+        (node.details?.['usage'] === name || node.details?.['name'] === name) &&
+        symbolDesignatesPrimitive(builder, symbol, node, candidate),
     );
     if (matches.length !== 1) continue;
     return {
@@ -5719,6 +5723,275 @@ function resolvePrimitiveSymbolTarget(
     };
   }
   return undefined;
+}
+
+/**
+ * Whether `symbol`, the symbol a read resolves to, designates `primitive`: the
+ * variable or property that holds its factory call, or a member read on an
+ * instance of the service that owns it. A field of a plain value, a parameter
+ * or a local that only shares the primitive's name does not.
+ */
+function symbolDesignatesPrimitive(
+  builder: GraphBuilder,
+  symbol: import('ts-morph').Symbol,
+  primitive: DependencyGraphNode,
+  candidate: Node | undefined,
+  seen: Set<Node> = new Set(),
+): boolean {
+  const resolved = symbol.getAliasedSymbol() ?? symbol;
+  for (const declaration of resolved.getDeclarations()) {
+    if (seen.has(declaration)) continue;
+    seen.add(declaration);
+    if (
+      Node.isVariableDeclaration(declaration) ||
+      Node.isPropertyAssignment(declaration)
+    ) {
+      if (
+        expressionDesignatesPrimitive(
+          builder,
+          declaration.getInitializer(),
+          primitive,
+          seen,
+        )
+      ) {
+        return true;
+      }
+      continue;
+    }
+    if (Node.isShorthandPropertyAssignment(declaration)) {
+      const value = declaration.getValueSymbol();
+      if (
+        value &&
+        symbolDesignatesPrimitive(builder, value, primitive, undefined, seen)
+      ) {
+        return true;
+      }
+      continue;
+    }
+    if (
+      Node.isBindingElement(declaration) &&
+      bindingDesignatesPrimitive(builder, declaration, primitive, seen)
+    ) {
+      return true;
+    }
+  }
+  // A member of a service's output type: `(yield* Search()).text`.
+  return (
+    candidate !== undefined &&
+    Node.isPropertyAccessExpression(candidate) &&
+    serviceMemberDesignatesPrimitive(
+      builder,
+      candidate.getExpression(),
+      candidate.getName(),
+      primitive,
+    )
+  );
+}
+
+/**
+ * A destructured name designates the primitive when it is the insertion
+ * context's own reader (`function* ({ state: showcase })` in
+ * `state('showcase', …)`), a member of the service instance it is taken from
+ * (`const { text } = yield* Search()`), or a property whose declaration does.
+ */
+function bindingDesignatesPrimitive(
+  builder: GraphBuilder,
+  element: import('ts-morph').BindingElement,
+  primitive: DependencyGraphNode,
+  seen: Set<Node>,
+): boolean {
+  const pattern = element.getParent();
+  if (!Node.isObjectBindingPattern(pattern)) return false;
+  const property =
+    element.getPropertyNameNode()?.getText() ?? element.getName();
+  const owner = pattern.getParent();
+  if (Node.isParameterDeclaration(owner) && INSERTION_CONTEXT_NAMES.has(property)) {
+    const host = insertionContextHost(owner);
+    if (host) return isPrimitiveCall(builder, primitive, host);
+  }
+  if (
+    Node.isVariableDeclaration(owner) &&
+    serviceMemberDesignatesPrimitive(
+      builder,
+      owner.getInitializer(),
+      property,
+      primitive,
+    )
+  ) {
+    return true;
+  }
+  const member = pattern.getType().getProperty(property);
+  return (
+    member !== undefined &&
+    symbolDesignatesPrimitive(builder, member, primitive, undefined, seen)
+  );
+}
+
+/**
+ * The primitive factory whose insertion callback declares `parameter`, as
+ * `enclosingPrimitiveNode` finds it; undefined inside a computed, method or
+ * effect body, whose parameters are not an insertion context.
+ */
+function insertionContextHost(parameter: Node): CallExpression | undefined {
+  let current: Node | undefined = parameter.getParent();
+  while (current) {
+    if (Node.isCallExpression(current) && isPrimitiveFactory(current)) {
+      const primitive = primitiveFactoryName(current);
+      if (
+        primitive === 'craftComputed' ||
+        primitive === 'craftMethod' ||
+        primitive === 'craftEffect'
+      ) {
+        return undefined;
+      }
+      return current;
+    }
+    current = current.getParent();
+  }
+  return undefined;
+}
+
+/** `(yield* Search()).text`: `text` is a primitive the service owns. */
+function serviceMemberDesignatesPrimitive(
+  builder: GraphBuilder,
+  receiver: Node | undefined,
+  member: string,
+  primitive: DependencyGraphNode,
+): boolean {
+  if (
+    primitive.details?.['usage'] !== member &&
+    primitive.details?.['name'] !== member
+  ) {
+    return false;
+  }
+  const service = serviceInstanceOf(builder, receiver);
+  return service !== undefined && isOwnedBy(builder, primitive, service.node.id);
+}
+
+/** Whether `call` is the factory call `primitive` was recorded from. */
+function isPrimitiveCall(
+  builder: GraphBuilder,
+  primitive: DependencyGraphNode,
+  call: CallExpression,
+): boolean {
+  const span = builder.spans.get(primitive.id);
+  return (
+    span !== undefined &&
+    span.filePath === call.getSourceFile().getFilePath() &&
+    span.start === call.getStart() &&
+    span.end === call.getEnd()
+  );
+}
+
+function expressionDesignatesPrimitive(
+  builder: GraphBuilder,
+  expression: Node | undefined,
+  primitive: DependencyGraphNode,
+  seen: Set<Node>,
+): boolean {
+  const current = unwrapValueExpression(expression);
+  if (!current) return false;
+  if (Node.isCallExpression(current)) {
+    return isPrimitiveCall(builder, primitive, current);
+  }
+  if (Node.isIdentifier(current)) {
+    const symbol = current.getSymbol();
+    return (
+      symbol !== undefined &&
+      symbolDesignatesPrimitive(builder, symbol, primitive, undefined, seen)
+    );
+  }
+  if (Node.isPropertyAccessExpression(current)) {
+    // `const count = (yield* Counter()).count;`
+    const symbol = current.getSymbol();
+    return symbol !== undefined
+      ? symbolDesignatesPrimitive(builder, symbol, primitive, current, seen)
+      : serviceMemberDesignatesPrimitive(
+          builder,
+          current.getExpression(),
+          current.getName(),
+          primitive,
+        );
+  }
+  return false;
+}
+
+/** Strips parentheses, `yield*`, `await`, type assertions and primitive relays. */
+function unwrapValueExpression(node: Node | undefined): Node | undefined {
+  let current = node;
+  while (current) {
+    if (
+      Node.isParenthesizedExpression(current) ||
+      Node.isYieldExpression(current) ||
+      Node.isAwaitExpression(current) ||
+      Node.isAsExpression(current) ||
+      Node.isSatisfiesExpression(current) ||
+      Node.isNonNullExpression(current)
+    ) {
+      current = current.getExpression();
+      continue;
+    }
+    if (
+      Node.isCallExpression(current) &&
+      current.getArguments().length === 1 &&
+      PRIMITIVE_RELAY_NAMES.has(current.getExpression().getText())
+    ) {
+      current = current.getArguments()[0];
+      continue;
+    }
+    break;
+  }
+  return current;
+}
+
+/**
+ * The service an expression evaluates to an instance of, resolved by symbol:
+ * `yield* Search()`, or a local that holds it.
+ */
+function serviceInstanceOf(
+  builder: GraphBuilder,
+  expression: Node | undefined,
+  depth = 0,
+): ServiceInfo | undefined {
+  const current = unwrapValueExpression(expression);
+  if (!current || depth > 8) return undefined;
+  if (Node.isCallExpression(current)) {
+    const callee = current.getExpression();
+    if (!Node.isIdentifier(callee)) return undefined;
+    const key = symbolKey(callee.getSymbol());
+    return key ? builder.serviceByHelperKey.get(key) : undefined;
+  }
+  if (Node.isIdentifier(current)) {
+    const symbol = current.getSymbol();
+    const resolved = symbol?.getAliasedSymbol() ?? symbol;
+    for (const declaration of resolved?.getDeclarations() ?? []) {
+      if (!Node.isVariableDeclaration(declaration)) continue;
+      const service = serviceInstanceOf(
+        builder,
+        declaration.getInitializer(),
+        depth + 1,
+      );
+      if (service) return service;
+    }
+  }
+  return undefined;
+}
+
+/** Whether `ownerId` is the primitive's owner, directly or through its hosts. */
+function isOwnedBy(
+  builder: GraphBuilder,
+  primitive: DependencyGraphNode,
+  ownerId: string,
+): boolean {
+  const visited = new Set<string>();
+  let current: DependencyGraphNode | undefined = primitive;
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    const owner: unknown = current.details?.['ownerId'];
+    if (owner === ownerId) return true;
+    current = typeof owner === 'string' ? builder.nodes.get(owner) : undefined;
+  }
+  return false;
 }
 
 function resolveReactiveChain(
