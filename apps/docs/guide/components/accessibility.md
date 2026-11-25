@@ -57,6 +57,56 @@ input({ id: 'email', type: 'email' });
 `h('button')` when a named helper exists is an error
 (`prefer-named-html-helpers`): it's a bypass of the types.
 
+## Labels and labelable controls
+
+A `label` names a **labelable element** — the HTML Standard list:
+`button`, `input` (except `type: 'hidden'`), `meter`, `output`, `progress`,
+`select`, `textarea`. `label-has-associated-control` accepts a label that wraps
+one of them or whose `htmlFor` matches its `id`; `control-has-accessible-name`
+then takes the control's name from that label's text (static text, an i18n
+`t(...)` call, or a dynamic child).
+
+A switch is the usual case: the WAI-ARIA "Switch" pattern is a native
+`button` with `role: 'switch'`, and its wrapping label names it.
+
+```ts
+// ❌ craft-ts/label-has-associated-control: a div is not labelable, even with
+//    role=switch, so the label names nothing and the switch has no name.
+label([
+  span('Dark mode'),
+  div({ role: 'switch', 'aria-checked': 'false', tabIndex: 0 }),
+]);
+
+// ❌ craft-ts/control-has-accessible-name: no text, no aria-label, no label.
+button({ type: 'button', role: 'switch', 'aria-checked': 'false' });
+
+// ✅ the wrapping label associates the button and gives it its name.
+label([
+  span('Dark mode'),
+  button({ type: 'button', role: 'switch', 'aria-checked': 'false' }),
+]);
+
+// ✅ or associate it explicitly by id (same file).
+label({ htmlFor: 'dark-mode' }, 'Dark mode');
+button({
+  id: 'dark-mode',
+  type: 'button',
+  role: 'switch',
+  'aria-checked': 'false',
+});
+```
+
+The fix is manual (no `eslint --fix`): replace the role-only element with the
+native labelable element, or give the label text. Following HTML, a label
+without `htmlFor` labels only its **first** labelable descendant, and a
+hidden input is never labelled. An `htmlFor` whose id is not declared
+statically in the file (spread props, another component) gets the benefit of
+the doubt; one pointing at a non-labelable element of the file is reported. A
+`customElement('x-tag', …)` is not treated as
+labelable: form association (`static formAssociated = true`) is declared on
+the element class, which a per-file lint rule cannot see — name such an
+element with `aria-label` or `aria-labelledby`.
+
 ## Heading outline
 
 An `h3` inside a Card is a classic false positive: sometimes under an `h1`,

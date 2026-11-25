@@ -148,7 +148,9 @@ describe('craft-ts a11y', () => {
         `label('Email');`,
         'label-has-associated-control',
       );
-      expect(messages(result)[0]).toContain('label must be associated');
+      expect(messages(result)).toEqual([
+        'label must be associated with a labelable element: wrap a button, input (not type=hidden), meter, output, progress, select, or textarea, or set htmlFor to its id. An element with only a role (e.g. div role=switch) is not labelable; use the native element instead.',
+      ]);
     });
 
     it('allows wrapping and htmlFor', async () => {

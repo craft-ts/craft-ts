@@ -1495,6 +1495,22 @@ extracted factories, `h('tag')`), not only `craftComponent` argument 3.
 - `require-interactive-local-name`: requires a string-literal first argument on interactive helpers; the local name is the third segment of `data-craft-name="${component}:${tag}:${localName}"`
 - `img-has-alt`, `iframe-has-title`, `button-has-type`, `anchor-has-href`
 - `control-has-accessible-name`, `label-has-associated-control`, `heading-has-content`
+  — a label is associated with any HTML labelable element (`button`, `input`
+  other than hidden, `meter`, `output`, `progress`, `select`, `textarea`) it
+  wraps or targets with `htmlFor`, and its text names that control:
+
+  ```ts
+  // ❌ a div is not labelable, even with role=switch
+  label([span('Dark mode'), div({ role: 'switch', 'aria-checked': 'false' })]);
+  // ✅ the wrapping label associates and names the native button
+  label([
+    span('Dark mode'),
+    button({ type: 'button', role: 'switch', 'aria-checked': 'false' }),
+  ]);
+  ```
+
+  See [Labels and labelable controls](/guide/components/accessibility#labels-and-labelable-controls).
+
 - `no-noninteractive-element-interactions`, `no-positive-tabindex`
 - `valid-aria`, `role-has-required-aria`, `target-blank-noopener`
 - `prefer-relative-heading`, `require-route-heading-outline`,

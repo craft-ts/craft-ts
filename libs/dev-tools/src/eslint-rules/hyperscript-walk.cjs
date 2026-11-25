@@ -208,15 +208,21 @@ function walk(node, sourceCode, visit) {
   }
 }
 
-function staticTextContent(node) {
-  if (!node) return '';
+/**
+ * Text a subtree contributes to an accessible name. `exclude` skips one node
+ * (and its subtree), e.g. the control nested inside the label that names it.
+ */
+function staticTextContent(node, exclude) {
+  if (!node || node === exclude) return '';
   if (isStringLiteral(node)) return stringLiteralValue(node) ?? '';
   if (node.type === 'ArrayExpression') {
-    return node.elements.map((element) => staticTextContent(element)).join('');
+    return node.elements
+      .map((element) => staticTextContent(element, exclude))
+      .join('');
   }
   if (node.type === 'CallExpression') {
     const call = parseHyperscriptCall(node);
-    if (call) return staticTextContent(call.children);
+    if (call) return staticTextContent(call.children, exclude);
     if (
       node.callee.type === 'MemberExpression' &&
       !node.callee.computed &&
@@ -227,14 +233,17 @@ function staticTextContent(node) {
       return 'dynamic text';
     }
     if (node.callee.type === 'Identifier' && node.arguments.length > 0) {
-      return staticTextContent(node.arguments[node.arguments.length - 1]);
+      return staticTextContent(
+        node.arguments[node.arguments.length - 1],
+        exclude,
+      );
     }
   }
   return '';
 }
 
-function hasDynamicAccessibleName(children) {
-  if (!children) return false;
+function hasDynamicAccessibleName(children, exclude) {
+  if (!children || children === exclude) return false;
   if (
     children.type === 'FunctionExpression' ||
     children.type === 'ArrowFunctionExpression' ||
@@ -254,11 +263,12 @@ function hasDynamicAccessibleName(children) {
     }
     return hasDynamicAccessibleName(
       children.arguments[children.arguments.length - 1],
+      exclude,
     );
   }
   if (children.type === 'ArrayExpression') {
     return children.elements.some((element) =>
-      hasDynamicAccessibleName(element),
+      hasDynamicAccessibleName(element, exclude),
     );
   }
   return false;
@@ -306,5 +316,6 @@ module.exports = {
   parseHyperscriptCall,
   walk,
   staticTextContent,
+  hasDynamicAccessibleName,
   hasAccessibleName,
 };
