@@ -1,3 +1,37 @@
+## 0.11.4 (2026-11-25)
+
+### 🚀 Features
+
+- **core:** add identifier query insertions ([2b6f511b2](https://github.com/craft-ts/craft-ts/commit/2b6f511b2))
+- **core,dev-tools:** add craftLiteral and let require-i18n-text accept marked technical values ([#49](https://github.com/craft-ts/craft-ts/issues/49))
+- **dev-tools:** reject component inputs named like host DOM properties or events ([#39](https://github.com/craft-ts/craft-ts/issues/39))
+
+### 🩹 Fixes
+
+- **component:** reject node directives piped onto non-element nodes ([#38](https://github.com/craft-ts/craft-ts/issues/38))
+- **core:** fall back to getRandomValues when crypto.randomUUID is missing ([#42](https://github.com/craft-ts/craft-ts/issues/42))
+- **core:** resolve the log server URL lazily so provideCraftDevTools no longer breaks bootstrapCraft ([#41](https://github.com/craft-ts/craft-ts/issues/41))
+- **core:** seal component dependency contracts at component boundaries ([#40](https://github.com/craft-ts/craft-ts/issues/40))
+- **dev-tools:** declare aria-query as a dependency of the ESLint rules ([#37](https://github.com/craft-ts/craft-ts/issues/37))
+- **dev-tools:** resolve graph reads by TypeScript symbol, not by name ([#43](https://github.com/craft-ts/craft-ts/issues/43))
+- **dev-tools:** accept NodeNext style imports that resolve to typed style modules ([#47](https://github.com/craft-ts/craft-ts/issues/47))
+- **dev-tools:** only check event bindings in require-craft-method-for-yieldable-callback ([#50](https://github.com/craft-ts/craft-ts/issues/50))
+- **dev-tools:** ignore _-prefixed arguments in the generated no-unused-vars rule ([#45](https://github.com/craft-ts/craft-ts/issues/45))
+- **dev-tools:** only suggest moving a dependency into a craftComputed that accepts it ([#44](https://github.com/craft-ts/craft-ts/issues/44))
+- **dev-tools:** accept a bound i18n translator read in a craftComputed when its type proves it pure ([#46](https://github.com/craft-ts/craft-ts/issues/46))
+- **dev-tools:** explain no-raw-class refusals of external /style entries and point to a local CraftTS adapter ([#51](https://github.com/craft-ts/craft-ts/issues/51))
+- **dev-tools:** associate labels with every HTML labelable element and name controls from their label ([#52](https://github.com/craft-ts/craft-ts/issues/52))
+- **dev-tools:** only count text siblings as composition in no-i18n-composition children arrays ([#53](https://github.com/craft-ts/craft-ts/issues/53))
+- **dev-tools:** report mutation-react-on per mutation so a waiver can target one primitive ([#56](https://github.com/craft-ts/craft-ts/issues/56))
+- **replay:** capture transport definitions in initializer ([c56054bcf](https://github.com/craft-ts/craft-ts/commit/c56054bcf))
+- **replay:** surface replay transport injection errors and cover custom adapter replay ([#57](https://github.com/craft-ts/craft-ts/issues/57))
+- **style:** default the evaluation alias of @craft-ts/style to the installed package entry ([#36](https://github.com/craft-ts/craft-ts/issues/36))
+- **style,dev-tools:** guide undeclared CSS variable reads to the host's style contract or an adapter ([#55](https://github.com/craft-ts/craft-ts/issues/55))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.11.3 (2026-11-21)
 
 ### 🚀 Features
