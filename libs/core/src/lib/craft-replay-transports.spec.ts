@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSendContextSession } from './send-context-to-ai.tokens';
+import { Injector, type Provider } from './host/craft-compat';
 import {
   craftWebSocketReplay,
   craftWorkerReplay,
@@ -10,6 +11,7 @@ import {
   craftSendBeaconReplay,
   captureCraftReplayTransportEvent,
   connectCraftReplayTransportCapture,
+  injectCraftReplayTransports,
   installCraftReplayTransports,
   isCraftReplayTransportEvent,
   provideCraftReplayTransports,
@@ -25,6 +27,57 @@ afterEach(() => {
   globalThis.Worker = originalWorker;
   globalThis.fetch = originalFetch;
   globalThis.XMLHttpRequest = originalXhr;
+});
+
+describe('injectCraftReplayTransports', () => {
+  const adapter = craftReplayAdapter({
+    id: 'probe57',
+    match: () => false,
+    record: ({ data }) => data,
+    replay: () => undefined,
+  });
+
+  it('returns no adapter only when none is provided', () => {
+    const injector = Injector.create({ providers: [] });
+    expect(injectCraftReplayTransports(injector)).toEqual([]);
+    expect(injector.run(() => injectCraftReplayTransports())).toEqual([]);
+    injector.destroy();
+  });
+
+  it('returns the provided adapters', () => {
+    const injector = Injector.create({
+      providers: provideCraftReplayTransports(adapter),
+    });
+    expect(injectCraftReplayTransports(injector)).toEqual([adapter]);
+    expect(injector.run(() => injectCraftReplayTransports())).toEqual([
+      adapter,
+    ]);
+    injector.destroy();
+  });
+
+  it('lets a failing adapter provider surface instead of reporting no adapter', () => {
+    const failure = new Error('replay transport provider failed');
+    // The real adapter provider, whose factory fails while it is resolved.
+    const throwing = (provideCraftReplayTransports(adapter) as unknown[])
+      .flat(Number.POSITIVE_INFINITY)
+      .map((provider) => ({
+        ...(provider as object),
+        useFactory: () => {
+          throw failure;
+        },
+      })) as unknown as Provider[];
+    const parent = Injector.create({ providers: throwing });
+    const child = parent.createChild([]);
+    expect(() => injectCraftReplayTransports(child)).toThrow(failure);
+    expect(() => child.run(() => injectCraftReplayTransports())).toThrow(
+      failure,
+    );
+    parent.destroy();
+  });
+
+  it('does not answer with an empty list outside an injection context', () => {
+    expect(() => injectCraftReplayTransports()).toThrow();
+  });
 });
 
 describe('custom replay transports', () => {

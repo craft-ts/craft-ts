@@ -1,10 +1,10 @@
 import { runCraftCleanups } from './lifecycle';
+import { inject, Injector, type Provider } from './host/craft-compat';
 import {
-  Injector,
-  runInInjectionContext,
-  type Provider,
-} from './host/craft-compat';
-import { ɵcraftValueService } from './craft-service';
+  ɵcraftValueService,
+  ɵresolveOptionalService,
+  ɵSERVICE_NOT_FOUND,
+} from './craft-service';
 import type { SendContextSession } from './send-context-to-ai.tokens';
 import {
   ɵinjectCorrelationIdService,
@@ -174,31 +174,29 @@ export function provideCraftReplayTransports(
   );
 }
 
-/** @internal Read configured adapters from the active application injector. */
+/**
+ * @internal Read configured adapters from the active application injector.
+ *
+ * Only an absent provider means "no adapters": it yields an empty list. Any
+ * other failure (no injection context, a throwing provider factory, duplicate
+ * ids) propagates, so it is not mistaken later for a missing adapter.
+ */
 export function injectCraftReplayTransports(
   injector?: Injector,
 ): readonly CraftReplayTransportDefinition[] {
-  try {
-    const definitions = injector
-      ? runInInjectionContext(injector, () =>
-          transportDefinitions.CRAFT_REPLAY_TRANSPORT_DEFINITIONS_META_DATA.inject(),
-        )
-      : transportDefinitions.CRAFT_REPLAY_TRANSPORT_DEFINITIONS_META_DATA.inject();
-    const ids = new Set<string>();
-    for (const definition of definitions) {
-      if (ids.has(definition.id))
-        throw new Error(`Duplicate replay transport id: ${definition.id}`);
-      ids.add(definition.id);
-    }
-    return definitions;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.startsWith('Duplicate replay transport id:')
-    )
-      throw error;
-    return [];
+  const provided = ɵresolveOptionalService(
+    transportDefinitions.CRAFT_REPLAY_TRANSPORT_DEFINITIONS_META_DATA,
+    injector ?? inject(Injector),
+  );
+  if (provided === ɵSERVICE_NOT_FOUND) return [];
+  const definitions = provided as readonly CraftReplayTransportDefinition[];
+  const ids = new Set<string>();
+  for (const definition of definitions) {
+    if (ids.has(definition.id))
+      throw new Error(`Duplicate replay transport id: ${definition.id}`);
+    ids.add(definition.id);
   }
+  return definitions;
 }
 
 export interface CraftReplayTransportEvent {
