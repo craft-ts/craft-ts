@@ -660,6 +660,61 @@ export const card = craftStyles('card', { root: [gapProp(gap)] });
 `./tokens.style` and `./tokens.style.ts` stay accepted as before. There is
 **no autofix**: write the `*.style.ts` source, or ship its declaration, yourself.
 
+## Classes from another package's `/style` entry {#external-style-entries}
+
+`craft-ts/no-raw-class` is enabled at `error` in the recommended preset,
+inherited by the Effect preset and newly generated apps. It accepts a class from
+a project `*.style` module or from the `/style` entry of a CraftTS package
+(`@craft-ts/ui/style`). A class taken from the `/style` entry of any other
+package — `@acme/kit/style` — stays refused, even when
+`craftStyle({ include: ['@acme/kit'] })` evaluates that package's sheets and the
+class has CSS.
+
+Loading the package's CSS does not make its classes part of the project's CraftTS
+token and axis model. Bound directly, the class produces a look nobody can trace
+back to the project's tokens and axes: its variants are not points of your axes,
+its colours are not your theme's, and the next component that needs the same
+styling cannot reuse it consistently. The diagnostic
+(`externalStyleClass`) names the import and asks for a **local CraftTS adapter**:
+a `*.style.ts` module in your project that re-expresses what you need with
+`craftStyles`, your tokens (`cssVars`, the palette and scales) and your axes
+(`defineStateAxis`, `when`).
+
+Before — rejected because `kit.button` comes from an external `/style` entry:
+
+```ts
+// src/save.ts
+import { button, craftComponent } from '@craft-ts/component';
+import { kit } from '@acme/kit/style';
+
+export const Save = craftComponent('Save', {}, () =>
+  button(
+    'save',
+    { type: 'button', class: [kit.button, kit.danger] }, // ✗ externalStyleClass
+    'Save',
+  ),
+);
+```
+
+After — the project's tokens and axes, which the adapter spends:
+
+<<< @/tests/snippets/guide/style/adapter/foundation.style.ts#foundation
+
+The adapter, `kit.style.ts`, keeps only what the screen needs from the kit, and
+turns the kit's `danger` modifier class into a point of the project's `tone`
+axis:
+
+<<< @/tests/snippets/guide/style/adapter/kit.style.ts#adapter
+
+The component binds the adapter's class and sets the axis by attribute:
+
+<<< @/tests/snippets/guide/style/adapter/save.spec.ts#after
+
+There is **no autofix**: only you can decide which part of the package's styling
+the project needs and which of its tokens and axes it maps to. Once nothing
+binds the package's classes any more, its `include` entry in `craftStyle` can go
+too.
+
 ## Presets and configuration
 
 The recommended preset bans every TypeScript assertion in authored Craft code,
@@ -1204,7 +1259,7 @@ states must respond to one operation, use a shared `source$` and `on$(...)`.
 - `craft-ts/require-catch-tag-exhaustive-reaction`: rejects empty `catchTag.exhaustive` handlers and bare `return;` statements so each caught exception triggers a real reaction
 - `craft-ts/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
 - `craft-ts/require-pending-component-di-check`: generates the independent `RouteCheckedDI` check for each `pendingComponent`
-- `craft-ts/no-raw-class`: requires every `class:` binding — on an element, in `attrs`, on a component `host` — to trace back to a sheet imported from a `*.style` module: `sheet.key`, a `const` bound to one, an array of them, a typed input (a parameter or a member of one), or a function that only returns one. A string, a template literal, a conditional or an object of booleans is refused. A class assembled at render time is a visual state nothing recorded, so the [visual matrix](/guide/style/testing) would enumerate what the sheets declare while the DOM shows something else; and a sheet declared outside a `*.style.ts` is never evaluated by the build, so its class has no CSS. Make the variation an axis and set a `data-*` attribute
+- `craft-ts/no-raw-class`: requires every `class:` binding — on an element, in `attrs`, on a component `host` — to trace back to a sheet imported from a `*.style` module: `sheet.key`, a `const` bound to one, an array of them, a typed input (a parameter or a member of one), or a function that only returns one. A string, a template literal, a conditional or an object of booleans is refused. A class assembled at render time is a visual state nothing recorded, so the [visual matrix](/guide/style/testing) would enumerate what the sheets declare while the DOM shows something else; and a sheet declared outside a `*.style.ts` is never evaluated by the build, so its class has no CSS. Make the variation an axis and set a `data-*` attribute. A class from the `/style` entry of a package outside `@craft-ts` (`@acme/kit/style`) is refused with its own message: wrap what you need in a [local CraftTS adapter](#external-style-entries)
 - `craft-ts/no-inline-style`: restricts `style:` to `assign(...)` from `@craft-ts/style` — or an array of them, an object spreading only them, a conditional whose branches are all of them, or a function that only returns them. What varies at runtime is a typed variable (`cssVars` + `assign`), read by a sheet; `attrs.style` is always refused
 - `craft-ts/no-component-css`: forbids every `.css` import except `virtual:craft-style.css`. Global rules go in [`craftGlobalStyles`](/guide/style/foundation), fonts in `defineFont`
 - `craft-ts/no-forbidden-eslint-disable`: requires a reason on every directive that disables a design-system rule — `// eslint-disable-next-line craft-ts/no-raw-class -- markdown output carries its own classes`. The reason is what the reviewer decides on in Review Attest. It also forbids disabling the rules listed in `.craft/eslint-disable-policy.json`. A blanket `eslint-disable` silences this rule too, so it cannot be reported here; Review Attest lists it

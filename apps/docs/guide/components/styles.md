@@ -54,7 +54,10 @@ Per file, in `craftRules.configs.recommended`
 ([details](/guide/routing/eslint-rules)):
 
 - `no-raw-class` — a `class` that does not trace back to a sheet imported from a
-  `*.style` module;
+  `*.style` module. A class from another package's `/style` entry is refused
+  too: re-express what you need in a
+  [local CraftTS adapter](/guide/routing/eslint-rules#external-style-entries)
+  built on your tokens and axes;
 - `no-inline-style` — a `style` that is not `assign(...)`;
 - `no-component-css` — any `.css` import other than `virtual:craft-style.css`;
 - `style-file-boundary` — a sheet importing anything but style vocabulary;

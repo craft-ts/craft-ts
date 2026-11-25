@@ -22,6 +22,20 @@ const STYLE_MODULE = /\.style(\.[cm]?[jt]s)?$|^@craft-ts\/[\w-]+\/style$/;
 const isStyleModule = (source) =>
   typeof source === 'string' && STYLE_MODULE.test(source);
 
+/**
+ * `@acme/kit/style`, `acme-kit/style`: the `/style` entry of a package outside
+ * `@craft-ts`. `craftStyle({ include })` gives its sheets CSS, but its classes
+ * are not part of the project's token and axis model, so they stay refused —
+ * the rules only use this to explain why, and to point at a local adapter.
+ */
+const EXTERNAL_STYLE_ENTRY = /^(@[\w-]+\/)?[\w-][\w.-]*\/style$/;
+
+const isExternalStyleEntry = (source) =>
+  typeof source === 'string' &&
+  !isStyleModule(source) &&
+  !source.startsWith('@craft-ts/') &&
+  EXTERNAL_STYLE_ENTRY.test(source);
+
 /** The variable an identifier refers to, walking up the scopes. */
 function findVariable(sourceCode, identifier) {
   let scope = sourceCode.getScope ? sourceCode.getScope(identifier) : undefined;
@@ -147,6 +161,7 @@ function propertyNamed(object, name) {
 module.exports = {
   STYLE_PACKAGE,
   isStyleModule,
+  isExternalStyleEntry,
   bindingOf,
   rootIdentifier,
   isNullish,

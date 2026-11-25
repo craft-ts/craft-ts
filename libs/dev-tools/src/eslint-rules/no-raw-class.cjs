@@ -2,6 +2,7 @@
 
 const {
   bindingOf,
+  isExternalStyleEntry,
   isNullish,
   isStyleModule,
   returnedExpressions,
@@ -31,6 +32,13 @@ const {
  * - a `const` bound to any of the above;
  * - an array of any of the above (two sheet classes on one element);
  * - a function whose every return is one of the above.
+ *
+ * A class from the `/style` entry of a package outside `@craft-ts`
+ * (`@acme/kit/style`) stays refused even when `craftStyle({ include })` gives
+ * it CSS: loading the package's CSS does not put its classes into the
+ * project's token and axis model. It gets its own diagnostic, which points at
+ * a local adapter — a project `*.style.ts` re-expressing what is needed with
+ * the project's tokens and axes.
  */
 const MAX_DEPTH = 8;
 
@@ -49,12 +57,28 @@ module.exports = {
         'A class binding must not be computed at render time. Every string this can produce is a visual state nobody can enumerate; make the variation an axis — when(tone.danger, [...]) — and set a data attribute instead.',
       untracedClass:
         'This class does not trace back to a sheet imported from a *.style module. Only `sheet.key` from a *.style import (or a typed input carrying one) reaches the emitted stylesheet: a sheet declared anywhere else is never evaluated by the build, and its class has no CSS.',
+      externalStyleClass:
+        "This class comes from '{{source}}', the /style entry of a package outside @craft-ts, and cannot be bound directly. Loading that package's CSS (craftStyle({ include })) does not make its classes part of this project's CraftTS token and axis model: the look it produces cannot be traced back to your tokens and axes, and that styling cannot be reused consistently. Create a local CraftTS adapter instead — a *.style.ts module in your project whose craftStyles sheet re-expresses what you need with your own tokens (cssVars, set) and axes (defineStateAxis, when) — and bind the adapter's class (`sheet.key`).",
     },
   },
   create(context) {
     const sourceCode = context.sourceCode ?? context.getSourceCode();
 
-    /** 'ok' | 'rawClass' | 'computedClass' | 'untracedClass' */
+    /**
+     * A verdict is 'ok' | 'rawClass' | 'computedClass' | 'untracedClass', or
+     * `{ messageId: 'externalStyleClass', data: { source } }` — the report
+     * itself, since that message names the import it came from.
+     */
+    const isExternal = (verdict) => typeof verdict === 'object';
+    /** The verdict for a class whose root binding is imported from `source`. */
+    const importVerdict = (source) => {
+      if (isStyleModule(source)) return 'ok';
+      if (isExternalStyleEntry(source)) {
+        return { messageId: 'externalStyleClass', data: { source } };
+      }
+      return 'untracedClass';
+    };
+
     const classify = (node, depth = 0) => {
       if (!node || depth > MAX_DEPTH) return 'untracedClass';
       switch (node.type) {
@@ -66,9 +90,7 @@ module.exports = {
         case 'Identifier': {
           if (isNullish(node)) return 'ok';
           const binding = bindingOf(sourceCode, node);
-          if (binding.kind === 'import') {
-            return isStyleModule(binding.source) ? 'ok' : 'untracedClass';
-          }
+          if (binding.kind === 'import') return importVerdict(binding.source);
           if (binding.kind === 'param') return 'ok';
           if (binding.kind === 'const')
             return classify(binding.init, depth + 1);
@@ -79,9 +101,7 @@ module.exports = {
           const root = rootIdentifier(node);
           if (!root) return 'untracedClass';
           const binding = bindingOf(sourceCode, root);
-          if (binding.kind === 'import') {
-            return isStyleModule(binding.source) ? 'ok' : 'untracedClass';
-          }
+          if (binding.kind === 'import') return importVerdict(binding.source);
           if (binding.kind === 'param') return 'ok';
           if (
             binding.kind === 'const' &&
@@ -94,9 +114,9 @@ module.exports = {
             return 'untracedClass';
           }
           if (binding.kind === 'const') {
-            return classify(binding.init, depth + 1) === 'ok'
-              ? 'ok'
-              : 'untracedClass';
+            const verdict = classify(binding.init, depth + 1);
+            if (verdict === 'ok' || isExternal(verdict)) return verdict;
+            return 'untracedClass';
           }
           return 'untracedClass';
         }
@@ -114,7 +134,9 @@ module.exports = {
           for (const returned of returnedExpressions(node)) {
             const verdict = classify(returned, depth + 1);
             if (verdict !== 'ok') {
-              return verdict === 'rawClass' ? 'rawClass' : 'computedClass';
+              return verdict === 'rawClass' || isExternal(verdict)
+                ? verdict
+                : 'computedClass';
             }
           }
           return 'ok';
@@ -142,9 +164,12 @@ module.exports = {
               : undefined;
         if (name !== 'class') return;
         const verdict = classify(node.value);
-        if (verdict !== 'ok') {
-          context.report({ node: node.value, messageId: verdict });
-        }
+        if (verdict === 'ok') return;
+        context.report(
+          isExternal(verdict)
+            ? { node: node.value, ...verdict }
+            : { node: node.value, messageId: verdict },
+        );
       },
     };
   },
