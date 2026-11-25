@@ -14,7 +14,9 @@ import { ɵcraftRandomUUID } from './craft-random-runtime';
 import {
   DestroyRef,
   inject,
+  Injector,
   provideAppInitializer,
+  runInInjectionContext,
   type Provider,
 } from './host/craft-compat';
 
@@ -64,7 +66,15 @@ function provideCraftLogForwarding(): Provider {
     provide: SERVICE_RUNTIME_OVERRIDES,
     useFactory: (): ReadonlyMap<string, ServiceRuntimeOverride> => {
       if (!isBrowser()) return new Map();
-      const endpoint = craftUse(CraftLogServerUrl());
+      // Resolving a Craft service reads SERVICE_RUNTIME_OVERRIDES, the very
+      // provider being built here: the log server URL is resolved at the
+      // first flush, once the overrides exist (issue #41).
+      const injector = inject(Injector);
+      let resolvedEndpoint: string | undefined;
+      const resolveEndpoint = (): string =>
+        (resolvedEndpoint ??= runInInjectionContext(injector, () =>
+          craftUse(CraftLogServerUrl()),
+        ));
       const destroyRef = inject(DestroyRef);
       const clientId = getClientId();
       const pending: Record<string, unknown>[] = [];
@@ -73,6 +83,7 @@ function provideCraftLogForwarding(): Provider {
         const entries = pending.splice(0, pending.length);
         const body = JSON.stringify({ clientId, entries });
         try {
+          const endpoint = resolveEndpoint();
           if (beacon && typeof globalThis.navigator?.sendBeacon === 'function') {
             globalThis.navigator.sendBeacon(
               endpoint,

@@ -1,4 +1,9 @@
-import { type Provider, ɵcraftValueService } from '@craft-ts/core';
+import {
+  type Provider,
+  ɵcraftValueService,
+  ɵresolveOptionalService,
+  ɵSERVICE_NOT_FOUND,
+} from '@craft-ts/core';
 import { isCraftComponent } from './types';
 
 type HostComponent = unknown;
@@ -82,11 +87,11 @@ const root = serviceAsHostComponentService(
 export const CraftRootComponent = root.helper;
 export const provideCraftRootComponent = root.provide;
 export const ɵinjectCraftRootComponent = (): HostComponent | null => {
-  try {
-    return root.inject.inject();
-  } catch {
-    return null;
-  }
+  // Asked with a fallback: only a missing provideCraftRootComponent(...) means
+  // there is no root component. A provider that fails while the root component
+  // is being injected reports its own error (issue #41).
+  const component = ɵresolveOptionalService(root.inject);
+  return component === ɵSERVICE_NOT_FOUND ? null : component;
 };
 
 const globalError = serviceAsHostComponentService(
