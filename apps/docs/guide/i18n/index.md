@@ -181,3 +181,43 @@ Each locale can now choose its own word order, punctuation and date placement,
 while the parameter remains typed and formatted through `Intl`. For a custom
 format, define a project token rather than rebuilding a translated sentence in
 the template; see [Tokens](./tokens.md).
+
+### Children arrays: text pieces, not neighbouring nodes
+
+In an array of children, the rule only counts pieces that render as text next
+to a translation: string and template literals, numbers, concatenations, a
+second translation, and — with typed lint — a value whose type is a `string`
+or a `number`. This is reported, because the message is incomplete:
+
+```ts
+// Before: "Saving " and the translation form one sentence.
+button({ type: 'button', disabled: true }, ['Saving ', i18n.t('progress')]);
+p([i18n.t('cart.items'), count]); // count: number (typed lint)
+```
+
+Put the whole sentence in the catalogue and pass the value as a parameter:
+
+```ts
+// After: one complete message per position.
+button({ type: 'button', disabled: true }, [i18n.t('saving')]);
+p([i18n.t('cart.items', { count })]);
+```
+
+An element or component beside one complete translation is a separate node,
+not part of the message, so a decorative spinner or an icon is accepted:
+
+```ts
+button({ type: 'button', disabled: true }, [
+  span({ 'aria-hidden': 'true' }),
+  i18n.t('saving'),
+]);
+p([Icon({ name: 'check' }), i18n.t('saved')]);
+```
+
+Hyperscript helpers, component calls and node helpers such as `ifNode(...)` or
+`forNode(...)` are never counted as text. An identifier, member read or other
+call counts as text only when typed lint proves its type is a string or a
+number; without type information the rule does not guess, because such a value
+is as likely to hold a node (`const spinner = span(...)`). Enable typed lint
+(`parserOptions.projectService`) to catch `[i18n.t('label'), value]`. There is
+no autofix: only you can write the complete catalogue message.

@@ -1,5 +1,6 @@
 'use strict';
 
+const ts = require('typescript');
 const { parseHyperscriptCall, property } = require('./hyperscript-walk.cjs');
 
 const TEXT_HELPERS = new Set([
@@ -84,10 +85,6 @@ function hasOtherPiece(node, sourceCode) {
     );
   }
 
-  if (node.type === 'ArrayExpression') {
-    return node.elements.some((element) => !isDirectTranslation(element));
-  }
-
   if (node.type === 'BinaryExpression' && node.operator === '+') {
     return (
       hasOtherPiece(node.left, sourceCode) ||
@@ -101,7 +98,111 @@ function hasOtherPiece(node, sourceCode) {
   return true;
 }
 
-function isComposedTranslation(node, sourceCode) {
+const NUMERIC_OPERATORS = new Set(['+', '-', '*', '/', '%', '**']);
+// Strings, numbers and bigints, with their literals, template literal types and
+// enums.
+const TEXT_TYPE_FLAGS =
+  ts.TypeFlags.StringLike | ts.TypeFlags.NumberLike | ts.TypeFlags.BigIntLike;
+// Values a children array renders as nothing.
+const IGNORED_TYPE_FLAGS =
+  ts.TypeFlags.Undefined |
+  ts.TypeFlags.Null |
+  ts.TypeFlags.Void |
+  ts.TypeFlags.BooleanLike |
+  ts.TypeFlags.Never;
+
+/**
+ * Whether `type` is text a user reads once rendered: every rendered
+ * constituent is a string, number or bigint. `any`, `unknown`, objects (nodes,
+ * components) and mixed unions are not provably text.
+ */
+function isTextType(type) {
+  const parts = type.isUnion?.() ? type.types : [type];
+  const rendered = parts.filter((part) => (part.flags & IGNORED_TYPE_FLAGS) === 0);
+  return (
+    rendered.length > 0 &&
+    rendered.every((part) => (part.flags & TEXT_TYPE_FLAGS) !== 0)
+  );
+}
+
+/**
+ * Whether a child expression renders as text, so that it would join an
+ * adjacent translation into one visible message.
+ *
+ * Syntax proves text for literals, template literals, arithmetic and
+ * concatenation. Element and component calls (`span(...)`, `Icon(...)`,
+ * `ifNode(...)`, …) are separate nodes. Any other value — an identifier, a
+ * member read or a call — is text only when typed lint proves its type is a
+ * string or a number; without type information the rule stays silent rather
+ * than mistake a node held in a variable for text.
+ */
+function isTextChild(node, typeOf) {
+  if (!node) return false;
+  switch (node.type) {
+    case 'Literal':
+      return (
+        (typeof node.value === 'string' && node.value !== '') ||
+        typeof node.value === 'number' ||
+        typeof node.value === 'bigint'
+      );
+    case 'TemplateLiteral':
+      return (
+        node.expressions.length > 0 ||
+        node.quasis.some((quasi) => quasi.value.cooked !== '')
+      );
+    case 'BinaryExpression':
+      return NUMERIC_OPERATORS.has(node.operator);
+    case 'UnaryExpression':
+      return ['-', '+', '~', 'typeof'].includes(node.operator);
+    case 'ConditionalExpression':
+      return (
+        isTextChild(node.consequent, typeOf) ||
+        isTextChild(node.alternate, typeOf)
+      );
+    case 'LogicalExpression':
+      return node.operator === '&&'
+        ? isTextChild(node.right, typeOf)
+        : isTextChild(node.left, typeOf) || isTextChild(node.right, typeOf);
+    case 'ArrayExpression':
+    case 'ObjectExpression':
+    case 'SpreadElement':
+    case 'FunctionExpression':
+    case 'ArrowFunctionExpression':
+      return false;
+    case 'CallExpression':
+      if (isTranslationCall(node)) return true;
+      if (parseHyperscriptCall(node)) return false;
+      return typeOf(node);
+    default:
+      return typeOf(node);
+  }
+}
+
+/**
+ * A children array composes a translation when a translated piece sits next to
+ * another text piece: a literal, a text value or a second translation. An
+ * element or component sibling is a separate visible position (#53).
+ */
+function isComposedChildren(node, sourceCode, typeOf) {
+  let translations = 0;
+  let texts = 0;
+  for (const element of node.elements) {
+    if (!element) continue;
+    if (isTranslationCall(element)) {
+      translations += 1;
+    } else if (isTextChild(element, typeOf)) {
+      if (translationCount(element, sourceCode) > 0) translations += 1;
+      else texts += 1;
+    }
+  }
+  return translations > 0 && translations + texts > 1;
+}
+
+function isComposedTranslation(node, sourceCode, typeOf) {
+  if (node.type === 'ArrayExpression') {
+    return isComposedChildren(node, sourceCode, typeOf);
+  }
+
   const count = translationCount(node, sourceCode);
   if (count === 0) return false;
 
@@ -117,23 +218,19 @@ function isComposedTranslation(node, sourceCode) {
     return count > 1 || hasOtherPiece(node, sourceCode);
   }
 
-  if (node.type === 'ArrayExpression') {
-    return count > 1 || hasOtherPiece(node, sourceCode);
-  }
-
   return false;
 }
 
-function findComposedTranslation(node, sourceCode) {
+function findComposedTranslation(node, sourceCode, typeOf) {
   if (!node || isTranslationCall(node)) return undefined;
   // A hyperscript or component call starts a separate visible position. Its
   // children are checked by that call's own listener; text inside a nested
   // span/button must not be composed with its sibling icon or controls.
   if (node.type === 'CallExpression') return undefined;
-  if (isComposedTranslation(node, sourceCode)) return node;
+  if (isComposedTranslation(node, sourceCode, typeOf)) return node;
 
   for (const child of childNodes(node, sourceCode)) {
-    const composed = findComposedTranslation(child, sourceCode);
+    const composed = findComposedTranslation(child, sourceCode, typeOf);
     if (composed) return composed;
   }
 
@@ -173,6 +270,15 @@ module.exports = {
     const sourceCode = context.sourceCode ?? context.getSourceCode();
     if (isIgnoredFile(context.filename ?? context.getFilename())) return {};
 
+    const parserServices = sourceCode.parserServices ?? context.parserServices;
+    const checker = parserServices?.program?.getTypeChecker?.();
+    const nodeMap = parserServices?.esTreeNodeToTSNodeMap;
+    // Without type information a non-literal value is not provably text.
+    const typeOf = (node) => {
+      const tsNode = checker && nodeMap?.get(node);
+      return !!tsNode && isTextType(checker.getTypeAtLocation(tsNode));
+    };
+
     return {
       CallExpression(node) {
         const call = parseHyperscriptCall(node);
@@ -180,13 +286,21 @@ module.exports = {
 
         for (const attribute of TEXT_ATTRIBUTES) {
           const entry = property(call.props, attribute);
-          const composed = findComposedTranslation(entry?.value, sourceCode);
+          const composed = findComposedTranslation(
+            entry?.value,
+            sourceCode,
+            typeOf,
+          );
           if (composed) {
             context.report({ node: composed, messageId: 'composition' });
           }
         }
 
-        const composed = findComposedTranslation(call.children, sourceCode);
+        const composed = findComposedTranslation(
+          call.children,
+          sourceCode,
+          typeOf,
+        );
         if (composed) {
           context.report({ node: composed, messageId: 'composition' });
         }
