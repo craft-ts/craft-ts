@@ -1,5 +1,7 @@
 'use strict';
 
+const { createComputedReadSafety } = require('./computed-read-safety.cjs');
+
 function isInside(node, ancestor) {
   for (let current = node; current; current = current.parent) {
     if (current === ancestor) return true;
@@ -40,8 +42,12 @@ module.exports = {
   },
   create(context) {
     const queryFactoryNames = new Set(['query']);
+    // The predicate of no-craft-computed-side-effects: a dependency is only
+    // worth moving when that rule accepts it inside the computed (issue #44).
+    const safety = createComputedReadSafety(context);
     return {
       ImportDeclaration(node) {
+        safety.trackImport(node);
         if (node.source.value !== '@craft-ts/core') return;
         for (const specifier of node.specifiers) {
           if (
@@ -96,9 +102,26 @@ module.exports = {
         );
         if (callback && isInside(node, callback)) return;
         if (!callback || !references.every((reference) => isInside(reference.identifier, callback))) return;
+        // Never suggest a move that no-craft-computed-side-effects would then
+        // reject: a service whose resolution is not proven to be a pure read
+        // (an abstract service, or one whose implementation may create a
+        // craftEffect) stays resolved by the enclosing body.
+        if (!isAcceptedInComputed(yielded)) return;
         context.report({ node: node.init, messageId: 'local' });
         });
       }
     };
+
+    function isAcceptedInComputed(expression) {
+      let accepted = true;
+      const visit = (child) => {
+        if (!accepted) return;
+        if (child.type === 'AwaitExpression') accepted = false;
+        else if (child.type === 'CallExpression' && safety.check(child)) accepted = false;
+      };
+      visit(expression);
+      descendants(expression, context.sourceCode, visit);
+      return accepted;
+    }
   },
 };

@@ -33,6 +33,22 @@ describe('prefer-computed-local-dependency', () => {
     expect(messages[0].message).toContain('Yield it in a generator callback');
   });
 
+  it('does not ask to move a service that no-craft-computed-side-effects cannot prove pure', async () => {
+    // Issue #44: HostLocale() is abstract. Moved into the computed, its
+    // resolution would be rejected by no-craft-computed-side-effects, so the
+    // dependency stays resolved by the enclosing service body.
+    expect(await lint(`
+      import { craftComputed, state } from '@craft-ts/core';
+      function* Greeting() {
+        const name = yield* state('name', 'Ada');
+        const locale = yield* HostLocale();
+        return yield* craftComputed('greeting', function* () {
+          return \`\${locale}: \${yield* name()}\`;
+        });
+      }
+    `)).toEqual([]);
+  });
+
   it('allows a dependency yielded within its computed callback', async () => {
     expect(await lint(`
       function* Page() {

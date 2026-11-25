@@ -1,47 +1,18 @@
-const REACTIVE_READ_BRAND = 'RAW_REACTIVE_VALUE';
-const INPUT_BRAND = 'INPUT_BRAND';
-const YIELDABLE_METHOD_BRAND = 'YIELDABLE_METHOD';
-const CORE_PACKAGE = '@craft-ts/core';
-
-const WRITE_METHODS = new Set([
-  'add',
-  'call',
-  'clear',
-  'decrement',
-  'delete',
-  'increment',
-  'mutate',
-  'patch',
-  'refresh',
-  'reload',
-  'remove',
-  'reset',
-  'set',
-  'submit',
-  'unset',
-  'update',
-]);
-
-// `settled(...)` reads an already-resolved async source; `syncEffect(...)` runs
-// an Effect whose `R` carries `SyncOp`, so the type already proved it cannot
-// suspend. Both are reads, not asynchronous work.
-// Module scope on purpose: the visitors below run before any `const` declared
-// inside `create()` past its `return` would be initialised.
-const ALLOWED_COMPUTED_CALLS = new Set(['settled', 'syncEffect']);
-
-const SYNC_CAPABILITIES = new Set(['CraftRouter', 'CraftGlobalError']);
+const {
+  COMPUTED_READ_MESSAGES,
+  createComputedReadSafety,
+} = require('./computed-read-safety.cjs');
 
 module.exports = {
   meta: {
     type: 'problem',
     docs: {
       description:
-        'Disallow writes and asynchronous work inside craftComputed callbacks; only reactive reads, settled(...) and syncEffect(...) are allowed.',
+        'Disallow writes, asynchronous work and unproven service resolution inside craftComputed callbacks; only reactive reads, settled(...) and syncEffect(...) are allowed.',
     },
     schema: [],
     messages: {
-      forbidden:
-        'Craft computed callbacks may only read reactive Craft values or use `settled(...)` / `syncEffect(...)`; `{{call}}` is not allowed because it can write or perform asynchronous work.',
+      ...COMPUTED_READ_MESSAGES,
       missingTypeInfo:
         'This rule requires TypeScript type information to identify reactive reads and asynchronous Craft calls.',
     },
@@ -49,261 +20,47 @@ module.exports = {
 
   create(context) {
     const sourceCode = context.sourceCode ?? context.getSourceCode();
-    const parserServices = sourceCode.parserServices ?? context.parserServices;
-    const checker = parserServices?.program?.getTypeChecker?.();
-    const nodeMap = parserServices?.esTreeNodeToTSNodeMap;
-    const importedNames = new Map();
-    let reportedMissingTypeInfo = false;
+    const safety = createComputedReadSafety(context);
 
     return {
       ImportDeclaration(node) {
-        if (node.source.value !== CORE_PACKAGE) return;
-
-        for (const specifier of node.specifiers) {
-          if (specifier.type !== 'ImportSpecifier') continue;
-          importedNames.set(specifier.local.name, specifier.imported.name);
-        }
+        safety.trackImport(node);
       },
 
       Program() {
-        if (!checker || !nodeMap) {
+        if (!safety.hasTypeInfo) {
           context.report({
             node: sourceCode.ast,
             messageId: 'missingTypeInfo',
           });
-          reportedMissingTypeInfo = true;
         }
       },
 
       CallExpression(node) {
-        if (
-          reportedMissingTypeInfo ||
-          !checker ||
-          !nodeMap ||
-          !isCraftComputedCall(node)
-        ) {
-          return;
-        }
+        if (!safety.hasTypeInfo || !safety.isCraftComputedCall(node)) return;
 
         const computation = getComputation(node);
         if (!computation) return;
 
         walk(computation.body ?? computation, (child) => {
           if (child.type === 'AwaitExpression') {
-            report(child, 'await');
+            context.report({
+              node: child,
+              messageId: 'forbidden',
+              data: { call: 'await' },
+            });
             return;
           }
 
-          if (child.type === 'CallExpression' && isForbiddenCall(child)) {
-            report(child, getCallName(child));
-          }
+          if (child.type !== 'CallExpression') return;
+          const problem = safety.check(child);
+          if (problem) context.report({ node: child, ...problem });
         });
       },
     };
 
-    function isCraftComputedCall(node) {
-      return (
-        node.callee.type === 'Identifier' &&
-        (node.callee.name === 'craftComputed' ||
-          importedNames.get(node.callee.name) === 'craftComputed')
-      );
-    }
-
     function getComputation(node) {
-      const args = node.arguments;
-      const functionArguments = args.filter(isFunctionNode);
-      return functionArguments.at(-1);
-    }
-
-    function isForbiddenCall(node) {
-      if (isAllowedSettledCall(node) || isReactiveRead(node)) {
-        return false;
-      }
-
-      if (isKnownAsyncApi(node) || isKnownWriteMethod(node)) {
-        return true;
-      }
-
-      const calleeType = getCalleeType(node);
-      return (
-        hasBrand(calleeType, YIELDABLE_METHOD_BRAND) ||
-        returnsGenerator(calleeType) ||
-        returnsPromiseLike(calleeType)
-      );
-    }
-
-    function isAllowedSettledCall(node) {
-      if (node.callee.type !== 'Identifier') return false;
-      return (
-        ALLOWED_COMPUTED_CALLS.has(node.callee.name) ||
-        ALLOWED_COMPUTED_CALLS.has(importedNames.get(node.callee.name))
-      );
-    }
-
-    function isReactiveRead(node) {
-      const type = getCalleeType(node);
-      // CraftServiceInput is a reader whose generator yields exactly one
-      // ReactiveReadRequest. It is a safe dependency inside craftComputed,
-      // even though the callable is not projected with the template brands.
-      return (
-        // CraftRouter and CraftGlobalError are synchronous capabilities.
-        // Acquiring them is safe in a computed; navigation methods remain
-        // checked separately and are still rejected as writes/generator calls.
-        (node.callee.type === 'Identifier' &&
-          (SYNC_CAPABILITIES.has(node.callee.name) ||
-            SYNC_CAPABILITIES.has(importedNames.get(node.callee.name)))) ||
-        hasBrand(type, REACTIVE_READ_BRAND) ||
-        hasBrand(type, INPUT_BRAND) ||
-        hasAlias(type, 'CraftServiceInput')
-      );
-    }
-
-    function isKnownAsyncApi(node) {
-      if (node.callee.type === 'Identifier') {
-        const importedName = importedNames.get(node.callee.name);
-        return (
-          node.callee.name === 'craftSleep' ||
-          node.callee.name === 'craftUse' ||
-          importedName === 'craftSleep' ||
-          importedName === 'craftUse'
-        );
-      }
-
-      if (
-        node.callee.type !== 'MemberExpression' ||
-        node.callee.object.type !== 'Identifier'
-      ) {
-        return false;
-      }
-
-      return (
-        node.callee.object.name === 'CraftHttpClient' ||
-        node.callee.object.name === 'CraftBinaryHttpClient' ||
-        importedNames.get(node.callee.object.name) === 'CraftHttpClient' ||
-        importedNames.get(node.callee.object.name) === 'CraftBinaryHttpClient'
-      );
-    }
-
-    function isKnownWriteMethod(node) {
-      if (node.callee.type !== 'MemberExpression') return false;
-
-      const property = node.callee.computed
-        ? node.callee.property.type === 'Literal'
-          ? String(node.callee.property.value)
-          : undefined
-        : node.callee.property.type === 'Identifier'
-          ? node.callee.property.name
-          : undefined;
-
-      return property ? WRITE_METHODS.has(property) : false;
-    }
-
-    function getCalleeType(node) {
-      const tsNode = nodeMap.get(node.callee);
-      return tsNode ? checker.getTypeAtLocation(tsNode) : undefined;
-    }
-
-    function hasBrand(type, brandName, seen = new Set()) {
-      if (!type || seen.has(type)) return false;
-      seen.add(type);
-
-      if (type.isUnion?.() || type.isIntersection?.()) {
-        return type.types.some((part) => hasBrand(part, brandName, seen));
-      }
-
-      return checker
-        .getPropertiesOfType(type)
-        .some((property) => String(property.escapedName).includes(brandName));
-    }
-
-    function hasAlias(type, aliasName) {
-      if (!type) return false;
-      if (type.aliasSymbol?.name === aliasName) return true;
-      if (type.isUnion?.() || type.isIntersection?.()) {
-        return type.types.some((part) => hasAlias(part, aliasName));
-      }
-      return false;
-    }
-
-    function returnsGenerator(type) {
-      if (!type) return false;
-
-      const signatures = type.getCallSignatures?.();
-      if (signatures?.length) {
-        return signatures.some((signature) =>
-          returnsGenerator(signature.getReturnType()),
-        );
-      }
-
-      const symbol = type.aliasSymbol ?? type.getSymbol?.();
-      const name = symbol && String(symbol.escapedName ?? symbol.name);
-      if (name === 'Generator' || name === 'YieldableInvocation') {
-        return true;
-      }
-
-      if (type.isUnion?.()) {
-        return type.types.some((part) => returnsGenerator(part));
-      }
-
-      return (
-        checker
-          .getPropertiesOfType(type)
-          .some((property) => property.name === 'next') &&
-        checker
-          .getPropertiesOfType(type)
-          .some((property) => property.name === 'return')
-      );
-    }
-
-    function returnsPromiseLike(type) {
-      if (!type) return false;
-
-      const signatures = type.getCallSignatures?.();
-      if (signatures?.length) {
-        return signatures.some((signature) =>
-          returnsPromiseLike(signature.getReturnType()),
-        );
-      }
-
-      const symbol = type.aliasSymbol ?? type.getSymbol?.();
-      const name = symbol && String(symbol.escapedName ?? symbol.name);
-      if (name === 'Promise' || name === 'PromiseLike' || name === 'Thenable') {
-        return true;
-      }
-
-      if (type.isUnion?.()) {
-        return type.types.some((part) => returnsPromiseLike(part));
-      }
-
-      return checker
-        .getPropertiesOfType(type)
-        .some((property) => property.name === 'then');
-    }
-
-    function report(node, call) {
-      context.report({
-        node,
-        messageId: 'forbidden',
-        data: { call },
-      });
-    }
-
-    function getCallName(node) {
-      if (node.callee.type === 'Identifier') {
-        return `${node.callee.name}()`;
-      }
-
-      if (node.callee.type === 'MemberExpression') {
-        const object = sourceCode.getText(node.callee.object);
-        const property = node.callee.computed
-          ? sourceCode.getText(node.callee.property)
-          : node.callee.property.type === 'Identifier'
-            ? node.callee.property.name
-            : sourceCode.getText(node.callee.property);
-        return `${object}.${property}()`;
-      }
-
-      return sourceCode.getText(node.callee);
+      return node.arguments.filter(isFunctionNode).at(-1);
     }
 
     function walk(node, visit) {

@@ -81,11 +81,11 @@ const doubled = yield* counter.doubled();
 `doubled` does not own `state()`, so it yields it. That is how the computed's
 own dependency graph records the read.
 
-The same ownership rule applies to services. If a service is used only by one
-computed, yield it in that computed's generator so its dependency stays local.
-`craft-ts/prefer-computed-local-dependency` reports a service yielded outside
-and captured only by a computed. It does not autofix because the callback may
-need to change into a generator.
+The same ownership rule applies to dependencies that are proven reads. If one
+is used only by one computed, yield it in that computed's generator so its
+dependency stays local. `craft-ts/prefer-computed-local-dependency` reports such
+a dependency yielded outside and captured only by a computed. It does not
+autofix because the callback may need to change into a generator.
 
 ```typescript
 // Before: the outer function owns the router even though only the computed uses it.
@@ -101,8 +101,16 @@ const replayFrames = yield* craftComputed('replayFrames', function* () {
 });
 ```
 
+Only `CraftRouter()` and `CraftGlobalError()`, the synchronous core
+capabilities, are services a computed may resolve. Resolving any other service
+can instantiate its implementation inside the computation — a `craftEffect` or a
+write among its dependencies — and its type does not prove otherwise, so
+`craft-ts/no-craft-computed-side-effects` rejects it. Resolve such a service in
+the enclosing body and read it in the computed; the two rules agree on that
+form (see [Only provable reads go inside a `craftComputed`](/guide/routing/eslint-rules#only-provable-reads-go-inside-a-craftcomputed)):
+
 ```typescript
-import { craftComputed, craftService, craftUse, craftExpose } from '@craft-ts/core';
+import { craftComputed, craftService, craftExpose } from '@craft-ts/core';
 
 const { Multiplier } = craftService(
   { name: 'Multiplier', providedIn: 'function' },
@@ -111,10 +119,11 @@ const { Multiplier } = craftService(
   },
 );
 
-const tripled = craftUse(craftComputed('tripled', function* () {
-  const multiplier = yield* Multiplier();
+// Inside the service that owns `counter`:
+const multiplier = yield* Multiplier();
+const tripled = yield* craftComputed('tripled', function* () {
   return (yield* counter()) * multiplier.factor;
-}));
+});
 ```
 
 ## Technical values: `craftLiteral`

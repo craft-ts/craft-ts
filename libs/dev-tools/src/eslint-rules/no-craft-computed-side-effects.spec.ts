@@ -137,6 +137,23 @@ describe('no-craft-computed-side-effects', () => {
     ]);
   });
 
+  it('reports a service resolution and names the proof it lacks', async () => {
+    const result = await lintFixture(`
+      declare const SERVICE_YIELD_REQUEST_MARKER: unique symbol;
+      type ServiceRequest = { readonly [SERVICE_YIELD_REQUEST_MARKER]: true };
+      declare function HostLocale(): Generator<ServiceRequest, string, unknown>;
+      declare function craftComputed(name: string, factory: Function): unknown;
+
+      craftComputed('greeting', function* () {
+        return yield* HostLocale();
+      });
+    `);
+
+    expect(result.messages).toEqual([
+      'Craft computed callbacks may only read reactive Craft values; `HostLocale()` resolves a service, and nothing proves that resolving it is a pure read. Resolving a service can instantiate its implementation inside the computation, with transitive dependencies such as a craftEffect or a write, and neither its contract nor its dependency map proves that it has none. Resolve it in the enclosing service body (`const value = yield* Service()`) and read that value inside the computed.',
+    ]);
+  });
+
   it('reports update-like methods even without type information about their result', async () => {
     const result = await lintFixture(`
       declare const state: { update: (value: number) => void; unset: () => void };
