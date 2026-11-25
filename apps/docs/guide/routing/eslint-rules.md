@@ -531,6 +531,58 @@ keys between the root element and the inputs. There is **no autofix**: the
 diagnostic suggests a name prefixed with the component's name (`fieldTitle`),
 but renaming an input also changes its callers, so choose the name yourself.
 
+## Style modules imported with NodeNext
+
+`craft-ts/style-file-boundary` is enabled at `error` in the recommended preset,
+inherited by the Effect preset and newly generated apps. A `*.style.ts` may
+import another style module, so a design system can be split across several
+files. Under `"moduleResolution": "NodeNext"` a relative import has to name the
+JavaScript output — `./tokens.style.js` — and the rule accepts that spelling
+when the import reaches a **typed** style module: a `tokens.style.ts` source (or
+`.tsx`) or a `tokens.style.d.ts` declaration. `.mjs` maps to `.mts`/`.d.mts`
+and `.cjs` to `.cts`/`.d.cts`, as in TypeScript.
+
+The `.js` suffix alone proves nothing. If the import lands on a plain
+`tokens.style.js`, the values the sheet imports lose their CraftTS token types:
+TypeScript types them `any`, or infers whatever the JavaScript happens to
+produce, so a sheet can spend a value the design system never declared. With typed linting (`projectService` or `project`)
+the rule asks TypeScript which file the import resolved to; without type
+information it looks for the typed file TypeScript would substitute beside the
+importing sheet.
+
+Before — rejected because `./tokens.style.js` reaches only a plain JavaScript
+file (or nothing):
+
+```ts
+// src/tokens.style.js — no tokens.style.ts, no tokens.style.d.ts
+export const gap = unit.rem(1);
+
+// src/card.style.ts
+import { craftStyles, gap as gapProp } from '@craft-ts/style';
+import { gap } from './tokens.style.js'; // ✗ untyped style module
+
+export const card = craftStyles('card', { root: [gapProp(gap)] });
+```
+
+After — the import resolves to the typed source (a `tokens.style.d.ts` beside a
+shipped `tokens.style.js` works the same way):
+
+```ts
+// src/tokens.style.ts
+import { unit } from '@craft-ts/style';
+
+export const gap = unit.rem(1);
+
+// src/card.style.ts
+import { craftStyles, gap as gapProp } from '@craft-ts/style';
+import { gap } from './tokens.style.js'; // ✓ TypeScript reads tokens.style.ts
+
+export const card = craftStyles('card', { root: [gapProp(gap)] });
+```
+
+`./tokens.style` and `./tokens.style.ts` stay accepted as before. There is
+**no autofix**: write the `*.style.ts` source, or ship its declaration, yourself.
+
 ## Presets and configuration
 
 The recommended preset bans every TypeScript assertion in authored Craft code,
@@ -1081,7 +1133,7 @@ states must respond to one operation, use a shared `source$` and `on$(...)`.
 - `craft-ts/no-forbidden-eslint-disable`: requires a reason on every directive that disables a design-system rule — `// eslint-disable-next-line craft-ts/no-raw-class -- markdown output carries its own classes`. The reason is what the reviewer decides on in Review Attest. It also forbids disabling the rules listed in `.craft/eslint-disable-policy.json`. A blanket `eslint-disable` silences this rule too, so it cannot be reported here; Review Attest lists it
 - `craft-ts/no-raw-css-value`: forbids a string or number literal as an argument to a `@craft-ts/style` helper — `p('12px')`, `bg('red')`. If the scale is missing the step, add it to the scale; if the value genuinely cannot be proven, `unsafeLength('13px', reason)` compiles and makes the debt countable in the [graph](/guide/style/testing#what-the-graph-adds)
 - `craft-ts/no-free-has`: forbids a hand-written `:has()` in styles. It reaches across the component boundary, so what a component looks like depends on markup it does not own — a state the matrix cannot enumerate. Use the `descendant` axis, which is a closed set and carries its own test driver
-- `craft-ts/style-file-boundary`: restricts a `*.style.ts` to style-vocabulary imports. The [build plugin](/guide/style/setup) imports the file in Node to read what it registered, so an application import would run application code at build time
+- `craft-ts/style-file-boundary`: restricts a `*.style.ts` to style-vocabulary imports. The [build plugin](/guide/style/setup) imports the file in Node to read what it registered, so an application import would run application code at build time. A relative import of another style module may use the NodeNext spelling (`./tokens.style.js`) only when it reaches a typed `*.style.ts` source or `*.style.d.ts` declaration; see [Style modules imported with NodeNext](#style-modules-imported-with-nodenext)
 - `craft-ts/require-effect-adapters`: requires the Effect-aware adapters — `queryEffect`, `mutationEffect`, `asyncProcessEffect`, and `transitionGuardEffect` — instead of the plain primitives and `transitionGuard` in an Effect application. A `query` whose loader yields an imported `CraftHttpClient` request stays a Craft query because that request is a Craft generator, not an `Effect`; server-function queries follow the same boundary. See [Choose the right adapter](/guide/advanced/effect#choose-the-right-adapter)
 - `craft-ts/craft-signal-source-name-match`: requires `signalSource(name, ...)` to take a string literal matching the variable, class property or object property it is assigned to, so the name in a trace is the name in the source. A computed name defeats the [architecture graph](/guide/testing/architecture), which reads these names statically
 - `craft-ts/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
