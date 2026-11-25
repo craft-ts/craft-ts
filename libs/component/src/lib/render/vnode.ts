@@ -32,7 +32,11 @@ import type {
   CraftTemplate,
   InputValue,
 } from '../types';
-import { isCraftDirective, type CraftDirective } from '../types';
+import {
+  CRAFT_COMPONENT,
+  isCraftDirective,
+  type CraftDirective,
+} from '../types';
 import {
   EVENT_ACTION,
   isEventActionDirective,
@@ -1712,9 +1716,11 @@ function applyCraftNodeDirective(
     });
   }
 
-  if (node.kind !== 'element') return node;
-
   const definition = directive[CRAFT_NODE_DIRECTIVE];
+  if (node.kind !== 'element') {
+    throw new TypeError(nodeDirectiveTargetMessage(node, definition.name));
+  }
+
   const props = { ...node.props } as Record<string, unknown>;
   const inputs = Object.fromEntries(
     definition.inputs
@@ -1731,6 +1737,31 @@ function applyCraftNodeDirective(
       { directive, inputs },
     ],
   });
+}
+
+/**
+ * A node directive mounts on the DOM element it decorates. Any other node
+ * (a component call, text, a block…) has no element of its own to mount on,
+ * so the directive would be dropped without a trace: say where it belongs.
+ */
+function nodeDirectiveTargetMessage(node: CraftNode, name: string): string {
+  const directive = `Node directive "${name}"`;
+  if (node.kind === 'component') {
+    const component = (
+      node.component as
+        | Partial<Record<typeof CRAFT_COMPONENT, { readonly name?: string }>>
+        | undefined
+    )?.[CRAFT_COMPONENT]?.name;
+    const target = component ? `component "${component}"` : 'a component';
+    return (
+      `${directive} cannot be piped onto ${target}: a node directive mounts on a DOM element, and a component call is not one. ` +
+      "Pipe it onto an element instead: the component's root element in its template, or an element that wraps the component call."
+    );
+  }
+  return (
+    `${directive} cannot be piped onto a "${node.kind}" node: a node directive mounts on a DOM element. ` +
+    'Pipe it onto an element instead.'
+  );
 }
 
 function resolveHostValue(value: unknown): unknown {
