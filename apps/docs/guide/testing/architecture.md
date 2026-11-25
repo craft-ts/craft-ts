@@ -749,7 +749,9 @@ it('forbids depends-on cycles', () => {
 ### `assertDeclarativeArchitecture`
 
 Runs the aggregate checks above and joins their messages. Pass `{ allow }`
-through to `assertMutationHasReactOn` for fire-and-forget mutations.
+through to `assertMutationHasReactOn` for fire-and-forget mutations, or — the
+form `craft-architecture-check` also reads — waive each one in
+`architecture/waivers.ts` with `target: 'primitive:<owner>.<name>'`.
 
 ```typescript
 import { architectureWaiverList } from './waivers';
@@ -894,9 +896,13 @@ export const architectureWaiverList = defineArchitectureWaivers(
 ```
 
 The target is a component name, `file:<path>`, `obligation:<id>`,
-`css-var:<name>`, `service:<name>`, or `'*'` for the whole rule — the only form a rule that
+`css-var:<name>`, `service:<name>`, `primitive:<owner>.<name>` (for example
+`primitive:Session.logout` for a fire-and-forget mutation under
+`mutation-react-on`, see [mutation reactions](/guide/testing/architecture/mutation-reactions#waive-one-mutation-in-architecture-waivers-ts)),
+or `'*'` for the whole rule — the only form a rule that
 checks the whole graph (`no-dependency-cycles`, …) accepts, and the one a
-project uses while it migrates. Two things keep the list honest: an **empty
+project uses while it migrates. Prefer a target whenever the rule reports one:
+a `'*'` waiver also excuses every finding the rule will report later. Two things keep the list honest: an **empty
 reason** is refused, and a waiver that no longer waives anything is **stale**
 and fails the check. Review Attest lists every waiver for a decision.
 

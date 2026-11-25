@@ -54,6 +54,53 @@ assertMutationHasReactOn(graph.graph, {
 Keep the allowlist named and small so a newly orphaned mutation cannot hide in a
 generic `allow: ['*']` convention.
 
+### Waive one mutation in `architecture/waivers.ts`
+
+`craft-architecture-check` and `architectureReport` do not take the `allow`
+list: they read [`architecture/waivers.ts`](/guide/testing/architecture#waivers).
+The `mutation-react-on` rule reports **one finding per mutation**, and each
+finding names the waiver target of that mutation, `primitive:<owner>.<name>`:
+
+```text
+Mutation logout has no query reacting to it (src/session.ts:5). Add
+insertReactOnMutation(logout, …) to the query this write makes stale. For a
+fire-and-forget write (logout, telemetry, export), waive this mutation alone in
+architecture/waivers.ts: { rule: 'mutation-react-on', target: 'primitive:Session.logout', reason }.
+```
+
+Before — a `'*'` waiver excuses every mutation of the application, including
+the next one that forgets its `insertReactOnMutation`:
+
+```typescript
+// ❌ hides every future orphaned mutation
+{
+  rule: 'mutation-react-on',
+  target: '*',
+  reason: 'A logout has no read side to refresh.',
+},
+```
+
+After — the waiver names the one legitimate fire-and-forget mutation; any other
+mutation without a reaction still fails the check:
+
+```typescript
+// ✅ excuses Session.logout only
+{
+  rule: 'mutation-react-on',
+  target: 'primitive:Session.logout',
+  reason: 'A logout has no read side to refresh.',
+},
+```
+
+The fix is a choice, not an autofix: either add `insertReactOnMutation(...)` to
+the query the write makes stale, or, when nothing on screen reads what the
+mutation writes, copy the target from the message into a reasoned waiver. A
+targeted waiver becomes **stale**, and fails the check, once its mutation gains
+a reaction or is removed.
+
+A `'*'` waiver for `mutation-react-on` is still accepted, so existing waiver
+files keep passing, but prefer one targeted waiver per fire-and-forget mutation.
+
 ## See also
 
 - [Reacting to mutations](/guide/state/react-on-mutation)

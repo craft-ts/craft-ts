@@ -11,7 +11,8 @@
  *   violation. The list cannot quietly outlive the code it excused.
  *
  * The per-rule `allow` options that predate this mechanism (`mutation-react-on`
- * for one) keep working; they carry no reason and are due to move here.
+ * for one) keep working; they carry no reason and are due to move here. A
+ * `mutation-react-on` waiver names one mutation: `primitive:<owner>.<name>`.
  */
 import ts from 'typescript';
 import { existsSync, readFileSync } from 'node:fs';
@@ -51,7 +52,8 @@ export type ArchitectureRuleName = (typeof ARCHITECTURE_RULE_NAMES)[number];
  *
  * `'*'` waives the whole rule for the app — the only form a rule that reports
  * no target accepts, and the form a project uses while it migrates; it goes
- * stale, and fails, once the rule passes.
+ * stale, and fails, once the rule passes. For a rule that reports targets,
+ * prefer the target: `'*'` also excuses every finding the rule reports later.
  */
 export type ArchitectureWaiverTarget<
   C extends ArchitectureCatalog = ArchitectureCatalog,

@@ -3159,6 +3159,144 @@ describe('insertion architecture rules', () => {
     ).not.toThrow();
   });
 
+  describe('mutation-react-on in the architecture report', () => {
+    const twoOrphans = () =>
+      graphOf({
+        'app.ts': `
+          ${STUBS}
+
+          const { Session } = craftService(
+            { name: 'Session', providedIn: 'global' },
+            function* () {
+              const save = yield* mutation('save', {});
+              const logout = yield* mutation('logout', {});
+              const user = yield* query('user', {});
+              return { save, logout, user };
+            },
+          );
+        `,
+      });
+    const messagesOf = (
+      report: ReturnType<typeof architectureReport>,
+      rule: string,
+    ) =>
+      report.violations.find((violation) => violation.rule === rule)?.messages;
+
+    it('reports one finding per mutation, targeted by its primitive ID', async () => {
+      const graph = await twoOrphans();
+
+      expect(mutationReactOnViolations(graph.graph)).toHaveLength(2);
+      expect(mutationReactOnViolations(graph.graph)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            label: 'save',
+            target: 'primitive:Session.save',
+          }),
+          expect.objectContaining({
+            label: 'logout',
+            target: 'primitive:Session.logout',
+          }),
+        ]),
+      );
+      const messages = messagesOf(
+        architectureReport(graph.graph),
+        'mutation-react-on',
+      );
+      expect(messages).toHaveLength(2);
+      const logout = messages?.find((message) =>
+        message.startsWith('Mutation logout '),
+      );
+      expect(logout).toMatch(
+        /^Mutation logout has no query reacting to it \(app\.ts:\d+\)\./,
+      );
+      expect(logout).toContain('insertReactOnMutation(logout, …)');
+      expect(logout).toContain(
+        "waive this mutation alone in architecture/waivers.ts: { rule: 'mutation-react-on', target: 'primitive:Session.logout', reason }",
+      );
+    });
+
+    it('lets a targeted waiver exempt only the named mutation', async () => {
+      const graph = await twoOrphans();
+      const waiver = {
+        rule: 'mutation-react-on' as const,
+        target: 'primitive:Session.logout' as const,
+        reason: 'A logout has no read side to refresh.',
+      };
+
+      const report = architectureReport(graph.graph, { waivers: [waiver] });
+
+      expect(report.waived).toEqual([
+        expect.objectContaining({
+          rule: 'mutation-react-on',
+          target: 'primitive:Session.logout',
+          reason: waiver.reason,
+        }),
+      ]);
+      expect(messagesOf(report, 'mutation-react-on')).toEqual([
+        expect.stringContaining("target: 'primitive:Session.save'"),
+      ]);
+      expect(messagesOf(report, 'architecture-waivers')).toBeUndefined();
+    });
+
+    it('rejects a targeted waiver once its mutation has a reaction', async () => {
+      const graph = await graphOf({
+        'app.ts': `
+          ${STUBS}
+
+          const { Session } = craftService(
+            { name: 'Session', providedIn: 'global' },
+            function* () {
+              const logout = yield* mutation('logout', {});
+              const user = yield* query(
+                'user',
+                {},
+                insertReactOnMutation(logout, {}),
+              );
+              return { logout, user };
+            },
+          );
+        `,
+      });
+
+      const report = architectureReport(graph.graph, {
+        waivers: [
+          {
+            rule: 'mutation-react-on',
+            target: 'primitive:Session.logout',
+            reason: 'A logout has no read side to refresh.',
+          },
+        ],
+      });
+
+      expect(messagesOf(report, 'mutation-react-on')).toBeUndefined();
+      expect(messagesOf(report, 'architecture-waivers')).toEqual([
+        expect.stringContaining(
+          'waiver mutation-react-on → primitive:Session.logout is stale',
+        ),
+      ]);
+    });
+
+    it("still accepts a '*' waiver, which excuses every mutation", async () => {
+      const graph = await twoOrphans();
+      const waiver = {
+        rule: 'mutation-react-on' as const,
+        target: '*' as const,
+        reason: 'Legacy waiver, predates per-mutation targets.',
+      };
+
+      const report = architectureReport(graph.graph, { waivers: [waiver] });
+
+      expect(messagesOf(report, 'mutation-react-on')).toBeUndefined();
+      expect(messagesOf(report, 'architecture-waivers')).toBeUndefined();
+      expect(
+        report.waived
+          .filter((finding) => finding.rule === 'mutation-react-on')
+          .map((finding) => finding.target)
+          .sort(),
+      ).toEqual(['primitive:Session.logout', 'primitive:Session.save']);
+    });
+  });
+
   it('rejects a persisted primitive whose identity is not craftUnique', async () => {
     const graph = await graphOf({
       'app.ts': `

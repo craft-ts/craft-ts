@@ -2912,9 +2912,35 @@ export type MutationReactOnOptions = {
 export type MutationReactOnViolation = {
   id: string;
   label: string;
+  /** The waiver target that excuses this mutation alone: `primitive:Owner.name`. */
+  target: `primitive:${string}`;
   filePath?: string;
   line?: number;
 };
+
+/**
+ * The waiver target of a primitive: `primitive:<owner label>.<name>`, for
+ * example `primitive:Session.logout`. Rules that report per primitive share
+ * it, so a waiver excuses exactly one primitive.
+ */
+function primitiveWaiverTarget(
+  graph: DependencyGraph,
+  node: DependencyGraphNode,
+): `primitive:${string}` {
+  const ownerId = node.details?.['ownerId'];
+  const owner = graph.nodes.find((candidate) => candidate.id === ownerId);
+  return `primitive:${owner?.label ?? 'unknown'}.${node.details?.['name'] ?? node.label}`;
+}
+
+function mutationReactOnMessage(violation: MutationReactOnViolation): string {
+  const at = [violation.filePath, violation.line].filter(Boolean).join(':');
+  return (
+    `Mutation ${violation.label} has no query reacting to it${at ? ` (${at})` : ''}. ` +
+    `Add insertReactOnMutation(${violation.label}, …) to the query this write makes stale. ` +
+    `For a fire-and-forget write (logout, telemetry, export), waive this mutation alone in architecture/waivers.ts: ` +
+    `{ rule: 'mutation-react-on', target: '${violation.target}', reason }.`
+  );
+}
 
 export function mutationReactOnViolations(
   graph: DependencyGraph,
@@ -2943,6 +2969,7 @@ export function mutationReactOnViolations(
       {
         id: node.id,
         label: name,
+        target: primitiveWaiverTarget(graph, node),
         filePath: relativeGraphPath(graph, node.filePath),
         line: node.line,
       },
@@ -2956,16 +2983,7 @@ export function assertMutationHasReactOn(
 ): void {
   const violations = mutationReactOnViolations(graph, options);
   if (violations.length === 0) return;
-  throw new Error(
-    violations
-      .map((violation) => {
-        const at = [violation.filePath, violation.line]
-          .filter(Boolean)
-          .join(':');
-        return `Mutation ${violation.label} has no query reacting to it${at ? ` (${at})` : ''}.`;
-      })
-      .join('\n'),
-  );
+  throw new Error(violations.map(mutationReactOnMessage).join('\n'));
 }
 
 export type InputActionFormViolation = {
@@ -5089,10 +5107,11 @@ export function architectureViolations(
 /**
  * The full outcome: violations, and what the waivers excused.
  *
- * The rules that reason per target (the style rules) report one finding per
- * component, file, obligation or variable, and a waiver can excuse one of
- * them. The older rules assert on the whole graph and report one message:
- * only a `'*'` waiver can excuse them.
+ * The rules that reason per target (the style rules, `mutation-react-on`,
+ * `source-trigger-ownership`…) report one finding per component, file,
+ * obligation, variable or primitive, and a waiver can excuse one of them. The
+ * older rules assert on the whole graph and report one message: only a `'*'`
+ * waiver can excuse them.
  */
 export function architectureReport(
   graph: DependencyGraph,
@@ -5116,11 +5135,6 @@ export function architectureReport(
     ['no-event-only-craft-method', assertNoEventOnlyCraftMethods],
     ['server-function-architecture', assertServerFunctionArchitecture],
     ['input-action-forms', assertInputActionForms],
-    [
-      'mutation-react-on',
-      (checked) =>
-        assertMutationHasReactOn(checked, options.mutationReactOn ?? {}),
-    ],
   ];
   const findings: WaivableFinding[] = rules.flatMap(([rule, assert]) => {
     try {
@@ -5136,15 +5150,26 @@ export function architectureReport(
       ];
     }
   });
+  // A fire-and-forget mutation (logout, telemetry) is a legitimate exception:
+  // report each mutation so its waiver excuses it alone, not every mutation
+  // the application adds later.
+  for (const violation of mutationReactOnViolations(
+    graph,
+    options.mutationReactOn ?? {},
+  )) {
+    findings.push({
+      rule: 'mutation-react-on',
+      target: violation.target,
+      message: mutationReactOnMessage(violation),
+    });
+  }
   // Native event bridges (for example a frozen iframe) can require a
   // narrowly reviewed exception. Report each writer so its waiver cannot
   // disable event ownership for the rest of the application.
   for (const violation of sourceTriggerOwnershipViolations(graph)) {
     const writer = graph.nodes.find(node => node.id === violation.writerId);
-    const ownerId = writer?.details?.['ownerId'];
-    const owner = graph.nodes.find(node => node.id === ownerId);
     const target = writer?.kind === 'primitive'
-      ? `primitive:${owner?.label ?? 'unknown'}.${writer.details?.['name'] ?? writer.label}`
+      ? primitiveWaiverTarget(graph, writer)
       : `service:${violation.writerLabel}`;
     const at = [violation.filePath, violation.line].filter(Boolean).join(':');
     findings.push({
