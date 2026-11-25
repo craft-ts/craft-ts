@@ -984,7 +984,6 @@ const tsconfigEffect = `{
 function viteConfig(context: TemplateContext): string {
   const hasServer = context.config.backendRuntime !== 'none';
   return `import { readFileSync } from 'node:fs';
-import { resolve as resolvePath } from 'node:path';
 import { defineConfig, type ViteDevServer } from 'vite';
 import { craftStyle } from '@craft-ts/style/vite';
 
@@ -1050,9 +1049,6 @@ export default defineConfig({
     // base defaults are on by default too.
     craftStyle({
       dumpPath: '.craft/style-graph.json',
-      alias: {
-        '@craft-ts/style': resolvePath(import.meta.dirname, 'node_modules/@craft-ts/style/src/index.js'),
-      },
     }),
 ${hasServer ? '    serverFunctionsPlugin(),' : ''}
   ],

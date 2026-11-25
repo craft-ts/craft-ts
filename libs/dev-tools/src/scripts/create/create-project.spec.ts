@@ -582,6 +582,10 @@ describe('createCraftProject', () => {
     expect(viteConfig).toContain("from '@craft-ts/style/vite'");
     expect(viteConfig).toContain('craftStyle(');
     expect(viteConfig).toContain('dumpPath');
+    // craftStyle() resolves @craft-ts/style to its own package entry; an app
+    // alias would only duplicate that default.
+    expect(viteConfig).not.toContain('alias');
+    expect(viteConfig).not.toContain('node_modules/@craft-ts/style');
     expect(
       await readFile(join(result.directory, 'src/main.ts'), 'utf8'),
     ).toContain("import 'virtual:craft-style.css'");
