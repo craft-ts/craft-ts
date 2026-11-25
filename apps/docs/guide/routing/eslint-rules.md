@@ -292,7 +292,11 @@ The evidence the predicate accepts:
 
 - a reactive Craft read (`state`, `craftComputed`, a query reader, a component
   input, a `CraftServiceInput`), `settled(...)` and `syncEffect(...)`;
-- the synchronous core capabilities `CraftRouter()` and `CraftGlobalError()`.
+- the synchronous core capabilities `CraftRouter()` and `CraftGlobalError()`;
+- an `@craft-ts/i18n` translator built by `runtime.bind(dependency)`, and the
+  reader it returns, when its type proves that the bound `dependency` is a
+  reactive Craft read and that the message resolves no service (no DI-aware
+  token).
 
 Resolving any other service — abstract or concrete, by `Service()` or by a
 shortcut such as `Store.count()` — is not proven: the resolution can
@@ -333,7 +337,23 @@ export const { Greeting, provideGreeting } = craftService(
 );
 ```
 
-Neither rule has an autofix; the diagnostic names the proof that is missing.
+A translation read in a computed is accepted when the translator is bound to a
+reactive read:
+
+```ts
+const language = yield* state('language', 'en');
+const t = runtime.bind(language);
+const lines = yield* state('lines', [1, 2, 3]);
+yield* craftComputed('summary', function* () {
+  return yield* t('items', { count: (yield* lines()).length })(); // ✅
+});
+```
+
+The same reader is rejected when `bind` received a generator that is not a
+reactive Craft read (bind it to the `state` that holds the locale), or when the
+message uses a DI-aware token: rendering it resolves that token's service, so
+read the translation in a template binding instead. Neither rule has an
+autofix; the diagnostic names the proof that is missing.
 
 ## Imported state and action references
 
@@ -760,7 +780,7 @@ What each rule does:
 - `craft-ts/prefer-direct-craft-service-exposure`: reports `craftExpose(...)` wrappers that repeat a yielded service's name, a named primitive result, or a member already returned by a primitive such as `state`, including when the member is renamed; keep the existing nested path (for example, `View.searchInput.setSearchInput`). It also reports a member destructured from a yielded service only to be exposed again: expose it from the shortcut with `craftExpose('save', View.save)`, or yield `View.count()` when the member is a reader (calling a shortcut runs a method). It forbids `craftExpose` inside supported primitive declarations or callbacks. Keep `craftExpose` for standalone or computed values.
 - `craft-ts/prefer-craft-computed-for-reactive-generator`: reports a zero-argument generator exposed as a service value when its only statement returns a value derived from a `yield*` read. Declare that value with `yield* craftComputed(name, function* () { ... })`; parameterized generators and multi-step workflows are unaffected.
 - `craft-ts/prefer-craft-computed-for-reactive-array-length`: reports `.length` reads from reactive array readers in consumers. Expose a boolean or count through `craftComputed` in the owning service; `.length` inside that computed is allowed, and no autofix is offered because the scalar API needs a domain-specific name.
-- `craft-ts/prefer-computed-local-dependency`: reports a dependency yielded outside a `craftComputed` when every use of that dependency is inside that computed and `craft-ts/no-craft-computed-side-effects` would accept it there (a reactive read, `CraftRouter()`, `CraftGlobalError()` — see [Only provable reads go inside a `craftComputed`](#only-provable-reads-go-inside-a-craftcomputed)). Yield it in a generator callback there so the computed records its own dependency; no autofix is offered because the callback may need to become a generator. A service whose resolution is not proven pure stays resolved by the enclosing body.
+- `craft-ts/prefer-computed-local-dependency`: reports a dependency yielded outside a `craftComputed` when every use of that dependency is inside that computed and `craft-ts/no-craft-computed-side-effects` would accept it there (a reactive read, `CraftRouter()`, `CraftGlobalError()`, a proven i18n reader — see [Only provable reads go inside a `craftComputed`](#only-provable-reads-go-inside-a-craftcomputed)). Yield it in a generator callback there so the computed records its own dependency; no autofix is offered because the callback may need to become a generator. A service whose resolution is not proven pure stays resolved by the enclosing body.
 - `craft-ts/require-craft-component-for-exported-node-factory`: requires an exported function that directly returns a Craft node, such as `button(...)`, to be declared with `craftComponent(...)` so Craft directives and composition remain available
 
 ### Keep `craftService` exposure keys unique
@@ -1002,7 +1022,7 @@ checks exported arrow functions.
 - `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in a `craftComponent(...)` or `craftDirective(...)` template. Component templates now return their node tree directly, so state and derived values belong in a view service; directive generator templates must also avoid render-local state because they can rerun.
 - `craft-ts/require-form-for-input-action`: rejects a button's direct `mutate(...)` or `method(...)` call when it consumes an input-bound value, including through a local record or variable; use `insertForm`, `insertFormAttributes`, and `insertFormSubmit` for mutation-backed forms, then submit a native `form(...)` with a `type: 'submit'` button
 - `craft-ts/template-element-name-unique`: requires named HTML helpers to use a static, unique local name within a component; use the object-first helper form for unnamed elements such as `p({ id: 'hint' }, ...)`
-- `craft-ts/no-craft-computed-side-effects`: forbids writes, asynchronous work and unproven service resolution inside `craftComputed`; only reactive reads, `settled(...)`, `syncEffect(...)`, and the synchronous core capabilities are allowed (see [Only provable reads go inside a `craftComputed`](#only-provable-reads-go-inside-a-craftcomputed)). The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
+- `craft-ts/no-craft-computed-side-effects`: forbids writes, asynchronous work and unproven service resolution inside `craftComputed`; only reactive reads, `settled(...)`, `syncEffect(...)`, the synchronous core capabilities and proven i18n readers are allowed (see [Only provable reads go inside a `craftComputed`](#only-provable-reads-go-inside-a-craftcomputed)). The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
 - `craft-ts/no-effect-outside-loaders`: keeps `params`, methods, `craftComputed(...)`, and `craftEffect(...)` synchronous by allowing Effect values and Effect service reads only in Effect loaders; `no-effect-in-params` remains as a compatibility alias
 - `craft-ts/sync-effect-body`: keeps a body declared synchronous (`SyncOp` in its requirements) free of anything that may suspend — async constructors such as `Effect.sleep`/`Effect.promise`, and members nothing declares synchronous. Type-aware: the ESLint parser must use `projectService: true` or a TypeScript `project`
 - `craft-ts/no-explicit-effect-type`: lets `Effect.gen` infer its complete type instead of repeating an explicit Effect annotation; contracts declared in interfaces and type aliases remain allowed

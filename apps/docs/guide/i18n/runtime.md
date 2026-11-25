@@ -55,6 +55,24 @@ yields like any other Craft reader. One service owns the locale for the whole
 app; components consume it rather than each building a local binding, which is
 what keeps two components from disagreeing about which language is on screen.
 
+A reader can also feed a `craftComputed` — a count label or a summary derived
+from other state:
+
+```ts
+const language = yield* state('language', 'en');
+const t = runtime.bind(language);
+yield* craftComputed('summary', function* () {
+  return yield* t('items', { count: (yield* lines()).length })();
+});
+```
+
+The translator's type records the dependency it was bound to, which is how
+`craft-ts/no-craft-computed-side-effects` proves that this reader only reads:
+it accepts the reader when that dependency is a reactive Craft read and the
+message has no DI-aware token. A translator bound to any other generator, or a
+message whose token resolves a service, is still rejected in a computed; read
+that one in a template binding.
+
 ### DI inside a translation
 
 Dependencies belong to the token that needs them, not to the whole i18n

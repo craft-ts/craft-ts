@@ -76,11 +76,36 @@ type DependenciesOfFactory<Factory> = ServiceDependencyMapFromYielded<
   FactoryYielded<Factory>
 >;
 
-type TranslationReader<Dependencies extends object> = (() => Generator<
-  unknown,
-  string,
-  unknown
->) & ComponentDepsCarrier<Dependencies>;
+/**
+ * Type-only proof carried by a bound translator and by the readers it builds.
+ * It never exists at runtime.
+ *
+ * A translator built by `runtime.bind(dependency)` only builds readers, and a
+ * reader only yields `dependency` and then renders the message, resolving the
+ * formatter of each DI-aware token on the way (the services listed in its
+ * `ComponentDepsCarrier`). Carrying the bound `Dependency` lets a static
+ * check such as `craft-ts/no-craft-computed-side-effects` prove that a reader
+ * is a pure reactive read: its dependency is a reactive Craft read and its
+ * message resolves no service.
+ */
+export declare const CRAFT_I18N_TRANSLATION: unique symbol;
+
+export type TranslationProofCarrier<
+  Role extends 'translator' | 'reader',
+  Dependency,
+> = {
+  readonly [CRAFT_I18N_TRANSLATION]?: {
+    readonly role: Role;
+    readonly dependency: Dependency;
+  };
+};
+
+type TranslationReader<
+  Dependencies extends object,
+  Dependency = ReactiveTranslationDependency,
+> = (() => Generator<unknown, string, unknown>) &
+  ComponentDepsCarrier<Dependencies> &
+  TranslationProofCarrier<'reader', Dependency>;
 
 export type I18nToken<
   Name extends string = string,
@@ -986,9 +1011,9 @@ export type I18nRuntime<Locales extends readonly LocaleDefinition[]> = {
     >
   ) => string;
   readonly t: I18nRuntime<Locales>['translate'];
-  readonly bind: (
-    dependency: ReactiveTranslationDependency,
-  ) => ReactiveTranslator<Locales>;
+  readonly bind: <Dependency extends ReactiveTranslationDependency>(
+    dependency: Dependency,
+  ) => ReactiveTranslator<Locales, Dependency>;
   readonly loadLocale: (id: Locales[number]['id']) => Promise<void>;
 };
 
@@ -1000,6 +1025,7 @@ export type ReactiveTranslationDependency = () => Generator<
 
 export type ReactiveTranslator<
   Locales extends readonly LocaleDefinition[],
+  Dependency extends ReactiveTranslationDependency = ReactiveTranslationDependency,
 > = {
   <Key extends TranslationKey<Locales[number]>>(
     key: Key,
@@ -1007,11 +1033,13 @@ export type ReactiveTranslator<
       TranslationParams<Locales[number], Key & string>
     >
   ): TranslationReader<
-    TranslationDependencies<Locales[number], Key & string>
+    TranslationDependencies<Locales[number], Key & string>,
+    Dependency
   >;
 } & ComponentDepsCarrier<
   TranslationDependencies<Locales[number], TranslationKey<Locales[number]>>
->;
+> &
+  TranslationProofCarrier<'translator', Dependency>;
 
 export function createI18nRuntime<const Locales extends readonly LocaleDefinition[]>(options: {
   readonly locales: Locales;
@@ -1068,8 +1096,10 @@ export function createI18nRuntime<const Locales extends readonly LocaleDefinitio
     },
     translate,
     t: translate,
-    bind: (dependency: ReactiveTranslationDependency) =>
-      createReactiveTranslator<Locales>({
+    bind: <Dependency extends ReactiveTranslationDependency>(
+      dependency: Dependency,
+    ) =>
+      createReactiveTranslator<Locales, Dependency>({
         runtime: { translateGenerator },
         dependency,
       }),
@@ -1079,6 +1109,7 @@ export function createI18nRuntime<const Locales extends readonly LocaleDefinitio
 
 export function createReactiveTranslator<
   const Locales extends readonly LocaleDefinition[],
+  Dependency extends ReactiveTranslationDependency = ReactiveTranslationDependency,
 >(options: {
   // Only the generator form is accepted: a translator built on the synchronous
   // `translate` would advertise dependencies in its type and then throw on the
@@ -1089,15 +1120,16 @@ export function createReactiveTranslator<
       params?: unknown,
     ) => Generator<unknown, string, unknown>;
   };
-  readonly dependency: ReactiveTranslationDependency;
-}): ReactiveTranslator<Locales> {
+  readonly dependency: Dependency;
+}): ReactiveTranslator<Locales, Dependency> {
   const translate = <Key extends TranslationKey<Locales[number]>>(
     key: Key,
     ...params: TranslationParamsArgument<
       TranslationParams<Locales[number], Key & string>
     >
   ): TranslationReader<
-    TranslationDependencies<Locales[number], Key & string>
+    TranslationDependencies<Locales[number], Key & string>,
+    Dependency
   > =>
     function* () {
       yield* options.dependency();

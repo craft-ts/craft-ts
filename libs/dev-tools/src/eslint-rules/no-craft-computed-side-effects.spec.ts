@@ -154,6 +154,43 @@ describe('no-craft-computed-side-effects', () => {
     ]);
   });
 
+  it('accepts an i18n reader only when its proof shows a reactive dependency and no service', async () => {
+    const result = await lintFixture(`
+      declare const RAW_REACTIVE_VALUE: unique symbol;
+      declare const CRAFT_I18N_TRANSLATION: unique symbol;
+      declare const CRAFT_COMPONENT_DEPS: unique symbol;
+      type Read<T> = (() => Generator<never, T, unknown>) & {
+        readonly [RAW_REACTIVE_VALUE]: true;
+      };
+      type Proof<Role, Dependency> = {
+        readonly [CRAFT_I18N_TRANSLATION]?: { readonly role: Role; readonly dependency: Dependency };
+      };
+      type Reader<Dependency, Deps extends object> = (() => Generator<unknown, string, unknown>) &
+        Proof<'reader', Dependency> & { readonly [CRAFT_COMPONENT_DEPS]?: Deps };
+      type Translator<Dependency, Deps extends object = {}> = ((key: string) => Reader<Dependency, Deps>) &
+        Proof<'translator', Dependency>;
+      declare const t: Translator<Read<string>>;
+      declare const unbound: Translator<() => Generator<unknown, void, unknown>>;
+      declare const withService: Translator<Read<string>, { ClientCurrency: unknown }>;
+      declare function craftComputed(name: string, factory: Function): unknown;
+
+      craftComputed('pure', function* () {
+        return yield* t('items')();
+      });
+      craftComputed('unbound', function* () {
+        return yield* unbound('items')();
+      });
+      craftComputed('withService', function* () {
+        return yield* withService('total')();
+      });
+    `);
+
+    expect(result.messages).toEqual([
+      "Craft computed callbacks may only read reactive Craft values; `unbound('items')` reads a translation whose translator is bound to a dependency that is not a reactive Craft read, so nothing proves that reading it is pure. Bind the translator to a `state`, `craftComputed` or input reader (`runtime.bind(language)`).",
+      "Craft computed callbacks may only read reactive Craft values; `withService('total')` renders a message whose DI-aware tokens resolve `ClientCurrency` inside the computation, and resolving a service is not proven to be a pure read. Read this translation in a template binding instead, or give these tokens a formatter that resolves no service.",
+    ]);
+  });
+
   it('reports update-like methods even without type information about their result', async () => {
     const result = await lintFixture(`
       declare const state: { update: (value: number) => void; unset: () => void };

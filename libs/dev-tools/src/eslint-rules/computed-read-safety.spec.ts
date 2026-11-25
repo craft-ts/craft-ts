@@ -13,7 +13,7 @@ const preferComputedLocalDependency = require('./prefer-computed-local-dependenc
 // The two rules share one predicate: prefer-computed-local-dependency may only
 // ask to move a dependency into a computed when no-craft-computed-side-effects
 // would accept it there. These fixtures run both rules together on the real
-// `@craft-ts/core` types — a fixture under the OS tmpdir
+// `@craft-ts/core` and `@craft-ts/i18n` types — a fixture under the OS tmpdir
 // would type every import as `any` and prove nothing.
 const repoRoot = fileURLToPath(new URL('../../../..', import.meta.url));
 const tempDirectories: string[] = [];
@@ -148,6 +148,98 @@ describe('computed read safety (prefer-computed-local-dependency + no-craft-comp
       ]);
     });
   });
+
+  describe('issue #46 — a bound i18n translator read in a computed', () => {
+    const I18N_PRELUDE = `
+      import { craftComputed, craftExpose, craftService, state } from '@craft-ts/core';
+      import { createI18nRuntime, defineLocale, integer, msg, plural } from '@craft-ts/i18n';
+
+      const count = integer('count');
+      const en = defineLocale('en', {
+        items: plural(count, { one: msg\`\${count} item\`, other: msg\`\${count} items\` }),
+      });
+    `;
+
+    it('accepts a translator bound to a reactive Craft read', async () => {
+      const messages = await lintFixture(`
+        ${I18N_PRELUDE}
+        export const { Cart } = craftService({ name: 'Cart', providedIn: 'global' }, function* () {
+          const runtime = createI18nRuntime({ locales: [en] });
+          const language = yield* state('language', 'en');
+          const t = runtime.bind(language);
+          const lines = yield* state('lines', [1, 2, 3]);
+          yield* craftComputed('summary', function* () {
+            return yield* t('items', { count: (yield* lines()).length })();
+          });
+          yield* craftExpose('t', t);
+        });
+      `);
+
+      expect(messages).toEqual([]);
+    });
+
+    it('rejects a translator bound to a generator that is not a reactive read', async () => {
+      const messages = await lintFixture(`
+        ${I18N_PRELUDE}
+        import { craftSleep } from '@craft-ts/core';
+
+        export const { SlowCart } = craftService({ name: 'SlowCart', providedIn: 'global' }, function* () {
+          const runtime = createI18nRuntime({ locales: [en] });
+          const t = runtime.bind(function* () {
+            yield* craftSleep(10);
+          });
+          const lines = yield* state('lines', [1, 2, 3]);
+          yield* craftComputed('summary', function* () {
+            return yield* t('items', { count: (yield* lines()).length })();
+          });
+        });
+      `);
+
+      expect(messages).toEqual([
+        {
+          ruleId: SIDE_EFFECTS,
+          message: expect.stringContaining(
+            'is bound to a dependency that is not a reactive Craft read',
+          ),
+        },
+      ]);
+    });
+
+    it('rejects a message whose DI-aware token resolves a service inside the computed', async () => {
+      const messages = await lintFixture(`
+        import { abstract, craftComputed, craftService, state } from '@craft-ts/core';
+        import { createI18nRuntime, defineLocale, money, msg } from '@craft-ts/i18n';
+
+        export const { ClientCurrency, provideClientCurrency } = craftService(
+          { name: 'ClientCurrency', providedIn: 'abstract' },
+          abstract<{ readonly code: string }>(),
+        );
+
+        const amount = money('amount', function* () {
+          const currency = yield* ClientCurrency();
+          return { currency: currency.code };
+        });
+        const en = defineLocale('en', { total: msg\`Total \${amount}\` });
+
+        export const { Order } = craftService({ name: 'Order', providedIn: 'global' }, function* () {
+          const runtime = createI18nRuntime({ locales: [en] });
+          const language = yield* state('language', 'en');
+          const t = runtime.bind(language);
+          const total = yield* state('total', 12);
+          yield* craftComputed('label', function* () {
+            return yield* t('total', { amount: yield* total() })();
+          });
+        });
+      `);
+
+      expect(messages).toEqual([
+        {
+          ruleId: SIDE_EFFECTS,
+          message: expect.stringContaining('ClientCurrency'),
+        },
+      ]);
+    });
+  });
 });
 
 async function lintFixture(source: string) {
@@ -166,6 +258,7 @@ async function lintFixture(source: string) {
         types: [],
         paths: {
           '@craft-ts/core': [join(repoRoot, 'libs/core/src/index.ts')],
+          '@craft-ts/i18n': [join(repoRoot, 'libs/i18n/src/index.ts')],
         },
       },
       include: ['fixture.ts'],
