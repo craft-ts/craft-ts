@@ -10,6 +10,7 @@ import { ɵprovidePageBehaviorMutant } from './behavior-mutant';
 import { ɵanswerCraftBridgeRequest } from './dev-tools-bridge-methods';
 import { collectCraftPageControls } from './dev-tools-page-actor';
 import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
+import { ɵcraftRandomUUID } from './craft-random-runtime';
 import {
   DestroyRef,
   inject,
@@ -257,7 +258,7 @@ function startMcpPageBridge(
 function getClientId(): string {
   const existing = globalThis.sessionStorage.getItem(CLIENT_ID_KEY);
   if (existing) return existing;
-  const id = globalThis.crypto.randomUUID();
+  const id = ɵcraftRandomUUID();
   globalThis.sessionStorage.setItem(CLIENT_ID_KEY, id);
   return id;
 }

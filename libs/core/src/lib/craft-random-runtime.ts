@@ -84,15 +84,30 @@ export class RealCraftRandomRuntime implements CraftRandomRuntime {
     if (activeRandomRuntimeOverride && activeRandomRuntimeOverride !== this) {
       return activeRandomRuntimeOverride.uuid();
     }
-    const cryptoApi = globalThis.crypto;
-    if (typeof cryptoApi?.randomUUID === 'function') {
-      return cryptoApi.randomUUID();
-    }
-    const bytes = randomBytes(16);
-    bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
-    bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
-    return formatUuid(bytes);
+    return ɵcraftRandomUUID();
   }
+}
+
+/**
+ * Returns a RFC 4122 version 4 UUID from the host's cryptographic generator.
+ *
+ * Browsers only expose `crypto.randomUUID()` in a secure context (HTTPS or
+ * localhost). A page served over plain HTTP from a LAN address still has
+ * `crypto.getRandomValues()`, so the UUID is built from it instead. This reads
+ * the host directly: unlike `CraftRandomRuntime`, a replay never replaces it.
+ */
+export function ɵcraftRandomUUID(
+  cryptoApi:
+    | Partial<Pick<Crypto, 'getRandomValues' | 'randomUUID'>>
+    | undefined = globalThis.crypto,
+): string {
+  if (typeof cryptoApi?.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
+  const bytes = randomBytes(16, cryptoApi);
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  return formatUuid(bytes);
 }
 
 /** Seeded xorshift32 source. A zero seed is normalized to a non-zero state. */
@@ -127,10 +142,15 @@ export class SeededCraftRandomRuntime implements CraftRandomRuntime {
   }
 }
 
-function randomBytes(length: number): Uint8Array {
+function randomBytes(
+  length: number,
+  cryptoApi:
+    | Partial<Pick<Crypto, 'getRandomValues' | 'randomUUID'>>
+    | undefined = globalThis.crypto,
+): Uint8Array {
   const bytes = new Uint8Array(length);
-  if (typeof globalThis.crypto?.getRandomValues === 'function') {
-    globalThis.crypto.getRandomValues(bytes);
+  if (typeof cryptoApi?.getRandomValues === 'function') {
+    cryptoApi.getRandomValues(bytes);
     return bytes;
   }
   for (let index = 0; index < length; index += 1) {

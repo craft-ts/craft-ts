@@ -1,4 +1,4 @@
-import type { SendContextEvent, SendContextSession } from '@craft-ts/core';
+import { ɵcraftRandomUUID, type SendContextEvent, type SendContextSession } from '@craft-ts/core';
 import { CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT } from './debug-session-replay-signals';
 import { captureDebugSessionEnvironment } from './debug-session-environment';
 
@@ -157,7 +157,7 @@ export function connectDebugSessionPersistence(
       return existing;
     }
     const before = previous ?? (existing && isUuid(existing) ? existing : undefined);
-    const created = crypto.randomUUID();
+    const created = ɵcraftRandomUUID();
     continuesFrom = rotates ? before : undefined;
     localStorage.setItem(storageKey, created);
     return created;
@@ -175,7 +175,7 @@ export function connectDebugSessionPersistence(
       writeActivity(true);
       return sharedId;
     } catch {
-      return crypto.randomUUID();
+      return ɵcraftRandomUUID();
     }
   };
 
@@ -323,7 +323,7 @@ export function connectDebugSessionPersistence(
     const launchId =
       typeof detail['launchId'] === 'string' && isUuid(detail['launchId'])
         ? detail['launchId']
-        : crypto.randomUUID();
+        : ɵcraftRandomUUID();
     const url = new URL(location.href);
     url.searchParams.set(RESUME_RECIPE_SESSION_PARAM, detail['recipeId']);
     url.searchParams.set(RESUME_RECIPE_LAUNCH_PARAM, launchId);
@@ -636,7 +636,7 @@ export function connectDebugSessionPersistence(
     try {
       next = takeSharedId(previous);
     } catch {
-      next = crypto.randomUUID();
+      next = ɵcraftRandomUUID();
       continuesFrom = previous;
     }
     dormant = false;
@@ -786,7 +786,7 @@ export function connectDebugSessionPersistence(
       )
       .then(() => {
         if (acquired || closed) return;
-        participantId = crypto.randomUUID();
+        participantId = ɵcraftRandomUUID();
         try {
           sessionStorage.setItem(participantStorageKey, participantId);
         } catch {
@@ -928,11 +928,11 @@ function readOrCreateParticipantId(storageKey: string): string {
   try {
     const existing = sessionStorage.getItem(storageKey);
     if (existing && isUuid(existing)) return existing;
-    const created = crypto.randomUUID();
+    const created = ɵcraftRandomUUID();
     sessionStorage.setItem(storageKey, created);
     return created;
   } catch {
-    return crypto.randomUUID();
+    return ɵcraftRandomUUID();
   }
 }
 

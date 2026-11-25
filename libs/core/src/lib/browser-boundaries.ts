@@ -19,6 +19,7 @@ import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import { craftPrivate } from './craft-primitive-gen';
 import { untracked, type Injector } from './host/craft-compat';
 import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
+import { ɵcraftRandomUUID } from './craft-random-runtime';
 import { getCurrentCraftInjector } from './host/craft-injector';
 
 type AnyBrowserBoundaryMethod = (...args: any[]) => any;
@@ -854,7 +855,7 @@ const browserCryptoService: BrowserBoundaryService<
     browserBoundary: true,
   },
   (): BrowserCryptoServiceApi => ({
-    randomUUID: () => getBrowserCrypto().randomUUID(),
+    randomUUID: () => ɵcraftRandomUUID(getBrowserCrypto()),
     getRandomValues: <TypedArray extends ArrayBufferView>(
       typedArray: TypedArray,
       // lib.dom narrowed getRandomValues to ArrayBufferView<ArrayBuffer>; the

@@ -1,3 +1,4 @@
+import { ɵcraftRandomUUID } from './craft-random-runtime';
 import { ɵcraftValueService } from './craft-service';
 import {
   createBrowserHistory,
@@ -86,7 +87,7 @@ export function createBrowserPlatform(
     localStorage: win.localStorage,
     sessionStorage: win.sessionStorage,
     now: () => win.performance.now(),
-    randomUUID: () => win.crypto.randomUUID(),
+    randomUUID: () => ɵcraftRandomUUID(win.crypto),
     listen: (target, event, handler) => {
       target.addEventListener(event, handler);
       return () => target.removeEventListener(event, handler);

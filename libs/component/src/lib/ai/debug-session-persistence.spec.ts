@@ -274,6 +274,26 @@ describe('debug session persistence after a pause', () => {
     expect(id).not.toBe(used);
   });
 
+  it('creates its ids on a page served over plain HTTP, where crypto.randomUUID is missing', () => {
+    // Browsers only expose randomUUID() in a secure context; a LAN address
+    // served by `vite --host` still has getRandomValues().
+    const randomUUID = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
+    Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+    try {
+      connect(record());
+      const socket = lastSocket();
+      socket.accept();
+      const sync = syncOf(socket);
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+      expect(sync['id']).toMatch(uuid);
+      expect(localStorage.getItem(sharedKey)).toBe(sync['id']);
+    } finally {
+      if (randomUUID) Object.defineProperty(crypto, 'randomUUID', randomUUID);
+      else delete (crypto as { randomUUID?: unknown }).randomUUID;
+    }
+  });
+
   it('never splits a recording made by a test', () => {
     (globalThis as { __CRAFT_E2E_SESSION__?: unknown }).__CRAFT_E2E_SESSION__ = {
       id: crypto.randomUUID(),
