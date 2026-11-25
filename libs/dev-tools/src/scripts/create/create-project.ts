@@ -1295,7 +1295,9 @@ ${i18n ? '      // Visible text belongs to src/i18n, not to a template literal.\
       // outside the DSL is invisible to it, so the run would come back clean
       // on styles nobody proved.
       ...craftRules.configs.typedCss.rules,
-      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
+      // An _-prefixed parameter declares a contract (a component's inputs)
+      // before the body reads it.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
 ${effect ? '' : "      'craft-ts/no-effect-import-in-frontend': 'error',"}
     },
   },

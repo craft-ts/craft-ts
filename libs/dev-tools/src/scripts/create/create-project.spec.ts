@@ -39,6 +39,27 @@ async function createFixture(
   });
 }
 
+// Resolves a generated app's eslint.config.mjs against this checkout's
+// packages, without installing another copy of the starter dependencies in
+// the fixture.
+async function localEslint(directory: string): Promise<ESLint> {
+  const config = await readFile(join(directory, 'eslint.config.mjs'), 'utf8');
+  const localConfig = config.replace(
+    /from '([^']+)'/g,
+    (_match, specifier: string) => {
+      const resolved = require.resolve(
+        specifier === '@craft-ts/dev-tools/eslint-rules'
+          ? '../../eslint-rules/index.cjs'
+          : specifier,
+      );
+      return `from '${pathToFileURL(resolved).href}'`;
+    },
+  );
+  const configPath = join(directory, 'eslint.local.config.mjs');
+  await writeFile(configPath, localConfig);
+  return new ESLint({ cwd: directory, overrideConfigFile: configPath });
+}
+
 describe('createCraftProject', () => {
   it('normalizes legacy aliases and independent runtime axes', () => {
     expect(
@@ -492,35 +513,48 @@ describe('createCraftProject', () => {
     'enables fixed component provider lists in a generated %s app',
     async (mode) => {
       const result = await createFixture(mode, []);
-      const config = await readFile(
-        join(result.directory, 'eslint.config.mjs'),
-        'utf8',
-      );
-      // Resolve the generated config against this checkout's packages, without
-      // installing another copy of the starter dependencies in the fixture.
-      const localConfig = config.replace(
-        /from '([^']+)'/g,
-        (_match, specifier: string) => {
-          const resolved = require.resolve(
-            specifier === '@craft-ts/dev-tools/eslint-rules'
-              ? '../../eslint-rules/index.cjs'
-              : specifier,
-          );
-          return `from '${pathToFileURL(resolved).href}'`;
-        },
-      );
-      const configPath = join(result.directory, 'eslint.local.config.mjs');
-      await writeFile(configPath, localConfig);
-      const eslint = new ESLint({
-        cwd: result.directory,
-        overrideConfigFile: configPath,
-      });
+      const eslint = await localEslint(result.directory);
       const effective = await eslint.calculateConfigForFile(
         join(result.directory, 'src/app/home-page.ts'),
       );
       expect(
         effective.rules['craft-ts/require-fixed-component-provider-list'],
       ).toEqual([2]);
+    },
+  );
+
+  it.each(['plain', 'effect'] as const)(
+    'lets a generated %s app declare an unused _-prefixed input contract',
+    async (mode) => {
+      const result = await createFixture(mode, []);
+      expect(
+        await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
+      ).toContain(
+        "'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]",
+      );
+
+      // A component may declare its inputs before its template reads them.
+      const file = join(result.directory, 'src/app/badge.ts');
+      await writeFile(
+        file,
+        [
+          'export function badge(_inputs: { tone: string }): string {',
+          '  const unread = 1;',
+          "  return 'badge';",
+          '}',
+          '',
+        ].join('\n'),
+      );
+      const [report] = await (
+        await localEslint(result.directory)
+      ).lintFiles([file]);
+      const unused = report.messages.filter(
+        (message) => message.ruleId === '@typescript-eslint/no-unused-vars',
+      );
+      // `_inputs` is ignored; an unprefixed local is still reported.
+      expect(
+        unused.map((message) => /^'([^']+)'/.exec(message.message)?.[1]),
+      ).toEqual(['unread']);
     },
   );
 
