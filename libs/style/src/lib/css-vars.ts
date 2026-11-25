@@ -138,6 +138,13 @@ export function cssVars<const Specs extends Readonly<Record<string, AnySpec>>>(
  * style module was evaluated — the emitter writes their `@property` blocks
  * itself, when the foundation is on. Registering them would make every dump
  * and every spec that resets the registry depend on import order.
+ *
+ * The other reader is an **adapter** for a host page that does not use
+ * CraftTS: it declares the contract its views read with `cssVars`, and fills
+ * it on `:root` (`craftGlobalStyles` + `set`) from the host's variables, read
+ * through these tokens so CraftTS never registers a variable the host owns.
+ * A view never reads them itself — it imports the contract. See the style
+ * guide, "Variables owned by the host page".
  */
 export function defineVarTokens<
   const Specs extends Readonly<Record<string, AnySpec>>,

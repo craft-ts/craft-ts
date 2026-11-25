@@ -174,6 +174,46 @@ describe('style-obligations-discharged and no-dangling-css-vars', () => {
     ]);
   });
 
+  it('names both owners of an undeclared read: this view, or the host page', () => {
+    const graph = mergeStyleDump(
+      graphOf([]),
+      dump({
+        atoms: [
+          {
+            ...dump().atoms[0]!,
+            value: 'var(--card-bg, var(--host-accent))',
+          },
+        ],
+      }),
+    );
+    const [message] = rulesOf(graph)['no-dangling-css-vars'] ?? [];
+
+    expect(message).toContain(
+      "'--host-accent' is read by a sheet and declared by none",
+    );
+    // Owned by the view: declare it.
+    expect(message).toContain(
+      'If the variable belongs to this view, declare it with cssVars(...)',
+    );
+    // Owned by the host: never re-declare it, consume its contract instead.
+    expect(message).toContain(
+      "If it belongs to the host page, do not read it from a view: consume the host's shared CraftTS style contract",
+    );
+    expect(message).toContain("*.style.ts or its package's /style entry");
+    expect(message).toContain(
+      'If the host does not use CraftTS, write an adapter: a *.style.ts that declares the contract with cssVars(...)',
+    );
+    expect(message).toContain('guide/style/tokens#host-variables');
+  });
+
+  it('does not report a host variable an adapter reads from a global style', () => {
+    const graph = mergeStyleDump(
+      graphOf([]),
+      dump({ globalReads: ['--card-bg', '--host-accent'] }),
+    );
+    expect(rulesOf(graph)['no-dangling-css-vars']).toBeUndefined();
+  });
+
   it('counts a read from a global style', () => {
     const graph = mergeStyleDump(
       graphOf([]),

@@ -25,7 +25,15 @@ const GLOBAL_KEYWORDS = new Set([
 ]);
 
 const LENGTH_LIKE = /^-?\d*\.?\d+(px|rem|em|%|vh|vw|ch|ex|pt|cm|mm|in)$/;
-const COLOR_LIKE = /^(#[0-9a-fA-F]{3,8}|rgb|rgba|hsl|hsla|var\()/;
+const COLOR_LIKE = /^(#[0-9a-fA-F]{3,8}|rgb|rgba|hsl|hsla)/;
+/**
+ * `var(--x)` written as a string. It is not a raw colour or length but a read
+ * of a variable nothing declared, and the fix depends on who owns it: this
+ * view (`cssVars`), or the host page the view is embedded in (its CraftTS
+ * style contract, or an adapter providing one). Pointing at the palette, or
+ * only at `cssVars`, would send the author the wrong way half the time.
+ */
+const VAR_READ = /^\s*var\(\s*(--[^,\s)]+)/;
 
 /**
  * Helpers whose argument is legitimately a primitive.
@@ -46,6 +54,7 @@ const TAKES_PRIMITIVES = new Set([
   'oneOf',
   'craftStyles',
   'cssVars',
+  'defineVarTokens',
   'definePalette',
   'defineStateAxis',
   'defineBreakpoints',
@@ -81,6 +90,8 @@ module.exports = {
         "'{{value}}' is a literal where a typed style value is expected. Pass {{replacement}} instead. Use unsafeLength(...) only for a CSS length that has no scale token. For state conditions, prefer built-in points such as interaction.focusVisible, ariaChecked.checked, ariaSelected.selected, or defineContainer(..., at.maxInlineSize(...)); use axisPoint(...) only when no supported point fits.",
       rawGlobal:
         "'{{value}}' is a CSS-wide keyword; pass it as a token — global.{{token}}(prop.<name>) — so no helper has to accept a string.",
+      rawVar:
+        "'{{value}}' reads the custom property '{{name}}' through a string, so nothing types, registers or checks it. If the variable belongs to this view, declare it with cssVars(...) and pass the token — color(v.ink). If it belongs to the host page, do not read it from a view: consume the host's shared CraftTS style contract — import its tokens and axes from the host's *.style.ts or its package's /style entry. If the host does not use CraftTS, write an adapter: a *.style.ts that declares the contract with cssVars(...) and fills it from the host's variables, so views read only the contract. See https://craft-ts.github.io/craft/guide/style/tokens#host-variables",
     },
   },
   create(context) {
@@ -165,6 +176,17 @@ module.exports = {
                   char.toUpperCase(),
                 ),
               },
+            });
+            continue;
+          }
+
+          const variable =
+            typeof value === 'string' ? VAR_READ.exec(value) : null;
+          if (variable) {
+            context.report({
+              node: argument,
+              messageId: 'rawVar',
+              data: { value, name: variable[1] },
             });
             continue;
           }

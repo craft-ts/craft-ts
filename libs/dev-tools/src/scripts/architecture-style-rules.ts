@@ -226,6 +226,23 @@ export function styleObligationsDischargedFindings(
 }
 
 /**
+ * What to do about a variable a sheet reads and nothing declares.
+ *
+ * "Declare it with cssVars(...)" alone is wrong half the time: the variable
+ * often belongs to the page the view is embedded in, and re-declaring it would
+ * register the host's variable a second time. A view reads a host's variables
+ * through the host's CraftTS style contract, or through an adapter that
+ * provides that contract when the host does not use CraftTS — so the message
+ * names both owners.
+ */
+const undeclaredCssVarMessage = (name: string): string =>
+  `'${name}' is read by a sheet and declared by none, so nothing types, registers or checks it, and the read resolves to nothing unless something outside CraftTS defines it. ` +
+  `If the variable belongs to this view, declare it with cssVars(...) and read the token. ` +
+  `If it belongs to the host page, do not read it from a view: consume the host's shared CraftTS style contract — import its tokens and axes from the host's *.style.ts or its package's /style entry. ` +
+  `If the host does not use CraftTS, write an adapter: a *.style.ts that declares the contract with cssVars(...) and fills it from the host's variables, so views read only the contract. ` +
+  `See https://craft-ts.github.io/craft/guide/style/tokens#host-variables`;
+
+/**
  * No variable is read without being declared, and none is declared for
  * nothing. A read from a global style (`craftGlobalStyles`, keyframes) counts.
  */
@@ -237,7 +254,7 @@ export function noDanglingCssVarsFindings(
   return [
     ...undeclared.map((name) => ({
       target: `css-var:${name}`,
-      message: `'${name}' is read by a sheet and declared by none. Declare it with cssVars(...) — a read of an undeclared variable resolves to nothing, silently.`,
+      message: undeclaredCssVarMessage(name),
     })),
     ...unread.map((name) => ({
       target: `css-var:${name}`,

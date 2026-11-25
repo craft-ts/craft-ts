@@ -72,7 +72,8 @@ Across the application, in the base architecture rules
 - `no-global-stylesheet` — an entry file importing a `.css`, or `index.html`
   linking a stylesheet;
 - `style-obligations-discharged`, `no-dangling-css-vars` — a `requires` nobody
-  provides, a variable read and never declared.
+  provides, a variable read and never declared (a host page's variable is
+  read through its [style contract](/guide/style/tokens#host-variables)).
 
 The meta carries no CSS: `styles`, `stylesUrl` and `cssVars` do not exist on it.
 The only route left outside a sheet is the reasoned bypass below.

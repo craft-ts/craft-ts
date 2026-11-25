@@ -308,6 +308,38 @@ describe('no-raw-css-value', () => {
     expect(result.messages[0].message).toContain('palette.surface.raised');
   });
 
+  it('routes a raw variable read to its owner: this view, or the host contract', async () => {
+    const result = await lint(
+      rawValueRule,
+      `
+      import { bg, color } from '@craft-ts/style';
+      export const rules = [color('var(--host-accent)'), bg(\`var(--host-surface-1, #fff)\`)];
+    `,
+      'banner.style.ts',
+    );
+
+    expect(result.messages.map((message) => message.messageId)).toEqual([
+      'rawVar',
+      'rawVar',
+    ]);
+    const [accent, surface] = result.messages;
+    expect(accent.message).toContain(
+      "reads the custom property '--host-accent' through a string",
+    );
+    expect(surface.message).toContain("'--host-surface-1'");
+    // Not the palette: a variable is not a raw colour.
+    expect(accent.message).not.toContain('palette.surface.raised');
+    expect(accent.message).toContain(
+      'If the variable belongs to this view, declare it with cssVars(...)',
+    );
+    expect(accent.message).toContain(
+      "consume the host's shared CraftTS style contract",
+    );
+    expect(accent.message).toContain(
+      'If the host does not use CraftTS, write an adapter',
+    );
+  });
+
   it('routes a CSS-wide keyword to its token', async () => {
     const result = await lint(
       rawValueRule,
@@ -325,8 +357,9 @@ describe('no-raw-css-value', () => {
     const result = await lint(
       rawValueRule,
       `
-      import { craftStyles, cssVars, unsafeLength } from '@craft-ts/style';
+      import { craftStyles, cssVars, defineVarTokens, unsafeLength } from '@craft-ts/style';
       export const v = cssVars('badge', {});
+      export const host = defineVarTokens('host', {});
       export const sheet = craftStyles('badge', {});
       export const escape = unsafeLength('13px', 'legacy image');
     `,

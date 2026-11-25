@@ -770,7 +770,7 @@ graph (step 4):
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `style-only-design-system`     | an element's class does not reach a sheet of a `*.style.ts` (a string, a computed class, a sheet declared elsewhere), or a component imports a `.css` |
 | `style-obligations-discharged` | a sheet `requires(...)` an obligation nothing `provides(...)`                                                                                                                   |
-| `no-dangling-css-vars`         | a variable is read and never declared, or declared and never read (a read from `craftGlobalStyles` counts)                                                                     |
+| `no-dangling-css-vars`         | a variable is read and never declared, or declared and never read (a read from `craftGlobalStyles` counts); a host page's variable is read through its [style contract](/guide/style/tokens#host-variables) |
 | `no-global-stylesheet`         | an entry file imports a `.css`, or `index.html` links a stylesheet — the only one is `virtual:craft-style.css`                                                                |
 
 A component of pure composition, with no class at all, is not at fault. A class
