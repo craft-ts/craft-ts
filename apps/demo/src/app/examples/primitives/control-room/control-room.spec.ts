@@ -2,7 +2,7 @@
 import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { beforeEach, describe, expect, it } from 'vitest';
-import ControlRoom from './control-room';
+import { ControlRoom } from './control-room';
 
 function mount() {
   const element = document.createElement('div');

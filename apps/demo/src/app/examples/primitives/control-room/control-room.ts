@@ -1,4 +1,4 @@
-import { button, craftComponent, div, header, heading, headingSection, p, type CraftComponent } from '@craft-ts/component';
+import { button, craftComponent, div, header, heading, headingSection, p, sealComponent } from '@craft-ts/component';
 import { example } from '../../shared/example.style';
 import { controlRoom } from './control-room.style';
 import { buttonUi } from '@craft-ts/ui/style';
@@ -12,10 +12,7 @@ const params = typeof globalThis.location !== 'undefined'
 const COPIES = Math.min(20, Math.max(1, Number(params?.get('copies')) || 1));
 const ROOMS = Array.from({ length: COPIES }, (_, index) => `Bay ${index + 1}`);
 
-// The route registry verifies many lazy demo components together; keep this
-// composed example behind the public component boundary to limit TS recursion.
-// eslint-disable-next-line craft-ts/no-craft-component-return-type
-const ControlRoom: CraftComponent = craftComponent(
+const ControlRoom = craftComponent(
   'ControlRoom',
   { providers: [provideControlRoomView()] },
   () =>
@@ -77,4 +74,9 @@ const ControlRoom: CraftComponent = craftComponent(
     ]),
 );
 
-export default ControlRoom;
+// The route registry verifies many lazy demo components together: the route
+// gets the sealed component, which keeps its DI contract (the route proof
+// still checks it) without the composed template tree. Its own tests import
+// `ControlRoom` unsealed.
+export { ControlRoom };
+export default sealComponent(ControlRoom);
