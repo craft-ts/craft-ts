@@ -218,6 +218,10 @@ const guideSidebar: readonly SidebarEntry[] = [
         link: '/guide/components/content-projection',
       },
       { text: 'Portals', link: '/guide/components/portals' },
+      {
+        text: 'Composition boundaries',
+        link: '/guide/components/composition-boundaries',
+      },
       { text: 'Styling a component', link: '/guide/components/styles' },
       {
         text: 'Template migrator',
