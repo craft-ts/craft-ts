@@ -188,7 +188,13 @@ type UncomputableContractError<
     : IsAnyContract<MissingProviderMap<ComponentDeps>> extends true
       ? [UncomputableContractMessage]
       : ComponentDeps extends { deps: unknown } | { missingProvider: unknown }
-        ? UnknownComponentContractKey extends keyof MissingProviderMap<ComponentDeps>
+        ? // A map with an index signature lists no provider at all: something
+          // in the component degraded (typically a service that does not
+          // compile). Checked first, because every key — the unknown-contract
+          // one included — then extends its keys.
+          string extends keyof MissingProviderMap<ComponentDeps>
+          ? [UncomputableContractMessage]
+          : UnknownComponentContractKey extends keyof MissingProviderMap<ComponentDeps>
           ? [UnknownContractMessage<Context>]
           : HasAnyMissingProviderEntry<
                 MissingProviderMap<ComponentDeps>

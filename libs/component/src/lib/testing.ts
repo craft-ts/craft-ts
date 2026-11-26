@@ -19,6 +19,7 @@ import {
   type CraftServiceProvider,
   type CompleteServiceDependencyMapFromYielded,
   type FlattenDependencyTree,
+  type UnknownComponentContractKey,
   ɵcraftTestProviders,
 } from '@craft-ts/core';
 import {
@@ -159,7 +160,13 @@ type RegisterValue =
   | Record<string, unknown>;
 
 type RegisterForNames<Names extends string> = {
-  [Name in Names]: RegisterValue;
+  // The unknown-contract entry is not a service: it marks a child whose
+  // contract was lost (typed by hand). No register value can stand for the
+  // services nobody can name any more, so none is accepted; the key itself
+  // tells the developer to seal the child instead of typing it.
+  [Name in Names]: Name extends UnknownComponentContractKey
+    ? never
+    : RegisterValue;
 };
 
 type RegisterForContract<Contract> = RegisterForNames<

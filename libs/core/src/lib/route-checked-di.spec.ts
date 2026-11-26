@@ -121,6 +121,22 @@ describe('RouteCheckedDI', () => {
     >();
   });
 
+  it('should fail closed when the missing provider map has an index signature', () => {
+    // What a component whose service does not compile ends up with: a map
+    // that names no provider, and used to let a hand-written list pass.
+    type Contract = {
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: { [name: string]: any };
+    };
+    expectTypeOf<RouteCheckedDI<Contract, 'Other'>>().toEqualTypeOf<
+      [
+        'The component dependency contract could not be computed; type-safe DI validation is unavailable',
+      ]
+    >();
+  });
+
   it('should fail closed when the checked value is not a contract', () => {
     type NotAContract = [
       'The value checked is not a component dependency contract (no deps, no missingProvider); pass ComponentDepsOf<typeof Component>',

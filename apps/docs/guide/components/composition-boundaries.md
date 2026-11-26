@@ -23,19 +23,49 @@ grows with the depth of the tree, and some composition sites re-expand it:
 
 ## Usage
 
-```ts
-import { craftComponent, div, sealComponent } from '@craft-ts/component';
+Keep the definition plain, and seal the component where it is composed:
 
-export const WorkspaceBrowser = sealComponent(
-  craftComponent('WorkspaceBrowser', { providers: [provideWorkspace()] }, function* () {
+```ts
+// workspace-browser.ts
+import { craftComponent } from '@craft-ts/component';
+
+export const WorkspaceBrowser = craftComponent(
+  'WorkspaceBrowser',
+  { providers: [provideWorkspace()] },
+  function* () {
     const workspace = yield* Workspace();
     return div([Toolbar(), FileTree(), Preview()]);
-  }),
+  },
+);
+```
+
+```ts
+// shell.ts
+import { craftComponent, div, sealComponent } from '@craft-ts/component';
+import { WorkspaceBrowser } from './workspace-browser';
+
+const SealedWorkspaceBrowser = sealComponent(WorkspaceBrowser);
+
+export const Shell = craftComponent('Shell', {}, () =>
+  div([flag ? SealedWorkspaceBrowser() : Welcome()]),
 );
 ```
 
 The component itself is returned untouched. Sealing only changes what its type
-remembers, so there is nothing to change at runtime.
+remembers, so there is nothing to change at runtime. Keeping the definition
+unsealed keeps its own tests able to reach into its template (see
+[Testing a sealed component](#testing-a-sealed-component)).
+
+A library that publishes declaration files seals in its public index instead,
+so the `.d.ts` no longer has to spell the template out (TS7056):
+
+```ts
+// index.ts of the library
+import { WorkspaceBrowser as WorkspaceBrowserComponent } from './workspace-browser';
+import { sealComponent } from '@craft-ts/component';
+
+export const WorkspaceBrowser = sealComponent(WorkspaceBrowserComponent);
+```
 
 ## What a sealed component keeps
 
@@ -52,18 +82,50 @@ remembers, so there is nothing to change at runtime.
 
 ## When to seal
 
-Seal a component where it crosses a boundary:
+Sealing is one remedy for a type that grew too deep, not a default. Reach for
+it when TypeScript reports one of these on a component tree:
 
-- an exported component that another package or a large page imports;
-- a component used as a slot, a `forNode` row, or a branch of a condition;
-- a page deep enough that `tsc --extendedDiagnostics` shows composition
-  dominating the instantiation count.
+- `TS2589: Type instantiation is excessively deep and possibly infinite`;
+- `TS2321: Excessive stack depth comparing types`;
+- `TS7056: The inferred type of this node exceeds the maximum length the
+  compiler will serialize`;
+
+or when `tsc --extendedDiagnostics` shows composition dominating the
+instantiation count. Seal at the boundary the error points to: a node
+choosing between components, a slot, a `forNode` row, an exported component.
+Other remedies remain: split one huge template into child components, and for
+a route collection, split it with `loadChildren`
+([Scaling routes](/guide/routing/scaling)).
 
 A sealed component costs about the same per nesting level as a plain one. The
 difference shows where the plain one re-expands its tree: a node choosing
 between two plain components overflows (TS2321) around 14 levels, while sealed
 components compile 32 levels down. `npm run type-budget` checks these figures
 on every change.
+
+## Testing a sealed component
+
+The register of `setupCraftComponentTemplateTest` — the services a test must
+mock or declare — is the same whether a component, or a child it renders, is
+sealed. Locating by tag, role, label or attribute works the same too.
+
+What stops at a sealed boundary is everything that reads the template's
+types: content locators (`result.locator('span', { content: 'status' })`) and
+template contracts (`TemplateRendersNamedElementWhen`). Test the unsealed
+component, which is why the definition stays plain and the seal sits where the
+component is used:
+
+```ts
+// workspace-browser.spec.ts — the plain component keeps typed locators.
+const result = await setupCraftComponentTemplateTest(WorkspaceBrowser, {
+  inputs: {},
+  register: { workspace: 'provided' },
+});
+result.locator('span', { content: 'workspaceName' });
+```
+
+A parent test cannot locate by content inside a sealed child. That is usually
+right: a parent test should not depend on how a child renders.
 
 ## Never type a component by hand
 
@@ -105,4 +167,5 @@ Never write the `CraftComponent<…>` arguments yourself.
 
 - [Components](/guide/components/)
 - [Scaling routes](/guide/routing/scaling): DI proofs and when they fail closed
+- [Testing components](/guide/testing/components)
 - [ESLint rules](/guide/routing/eslint-rules)

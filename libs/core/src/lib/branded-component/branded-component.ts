@@ -312,7 +312,10 @@ export type SealDependencyMap<Map> =
     ? Map
     : [Map] extends [never]
       ? never
-      : UnknownComponentContractKey extends keyof Map
+      : string extends keyof Map
+        ? // An index signature (a degraded map): nothing to keep apart.
+          SealDependencyMapOf<Map>
+        : UnknownComponentContractKey extends keyof Map
         ? // The unknown-contract entry stays optional through the seal: every
           // real contract must remain assignable to the contract it marks,
           // including after `.pipe(...)` recomputed both.

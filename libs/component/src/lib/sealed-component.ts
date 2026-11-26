@@ -189,13 +189,15 @@ export type SealedCraftComponent<
  * Seals a component at a composition boundary (see {@link SealedComponent}).
  *
  * The component itself is returned untouched: sealing only changes what its
- * type remembers. Use it where a component crosses a boundary \u2014 an export, a
- * slot, a `forNode` row, the branches of a condition \u2014 or once a page grows
- * deep enough for its type to cost more than it says:
+ * type remembers. It is one remedy for TS2589, TS2321 or TS7056 on a component
+ * tree, applied where the component crosses a boundary — a slot, a `forNode`
+ * row, the branches of a condition, a library's public index. Keep the
+ * definition plain so its own tests keep typed content locators:
  *
- *   export const WorkspaceBrowser = sealComponent(
- *     craftComponent('WorkspaceBrowser', { providers: [\u2026] }, function* () { \u2026 }),
- *   );
+ *   // workspace-browser.ts
+ *   export const WorkspaceBrowser = craftComponent('WorkspaceBrowser', { … }, function* () { … });
+ *   // shell.ts
+ *   const SealedWorkspaceBrowser = sealComponent(WorkspaceBrowser);
  */
 export function sealComponent<
   Props extends object,
