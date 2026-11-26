@@ -38,6 +38,26 @@ If a component starts depending on a service that is not provided, or expects
 an input that the route does not supply, its `CanRun` alias becomes a
 TypeScript error in the route file.
 
+## When a proof cannot be computed
+
+A DI proof never answers `true` when it has nothing to prove. Each case below
+fails with a message naming the problem:
+
+| Situation | Message |
+| --- | --- |
+| The contract degraded to `any` (TypeScript gave up with TS2589), or a missing provider entry is `any` | `The component dependency contract could not be computed; …` |
+| The value checked is not a component (`ComponentDepsOf<typeof import('./page')>` instead of its `default`) | `The dependency contract of a component rendered in … is unknown: …` |
+| A component in the tree was typed by hand (`CraftComponent<Props>`) | `The dependency contract of a component rendered in … is unknown: …` |
+| The value checked is a bare object (`{}`) | `The value checked is not a component dependency contract …` |
+| The provided values widened to `any` or `unknown` | `Provided values widened to any or unknown; …` |
+| The provider or input names widened to `string` | `Available provider names widened to string; …` / `Available input names widened to string; …` |
+
+A deep page does not need any of this. Each component computes its contract
+once, so the cost of the proof stays the same per nesting level. Seal the
+components that cross a boundary (export, slot, `forNode` row) with
+[`sealComponent`](/guide/components/composition-boundaries) to keep that true
+where a parent compares children.
+
 ## Scaling to hundreds of routes
 
 Organise routes as a tree of feature files joined by `loadChildren` when that
@@ -134,3 +154,4 @@ Notes:
 - [Setup](/guide/routing/setup)
 - [Architecture rules](/guide/testing/architecture) — `assertRouteDiProofs` catches a routed component with no check
 - [Route providers](/guide/routing/route-providers)
+- [Composition boundaries: `sealComponent`](/guide/components/composition-boundaries)

@@ -78,7 +78,8 @@ non-interactive starters, configuration options, and first checks
 [Customization](/guide/components/customization) ·
 [Content projection](/guide/components/content-projection) ·
 [Styling a component](/guide/components/styles) ·
-[Accessibility](/guide/components/accessibility)
+[Accessibility](/guide/components/accessibility) ·
+[Composition boundaries](/guide/components/composition-boundaries)
 
 ### Forms
 

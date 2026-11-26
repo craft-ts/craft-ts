@@ -219,6 +219,7 @@ with `.pipe(catchNode.exhaustive(...))` — see
 - [Learn: your first state](/learn/01-first-state) — the guided version
 - [Directives and `.pipe(...)`](/guide/components/directives)
 - [Accessibility](/guide/components/accessibility)
+- [Composition boundaries: `sealComponent`](/guide/components/composition-boundaries)
 - [Testing components](/guide/testing/components)
 
 
