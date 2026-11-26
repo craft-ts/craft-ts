@@ -127,11 +127,8 @@ export const componentDemo = craftComponent(
             }),
         ),
       ),
-      deferNode(
-        ({ withRetry }) =>
-          withRetry(import('./lazy-message')).then(
-            (module) => module.lazyMessage,
-          ),
+      deferNode(({ withRetry }) => withRetry(import('./lazy-message'))).pick(
+        'lazyMessage',
         {
           trigger: 'interaction',
           placeholder: () =>

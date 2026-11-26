@@ -34,6 +34,9 @@ module.exports = {
   'craft-ts/require-reactive-template-bindings': 'error',
   'craft-ts/no-craft-computed-side-effects': 'error',
   'craft-ts/no-craft-component-return-type': 'error',
+  // A deferNode loader that selects its export with `.then` loses the loaded
+  // component's DI contract in a template; `.pick(name)` keeps it.
+  'craft-ts/prefer-defer-node-pick': 'error',
   // A component call sends DOM properties and events to its root element: an
   // input declared with such a name would never reach the component.
   'craft-ts/no-reserved-component-input-name': 'error',

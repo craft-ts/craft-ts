@@ -43,6 +43,10 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
 - One insertion per primitive; compose with `craftPipe`.
 - `craftService` + generated `X()` helpers. No new `inject()` / `@Injectable`.
 - `craftRoutes` + `componentDeps` + a per-file DI check. Split on `TS2589`.
+- Lazy components: `deferNode(({ withRetry }) => withRetry(import('./x'))).pick('X', options)`.
+  Never select the export inside the loader with `.then((m) => m.X)`: in a
+  template the component loses its DI contract (`craft-ts/prefer-defer-node-pick`
+  fixes it).
 - Type-depth errors (see [Type-depth errors](#type-depth-errors)): never
   silence them with `any`, `@ts-ignore` or a `CraftComponent<…>` annotation.
 - Use `startCraft` and `provideCraftRouter` for a browser app that may receive
