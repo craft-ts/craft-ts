@@ -7,7 +7,6 @@ import type {
   IdentifierQueryInsertionContext,
   IdentifierQueryInsertionFactory,
   IdentifierQueryInsertionOutput,
-  InsertionByIdParams,
   ResourceExceptionConstraints,
 } from './query.core';
 import { ɵIDENTIFIER_QUERY_INSERTION } from './query.core';
@@ -841,6 +840,9 @@ type QueryPipeArgs<
   Yielded
 >;
 
+// Keep this a plain alias of the factory type. `query`, `mutation` and
+// `asyncProcess` infer the resource state and params of the pipe members through
+// it; intersecting it, or loosening its context to `any`, loses that inference.
 type QueryPipeReturn<
   GroupIdentifier,
   ResourceState extends object | undefined,
@@ -848,88 +850,14 @@ type QueryPipeReturn<
   Exceptions extends ResourceExceptionConstraints,
   Insertions,
   Yielded,
-> = ((
-  context: Insertions extends {
-    readonly [ɵIDENTIFIER_QUERY_INSERTION]: unknown;
-  }
-    ? InsertionByIdParams<any, any, any, any, any, any>
-    : any,
-) => Insertions | Generator<Yielded, Insertions, unknown>) &
-  (Insertions extends { readonly [ɵIDENTIFIER_QUERY_INSERTION]: unknown }
-    ? {
-        readonly [ɵIDENTIFIER_QUERY_INSERTION]: {
-          readonly factories: readonly AnyInsertionFactory[];
-        };
-      }
-    : {});
-
-/** Composes one per-identifier factory with one query-wide insertion. */
-export function insertQueryPipe<
-  ResourceState extends object | undefined,
-  ResourceParams,
-  Exceptions extends ResourceExceptionConstraints,
-  GroupIdentifier extends string,
-  IdentifierOutputs extends Record<string, unknown>,
-  GlobalOutputs,
-  IdentifierYielded = never,
-  GlobalYielded = never,
->(
-  identifierInsertion: IdentifierQueryInsertionFactory<
-    GroupIdentifier,
-    ResourceState,
-    ResourceParams,
-    IdentifierOutputs
-  >,
-  globalInsertion: QueryPipeFactory<
-    unknown,
-    ResourceState,
-    ResourceParams,
-    Exceptions,
-    GlobalOutputs,
-    {},
-    GlobalYielded
-  >,
-): QueryPipeReturn<
+> = QueryPipeFactory<
   GroupIdentifier,
   ResourceState,
   ResourceParams,
   Exceptions,
-  IdentifierQueryInsertionOutput<IdentifierOutputs> & GlobalOutputs,
-  IdentifierYielded | GlobalYielded
->;
-/** Composes one query-wide insertion before a per-identifier factory. */
-export function insertQueryPipe<
-  ResourceState extends object | undefined,
-  ResourceParams,
-  Exceptions extends ResourceExceptionConstraints,
-  GroupIdentifier extends string,
-  IdentifierOutputs extends Record<string, unknown>,
-  GlobalOutputs,
-  GlobalYielded = never,
-  IdentifierYielded = never,
->(
-  globalInsertion: QueryPipeFactory<
-    unknown,
-    ResourceState,
-    ResourceParams,
-    Exceptions,
-    GlobalOutputs,
-    {},
-    GlobalYielded
-  >,
-  identifierInsertion: IdentifierQueryInsertionFactory<
-    GroupIdentifier,
-    ResourceState,
-    ResourceParams,
-    IdentifierOutputs
-  >,
-): QueryPipeReturn<
-  GroupIdentifier,
-  ResourceState,
-  ResourceParams,
-  Exceptions,
-  IdentifierQueryInsertionOutput<IdentifierOutputs> & GlobalOutputs,
-  IdentifierYielded | GlobalYielded
+  Insertions,
+  {},
+  Yielded
 >;
 
 /**
@@ -1836,6 +1764,77 @@ export function insertQueryPipe<
   | Insertion5Yielded
   | Insertion6Yielded
   | Insertion7Yielded
+>;
+// The identifier overloads must stay after the generic ones: declared first, they
+// become the contextual type of every pipe member, and a mutation reaction in an
+// ordinary pipe then matches no overload at all.
+/** Composes one per-identifier factory with one query-wide insertion. */
+export function insertQueryPipe<
+  ResourceState extends object | undefined,
+  ResourceParams,
+  Exceptions extends ResourceExceptionConstraints,
+  GroupIdentifier extends string,
+  IdentifierOutputs extends Record<string, unknown>,
+  GlobalOutputs,
+  IdentifierYielded = never,
+  GlobalYielded = never,
+>(
+  identifierInsertion: IdentifierQueryInsertionFactory<
+    GroupIdentifier,
+    ResourceState,
+    ResourceParams,
+    IdentifierOutputs
+  >,
+  globalInsertion: QueryPipeFactory<
+    unknown,
+    ResourceState,
+    ResourceParams,
+    Exceptions,
+    GlobalOutputs,
+    {},
+    GlobalYielded
+  >,
+): QueryPipeReturn<
+  GroupIdentifier,
+  ResourceState,
+  ResourceParams,
+  Exceptions,
+  IdentifierQueryInsertionOutput<IdentifierOutputs> & GlobalOutputs,
+  IdentifierYielded | GlobalYielded
+>;
+/** Composes one query-wide insertion before a per-identifier factory. */
+export function insertQueryPipe<
+  ResourceState extends object | undefined,
+  ResourceParams,
+  Exceptions extends ResourceExceptionConstraints,
+  GroupIdentifier extends string,
+  IdentifierOutputs extends Record<string, unknown>,
+  GlobalOutputs,
+  GlobalYielded = never,
+  IdentifierYielded = never,
+>(
+  globalInsertion: QueryPipeFactory<
+    unknown,
+    ResourceState,
+    ResourceParams,
+    Exceptions,
+    GlobalOutputs,
+    {},
+    GlobalYielded
+  >,
+  identifierInsertion: IdentifierQueryInsertionFactory<
+    GroupIdentifier,
+    ResourceState,
+    ResourceParams,
+    IdentifierOutputs
+  >,
+): QueryPipeReturn<
+  GroupIdentifier,
+  ResourceState,
+  ResourceParams,
+  Exceptions,
+  IdentifierQueryInsertionOutput<IdentifierOutputs> & GlobalOutputs,
+  IdentifierYielded | GlobalYielded
 >;
 export function insertQueryPipe(...members: any[]): any {
   return createTypedInsertionPipe(...members);

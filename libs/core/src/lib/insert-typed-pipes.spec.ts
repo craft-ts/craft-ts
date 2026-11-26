@@ -3,6 +3,7 @@ import { computed, Signal } from './host/craft-compat';
 import { CraftTestBed } from './host/craft-test-bed';
 import {
   insertAsyncProcessPipe,
+  insertByIdentifierQuery,
   insertMutationPipe,
   insertQueryParamsPipe,
   insertQueryPipe,
@@ -10,7 +11,9 @@ import {
   insertStatePipe,
 } from './insert-typed-pipes';
 import { asyncProcess } from './async-process';
+import { craftComputed } from './craft-computed';
 import { craftUse } from './craft-use';
+import { insertReactOnMutation } from './insert-react-on-mutation';
 import { mutation } from './mutation';
 import { query } from './query';
 import { queryParams } from './query-params';
@@ -133,6 +136,153 @@ describe('typed insertion pipes', () => {
       await Promise.resolve();
       expect(users.first).toBe('user');
       expect(users.second).toBe('user-query');
+    });
+  });
+
+  it('keeps query types when a pipe contains a mutation reaction', async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
+      let loads = 0;
+      const save = craftUse(
+        mutation('saveItem', {
+          method: (id: string) => id,
+          loader: async ({ params }) => params,
+        }),
+      );
+      const reactionFirst = craftUse(
+        query(
+          'reactionFirst',
+          {
+            params: () => 'item',
+            loader: async () => ({ id: 'item', load: ++loads }),
+          },
+          insertQueryPipe(
+            insertReactOnMutation(save, {
+              reload: { onMutationResolved: true },
+            }),
+            ({ reload }) => ({ refetch: () => reload() }),
+          ),
+        ),
+      );
+      const reactionLast = craftUse(
+        query(
+          'reactionLast',
+          { params: () => 'item', loader: async () => ({ id: 'item' }) },
+          insertQueryPipe(
+            ({ reload }) => ({ refetch: () => reload() }),
+            insertReactOnMutation(save, {
+              reload: { onMutationResolved: true },
+            }),
+          ),
+        ),
+      );
+      const twoReactions = craftUse(
+        query(
+          'twoReactions',
+          { params: () => 'item', loader: async () => ({ id: 'item' }) },
+          insertQueryPipe(
+            insertReactOnMutation(save, {
+              reload: { onMutationResolved: true },
+            }),
+            insertReactOnMutation(save, {
+              reload: { onMutationException: true },
+            }),
+          ),
+        ),
+      );
+      const threeMembers = craftUse(
+        query(
+          'threeMembers',
+          {
+            params: () => 'item',
+            loader: function* () {
+              return { id: 'item' };
+            },
+          },
+          insertQueryPipe(
+            insertReactOnMutation(save, {
+              reload: { onMutationResolved: true },
+            }),
+            ({ reload }) => ({ refetch: () => reload() }),
+            function* ({ state: answered, insertions }) {
+              expectTypeOf(insertions.refetch).toBeFunction();
+              return {
+                label: yield* craftComputed('label', function* () {
+                  return (yield* answered())?.id ?? '';
+                }),
+              };
+            },
+          ),
+        ),
+      );
+
+      expectTypeOf(craftUse(reactionFirst.value())).toEqualTypeOf<
+        { id: string; load: number } | undefined
+      >();
+      expectTypeOf(reactionFirst.refetch).toBeFunction();
+      expectTypeOf(craftUse(reactionLast.value())).toEqualTypeOf<
+        { id: string } | undefined
+      >();
+      expectTypeOf(reactionLast.refetch).toBeFunction();
+      expectTypeOf(craftUse(twoReactions.value())).toEqualTypeOf<
+        { id: string } | undefined
+      >();
+      expectTypeOf(craftUse(threeMembers.value())).toEqualTypeOf<
+        { id: string } | undefined
+      >();
+      expectTypeOf(threeMembers.refetch).toBeFunction();
+      expectTypeOf(craftUse(threeMembers.label())).toEqualTypeOf<string>();
+
+      await vi.waitFor(() =>
+        expect(craftUse(reactionFirst.value())?.load).toBe(1),
+      );
+      save.mutate('item');
+      await vi.waitFor(() =>
+        expect(craftUse(reactionFirst.value())?.load).toBe(2),
+      );
+    });
+  });
+
+  it('infers a per-identifier factory in either order of a query pipe', () => {
+    CraftTestBed.runInInjectionContext(() => {
+      const identifierFirst = craftUse(
+        query(
+          'inferredIdentifierFirst',
+          {
+            params: () => 'item',
+            identifier: (params: string) => params,
+            loader: async () => ({ id: 'item' }),
+          },
+          insertQueryPipe(
+            insertByIdentifierQuery(({ resource }) => ({
+              stop: () => resource.cancelLoading(),
+            })),
+            () => ({ all: () => true }),
+          ),
+        ),
+      );
+      const identifierLast = craftUse(
+        query(
+          'inferredIdentifierLast',
+          {
+            params: () => 'item',
+            identifier: (params: string) => params,
+            loader: async () => ({ id: 'item' }),
+          },
+          insertQueryPipe(
+            () => ({ all: () => true }),
+            insertByIdentifierQuery(({ resource }) => ({
+              stop: () => resource.cancelLoading(),
+            })),
+          ),
+        ),
+      );
+
+      expectTypeOf(identifierFirst.all).toBeFunction();
+      expectTypeOf(identifierFirst).not.toHaveProperty('stop');
+      expectTypeOf(identifierFirst.selectOrCreate('a').stop).toBeFunction();
+      expectTypeOf(identifierLast.all).toBeFunction();
+      expectTypeOf(identifierLast).not.toHaveProperty('stop');
+      expectTypeOf(identifierLast.selectOrCreate('a').stop).toBeFunction();
     });
   });
 
