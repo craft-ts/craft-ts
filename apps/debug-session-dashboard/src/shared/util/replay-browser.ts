@@ -197,7 +197,11 @@ let host: Host | undefined;
 
 /** The element with this id, among the descendants of the dashboard's root. */
 function byId(id: string): HTMLElement | null {
-  return host?.root.querySelector<HTMLElement>(`#${CSS.escape(id)}`) ?? null;
+  // Read through the root's own document, not the `CSS` global: a replay
+  // timer can still run once the window that defined `CSS` is gone.
+  const root = host?.root;
+  const element = root?.ownerDocument.getElementById(id) ?? null;
+  return element && root?.contains(element) ? element : null;
 }
 
 function syncVisibilityToggle(toggle: Element | null, compact: boolean): void {
