@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/stream-effect",
-  "version": "0.11.4",
+  "version": "0.11.5",
   "description": "Adapters between @craft-ts/stream and Effect's Stream, Queue, PubSub, SubscriptionRef and Schedule",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -21,9 +21,9 @@
     "typescript"
   ],
   "peerDependencies": {
-    "@craft-ts/core": "^0.11.4",
-    "@craft-ts/effect": "^0.11.4",
-    "@craft-ts/stream": "^0.11.4",
+    "@craft-ts/core": "^0.11.5",
+    "@craft-ts/effect": "^0.11.5",
+    "@craft-ts/stream": "^0.11.5",
     "effect": ">=4.0.0-rc.112 || >=4.0.0"
   },
   "engines": {

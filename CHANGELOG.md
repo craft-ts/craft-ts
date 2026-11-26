@@ -1,3 +1,24 @@
+## 0.11.5 (2026-11-26)
+
+### 🚀 Features
+
+- **component:** add sealComponent to keep a component's contracts without its template tree ([ae6cf6978](https://github.com/craft-ts/craft-ts/commit/ae6cf6978))
+- **component,dev-tools:** load a deferred component by naming its module export with pick ([1a4379343](https://github.com/craft-ts/craft-ts/commit/1a4379343))
+- **dev-tools:** report components typed by hand with CraftComponent<…> ([46b899d45](https://github.com/craft-ts/craft-ts/commit/46b899d45))
+
+### 🩹 Fixes
+
+- **component,core:** close the template-test escape hatch and name degraded contracts ([bf7a37d01](https://github.com/craft-ts/craft-ts/commit/bf7a37d01))
+- **core:** keep query types when a pipe contains a mutation reaction ([48f2eb1bb](https://github.com/craft-ts/craft-ts/commit/48f2eb1bb))
+- **core:** skip routes with no component in ValidateCascadeRoutesFile ([3e3d9272b](https://github.com/craft-ts/craft-ts/commit/3e3d9272b))
+- **core,component:** fail DI proofs closed when a component contract is lost ([848a6723d](https://github.com/craft-ts/craft-ts/commit/848a6723d))
+- **dashboard:** find replay elements without the CSS global ([3d44dab92](https://github.com/craft-ts/craft-ts/commit/3d44dab92))
+- **demo:** seal ControlRoom instead of typing it by hand ([01042332a](https://github.com/craft-ts/craft-ts/commit/01042332a))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.11.4 (2026-11-25)
 
 ### 🚀 Features
