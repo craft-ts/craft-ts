@@ -32,6 +32,7 @@ export { createStringDomAdapter } from './lib/render/string-dom';
 // Side-effect only: the router resolves them through the generated services.
 import './lib/craft-defaults';
 export * from './lib/component';
+export * from './lib/sealed-component';
 export * from './lib/security';
 export * from './lib/composition';
 export * from './lib/catch-node';
@@ -134,4 +135,5 @@ export type {
   CatchNode,
   MatchNode,
   TemplateNode,
+  SealedTemplateOutput,
 } from './lib/render/vnode';

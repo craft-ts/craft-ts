@@ -109,7 +109,14 @@ export type SealChannels<Channels extends CraftChannels> = [Channels] extends [
 ]
   ? [Accumulate | Obligations | Discharges | Violates] extends [never]
     ? EmptyChannels
-    : SealedChannels<Accumulate, Obligations, Discharges, Violates>
+    : // Each payload is rebuilt inline: a union produced by an alias keeps
+      // that alias's arguments, which here are the raw sets of the whole tree.
+      SealedChannels<
+        Accumulate extends unknown ? Accumulate : never,
+        Obligations extends unknown ? Obligations : never,
+        Discharges extends unknown ? Discharges : never,
+        Violates extends unknown ? Violates : never
+      >
   : Channels;
 
 /**

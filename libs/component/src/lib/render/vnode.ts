@@ -1238,6 +1238,31 @@ type ComponentNodeChannels<
   Channels | CraftNodeRawChannelsOf<ContentChildrenFromProps<Props>>
 >;
 
+/**
+ * What the template of a sealed component hands its parent: the summaries a
+ * parent reads — dependencies, channels, heading need, handled exception
+ * codes — and nothing of the tree that produced them.
+ *
+ * An interface on purpose (see `SealedDependencyEntry`): a reference to it only
+ * carries its resolved arguments, so a parent comparing or instantiating a type
+ * that contains it stops here instead of walking the child's whole subtree.
+ *
+ * Pending sources, settled exceptions and uncaught exceptions are absent: the
+ * component's own `craftComponent(...)` call already refused any that were
+ * left open, so none reaches its boundary.
+ */
+export interface SealedTemplateOutput<
+  Dependencies extends object = {},
+  Channels extends CraftChannels = EmptyChannels,
+  HeadingNeed extends string = never,
+  HandledExceptions extends string = never,
+> extends CraftNodeDepsCarrier<Dependencies>,
+    CraftChannelsCarrier<Channels>,
+    CraftNodeHeadingNeedCarrier<HeadingNeed>,
+    CraftNodeHandledExceptionsCarrier<HandledExceptions> {
+  readonly kind: 'element';
+}
+
 export type ComponentHeadingNeedOf<Component> =
   Component extends CraftComponent<any, any, any, any, any, any, infer Template>
     ? Template extends (...args: any[]) => infer Output
