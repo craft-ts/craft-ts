@@ -400,8 +400,9 @@ describe('demo with server function', () => {
     ).toBe('server-function-family');
     expect(() => assertServerFunctionArchitecture(graph.graph)).not.toThrow();
     // Construire le programme TypeScript de la démo dépasse le timeout par
-    // défaut : il croît avec le nombre de fichiers analysés.
-  }, 60_000);
+    // défaut : il croît avec le nombre de fichiers analysés. Environ 30 s
+    // seul, plus de 60 s quand les tests d'autres projets tournent à côté.
+  }, 120_000);
 });
 
 function configureServerFunctionTransport(
