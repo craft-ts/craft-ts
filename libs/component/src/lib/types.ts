@@ -5,6 +5,7 @@ import type {
   CraftServiceProvider,
   SealComponentDependencies,
   SealDependencyMap,
+  UnknownComponentDependencies,
   ExtractCraftGenExceptions,
   ResolveGeneratorResult,
   Yieldable,
@@ -1407,7 +1408,8 @@ type PipedComponent<
 
 export interface CraftComponent<
   Props extends object = Record<never, never>,
-  ComponentDeps extends object = Record<never, never>,
+  // Not `{}`: a component typed without its contract must not prove anything.
+  ComponentDeps extends object = UnknownComponentDependencies,
   Factory extends ComponentFactory = ComponentFactory,
   Meta extends ComponentMeta = ComponentMeta,
   RootFactory extends ComponentFactory = Factory,

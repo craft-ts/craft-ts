@@ -3,6 +3,7 @@ import {
   craftService,
   craftUse,
   createCraftRouterOutletController,
+  type EmptyComponentDependencies,
 } from '@craft-ts/core';
 import { craftComponent } from './component';
 import type { CraftComponent } from './types';
@@ -44,6 +45,7 @@ export const CraftRouterOutlet = craftComponent(
   },
 ) as CraftComponent<
   Record<never, never>,
-  Record<never, never>,
+  // The outlet depends on nothing itself; each route is checked on its own.
+  EmptyComponentDependencies,
   CraftRouterOutletTemplate
 >;

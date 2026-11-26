@@ -19,6 +19,7 @@ import {
   type CanRun,
   type GetServiceDependencies,
   type RouteCheckedDI,
+  type UnknownComponentDependencies,
   craftUse,
 } from '@craft-ts/core';
 import {
@@ -636,15 +637,22 @@ it('carries inferred dependencies from the component through the lazy route frag
 });
 
 it('does not infer component dependencies from an unbranded value', () => {
+  // An unbranded value has no contract to prove: it answers the unknown
+  // contract, which every DI check refuses (it used to answer `{}`, which
+  // every DI check accepted).
   expectTypeOf<
     ComponentDepsOf<{ readonly value: string }>
-  >().toEqualTypeOf<{}>();
+  >().toEqualTypeOf<UnknownComponentDependencies>();
 });
 
 it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
-  expectTypeOf<ComponentDepsOf<unknown>>().toEqualTypeOf<{}>();
+  expectTypeOf<
+    ComponentDepsOf<unknown>
+  >().toEqualTypeOf<UnknownComponentDependencies>();
   expectTypeOf<ComponentDepsOf<never>>().toBeNever();
-  expectTypeOf<ComponentDepsOf<any>>().toEqualTypeOf<object | {}>();
+  expectTypeOf<ComponentDepsOf<any>>().toEqualTypeOf<
+    object | UnknownComponentDependencies
+  >();
 
   const { ComponentDepsUnionFirstView, provideComponentDepsUnionFirstView } =
     craftService(
@@ -687,7 +695,7 @@ it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
   >();
   expectTypeOf<
     ComponentDepsOf<typeof first | { readonly value: string }>
-  >().toEqualTypeOf<FirstDeps | {}>();
+  >().toEqualTypeOf<FirstDeps | UnknownComponentDependencies>();
 });
 
 it('propagates a service used by state-machine transitions into the component DI check', () => {

@@ -43,13 +43,74 @@ export type ComponentExceptionsOf<Value> = Value extends object
     : never
   : never;
 
+/**
+ * The `missingProvider` entry that stands for a dependency contract nobody can
+ * read any more.
+ *
+ * It is spelled as a sentence because it ends up in DI error lists, and it is a
+ * string key on purpose: like any other missing provider it travels from a
+ * child to every parent that renders it, through the same merge, so one erased
+ * child is enough to keep the whole tree from being proven. No provider is ever
+ * registered under that name, so nothing can discharge it by accident.
+ */
+export type UnknownComponentContractKey =
+  'unknown component dependency contract (not a component, or a component typed by hand; seal it with sealComponent(Component) instead)';
+
+/** What the {@link UnknownComponentContractKey} entry holds. */
+export interface UnknownComponentContractRequirement {
+  readonly unknownComponentContract: true;
+}
+
+/**
+ * The dependency contract of a component whose real contract was lost.
+ *
+ * It is what `CraftComponent<Props>` (no contract argument) carries, and what
+ * `ComponentDepsOf` answers for a value that is not a component. Every real
+ * contract is assignable to it — the key is optional — so annotating a
+ * component this way still compiles, but the DI proof of that component and of
+ * every component rendering it fails closed instead of answering `true`.
+ */
+export type UnknownComponentDependencies = {
+  deps: {};
+  propertiesDeps: {};
+  provided: {};
+  publicProperties: {};
+  missingProvider: UnknownComponentContractMissingProviders;
+};
+
+type UnknownComponentContractMissingProviders = {
+  readonly [Key in UnknownComponentContractKey]?: UnknownComponentContractRequirement;
+} & {
+  // Keeps this map from being a "weak" type (all properties optional), which
+  // TypeScript would refuse to receive a map with no key in common — that is,
+  // every real missing-provider map. A symbol index is invisible to the string
+  // keys the DI checks read.
+  readonly [unknownContractTag: symbol]: unknown;
+};
+
+/**
+ * The dependency contract of a component that depends on nothing, for a
+ * component typed by hand on purpose (the router outlet, whose routes are
+ * checked on their own). Unlike `{}`, it is a contract `RouteCheckedDI` can
+ * prove.
+ */
+export type EmptyComponentDependencies = {
+  deps: {};
+  propertiesDeps: {};
+  provided: {};
+  publicProperties: {};
+  missingProvider: {};
+};
+
 export type ComponentDepsOf<Value> = Value extends {
   readonly [CRAFT_COMPONENT_DEPS]?: infer ComponentDeps extends object;
 }
   ? typeof CRAFT_COMPONENT_DEPS extends keyof Value
     ? ComponentDeps
-    : {}
-  : {};
+    : // Not a component (`typeof import('./page')` instead of its `default`,
+      // a loader, a widened value): nothing to prove, so nothing is proven.
+      UnknownComponentDependencies
+  : UnknownComponentDependencies;
 
 type ExtractPublicInstance<Component> = Component extends abstract new (
   ...args: unknown[]
@@ -251,11 +312,30 @@ export type SealDependencyMap<Map> =
     ? Map
     : [Map] extends [never]
       ? never
-      : DependencyMapFromSealedEntries<
-            SealedDependencyEntries<Map>
-          > extends infer Sealed extends object
-        ? Sealed
-        : never;
+      : UnknownComponentContractKey extends keyof Map
+        ? // The unknown-contract entry stays optional through the seal: every
+          // real contract must remain assignable to the contract it marks,
+          // including after `.pipe(...)` recomputed both.
+          SealDependencyMapOf<Omit<Map, UnknownComponentContractKey>> &
+            UnknownComponentDependencies['missingProvider']
+        : SealDependencyMapOf<Map>;
+
+// The entries are built by an inline conditional, not through
+// `SealedDependencyEntries<Map>`: a union produced by a type alias keeps that
+// alias and its arguments, and here the argument is the template's whole
+// dependency tree. The sealed map would then remember exactly what it is meant
+// to forget, and every instantiation of a type containing it would walk the
+// tree again. A union built inline carries nothing but its members.
+type SealDependencyMapOf<Map> =
+  DependencyMapFromSealedEntries<
+    keyof Map extends infer Key
+      ? Key extends keyof Map
+        ? SealedDependencyEntry<Key, Map[Key]>
+        : never
+      : never
+  > extends infer Sealed extends object
+    ? Sealed
+    : never;
 
 type ComponentDependencyContract<
   Deps,

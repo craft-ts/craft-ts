@@ -1,6 +1,10 @@
 import { craftUse } from './craft-use';
 import { craftService, GetServiceDependencies } from './craft-service';
-import { GetDeps } from './branded-component/branded-component';
+import {
+  GetDeps,
+  type EmptyComponentDependencies,
+  type UnknownComponentDependencies,
+} from './branded-component/branded-component';
 import type { CanRun } from './app-checked-di';
 import type { RouteCheckedDI } from './route-checked-di';
 
@@ -99,6 +103,77 @@ describe('RouteCheckedDI', () => {
     type UncomputableProof = RouteCheckedDI<any, 'Counter'>;
     // @ts-expect-error an uncomputable contract is never a proof.
     type _CannotRun = CanRun<UncomputableProof>;
+  });
+
+  it('should fail closed when a missing provider entry is any', () => {
+    // `any extends ProvidedValues` holds whatever was provided: the entry used
+    // to vanish from the list and the proof read `true`.
+    type Contract = {
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: { Counter: any };
+    };
+    expectTypeOf<RouteCheckedDI<Contract, 'Other'>>().toEqualTypeOf<
+      [
+        'The component dependency contract could not be computed; type-safe DI validation is unavailable',
+      ]
+    >();
+  });
+
+  it('should fail closed when the checked value is not a contract', () => {
+    type NotAContract = [
+      'The value checked is not a component dependency contract (no deps, no missingProvider); pass ComponentDepsOf<typeof Component>',
+    ];
+    expectTypeOf<RouteCheckedDI<{}, 'Other'>>().toEqualTypeOf<NotAContract>();
+    expectTypeOf<
+      RouteCheckedDI<Record<never, never>, 'Other'>
+    >().toEqualTypeOf<NotAContract>();
+  });
+
+  it('should fail closed when the contract is the unknown contract', () => {
+    expectTypeOf<
+      RouteCheckedDI<UnknownComponentDependencies, 'Other', never, 'Shell'>
+    >().toEqualTypeOf<
+      [
+        'The dependency contract of a component rendered in Shell is unknown: the value is not a component, or a component was typed by hand. Pass the component itself to ComponentDepsOf, and seal a component with sealComponent(Component) instead of typing it',
+      ]
+    >();
+    expectTypeOf<
+      RouteCheckedDI<EmptyComponentDependencies, 'Other'>
+    >().toEqualTypeOf<true>();
+  });
+
+  it('should fail closed when provided values or input names widen', () => {
+    const { Counter } = craftService(
+      { name: 'Counter', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+    type Contract = GetDeps<{
+      deps: { Counter: GetServiceDependencies<typeof Counter> };
+      provided: {};
+      publicProperties: { userId: () => string };
+    }>;
+    type WidenedValues = [
+      'Provided values widened to any or unknown; type-safe DI validation is unavailable',
+    ];
+    // Every missing provider is assignable to `unknown`: all of them used to
+    // be discharged.
+    expectTypeOf<
+      RouteCheckedDI<Contract, never, unknown>
+    >().toEqualTypeOf<WidenedValues>();
+    expectTypeOf<
+      RouteCheckedDI<Contract, never, any>
+    >().toEqualTypeOf<WidenedValues>();
+    expectTypeOf<
+      RouteCheckedDI<Contract, 'Counter', never, 'this component', string>
+    >().toEqualTypeOf<
+      [
+        'Available input names widened to string; type-safe DI validation is unavailable',
+      ]
+    >();
   });
 
   it('should report a missing input from publicProperties', () => {

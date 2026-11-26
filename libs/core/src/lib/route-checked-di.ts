@@ -1,5 +1,8 @@
 import type { Simplify, UnionToTuple } from './craft-service.shared';
-import type { MissingProvidersFromDepsMap } from './branded-component/branded-component';
+import type {
+  MissingProvidersFromDepsMap,
+  UnknownComponentContractKey,
+} from './branded-component/branded-component';
 import type { NamedBrandedServiceProvider } from './craft-service';
 import type {
   AppConfigProvidedDependencyValuesKey,
@@ -141,24 +144,74 @@ type WidenedProviderNamesError<AvailableProviderNames extends string> =
 
 type IsAnyContract<Value> = 0 extends 1 & Value ? true : false;
 
+type UncomputableContractMessage =
+  'The component dependency contract could not be computed; type-safe DI validation is unavailable';
+
+type NotAContractMessage =
+  'The value checked is not a component dependency contract (no deps, no missingProvider); pass ComponentDepsOf<typeof Component>';
+
+type UnknownContractMessage<Context extends string> =
+  `The dependency contract of a component rendered in ${Context} is unknown: the value is not a component, or a component was typed by hand. Pass the component itself to ComponentDepsOf, and seal a component with sealComponent(Component) instead of typing it`;
+
+type WidenedProvidedValuesMessage =
+  'Provided values widened to any or unknown; type-safe DI validation is unavailable';
+
+type WidenedInputNamesMessage =
+  'Available input names widened to string; type-safe DI validation is unavailable';
+
+/** True when an entry of the missing-provider map carries no type at all. */
+type HasAnyMissingProviderEntry<MissingProviders> = true extends {
+  [Name in keyof MissingProviders]: IsAnyContract<MissingProviders[Name]>;
+}[keyof MissingProviders]
+  ? true
+  : false;
+
 /**
- * Fail closed when the component contract itself could not be computed.
+ * Fail closed whenever the contract cannot carry a proof.
  *
- * A contract that degraded to `any` (typically TypeScript giving up on a type
- * with TS2589) turns every check below into `any[]`, which a hand-written
- * expected list then satisfies. Naming the failure keeps the proof from
- * silently accepting a broken DI graph.
+ * Every case below used to end on `true` or on `any[]`, which a hand-written
+ * expected list then satisfies:
+ *
+ * - the contract degraded to `any` (TypeScript giving up with TS2589);
+ * - an entry of `missingProvider` is `any` — `any extends ProvidedValues`
+ *   holds for every value, so the provider vanished from the list;
+ * - the value is not a contract at all (`{}`), so there was nothing to list;
+ * - a component in the tree was widened or annotated by hand
+ *   (`CraftComponent<Props>`), which used to drop its whole contract.
  */
-type UncomputableContractError<ComponentDeps> =
+type UncomputableContractError<
+  ComponentDeps,
+  Context extends string,
+> =
   IsAnyContract<ComponentDeps> extends true
-    ? [
-        'The component dependency contract could not be computed; type-safe DI validation is unavailable',
-      ]
+    ? [UncomputableContractMessage]
     : IsAnyContract<MissingProviderMap<ComponentDeps>> extends true
-      ? [
-          'The component dependency contract could not be computed; type-safe DI validation is unavailable',
-        ]
-      : [];
+      ? [UncomputableContractMessage]
+      : ComponentDeps extends { deps: unknown } | { missingProvider: unknown }
+        ? UnknownComponentContractKey extends keyof MissingProviderMap<ComponentDeps>
+          ? [UnknownContractMessage<Context>]
+          : HasAnyMissingProviderEntry<
+                MissingProviderMap<ComponentDeps>
+              > extends true
+            ? [UncomputableContractMessage]
+            : []
+        : [NotAContractMessage];
+
+/**
+ * Fail closed when the names or values used to discharge a dependency widen:
+ * every missing provider would match them and the proof would read `true`.
+ */
+type WidenedDischargeError<
+  ProvidedValues,
+  AvailableInputNames extends string,
+> =
+  IsAnyContract<ProvidedValues> extends true
+    ? [WidenedProvidedValuesMessage]
+    : unknown extends ProvidedValues
+      ? [WidenedProvidedValuesMessage]
+      : string extends AvailableInputNames
+        ? [WidenedInputNamesMessage]
+        : [];
 
 // -----------------------------------------------------------------------------
 // Cascade-specific helpers
@@ -186,7 +239,12 @@ type NamesMatchingProvidedValues<
   [Name in Extract<
     keyof MissingProviders,
     string
-  >]: MissingProviders[Name] extends ProvidedValues ? Name : never;
+  >]: IsAnyContract<MissingProviders[Name]> extends true
+    ? // `any extends ProvidedValues` holds whatever was provided.
+      never
+    : MissingProviders[Name] extends ProvidedValues
+      ? Name
+      : never;
 }[Extract<keyof MissingProviders, string>];
 
 /**
@@ -237,8 +295,10 @@ export type RouteCheckedDI<
   AvailableInputNames extends string = never,
 > = string extends AvailableProviderNames
   ? WidenedProviderNamesError<AvailableProviderNames>
-  : UncomputableContractError<ComponentDeps> extends [string]
-    ? UncomputableContractError<ComponentDeps>
+  : WidenedDischargeError<ProvidedValues, AvailableInputNames> extends [string]
+    ? WidenedDischargeError<ProvidedValues, AvailableInputNames>
+    : UncomputableContractError<ComponentDeps, Context> extends [string]
+    ? UncomputableContractError<ComponentDeps, Context>
     : [
           ...InputErrorMessagesFromNames<
             UnionToTuple<
