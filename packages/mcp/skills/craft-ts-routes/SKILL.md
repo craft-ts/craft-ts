@@ -39,3 +39,10 @@ does not validate the child collection behind `loadChildren`.
 Use literal dynamic imports wrapped with `withRetry` for Craft lazy chunks. Handle all typed route
 exceptions with route handlers or `assertExhaustiveRouteExceptions`. If a route collection reaches
 TypeScript's instantiation limit, split it into checked child collections with `loadChildren`.
+
+If the error comes from the routed component's own tree instead (`TS2589`, `TS2321` or `TS7056` on
+the component, a condition between two components, a slot or a `forNode` row), splitting routes does
+not help: seal the component at that boundary with `sealComponent(Component)`. It keeps the DI
+contract, so `RouteCheckedDI` still proves it. Never type the component as `CraftComponent<…>` to
+shrink it: the proof then fails with "unknown component dependency contract". See
+`references/scaling-and-pitfalls.md`.

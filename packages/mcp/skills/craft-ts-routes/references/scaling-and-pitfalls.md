@@ -50,9 +50,43 @@ assertChildRouteMounts(demoRoutes);
 
 `assertChildRouteMounts` reads only the parent's own routes and does not re-validate the child.
 
+## Type-depth errors from a component tree
+
+Splitting routes only helps when the route collection itself is too large. When `TS2589`,
+`TS2321` (excessive stack depth comparing types) or `TS7056` (inferred type too long to serialize)
+fires on a component, its template or a parent rendering it, the cause is the component type: it
+carries the shape of the whole tree its template renders, and some sites re-expand it — a
+condition between two deep components, a slot, a `forNode` row, a generic boundary, the `.d.ts` of
+an exported component.
+
+Seal the component where it crosses that boundary:
+
+```ts
+import { craftComponent, sealComponent } from '@craft-ts/component';
+
+// workspace-browser.ts — the definition stays plain, so its own tests keep typed locators.
+export const WorkspaceBrowser = craftComponent('WorkspaceBrowser', { providers: [/* … */] }, function* () {
+  /* … */
+});
+
+// shell.ts — sealed where it is composed.
+const SealedWorkspaceBrowser = sealComponent(WorkspaceBrowser);
+```
+
+`sealComponent` returns the component untouched. Its type keeps props, the DI contract
+(`ComponentDepsOf<typeof SealedWorkspaceBrowser>` proves the same as the unsealed one), exceptions,
+the `headingSection` need, channels and `.pipe(...)`. It drops only the rendered tree, so typed
+content locators and template contracts stop at the sealed boundary.
+
+It is one remedy, not a default: splitting a huge template into child components also helps, and
+`tsc --extendedDiagnostics` shows whether composition dominates the instantiation count.
+
 ## Pitfalls
 
 - Do not cast away a DI error with `any` or `@ts-ignore`.
+- Do not type a component as `CraftComponent<…>` (annotation or assertion) to make its type
+  smaller: it drops the DI contract, and `RouteCheckedDI` then fails with "unknown component
+  dependency contract". Use `sealComponent(Component)`.
 - Do not assume a parent route check covers a `loadChildren` child.
 - Do not omit `CanRun`: the type alias is what consumes the check and turns a mismatch into a compile
   error.

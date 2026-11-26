@@ -21,7 +21,8 @@ For SSR, use `renderCraft` to render one isolated request. On the browser,
 - `yield*` every Craft reader (`state`, `query.value()`, service helpers). Use `craftUse` only at synchronous boundaries such as tests.
 - One primitive family: `state` / `query` / `mutation` / `queryParams` / `asyncProcess`. Compose insertions with `craftPipe`.
 - `craftService` + generated `X()` helpers for explicit dependency composition.
-- `craftRoutes` + `componentDeps` + a per-file DI check. Split with `loadChildren` on `TS2589`.
+- `craftRoutes` + `componentDeps` + a per-file DI check. Split with `loadChildren` on `TS2589` from a route collection.
+- `TS2589`, `TS2321` or `TS7056` on a component tree (deep page, condition between components, slot, `forNode` row, exported component): seal the component at that boundary with `sealComponent(Component)`; it keeps the DI contract, exceptions and heading need. Never type a component as `CraftComponent<…>`.
 - Enable `@craft-ts/dev-tools` ESLint rules and run `eslint --fix` after DI or route edits.
 - In a typed-style project, name palettes, represent hover with
   `when(interaction.hover, ...)`, and run `npm run style:check` after changing

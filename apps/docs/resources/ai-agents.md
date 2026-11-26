@@ -99,7 +99,7 @@ Skills follow the [Agent Skills](https://agentskills.io/specification) layout
 
 | Skill | Trigger |
 | --- | --- |
-| `craft-ts` | Any authored Craft code |
+| `craft-ts` | Any authored Craft code; `TS2589` / `TS2321` / `TS7056` on components (`sealComponent`) |
 | `craft-ts-architecture-tests` | Scaffold or run `architecture/`, or freeze a graph smell |
 | `translate-spec-to-craft-ts` | Spec / CRUD / filters / forms → primitives |
 | `craft-ts-routes` | `craftRoutes`, `loadCraftComponent`, `TS2589` |

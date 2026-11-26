@@ -1,6 +1,6 @@
 ---
 name: craft-ts
-description: Write and review framework-independent @craft-ts/core applications, including CSR and SSR. Use when creating or evolving a CraftTS project, adding state, query, mutation, queryParams, asyncProcess, craftService, craftComponent, craftRoutes, forms, SSR rendering or hydration, API boundaries, or coding-agent setup.
+description: Write and review framework-independent @craft-ts/core applications, including CSR and SSR. Use when creating or evolving a CraftTS project, adding state, query, mutation, queryParams, asyncProcess, craftService, craftComponent, craftRoutes, forms, SSR rendering or hydration, API boundaries, or coding-agent setup, and when TypeScript reports TS2589, TS2321 or TS7056 on Craft components or routes.
 ---
 
 # CraftTS
@@ -43,6 +43,8 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
 - One insertion per primitive; compose with `craftPipe`.
 - `craftService` + generated `X()` helpers. No new `inject()` / `@Injectable`.
 - `craftRoutes` + `componentDeps` + a per-file DI check. Split on `TS2589`.
+- Type-depth errors (see [Type-depth errors](#type-depth-errors)): never
+  silence them with `any`, `@ts-ignore` or a `CraftComponent<…>` annotation.
 - Use `startCraft` and `provideCraftRouter` for a browser app that may receive
   SSR HTML. It hydrates a host marked by Craft SSR and mounts a fresh client
   tree otherwise. Use `bootstrapCraft` when a fresh client mount is explicitly
@@ -79,3 +81,47 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
   already wired into `.github/workflows/ci.yml` alongside the architecture
   and build checks.
 - Confirm symbols against the installed `node_modules/@craft-ts/core`.
+
+## Type-depth errors
+
+These errors mean a type grew too deep, not that the code is wrong:
+
+- `TS2589: Type instantiation is excessively deep and possibly infinite`;
+- `TS2321: Excessive stack depth comparing types …`;
+- `TS7056: The inferred type of this node exceeds the maximum length the compiler will serialize`.
+
+First find where it comes from: the line of the error, and
+`tsc --extendedDiagnostics` (instantiation count) when it is slow rather than
+failing. Then pick the remedy that matches:
+
+| Where it fires | Remedy |
+| --- | --- |
+| A route file, on a large `craftRoutes(...)` collection | split it into checked child collections with `loadChildren` (`craft-ts-routes`) |
+| A component tree: a deep page, `cond ? A() : B()` between components, a slot, a `forNode` row, a component passed to a generic boundary | seal the component where it crosses that boundary with `sealComponent(Component)` |
+| The declaration (`.d.ts`) of an exported component (TS7056) | export a sealed component: `sealComponent(Component)` |
+| One huge template | split it into child components (each computes its contracts once) |
+
+Sealing is one of these tools, not a default. `sealComponent` (from
+`@craft-ts/component`) returns the component itself; only its type changes. It
+keeps everything a parent checks — props and required inputs, the DI contract
+(`ComponentDepsOf` / `RouteCheckedDI`), initialization and field exceptions,
+the `headingSection` need, style channels, `.pipe(...)` — and drops the shape
+of the rendered tree.
+
+- Seal at the use site, keep the definition plain:
+  `export const Status = craftComponent('Status', …)` in its file, and
+  `const StatusRow = sealComponent(Status)` where a list, slot or condition
+  needs it. A library publishing `.d.ts` re-exports the sealed component from
+  its public index.
+- Test the unsealed component: typed content locators
+  (`result.locator('span', { content: … })`) and template contracts
+  (`TemplateRendersNamedElementWhen`) stop at a sealed boundary. The test
+  register (what must be mocked) is the same either way.
+- Never type a component by hand (`const X: CraftComponent<Props> = Impl`, or
+  `as CraftComponent<…>`): it drops the DI contract, so DI proofs and template
+  test registers then fail with an "unknown component dependency contract"
+  message. `craft-ts/no-craft-component-return-type` reports it. Replace it
+  with `sealComponent(Impl)`, or use `SealedComponent<typeof Impl>` when a
+  declaration must name the type.
+
+Docs: `/guide/components/composition-boundaries`.
