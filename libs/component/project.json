@@ -28,6 +28,19 @@
         "forwardAllArgs": true
       }
     },
+    "type-budget": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/check-type-budget.mjs"
+      },
+      "inputs": [
+        "{workspaceRoot}/tools/check-type-budget.mjs",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/src/**/*.ts",
+        "{workspaceRoot}/libs/core/src/**/*.ts"
+      ],
+      "cache": true
+    },
     "typecheck-spec": {
       "executor": "nx:run-commands",
       "options": {

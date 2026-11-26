@@ -49,6 +49,10 @@ jobs:
       # No app or lib with code and no test.
       - run: node --test tools/check-project-tests.test.mjs apps/framework-benchmark/common.test.mjs && npm run tests:check
 
+      # Component composition keeps a constant type cost per nesting level, and
+      # its DI proofs stay exact (issue #40).
+      - run: npm run type-budget
+
       # The unit proofs stay out of git: main's come from its last green run.
       - name: Unit proofs of main
         if: github.event_name == 'pull_request'
