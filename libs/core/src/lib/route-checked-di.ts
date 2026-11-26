@@ -414,18 +414,25 @@ type CascadeRouteEntryError<
   ParentInputNames extends string,
   RouteMeta,
 > = RouteMeta extends { path: infer Path extends string }
-  ? RouteCheckedDI<
-      RouteMeta,
-      ParentNames,
-      ParentValues,
-      `path: "${Path}"`,
-      ParentInputNames
-    > extends infer Result
-    ? Result extends true
-      ? []
-      : Result extends readonly string[]
-        ? Result
-        : []
+  ? // `craftRoutes` leaves `deps` and `missingProvider` out of an entry that
+    // has nothing to prove: a `loadChildren` or `redirectTo` route renders no
+    // component. Such an entry is not a lost contract, so it is skipped rather
+    // than reported as one. A lost component contract still carries both keys
+    // (`UnknownComponentDependencies`) and is checked below.
+    RouteMeta extends { deps: unknown } | { missingProvider: unknown }
+    ? RouteCheckedDI<
+        RouteMeta,
+        ParentNames,
+        ParentValues,
+        `path: "${Path}"`,
+        ParentInputNames
+      > extends infer Result
+      ? Result extends true
+        ? []
+        : Result extends readonly string[]
+          ? Result
+          : []
+      : []
     : []
   : [];
 
